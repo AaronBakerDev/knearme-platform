@@ -1,0 +1,15 @@
+# KnearMe Portfolio - robots.txt
+# Allow all crawlers to index public portfolio content
+
+User-agent: *
+Allow: /
+
+# Disallow authenticated/private areas
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /projects/new
+Disallow: /projects/*/edit
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://knearme.com/sitemap.xml

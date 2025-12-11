@@ -1,0 +1,20 @@
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="192" height="192" rx="24" fill="#18181b"/>
+
+  <!-- K letter stylized as bricks -->
+  <g fill="#ffffff">
+    <!-- Vertical bar of K -->
+    <rect x="48" y="40" width="24" height="112" rx="2"/>
+
+    <!-- Upper diagonal of K -->
+    <path d="M72 96 L120 48 L140 48 L140 68 L92 116 L72 116 Z" fill-rule="evenodd"/>
+
+    <!-- Lower diagonal of K -->
+    <path d="M72 96 L72 76 L92 76 L144 128 L144 152 L120 152 Z" fill-rule="evenodd"/>
+  </g>
+
+  <!-- Accent brick pattern -->
+  <rect x="144" y="40" width="8" height="16" rx="1" fill="#71717a"/>
+  <rect x="144" y="60" width="8" height="16" rx="1" fill="#71717a"/>
+</svg>
