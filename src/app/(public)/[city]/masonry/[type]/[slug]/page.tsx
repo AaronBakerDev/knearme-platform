@@ -24,7 +24,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PhotoGallery } from '@/components/portfolio/PhotoGallery';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
-import { RelatedProjects, fetchRelatedProjects } from '@/components/seo/RelatedProjects';
+import { RelatedProjects } from '@/components/seo/RelatedProjects';
+import { fetchRelatedProjects } from '@/lib/data/projects';
 import {
   generateProjectSchema,
   schemaToString,
@@ -212,10 +213,10 @@ export default async function ProjectPage({ params }: PageParams) {
   // Format date
   const publishedDate = project.published_at
     ? new Date(project.published_at).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
     : null;
 
   return (
