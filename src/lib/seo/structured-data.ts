@@ -11,6 +11,7 @@
  */
 
 import type { Contractor, Project, ProjectImage } from '@/types/database';
+import type { ArticleFrontmatter } from '@/lib/content/mdx';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
@@ -201,6 +202,35 @@ export function generateHowToSchema(
     tool: project.materials?.map((material) => ({
       '@type': 'HowToTool',
       name: material,
+    })),
+  };
+}
+
+/**
+ * Generate HowTo schema for Learning Center articles.
+ * Uses frontmatter to keep JSON-LD in sync with rendered step cards.
+ */
+export function generateArticleHowToSchema(
+  article: { slug: string; frontmatter: ArticleFrontmatter },
+  siteUrl: string = SITE_URL
+) {
+  const steps = article.frontmatter.howToSteps || [];
+
+  if (!steps.length) return null;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: article.frontmatter.howToTitle || article.frontmatter.title,
+    description:
+      article.frontmatter.howToDescription || article.frontmatter.description,
+    mainEntityOfPage: `${siteUrl}/learn/${article.slug}`,
+    step: steps.map((step, index) => ({
+      '@type': 'HowToStep',
+      position: index + 1,
+      name: step.title,
+      text: step.description,
+      ...(step.duration && { timeRequired: step.duration }),
     })),
   };
 }

@@ -20,7 +20,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Calendar, Clock, ArrowLeft, Tag, User } from "lucide-react";
+import { Calendar, Clock, ArrowLeft, Tag, User, ListOrdered } from "lucide-react";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
@@ -44,6 +44,7 @@ import { TableOfContents } from "@/components/content/TableOfContents";
 import { SocialShare } from "@/components/content/SocialShare";
 import {
   generateFAQSchema,
+  generateArticleHowToSchema,
   schemaToString,
 } from "@/lib/seo/structured-data";
 import { useMDXComponents } from "@/mdx-components";
@@ -175,6 +176,7 @@ export default async function ArticlePage({ params }: PageParams) {
     frontmatter.faqs && frontmatter.faqs.length > 0
       ? generateFAQSchema(frontmatter.faqs)
       : null;
+  const howToSchema = generateArticleHowToSchema({ slug, frontmatter });
 
   // Breadcrumb items
   const breadcrumbItems = [
@@ -192,6 +194,7 @@ export default async function ArticlePage({ params }: PageParams) {
   });
 
   // MDX components
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const components = useMDXComponents({});
 
   return (
@@ -205,6 +208,12 @@ export default async function ArticlePage({ params }: PageParams) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: schemaToString(faqSchema) }}
+        />
+      )}
+      {howToSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: schemaToString(howToSchema) }}
         />
       )}
 
@@ -291,6 +300,53 @@ export default async function ArticlePage({ params }: PageParams) {
                   />
                 </div>
               </header>
+
+              {/* How-To Steps (if provided) */}
+              {frontmatter.howToSteps && frontmatter.howToSteps.length > 0 && (
+                <section className="mb-10" aria-labelledby="howto-steps-heading">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <ListOrdered className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h2
+                        id="howto-steps-heading"
+                        className="text-2xl font-semibold tracking-tight"
+                      >
+                        {frontmatter.howToTitle || "Step-by-Step Process"}
+                      </h2>
+                      {frontmatter.howToDescription && (
+                        <p className="text-sm text-muted-foreground">
+                          {frontmatter.howToDescription}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {frontmatter.howToSteps.map((step, idx) => (
+                      <Card key={`${step.title}-${idx}`} className="border border-muted">
+                        <CardContent className="p-4 space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="h-8 w-8 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center">
+                                {idx + 1}
+                              </span>
+                              <h3 className="font-semibold">{step.title}</h3>
+                            </div>
+                            {step.duration && (
+                              <Badge variant="outline" className="text-xs">
+                                {step.duration}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">{step.description}</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {/* Featured Image */}
               {frontmatter.image && (

@@ -31,6 +31,13 @@ export interface ArticleFrontmatter {
   tags?: string[];
   relatedServices?: string[];
   faqs?: Array<{ question: string; answer: string }>;
+  howToTitle?: string;
+  howToDescription?: string;
+  howToSteps?: Array<{
+    title: string;
+    description: string;
+    duration?: string;
+  }>;
 }
 
 /**

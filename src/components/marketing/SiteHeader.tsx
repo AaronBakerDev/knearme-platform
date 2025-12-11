@@ -136,22 +136,28 @@ export function SiteHeader() {
 
             {/* Browse Projects */}
             <NavigationMenuItem>
-              <Link href="/denver-co/masonry" legacyBehavior passHref>
-                <NavigationMenuLink className={cn(navigationMenuTriggerStyle(), "h-10")}>
+              <NavigationMenuLink
+                asChild
+                className={cn(navigationMenuTriggerStyle(), "h-10")}
+              >
+                <Link href="/denver-co/masonry">
                   <Building2 className="h-4 w-4 mr-2" />
                   Browse Projects
-                </NavigationMenuLink>
-              </Link>
+                </Link>
+              </NavigationMenuLink>
             </NavigationMenuItem>
 
             {/* Learning Center */}
             <NavigationMenuItem>
-              <Link href="/learn" legacyBehavior passHref>
-                <NavigationMenuLink className={cn(navigationMenuTriggerStyle(), "h-10")}>
+              <NavigationMenuLink
+                asChild
+                className={cn(navigationMenuTriggerStyle(), "h-10")}
+              >
+                <Link href="/learn">
                   <BookOpen className="h-4 w-4 mr-2" />
                   Learn
-                </NavigationMenuLink>
-              </Link>
+                </Link>
+              </NavigationMenuLink>
             </NavigationMenuItem>
           </NavigationMenuList>
         </NavigationMenu>
