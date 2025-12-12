@@ -12,6 +12,7 @@
  */
 
 import Link from "next/link";
+import { LIVE_TOOLS } from "@/lib/tools/catalog";
 
 /**
  * Top services by search volume for footer links.
@@ -157,6 +158,25 @@ export function SiteFooter() {
                 ))}
               </div>
             </div>
+          </div>
+
+          {/* Tools Column */}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Tools</h3>
+            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <Link href="/tools" className="hover:text-foreground">
+                  Tools Hub
+                </Link>
+              </li>
+              {LIVE_TOOLS.map((tool) => (
+                <li key={tool.slug}>
+                  <Link href={`/tools/${tool.slug}`} className="hover:text-foreground">
+                    {tool.footerLabel ?? tool.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
 
           {/* Company Column */}

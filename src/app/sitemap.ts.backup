@@ -11,6 +11,8 @@ import { MetadataRoute } from 'next';
 import { createAdminClient } from '@/lib/supabase/server';
 import { NATIONAL_SERVICE_TYPES } from '@/lib/data/services';
 import { getAllArticles } from '@/lib/content/mdx';
+import { LIVE_TOOLS } from '@/lib/tools/catalog';
+import { getStateStats, getCitiesForState } from '@/lib/data/directory';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
@@ -60,11 +62,78 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   ];
 
+  // Homeowner tools (/tools and /tools/{slug})
+  const toolsPages: MetadataRoute.Sitemap = [
+    {
+      url: `${SITE_URL}/tools`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.75,
+    },
+    ...LIVE_TOOLS.map((tool) => ({
+      url: `${SITE_URL}/tools/${tool.slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.7,
+    })),
+  ];
+
   // If service role key is missing, return static pages + national service pages + learn pages
   // Dynamic content will be added when the key is configured
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     console.log('[sitemap] Skipping dynamic content: SUPABASE_SERVICE_ROLE_KEY not configured');
-    return [...staticPages, ...nationalServicePages, ...learnPages];
+    return [...staticPages, ...nationalServicePages, ...learnPages, ...toolsPages];
+  }
+
+  // Directory pages (state/city structure)
+  let directoryPages: MetadataRoute.Sitemap = [];
+  try {
+    // Directory landing page
+    directoryPages.push({
+      url: `${SITE_URL}/find`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    });
+
+    // Get all states
+    const states = await getStateStats();
+
+    // State pages (/find/{state-slug})
+    const statePages: MetadataRoute.Sitemap = states.map((state) => ({
+      url: `${SITE_URL}/find/${state.state_slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    }));
+    directoryPages.push(...statePages);
+
+    // City pages (/find/{state-slug}/{city-slug})
+    // Fetch cities for each state and generate URLs
+    const cityPagesPromises = states.map(async (state) => {
+      const cities = await getCitiesForState(state.state_slug);
+      return cities.map((city) => ({
+        url: `${SITE_URL}/find/${state.state_slug}/${city.city_slug}`,
+        lastModified: new Date(),
+        changeFrequency: 'weekly' as const,
+        priority: 0.6,
+      }));
+    });
+
+    const cityPagesArrays = await Promise.all(cityPagesPromises);
+    const cityPages: MetadataRoute.Sitemap = cityPagesArrays.flat();
+    directoryPages.push(...cityPages);
+
+    // TODO: Add individual business pages when implementing business detail routes
+    // For now, limiting to state + city pages (~550 URLs total) to keep sitemap manageable.
+    // Future: Consider sitemap segmentation (/sitemap-directory-*.xml) for business listings.
+
+    console.log(
+      `[sitemap] Generated ${directoryPages.length} directory pages (${states.length} states, ${cityPages.length} cities)`
+    );
+  } catch (error) {
+    console.error('[sitemap] Error generating directory pages:', error);
+    // Continue without directory pages if there's an error
   }
 
   try {
@@ -185,6 +254,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...staticPages,
       ...nationalServicePages,
       ...learnPages,
+      ...toolsPages,
+      ...directoryPages,
       ...projectPages,
       ...contractorPages,
       ...cityPages,
@@ -193,6 +264,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ];
   } catch (error) {
     console.error('[sitemap] Error generating dynamic sitemap:', error);
-    return [...staticPages, ...nationalServicePages, ...learnPages];
+    return [...staticPages, ...nationalServicePages, ...learnPages, ...toolsPages, ...directoryPages];
   }
 }

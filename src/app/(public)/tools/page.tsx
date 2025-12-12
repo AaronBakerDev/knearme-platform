@@ -7,71 +7,49 @@
  */
 
 import type { Metadata } from 'next'
-import Link from 'next/link'
-import { Calculator, AlertTriangle, Wrench, Layers } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Calculator } from 'lucide-react'
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs'
+import { ToolCategorySection, ToolStartHere, ToolFAQSection, DEFAULT_TOOL_FAQS } from '@/components/tools/ToolHub'
+import {
+  TOOLS_CATALOG,
+  COMING_SOON_TOOLS,
+  getCategoryOrder,
+  getToolsByCategory,
+  getToolBySlug,
+} from '@/lib/tools/catalog'
+import Script from 'next/script'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com'
 
 export const metadata: Metadata = {
-  title: 'Homeowner Tools | Masonry Calculators & Checklists | KnearMe',
+  title: 'Free Masonry Calculators & Checklists | Homeowner Tools | KnearMe',
   description:
-    'Free, practical tools for homeowners planning masonry repairs: cost estimator, chimney safety checklist, tuckpointing calculator, and more.',
+    'Free masonry tools for homeowners (no signup required): cost estimator, chimney safety checklist, tuckpointing calculator, brick replacement calculator, and more. Plan your project with confidence.',
   alternates: {
     canonical: `${SITE_URL}/tools`,
   },
   openGraph: {
-    title: 'Homeowner Tools | KnearMe',
-    description: 'Practical masonry calculators and checklists for homeowners.',
+    title: 'Free Masonry Calculators & Checklists | KnearMe',
+    description: 'Free, practical masonry tools for homeowners. No signup required. Plan repairs, estimate costs, assess urgency.',
     type: 'website',
     url: `${SITE_URL}/tools`,
   },
 }
 
-const TOOLS = [
-  {
-    slug: 'masonry-cost-estimator',
-    title: 'Masonry Repair Cost Estimator',
-    description: 'Get a planning-level cost range for common masonry repairs in your city.',
-    icon: Calculator,
-    badge: 'New',
-    disabled: false,
-  },
-  {
-    slug: 'chimney-repair-urgency-checklist',
-    title: 'Chimney Repair Urgency Checklist',
-    description: 'Quickly understand how serious your chimney symptoms are and what to do next.',
-    icon: AlertTriangle,
-    badge: 'New',
-    disabled: false,
-  },
-  {
-    slug: 'tuckpointing-calculator',
-    title: 'Tuckpointing Material + Labor Calculator',
-    description: 'Estimate mortar volume, bags needed, and labor time for tuckpointing.',
-    icon: Wrench,
-    badge: 'New',
-    disabled: false,
-  },
-  {
-    slug: 'brick-replacement-calculator',
-    title: 'Brick Replacement Calculator',
-    description: 'Estimate brick count and a planning budget for spot brick replacement.',
-    icon: Calculator,
-    badge: 'New',
-    disabled: false,
-  },
-  {
-    slug: 'retaining-wall-planner',
-    title: 'Retaining Wall Planner',
-    description: 'Estimate blocks, base gravel, drainage needs, and safety limits for a straight retaining wall.',
-    icon: Layers,
-    badge: 'New',
-    disabled: false,
-  },
-] as const
+// JSON-LD structured data for the tools hub page
+const toolsHubSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: 'Masonry Homeowner Tools',
+  description: 'Free calculators and checklists for masonry repair planning',
+  url: `${SITE_URL}/tools`,
+  hasPart: TOOLS_CATALOG.filter((t) => t.status === 'live').map((tool) => ({
+    '@type': 'WebPage',
+    name: tool.title,
+    description: tool.description,
+    url: `${SITE_URL}/tools/${tool.slug}`,
+  })),
+}
 
 export default function ToolsIndexPage() {
   const breadcrumbItems = [
@@ -79,8 +57,24 @@ export default function ToolsIndexPage() {
     { name: 'Tools', url: '/tools' },
   ]
 
+  // Get the recommended entry tool
+  const recommendedTool = getToolBySlug('masonry-cost-estimator')
+
+  // Get categories in order
+  const categories = getCategoryOrder()
+
   return (
     <div className='min-h-screen bg-background'>
+      {/* Structured Data for SEO */}
+      <Script
+        id="tools-hub-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(toolsHubSchema),
+        }}
+      />
+
+      {/* Hero Section */}
       <header className='border-b bg-gradient-to-b from-muted/40 to-background'>
         <div className='container mx-auto px-4 py-4'>
           <Breadcrumbs items={breadcrumbItems} />
@@ -96,61 +90,55 @@ export default function ToolsIndexPage() {
             </h1>
             <p className='text-lg md:text-xl text-muted-foreground leading-relaxed'>
               Budget repairs, scope your project, and understand urgency with free, easy tools built for real homes.
+              <span className='block mt-2 text-base font-medium text-primary'>
+                No signup required. Always free.
+              </span>
             </p>
           </div>
         </div>
       </header>
 
-      <main className='container mx-auto px-4 py-8 md:py-12'>
-        <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
-          {TOOLS.map((tool) => {
-            const Icon = tool.icon
-            const card = (
-              <Card className='h-full border-0 shadow-sm hover:shadow-md transition-shadow duration-200'>
-                <CardHeader className='space-y-3'>
-                  <div className='flex items-start justify-between'>
-                    <div className='h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center'>
-                      <Icon className='h-6 w-6 text-primary' />
-                    </div>
-                    {tool.badge && (
-                      <Badge variant={tool.disabled ? 'secondary' : 'default'} className='text-xs'>
-                        {tool.badge}
-                      </Badge>
-                    )}
-                  </div>
-                  <CardTitle className='text-xl'>{tool.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className='text-sm text-muted-foreground leading-relaxed'>{tool.description}</p>
-                </CardContent>
-              </Card>
-            )
+      {/* Main Content */}
+      <main className='container mx-auto px-4 py-8 md:py-12 space-y-16'>
+        {/* Start Here Section */}
+        {recommendedTool && (
+          <section>
+            <ToolStartHere tool={recommendedTool} />
+          </section>
+        )}
 
-            if (tool.disabled) {
-              return (
-                <div key={tool.slug} className='opacity-70'>
-                  {card}
-                </div>
-              )
-            }
+        {/* Categorized Tool Sections */}
+        {categories.map((category) => {
+          const tools = getToolsByCategory(category)
+          if (tools.length === 0) return null
 
-            return (
-              <Link key={tool.slug} href={`/tools/${tool.slug}`} className='group'>
-                {card}
-              </Link>
-            )
-          })}
-        </div>
+          return (
+            <ToolCategorySection
+              key={category}
+              category={category}
+              tools={tools}
+            />
+          )
+        })}
 
-        <section className='mt-12 rounded-2xl border bg-muted/30 p-6 md:p-8 max-w-3xl mx-auto text-center'>
-          <h2 className='text-2xl font-semibold mb-3'>More tools coming soon</h2>
-          <p className='text-muted-foreground'>
-            We’re building a full library of masonry planning tools. If there’s a tool you want, email us and we’ll prioritize it.
-          </p>
-          <a href='mailto:hello@knearme.com' className='text-primary font-medium hover:underline inline-block mt-4'>
-            Request a tool
-          </a>
-        </section>
+        {/* FAQ Section */}
+        <ToolFAQSection faqs={DEFAULT_TOOL_FAQS} />
+
+        {/* Coming Soon Section (if applicable) */}
+        {COMING_SOON_TOOLS.length > 0 && (
+          <section className='rounded-2xl border bg-muted/30 p-6 md:p-8 max-w-3xl mx-auto text-center'>
+            <h2 className='text-2xl font-semibold mb-3'>More tools coming soon</h2>
+            <p className='text-muted-foreground'>
+              We&apos;re building a full library of masonry planning tools. If there&apos;s a tool you want, email us and we&apos;ll prioritize it.
+            </p>
+            <a
+              href='mailto:hello@knearme.com'
+              className='text-primary font-medium hover:underline inline-block mt-4'
+            >
+              Request a tool
+            </a>
+          </section>
+        )}
       </main>
     </div>
   )

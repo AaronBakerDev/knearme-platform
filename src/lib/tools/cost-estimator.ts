@@ -16,7 +16,6 @@ export interface EstimateInputs {
   severity: SeverityTier
   access: AccessTier
   historic: boolean
-  cityTier: 'A' | 'B' | 'C'
 }
 
 export interface EstimateResult {
@@ -36,32 +35,33 @@ interface ServiceBase {
   maxProject: number
 }
 
-// Seed ranges from PRD (conservative national averages)
+// Base ranges from PRD research (Dec 2025).
+// v2 uses conservative national averages; city multipliers are deferred.
 // NOTE: Only a subset are used in the initial UI. Others are coarse fallbacks
 // to keep estimates safe until first‑party pricing is available.
 const SERVICE_BASES: Record<ServiceId, ServiceBase> = {
   'chimney-repair': {
     unitLabel: 'vertical ft',
-    lowPerUnit: 150,
-    typicalPerUnit: 250,
-    highPerUnit: 450,
-    minProject: 300,
+    lowPerUnit: 100,
+    typicalPerUnit: 180,
+    highPerUnit: 300,
+    minProject: 200,
     maxProject: 10000,
   },
   tuckpointing: {
     unitLabel: 'sq ft wall area',
-    lowPerUnit: 6,
-    typicalPerUnit: 12,
+    lowPerUnit: 5,
+    typicalPerUnit: 14,
     highPerUnit: 25,
-    minProject: 800,
+    minProject: 400,
     maxProject: 6000,
   },
   'brick-repair': {
     unitLabel: 'sq ft damaged area',
-    lowPerUnit: 15,
-    typicalPerUnit: 30,
-    highPerUnit: 60,
-    minProject: 500,
+    lowPerUnit: 10,
+    typicalPerUnit: 20,
+    highPerUnit: 35,
+    minProject: 300,
     maxProject: 5000,
   },
   'stone-work': {
@@ -90,10 +90,10 @@ const SERVICE_BASES: Record<ServiceId, ServiceBase> = {
   },
   'foundation-repair': {
     unitLabel: 'linear ft crack/joint',
-    lowPerUnit: 250,
-    typicalPerUnit: 600,
-    highPerUnit: 1200,
-    minProject: 1500,
+    lowPerUnit: 40,
+    typicalPerUnit: 90,
+    highPerUnit: 140,
+    minProject: 250,
     maxProject: 15000,
   },
   fireplace: {
@@ -146,7 +146,6 @@ const SERVICE_BASES: Record<ServiceId, ServiceBase> = {
   },
 } as const
 
-const CITY_MULTIPLIERS = { A: 0.85, B: 1.0, C: 1.2 } as const
 const SEVERITY_MULTIPLIERS: Record<SeverityTier, number> = {
   minor: 0.7,
   standard: 1.0,
@@ -162,12 +161,14 @@ const ACCESS_MULTIPLIERS: Record<AccessTier, number> = {
 export function estimateCost(inputs: EstimateInputs): EstimateResult {
   const base = SERVICE_BASES[inputs.serviceId]
 
-  const city = CITY_MULTIPLIERS[inputs.cityTier]
-  const severity = SEVERITY_MULTIPLIERS[inputs.severity]
+  const severity =
+    inputs.serviceId === 'foundation-repair' && inputs.severity === 'structural'
+      ? 4.0
+      : SEVERITY_MULTIPLIERS[inputs.severity]
   const access = ACCESS_MULTIPLIERS[inputs.access]
   const historic = inputs.historic ? 1.25 : 1.0
 
-  const multiplier = city * severity * access * historic
+  const multiplier = severity * access * historic
 
   const rawLow = inputs.size * base.lowPerUnit * multiplier
   const rawTypical = inputs.size * base.typicalPerUnit * multiplier

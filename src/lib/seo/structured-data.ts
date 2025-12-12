@@ -12,6 +12,12 @@
 
 import type { Contractor, Project, ProjectImage } from '@/types/database';
 import type { ArticleFrontmatter } from '@/lib/content/mdx';
+import type {
+  DirectoryPlace,
+  StateStats,
+  CityStats,
+  CategoryStats,
+} from '@/types/directory';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
@@ -452,6 +458,57 @@ export function generateNationalServiceSchema(
 }
 
 /**
+ * Generate SoftwareApplication schema for calculator tools.
+ *
+ * Helps search engines understand tool functionality and
+ * can result in enhanced search results with tool metadata.
+ *
+ * @see https://schema.org/SoftwareApplication
+ * @see https://developers.google.com/search/docs/appearance/structured-data/software-app
+ *
+ * @param tool - Tool details (name, slug, description, category)
+ * @returns SoftwareApplication JSON-LD schema object
+ *
+ * @example
+ * const toolSchema = generateToolSchema({
+ *   name: 'Brick Calculator',
+ *   slug: 'brick-calculator',
+ *   description: 'Calculate materials needed for your masonry project',
+ *   category: 'Construction Calculator'
+ * });
+ */
+export function generateToolSchema(tool: {
+  name: string;
+  slug: string;
+  description: string;
+  category: string;
+}): Record<string, unknown> {
+  const toolUrl = `${SITE_URL}/tools/${tool.slug}`;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    '@id': toolUrl,
+    name: tool.name,
+    description: tool.description,
+    url: toolUrl,
+    applicationCategory: 'UtilitiesApplication',
+    applicationSubCategory: tool.category,
+    operatingSystem: 'Web Browser',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+    provider: {
+      '@type': 'Organization',
+      name: 'KnearMe',
+      url: SITE_URL,
+    },
+  };
+}
+
+/**
  * Generate Article schema for educational content.
  *
  * Use this for /learn articles and other long-form content.
@@ -504,6 +561,233 @@ export function generateArticleSchema(
     ...(article.wordCount && { wordCount: article.wordCount }),
     ...(article.tags && { keywords: article.tags.join(', ') }),
     ...(article.category && { articleSection: article.category }),
+  };
+}
+
+/**
+ * Generate LocalBusiness schema for an individual directory listing.
+ *
+ * This schema provides search engines with structured information about
+ * businesses in the directory, including location, contact info, and ratings.
+ *
+ * @see https://schema.org/LocalBusiness
+ * @see /docs/11-seo-discovery/ for directory SEO architecture
+ *
+ * @param business - Directory place data from Google Maps scraping
+ * @returns LocalBusiness JSON-LD schema object
+ *
+ * @example
+ * const businessSchema = generateDirectoryBusinessSchema(business);
+ * // Use in directory detail pages: /directory/[state]/[city]/[category]/[slug]
+ */
+export function generateDirectoryBusinessSchema(
+  business: DirectoryPlace
+): Record<string, unknown> {
+  const businessUrl = `${SITE_URL}/directory/${business.state_slug}/${business.city_slug}/${business.category_slug}/${business.slug}`;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'LocalBusiness',
+    '@id': businessUrl,
+    name: business.title,
+    url: businessUrl,
+    ...(business.address && {
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: business.address,
+        addressLocality: business.city.length > 0 ? business.city[0] : undefined,
+        addressRegion: business.province_state,
+        addressCountry: 'US',
+      },
+    }),
+    ...(business.phone_number && { telephone: business.phone_number }),
+    ...(business.website && { url: business.website }),
+    ...(business.latitude &&
+      business.longitude && {
+        geo: {
+          '@type': 'GeoCoordinates',
+          latitude: business.latitude,
+          longitude: business.longitude,
+        },
+      }),
+    ...(business.rating &&
+      business.rating_count && {
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: business.rating,
+          ratingCount: business.rating_count,
+          bestRating: 5,
+          worstRating: 1,
+        },
+      }),
+  };
+}
+
+/**
+ * Generate ItemList schema for directory category listing pages.
+ *
+ * This schema helps search engines understand the list of businesses
+ * in a category, improving visibility in search results.
+ *
+ * @see https://schema.org/ItemList
+ * @see /docs/11-seo-discovery/ for directory SEO architecture
+ *
+ * @param businesses - Array of directory places to include in list
+ * @param listName - Name of the list (e.g., "Masonry Contractors in Denver, CO")
+ * @param pageUrl - URL of the listing page
+ * @returns ItemList JSON-LD schema object
+ *
+ * @example
+ * const listSchema = generateDirectoryListSchema(
+ *   businesses,
+ *   "Masonry Contractors in Denver, CO",
+ *   "/directory/colorado/denver/masonry-contractors"
+ * );
+ */
+export function generateDirectoryListSchema(
+  businesses: DirectoryPlace[],
+  listName: string,
+  pageUrl: string
+): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: listName,
+    url: `${SITE_URL}${pageUrl}`,
+    numberOfItems: businesses.length,
+    itemListElement: businesses.map((business, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      item: {
+        '@type': 'LocalBusiness',
+        '@id': `${SITE_URL}/directory/${business.state_slug}/${business.city_slug}/${business.category_slug}/${business.slug}`,
+        name: business.title,
+        address: business.address
+          ? {
+              '@type': 'PostalAddress',
+              streetAddress: business.address,
+              addressLocality: business.city.length > 0 ? business.city[0] : undefined,
+              addressRegion: business.province_state,
+              addressCountry: 'US',
+            }
+          : undefined,
+        ...(business.rating &&
+          business.rating_count && {
+            aggregateRating: {
+              '@type': 'AggregateRating',
+              ratingValue: business.rating,
+              ratingCount: business.rating_count,
+            },
+          }),
+      },
+    })),
+  };
+}
+
+/**
+ * Generate Place schema for directory city hub pages.
+ *
+ * This schema represents a city page that aggregates multiple business
+ * categories, helping search engines understand the geographic scope
+ * of the directory.
+ *
+ * @see https://schema.org/City
+ * @see /docs/11-seo-discovery/ for directory SEO architecture
+ *
+ * @param city - City statistics and metadata
+ * @param categories - Array of categories available in this city
+ * @returns City JSON-LD schema object
+ *
+ * @example
+ * const citySchema = generateDirectoryCitySchema(cityStats, categories);
+ * // Use on: /directory/[state]/[city]
+ */
+export function generateDirectoryCitySchema(
+  city: CityStats,
+  categories: CategoryStats[]
+): Record<string, unknown> {
+  const cityUrl = `${SITE_URL}/directory/${city.state_slug}/${city.city_slug}`;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'City',
+    '@id': cityUrl,
+    name: city.city_name,
+    url: cityUrl,
+    containedInPlace: {
+      '@type': 'State',
+      name: city.state_name,
+      containedInPlace: {
+        '@type': 'Country',
+        name: 'United States',
+      },
+    },
+    makesOffer: categories.map((category) => ({
+      '@type': 'Offer',
+      itemOffered: {
+        '@type': 'Service',
+        name: category.category_name,
+        url: `${SITE_URL}/directory/${city.state_slug}/${city.city_slug}/${category.category_slug}`,
+      },
+      description: `${category.business_count} ${category.category_name} businesses in ${city.city_name}`,
+      ...(category.avg_rating && {
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: category.avg_rating,
+          ratingCount: category.business_count,
+        },
+      }),
+    })),
+  };
+}
+
+/**
+ * Generate State/AdministrativeArea schema for directory state pages.
+ *
+ * This schema represents a state-level directory page that aggregates
+ * multiple cities, helping search engines understand the hierarchical
+ * organization of the directory.
+ *
+ * @see https://schema.org/State
+ * @see /docs/11-seo-discovery/ for directory SEO architecture
+ *
+ * @param state - State statistics and metadata
+ * @param cities - Array of cities with businesses in this state
+ * @returns State JSON-LD schema object
+ *
+ * @example
+ * const stateSchema = generateDirectoryStateSchema(stateStats, cities);
+ * // Use on: /directory/[state]
+ */
+export function generateDirectoryStateSchema(
+  state: StateStats,
+  cities: CityStats[]
+): Record<string, unknown> {
+  const stateUrl = `${SITE_URL}/directory/${state.state_slug}`;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'State',
+    '@id': stateUrl,
+    name: state.state_name,
+    url: stateUrl,
+    containedInPlace: {
+      '@type': 'Country',
+      name: 'United States',
+    },
+    containsPlace: cities.map((city) => ({
+      '@type': 'City',
+      name: city.city_name,
+      url: `${SITE_URL}/directory/${state.state_slug}/${city.city_slug}`,
+      description: `${city.business_count} businesses across ${city.category_count} categories`,
+      ...(city.avg_rating && {
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: city.avg_rating,
+          ratingCount: city.business_count,
+        },
+      }),
+    })),
   };
 }
 

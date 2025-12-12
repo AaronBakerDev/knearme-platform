@@ -22,6 +22,10 @@ interface ToolLayoutProps {
   children: ReactNode
   /** Optional right-side hero content (e.g., mini stats) */
   heroAside?: ReactNode
+  /** Mobile sticky results bar slot - appears at bottom on mobile */
+  stickyBar?: ReactNode
+  /** Optional progress bar slot - appears above main content */
+  progressBar?: ReactNode
   className?: string
 }
 
@@ -31,6 +35,8 @@ export function ToolLayout({
   breadcrumbs,
   children,
   heroAside,
+  stickyBar,
+  progressBar,
   className,
 }: ToolLayoutProps) {
   return (
@@ -62,9 +68,12 @@ export function ToolLayout({
 
       <main className='container mx-auto px-4 py-8 md:py-12'>
         <div className='max-w-4xl mx-auto'>
+          {progressBar && <div className='mb-6'>{progressBar}</div>}
           {children}
         </div>
       </main>
+
+      {stickyBar}
     </div>
   )
 }

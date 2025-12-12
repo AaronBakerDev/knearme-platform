@@ -26,6 +26,8 @@ import {
   Loader2,
   ArrowLeft,
   ArrowRight,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -39,6 +41,12 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AIProgress } from '@/components/ui/ai-progress';
 import { UploadProgress } from '@/components/ui/upload-progress';
+import {
+  saveWizardSession,
+  getLatestWizardSession,
+  deleteWizardSession,
+  type WizardSession
+} from '@/lib/wizard/wizard-storage';
 
 type Step = 'upload' | 'analyzing' | 'interview' | 'generating' | 'review' | 'published';
 
@@ -77,16 +85,65 @@ export default function CreateProjectPage() {
   const [editedContent, setEditedContent] = useState<GeneratedContent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [uploadingFile, setUploadingFile] = useState<{ name: string; progress: number; status: 'uploading' | 'processing' | 'complete' | 'error' } | null>(null);
+
+  // Recovery state
+  const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
+  const [recoverySession, setRecoverySession] = useState<WizardSession | null>(null);
 
   const hasCreatedProjectRef = useRef(false);
 
-  // Create project on mount
+  // Check for existing session on mount
   useEffect(() => {
-    if (hasCreatedProjectRef.current) return;
-    hasCreatedProjectRef.current = true;
-    createProject();
+    async function checkForRecoverySession() {
+      try {
+        const session = await getLatestWizardSession();
+        if (session && session.step !== 'published') {
+          setRecoverySession(session);
+          setShowRecoveryPrompt(true);
+        } else {
+          // No recovery session, create new project
+          if (!hasCreatedProjectRef.current) {
+            hasCreatedProjectRef.current = true;
+            createProject();
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check for recovery session:', err);
+        // On error, just create new project
+        if (!hasCreatedProjectRef.current) {
+          hasCreatedProjectRef.current = true;
+          createProject();
+        }
+      }
+    }
+    checkForRecoverySession();
   }, []);
+
+  /**
+   * Handle back navigation to previous step.
+   */
+  const handleBack = useCallback(() => {
+    // Map of what step to go back to from current step
+    const backStepMap: Record<Step, Step | null> = {
+      'upload': null,        // Can't go back from first step
+      'analyzing': 'upload', // But don't allow back during processing
+      'interview': 'upload', // Can go back to upload
+      'generating': 'interview', // But don't allow back during processing
+      'review': 'interview', // Can go back to interview
+      'published': null,     // Can't go back after publishing
+    };
+
+    const prevStep = backStepMap[step];
+    if (prevStep) {
+      // Clear any errors when going back
+      setAnalysisError(null);
+      setGenerationError(null);
+      setStep(prevStep);
+    }
+  }, [step]);
 
   /**
    * Create a new draft project.
@@ -126,6 +183,49 @@ export default function CreateProjectPage() {
   };
 
   /**
+   * Save current wizard session to IndexedDB.
+   */
+  const saveSession = useCallback(async () => {
+    if (!project) return;
+
+    try {
+      await saveWizardSession({
+        projectId: project.id,
+        step,
+        images: images.map(img => ({
+          id: img.id,
+          url: img.url,
+          filename: img.filename,
+          storage_path: img.storage_path,
+          width: img.width,
+          height: img.height,
+          image_type: img.image_type,
+        })),
+        interviewResponses: undefined, // Not storing responses for now
+        editedContent: editedContent || undefined,
+        updatedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Failed to save wizard session:', err);
+    }
+  }, [project, step, images, editedContent]);
+
+  /**
+   * Auto-save session on state changes (debounced effect).
+   */
+  useEffect(() => {
+    if (!project || step === 'published') return;
+
+    // Small delay to avoid saving too frequently
+    const timeout = setTimeout(() => {
+      saveSession();
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [project, step, images, editedContent, saveSession]);
+
+  /**
    * Handle images change from uploader.
    */
   const handleImagesChange = useCallback((newImages: UploadedImage[]) => {
@@ -141,6 +241,7 @@ export default function CreateProjectPage() {
 
     setStep('analyzing');
     setError(null);
+    setAnalysisError(null);
 
     try {
       const res = await fetch('/api/ai/analyze-images', {
@@ -155,11 +256,11 @@ export default function CreateProjectPage() {
       }
 
       // Analysis complete - move to interview
+      setAnalysisError(null);
       setStep('interview');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Analysis failed');
-      toast.error('Image analysis failed. Please try again.');
-      setStep('upload');
+      setAnalysisError(err instanceof Error ? err.message : 'Analysis failed');
+      // Stay on analyzing step to show error with retry option
     }
   };
 
@@ -171,6 +272,7 @@ export default function CreateProjectPage() {
 
     setStep('generating');
     setError(null);
+    setGenerationError(null);
 
     try {
       // Generate content. For text-mode interviews, pass responses explicitly.
@@ -187,11 +289,11 @@ export default function CreateProjectPage() {
 
       const data = await res.json();
       setEditedContent(data.content);
+      setGenerationError(null);
       setStep('review');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Generation failed');
-      toast.error('Content generation failed. Please try again.');
-      setStep('interview');
+      setGenerationError(err instanceof Error ? err.message : 'Generation failed');
+      // Stay on generating step to show error with retry option
     }
   };
 
@@ -275,6 +377,11 @@ export default function CreateProjectPage() {
 
       setStep('published');
       toast.success('Project published!');
+
+      // Clear wizard session on successful publish
+      if (project) {
+        await deleteWizardSession(project.id);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Publishing failed');
     } finally {
@@ -322,20 +429,32 @@ export default function CreateProjectPage() {
 
         return (
           <div key={s.key} className="flex items-center">
-            <div
+            <button
+              type="button"
+              onClick={() => {
+                // Only allow clicking on completed steps
+                if (isComplete) {
+                  // Clear errors
+                  setAnalysisError(null);
+                  setGenerationError(null);
+                  setStep(s.key);
+                }
+              }}
+              disabled={!isComplete || step === 'analyzing' || step === 'generating' || step === 'published'}
               className={cn(
                 'flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors',
                 isActive && 'border-primary bg-primary text-primary-foreground',
-                isComplete && 'border-green-500 bg-green-500 text-white',
-                !isActive && !isComplete && 'border-muted-foreground/30 text-muted-foreground'
+                isComplete && 'border-green-500 bg-green-500 text-white cursor-pointer hover:bg-green-600',
+                !isActive && !isComplete && 'border-muted-foreground/30 text-muted-foreground cursor-not-allowed'
               )}
+              aria-label={isComplete ? `Go back to ${s.label}` : s.label}
             >
               {isComplete ? (
                 <CheckCircle className="h-5 w-5" />
               ) : (
                 <Icon className="h-5 w-5" />
               )}
-            </div>
+            </button>
             {idx < STEPS.length - 1 && (
               <div
                 className={cn(
@@ -352,6 +471,62 @@ export default function CreateProjectPage() {
 
   // Render step content
   const renderStep = () => {
+    // Show recovery prompt if we have a previous session
+    if (showRecoveryPrompt && recoverySession) {
+      return (
+        <Card className="text-center py-12">
+          <CardContent className="space-y-4">
+            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto">
+              <RefreshCw className="h-8 w-8 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Resume Previous Session?</h3>
+              <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                You have an incomplete project with {recoverySession.images.length} photo{recoverySession.images.length !== 1 ? 's' : ''}.
+                Would you like to continue where you left off?
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Last updated: {new Date(recoverySession.updatedAt).toLocaleString()}
+              </p>
+            </div>
+            <div className="flex gap-3 justify-center">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  // Delete old session and start fresh
+                  await deleteWizardSession(recoverySession.projectId);
+                  setShowRecoveryPrompt(false);
+                  setRecoverySession(null);
+                  // Create new project
+                  if (!hasCreatedProjectRef.current) {
+                    hasCreatedProjectRef.current = true;
+                    createProject();
+                  }
+                }}
+              >
+                Start Fresh
+              </Button>
+              <Button
+                onClick={() => {
+                  // Restore session state
+                  setProject({ id: recoverySession.projectId, contractor_id: '' });
+                  setImages(recoverySession.images);
+                  if (recoverySession.editedContent) {
+                    setEditedContent(recoverySession.editedContent);
+                  }
+                  setStep(recoverySession.step);
+                  setShowRecoveryPrompt(false);
+                  setRecoverySession(null);
+                }}
+              >
+                Continue
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
     // Loading project creation
     if (!project && isLoading) {
       return (
@@ -424,6 +599,45 @@ export default function CreateProjectPage() {
         );
 
       case 'analyzing':
+        if (analysisError) {
+          return (
+            <Card className="text-center py-12">
+              <CardContent className="space-y-4">
+                <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto">
+                  <AlertCircle className="h-8 w-8 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Analysis Failed</h3>
+                  <p className="text-muted-foreground text-sm max-w-md mx-auto mb-4">
+                    {analysisError}
+                  </p>
+                </div>
+                <div className="flex gap-3 justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setAnalysisError(null);
+                      setStep('upload');
+                    }}
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Upload
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setAnalysisError(null);
+                      handleStartAnalysis();
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Try Again
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        }
+
         return (
           <Card className="text-center py-12">
             <CardContent className="space-y-4">
@@ -435,14 +649,63 @@ export default function CreateProjectPage() {
 
       case 'interview':
         return project ? (
-          <InterviewFlow
-            projectId={project.id}
-            onComplete={(responses) => handleInterviewComplete(responses)}
-            onSkip={handleSkipInterview}
-          />
+          <div className="space-y-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Upload
+            </Button>
+            <InterviewFlow
+              projectId={project.id}
+              onComplete={(responses) => handleInterviewComplete(responses)}
+              onSkip={handleSkipInterview}
+            />
+          </div>
         ) : null;
 
       case 'generating':
+        if (generationError) {
+          return (
+            <Card className="text-center py-12">
+              <CardContent className="space-y-4">
+                <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto">
+                  <AlertCircle className="h-8 w-8 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Generation Failed</h3>
+                  <p className="text-muted-foreground text-sm max-w-md mx-auto mb-4">
+                    {generationError}
+                  </p>
+                </div>
+                <div className="flex gap-3 justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setGenerationError(null);
+                      setStep('interview');
+                    }}
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Interview
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setGenerationError(null);
+                      handleInterviewComplete();
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Try Again
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        }
+
         return (
           <Card className="text-center py-12">
             <CardContent className="space-y-4">
@@ -542,6 +805,14 @@ export default function CreateProjectPage() {
 
               {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="ghost"
+                  onClick={handleBack}
+                  disabled={isLoading}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back
+                </Button>
                 <Button variant="outline" onClick={handleSaveDraft} disabled={isLoading}>
                   Save as Draft
                 </Button>

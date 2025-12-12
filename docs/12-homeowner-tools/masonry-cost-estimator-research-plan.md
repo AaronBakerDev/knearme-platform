@@ -72,6 +72,8 @@ Deliverable: `city-masonry-multipliers.json` mapping metro → index → tier.
 
 Goal: check estimator outputs against real world ballparks.
 
+**Status:** deferred until KnearMe has first‑party priced projects or we decide to resource public quote collection. National guides + conservative bands are sufficient for MVP.
+
 Targets:
 
 - Contractor sites with published ranges
@@ -131,4 +133,3 @@ Deliverables:
 - Incorporate first‑party KnearMe priced projects once sample size is sufficient.
 
 Add “last updated” timestamps in the estimator UI.
-

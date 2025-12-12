@@ -397,6 +397,21 @@ export default async function NationalServicePage({ params }: PageParams) {
                       <Link href="/tools/brick-replacement-calculator">Brick Count Calculator</Link>
                     </Button>
                   )}
+                  {serviceId === 'foundation-repair' && (
+                    <Button asChild variant="outline" className="rounded-full">
+                      <Link href="/tools/foundation-crack-severity-checker">Check Crack Severity</Link>
+                    </Button>
+                  )}
+                  {serviceId === 'efflorescence-removal' && (
+                    <Button asChild variant="outline" className="rounded-full">
+                      <Link href="/tools/efflorescence-treatment-planner">Treatment Planner</Link>
+                    </Button>
+                  )}
+                  {serviceId === 'waterproofing' && (
+                    <Button asChild variant="outline" className="rounded-full">
+                      <Link href="/tools/waterproofing-risk-checklist">Moisture Risk Checklist</Link>
+                    </Button>
+                  )}
                 </div>
               </div>
               <div

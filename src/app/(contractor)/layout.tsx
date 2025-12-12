@@ -13,6 +13,7 @@ import {
 import { OfflineIndicator } from '@/components/pwa/OfflineIndicator';
 import { PushNotificationPrompt } from '@/components/pwa/PushNotificationPrompt';
 import { AppProgressBar } from '@/components/navigation/app-progress-bar';
+import { ContractorMobileNav } from '@/components/navigation/ContractorMobileNav';
 
 /**
  * Layout for authenticated contractor pages.
@@ -107,11 +108,19 @@ export default async function ContractorLayout({
               <Link href="/projects/new">+ New Project</Link>
             </Button>
 
+            {/* Mobile Navigation */}
+            <ContractorMobileNav
+              businessName={contractor?.business_name ?? null}
+              email={user.email ?? ''}
+              initials={initials}
+            />
+
+            {/* Desktop User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="relative h-9 w-9 rounded-full"
+                  className="relative h-9 w-9 rounded-full hidden md:flex"
                   aria-label="User menu"
                 >
                   <Avatar className="h-9 w-9">

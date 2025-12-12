@@ -57,12 +57,19 @@ Secondary:
 
 ## User Flow
 
+### Tool (national estimator)
+
 1. User lands on `/tools/masonry-cost-estimator`.
-2. Selects city (or ZIP → city slug).
-3. Selects service type.
-4. Enters size + severity + access.
-5. Sees instant range + explanation.
-6. Clicks into local projects / pros or leaves email for report.
+2. Selects service type.
+3. Enters size + severity + access.
+4. Sees instant **national planning range** + explanation.
+5. Clicks into local projects / pros or leaves email for report.
+
+### City SEO wrappers (localized landing pages)
+
+1. User lands on a city‑modified cost page (for example: “Tuckpointing cost in Chicago”).
+2. Page pre‑selects the relevant service in the same estimator.
+3. Page copy provides **local context** (“labor and access can push costs higher/lower here”) while the calculator output remains national.
 
 ---
 
@@ -70,11 +77,9 @@ Secondary:
 
 ### Required
 
-1. **Location**
-   - City/state search or ZIP.
-2. **Service Type**
+1. **Service Type**
    - From `MASONRY_SERVICES` / `SERVICE_CONTENT`.
-3. **Project Size** (service‑specific)
+2. **Project Size** (service‑specific)
    - Chimney repair: height (ft) + # sides affected.
    - Tuckpointing: wall area (sq ft) or linear ft of joints.
    - Brick repair: area (sq ft) or brick count.
@@ -82,15 +87,20 @@ Secondary:
 
 ### Optional
 
-- **Severity:** minor / standard / structural.
-- **Access:** single‑story / two‑story / steep roof / limited access.
-- **Historic match needed:** yes/no.
+1. **Location (for routing/context only)**
+   - City/state search or ZIP.
+   - **MVP note:** does not change calculator output yet; used for SEO routing, city pages, and local “next steps.”
+2. **Severity:** minor / standard / structural.
+3. **Access:** single‑story / two‑story / steep roof / limited access.
+4. **Historic match needed:** yes/no.
 
 ---
 
 ## Calculation Model (Deterministic v1)
 
-**EstimatedRange = BaseRange(service, size) × CityMultiplier × SeverityMultiplier × AccessMultiplier × HistoricMultiplier**
+**EstimatedRange = BaseRange(service, size) × SeverityMultiplier × AccessMultiplier × HistoricMultiplier**
+
+**MVP localization note:** the estimator ships with **national base ranges only**. City/tier multipliers are deferred until KnearMe has enough first‑party pricing or we commit to a public‑index model.
 
 ### BaseRange(service, size)
 
@@ -124,11 +134,9 @@ If inputs imply a rebuild‑level job (high severity + large size), we cap range
 
 ### Multipliers
 
-- **CityMultiplier**
-  - Tier A (low cost): 0.85
-  - Tier B (baseline): 1.0
-  - Tier C (high cost): 1.2
-  - Tier map maintained in a simple JSON file (Phase 1).
+- **CityMultiplier (deferred)**
+  - **MVP:** fixed at **1.0** for all locations.
+  - **Phase 2+:** introduce Tier A/B/C from public wage/construction indices or first‑party priced projects.
 
 - **SeverityMultiplier**
   - minor: 0.7

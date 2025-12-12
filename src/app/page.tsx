@@ -1,4 +1,3 @@
-import { SiteHeader } from "@/components/marketing/SiteHeader";
 import { HeroSection } from "@/components/marketing/HeroSection";
 import { PainPoints } from "@/components/marketing/PainPoints";
 import { HowItWorks } from "@/components/marketing/HowItWorks";
@@ -6,7 +5,6 @@ import { FeatureGrid } from "@/components/marketing/FeatureGrid";
 import { PortfolioShowcase } from "@/components/marketing/PortfolioShowcase";
 import { Testimonials } from "@/components/marketing/Testimonials";
 import { Pricing } from "@/components/marketing/Pricing";
-import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { CTAButton } from "@/components/ui/cta-button";
 import Link from "next/link";
 
@@ -28,53 +26,47 @@ import Link from "next/link";
  */
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col font-sans">
-      <SiteHeader />
+    <>
+      <HeroSection />
+      <PainPoints />
+      <HowItWorks />
+      <FeatureGrid />
+      <PortfolioShowcase />
+      <Testimonials />
+      <Pricing />
 
-      <main className="flex-1">
-        <HeroSection />
-        <PainPoints />
-        <HowItWorks />
-        <FeatureGrid />
-        <PortfolioShowcase />
-        <Testimonials />
-        <Pricing />
+      {/* Bottom CTA Section */}
+      <section className="relative bg-primary py-24 text-primary-foreground overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/80" />
+        <div className="absolute top-0 left-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
 
-        {/* Bottom CTA Section */}
-        <section className="relative bg-primary py-24 text-primary-foreground overflow-hidden">
-          {/* Background decoration */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/80" />
-          <div className="absolute top-0 left-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
-
-          <div className="container mx-auto px-4 text-center relative z-10">
-            <h2 className="mb-6 text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-              Ready to Showcase Your Work?
-            </h2>
-            <p className="mb-10 text-lg opacity-90 sm:text-xl max-w-2xl mx-auto">
-              Join contractors who are building their portfolios in minutes, not
-              hours.
-            </p>
-            <Link href="/signup" className="inline-block group">
-              <CTAButton
-                size="lg"
-                className="bg-background text-foreground hover:bg-zinc-100 shadow-xl hover:shadow-2xl px-8 h-14 text-lg"
-              >
-                Start Your Free Portfolio
-              </CTAButton>
-            </Link>
-            <p className="mt-6 text-sm opacity-70 flex items-center justify-center gap-2">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-50" />
-              No credit card required
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-50" />
-              2 minutes to your first project
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-50" />
-            </p>
-          </div>
-        </section>
-      </main>
-
-      <SiteFooter />
-    </div>
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <h2 className="mb-6 text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+            Ready to Showcase Your Work?
+          </h2>
+          <p className="mb-10 text-lg opacity-90 sm:text-xl max-w-2xl mx-auto">
+            Join contractors who are building their portfolios in minutes, not
+            hours.
+          </p>
+          <Link href="/signup" className="inline-block group">
+            <CTAButton
+              size="lg"
+              className="bg-background text-foreground hover:bg-zinc-100 shadow-xl hover:shadow-2xl px-8 h-14 text-lg"
+            >
+              Start Your Free Portfolio
+            </CTAButton>
+          </Link>
+          <p className="mt-6 text-sm opacity-70 flex items-center justify-center gap-2">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-50" />
+            No credit card required
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-50" />
+            2 minutes to your first project
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-50" />
+          </p>
+        </div>
+      </section>
+    </>
   );
 }

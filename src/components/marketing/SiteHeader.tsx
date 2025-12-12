@@ -39,7 +39,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Menu, Hammer, BookOpen, Building2 } from "lucide-react";
+import { Menu, Hammer, BookOpen, Building2, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -147,6 +147,19 @@ export function SiteHeader() {
               </NavigationMenuLink>
             </NavigationMenuItem>
 
+            {/* Tools */}
+            <NavigationMenuItem>
+              <NavigationMenuLink
+                asChild
+                className={cn(navigationMenuTriggerStyle(), "h-10")}
+              >
+                <Link href="/tools">
+                  <Calculator className="h-4 w-4 mr-2" />
+                  Tools
+                </Link>
+              </NavigationMenuLink>
+            </NavigationMenuItem>
+
             {/* Learning Center */}
             <NavigationMenuItem>
               <NavigationMenuLink
@@ -241,6 +254,15 @@ export function SiteHeader() {
               >
                 <BookOpen className="h-4 w-4" />
                 Learning Center
+              </Link>
+
+              <Link
+                href="/tools"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 text-base py-2"
+              >
+                <Calculator className="h-4 w-4" />
+                Tools
               </Link>
 
               {/* Auth Actions */}

@@ -487,3 +487,42 @@
 .stagger-4 { animation-delay: 0.4s; }
 .stagger-5 { animation-delay: 0.5s; }
 .stagger-6 { animation-delay: 0.6s; }
+
+/* ==========================================================================
+   Reduced Motion Accessibility
+   Respects user preference for reduced motion (vestibular disorders, etc.)
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Disable specific animation classes */
+  .animate-fade-up,
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-slide-in-right,
+  .animate-pulse,
+  .animate-spin,
+  .animate-bounce {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* Disable card hover lift effect */
+  .card-interactive:hover {
+    transform: none;
+  }
+
+  /* Disable link underline animation */
+  .link-underline::after {
+    transition: none;
+  }
+}

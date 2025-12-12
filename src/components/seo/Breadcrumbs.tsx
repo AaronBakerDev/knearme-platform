@@ -76,6 +76,11 @@ export function Breadcrumbs({
     ];
   }
 
+  // Mobile: Show only first and last 2 items
+  const mobileItems = items.length > 3
+    ? [items[0]!, { name: '...', url: '' }, ...items.slice(-2)]
+    : items;
+
   // Generate schema for all items (not truncated)
   const schema = generateBreadcrumbSchema(items);
 
@@ -89,10 +94,11 @@ export function Breadcrumbs({
         />
       )}
 
+      {/* Desktop Breadcrumbs */}
       <nav
         aria-label="Breadcrumb"
         className={cn(
-          'flex items-center gap-1 text-sm text-muted-foreground overflow-x-auto',
+          'hidden sm:flex items-center gap-1 text-sm text-muted-foreground overflow-x-auto',
           className
         )}
       >
@@ -135,6 +141,62 @@ export function Breadcrumbs({
                       </>
                     ) : (
                       <span className="truncate max-w-[150px]">{item.name}</span>
+                    )}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
+
+      {/* Mobile Breadcrumbs - More compact */}
+      <nav
+        aria-label="Breadcrumb"
+        className={cn(
+          'flex sm:hidden items-center gap-1 text-xs text-muted-foreground overflow-x-auto scrollbar-hide',
+          className
+        )}
+      >
+        <ol className="flex items-center gap-1 flex-nowrap">
+          {mobileItems.map((item, index) => {
+            const isFirst = index === 0;
+            const isLast = index === mobileItems.length - 1;
+            const isTruncation = item.url === '' && item.name === '...';
+
+            return (
+              <li key={item.url || `mobile-truncation-${index}`} className="flex items-center gap-1 flex-shrink-0">
+                {/* Separator (except for first item) */}
+                {!isFirst && (
+                  <ChevronRight className="h-3 w-3 flex-shrink-0 text-muted-foreground/50" />
+                )}
+
+                {/* Truncation indicator */}
+                {isTruncation ? (
+                  <span className="text-muted-foreground/70" aria-hidden="true">
+                    ...
+                  </span>
+                ) : isLast ? (
+                  /* Current page (not a link) */
+                  <span
+                    className="text-foreground font-medium truncate max-w-[120px]"
+                    aria-current="page"
+                  >
+                    {item.name}
+                  </span>
+                ) : (
+                  /* Link to parent page */
+                  <Link
+                    href={item.url}
+                    className="hover:text-foreground transition-colors flex items-center gap-1"
+                  >
+                    {isFirst && showHomeIcon ? (
+                      <>
+                        <Home className="h-3 w-3" />
+                        <span className="sr-only">{item.name}</span>
+                      </>
+                    ) : (
+                      <span className="truncate max-w-[100px]">{item.name}</span>
                     )}
                   </Link>
                 )}

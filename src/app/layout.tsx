@@ -74,6 +74,11 @@ export default function RootLayout({
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <AppleSplashScreens />
+        <script
+          src="https://analytics.ahrefs.com/analytics.js"
+          data-key="GCARehXOSg7IdQjlq/DD3Q"
+          async
+        ></script>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

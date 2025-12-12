@@ -11,5 +11,5 @@ Disallow: /projects/new
 Disallow: /projects/*/edit
 Disallow: /api/
 
-# Sitemap location
+# Sitemap location (index pointing to segmented sitemaps)
 Sitemap: https://knearme.com/sitemap.xml
