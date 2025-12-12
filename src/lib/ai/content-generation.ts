@@ -12,7 +12,6 @@
  * @see https://platform.openai.com/docs/guides/structured-outputs
  */
 
-import OpenAI from 'openai';
 import { LengthFinishReasonError, ContentFilterFinishReasonError } from 'openai/core/error';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { openai, AI_MODELS, OUTPUT_LIMITS, parseAIError, isAIEnabled } from './openai';

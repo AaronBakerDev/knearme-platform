@@ -18,7 +18,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MapPin, Building2, Wrench, ArrowRight } from 'lucide-react';
+import { Building2, Wrench, ArrowRight } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/server';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -280,7 +280,7 @@ export default async function CityHubPage({ params }: PageParams) {
               <h1 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
                 Masonry Services in {cityName}
               </h1>
-              <p className="text-lg text-muted-foreground">
+              <p className="text-lg text-muted-foreground max-w-[72ch] mx-auto leading-relaxed">
                 Browse {projects.length} completed projects from {contractors.length} local{' '}
                 {contractors.length === 1 ? 'contractor' : 'contractors'}
               </p>
@@ -441,10 +441,10 @@ export default async function CityHubPage({ params }: PageParams) {
         {/* Footer */}
         <footer className="mt-12 py-12 bg-gradient-to-b from-muted/30 to-muted/10">
           <div className="container mx-auto px-4 text-center">
-            <p className="text-lg font-medium mb-2">
+            <p className="text-lg font-medium mb-2 max-w-[70ch] mx-auto leading-relaxed">
               Looking for masonry services in {cityName}?
             </p>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground max-w-[70ch] mx-auto leading-relaxed">
               Browse projects above to find the right contractor for your needs.
             </p>
           </div>

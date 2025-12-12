@@ -139,9 +139,9 @@ const supabase = createAdminClient()
 ```
 
 **Session Management:**
-- Middleware (`src/middleware.ts`) refreshes auth sessions automatically
-- Uses `@supabase/ssr` for proper cookie handling
-- Auth state accessible via `supabase.auth.getUser()`
+- Middleware (`middleware.ts`) refreshes auth sessions automatically
+  - Uses `@supabase/ssr` for proper cookie handling
+  - Auth state accessible via `supabase.auth.getUser()`
 
 **RLS Type Handling:**
 Due to Row Level Security policies, Supabase TypeScript types sometimes infer `never` for query results. The solution used throughout the codebase:

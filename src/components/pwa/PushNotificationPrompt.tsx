@@ -20,7 +20,6 @@ import {
   isPushSupported,
   requestNotificationPermission,
   subscribeAndPersist,
-  unsubscribeAndRemove,
 } from '@/lib/notifications';
 
 const DISMISS_KEY = 'knearme-push-dismissed';
@@ -97,19 +96,6 @@ export function PushNotificationPrompt({ eligible = true }: PushNotificationProm
       setIsWorking(false);
     }
   }, []);
-
-  const handleDisable = useCallback(async () => {
-    setIsWorking(true);
-    try {
-      await unsubscribeAndRemove();
-      setPermission('default');
-      handleDismiss();
-    } catch (error) {
-      console.error('[Push] Unsubscribe failed', error);
-    } finally {
-      setIsWorking(false);
-    }
-  }, [handleDismiss]);
 
   if (!eligible || !isPushSupported()) return null;
   if (permission === 'granted') return null;

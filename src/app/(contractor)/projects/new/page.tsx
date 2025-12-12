@@ -14,7 +14,7 @@
  * @see /docs/02-requirements/user-journeys.md J2
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Camera,
@@ -79,8 +79,12 @@ export default function CreateProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [uploadingFile, setUploadingFile] = useState<{ name: string; progress: number; status: 'uploading' | 'processing' | 'complete' | 'error' } | null>(null);
 
+  const hasCreatedProjectRef = useRef(false);
+
   // Create project on mount
   useEffect(() => {
+    if (hasCreatedProjectRef.current) return;
+    hasCreatedProjectRef.current = true;
     createProject();
   }, []);
 
@@ -162,21 +166,18 @@ export default function CreateProjectPage() {
   /**
    * Handle interview completion.
    */
-  const handleInterviewComplete = async () => {
+  const handleInterviewComplete = async (responses?: Array<{ question_id: string; question_text: string; answer: string }>) => {
     if (!project) return;
 
     setStep('generating');
     setError(null);
 
     try {
-      // Store interview responses manually for text answers
-      // (Voice answers are stored via transcribe endpoint)
-
-      // Generate content
+      // Generate content. For text-mode interviews, pass responses explicitly.
       const res = await fetch('/api/ai/generate-content?action=content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: project.id }),
+        body: JSON.stringify({ project_id: project.id, responses }),
       });
 
       if (!res.ok) {
@@ -436,7 +437,7 @@ export default function CreateProjectPage() {
         return project ? (
           <InterviewFlow
             projectId={project.id}
-            onComplete={handleInterviewComplete}
+            onComplete={(responses) => handleInterviewComplete(responses)}
             onSkip={handleSkipInterview}
           />
         ) : null;

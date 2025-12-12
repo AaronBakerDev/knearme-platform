@@ -11,9 +11,9 @@ const openai = new OpenAI({
 });
 
 console.log('OpenAI Client keys:', Object.keys(openai));
-// @ts-ignore
+// @ts-expect-error - SDK surface may expose responses in newer builds
 console.log('Has responses?', !!openai.responses);
-// @ts-ignore
+// @ts-expect-error - beta namespace is optional depending on SDK version
 console.log('Has beta?', !!openai.beta);
-// @ts-ignore
+// @ts-expect-error - beta chat parsing helper is optional
 console.log('Has beta.chat.completions.parse?', !!openai.beta?.chat?.completions?.parse);

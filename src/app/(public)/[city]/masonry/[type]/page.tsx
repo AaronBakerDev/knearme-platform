@@ -19,7 +19,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MapPin, Building2, Wrench, ArrowRight, Hammer, Calendar } from 'lucide-react';
+import { Building2, Wrench, ArrowRight, Hammer, Calendar } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/server';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -439,7 +439,7 @@ export default async function ServiceTypePage({ params }: PageParams) {
               <h1 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
                 {serviceInfo.label} in {cityName}
               </h1>
-              <p className="text-lg text-muted-foreground mb-6">
+              <p className="text-lg text-muted-foreground mb-6 max-w-[72ch] mx-auto leading-relaxed">
                 {serviceDesc?.headline || `Professional ${serviceInfo.label.toLowerCase()} services`}
               </p>
               <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
@@ -458,7 +458,7 @@ export default async function ServiceTypePage({ params }: PageParams) {
           {/* Service Description (SEO content) */}
           {serviceDesc && (
             <div className="max-w-4xl mx-auto mb-12">
-              <div className="prose prose-gray max-w-none">
+              <div className="prose prose-gray max-w-[72ch] leading-relaxed prose-headings:tracking-tight prose-p:text-muted-foreground">
                 <p className="text-muted-foreground leading-relaxed">
                   {serviceDesc.description.replace('{city}', cityName)}
                 </p>
@@ -632,10 +632,10 @@ export default async function ServiceTypePage({ params }: PageParams) {
         {/* Footer CTA */}
         <footer className="mt-12 py-12 bg-gradient-to-b from-muted/30 to-muted/10">
           <div className="container mx-auto px-4 text-center">
-            <p className="text-lg font-medium mb-2">
+            <p className="text-lg font-medium mb-2 max-w-[70ch] mx-auto leading-relaxed">
               Need {serviceInfo.label.toLowerCase()} in {cityName}?
             </p>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-muted-foreground mb-6 max-w-[70ch] mx-auto leading-relaxed">
               Browse the projects above to find contractors who deliver quality work.
             </p>
             <Button asChild variant="outline">

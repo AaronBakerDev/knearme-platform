@@ -12,6 +12,8 @@
  * @see https://platform.openai.com/docs/guides/structured-outputs
  */
 
+import fs from 'fs';
+import path from 'path';
 import OpenAI from 'openai';
 import { LengthFinishReasonError, ContentFilterFinishReasonError } from 'openai/core/error';
 
@@ -180,11 +182,10 @@ export function parseAIError(error: unknown): AIError {
 
   // Log full error details for debugging
   try {
-    const fs = require('fs');
-    const path = require('path');
     const logPath = path.resolve(process.cwd(), 'debug-error.log');
-    const errorLog = `[${new Date().toISOString()}] ERROR: ${error instanceof Error ? error.stack : JSON.stringify(error)
-      }\nFull Object: ${JSON.stringify(error, null, 2)}\n\n`;
+    const errorLog = `[${new Date().toISOString()}] ERROR: ${
+      error instanceof Error ? error.stack : JSON.stringify(error)
+    }\nFull Object: ${JSON.stringify(error, null, 2)}\n\n`;
     fs.appendFileSync(logPath, errorLog);
   } catch (e) {
     console.error('Failed to write debug log', e);
@@ -193,7 +194,7 @@ export function parseAIError(error: unknown): AIError {
   if (typeof error === 'object' && error !== null) {
     try {
       console.error(JSON.stringify(error, null, 2));
-    } catch (e) { /* ignore circular */ }
+    } catch { /* ignore circular */ }
   }
 
   return {

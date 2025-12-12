@@ -17,7 +17,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Calendar, Wrench, ArrowLeft, Building2 } from 'lucide-react';
+import { MapPin, Calendar, Wrench, ArrowLeft } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/server';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';

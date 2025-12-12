@@ -20,8 +20,7 @@ import type { BucketName } from './upload';
  */
 export async function createSignedUploadUrl(
   bucket: BucketName,
-  path: string,
-  expiresIn = 60
+  path: string
 ): Promise<{ signedUrl: string; token: string } | { error: string }> {
   const supabase = await createServerClient();
 

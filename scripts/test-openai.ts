@@ -29,8 +29,15 @@ async function testResponsesParse() {
     const imageUrl = "https://xynhhmliqdvyzrqnlvmk.supabase.co/storage/v1/object/public/project-images/4b783b8f-f473-4cd5-a7c0-cd6af32c17be/d6818f09-2215-457b-bc1a-1379141bf74f/10-finished-block-walls-pillar-mj0lg3gg66tmgm.webp";
 
     try {
-        // @ts-ignore
-        const response = await openai.responses.parse({
+        const client = openai as unknown as {
+            responses?: {
+                parse: (...args: unknown[]) => Promise<{
+                    output_parsed?: unknown;
+                }>;
+            };
+        };
+
+        const response = await client.responses?.parse({
             model: 'gpt-4o', // AI_MODELS.vision
             instructions: "Analyze this image.",
             input: [
@@ -54,15 +61,14 @@ async function testResponsesParse() {
         });
 
         console.log('✅ Responses API Parsed successfully!');
-        console.log(JSON.stringify(response.output_parsed, null, 2));
+        console.log(JSON.stringify(response?.output_parsed, null, 2));
     } catch (error) {
         console.error('❌ Responses API failed:', error);
-        if (error && typeof error === 'object' && 'status' in error) {
-            // @ts-ignore
-            console.error('Status:', error.status);
+        const err = error as { status?: unknown };
+        if (err && err.status) {
+            console.error('Status:', err.status);
         }
-        // log full properties
-        console.log('Error object:', error);
+        console.log('Error object:', err);
     }
 }
 

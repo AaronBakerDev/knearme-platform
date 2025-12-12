@@ -47,6 +47,23 @@ export default async function DashboardPage() {
     redirect('/profile/setup');
   }
 
+  // Get accurate published/draft counts (not limited to recent list)
+  const [publishedCountRes, draftCountRes] = await Promise.all([
+    supabase
+      .from('projects')
+      .select('id', { count: 'exact', head: true })
+      .eq('contractor_id', contractor.id)
+      .eq('status', 'published'),
+    supabase
+      .from('projects')
+      .select('id', { count: 'exact', head: true })
+      .eq('contractor_id', contractor.id)
+      .eq('status', 'draft'),
+  ]);
+
+  const publishedCount = publishedCountRes.count ?? 0;
+  const draftCount = draftCountRes.count ?? 0;
+
   // Get projects with counts and images
   const { data: projectsData, count: totalCount } = await supabase
     .from('projects')
@@ -79,9 +96,6 @@ export default async function DashboardPage() {
     project_images: ProjectImage[];
   };
   const projects = (projectsData ?? []) as ProjectRow[];
-
-  const publishedCount = projects.filter(p => p.status === 'published').length;
-  const draftCount = projects.filter(p => p.status === 'draft').length;
 
   return (
     <div className="space-y-8">

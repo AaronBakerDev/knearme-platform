@@ -20,7 +20,16 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Calendar, Clock, ArrowLeft, Tag, User, ListOrdered } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  ArrowLeft,
+  Tag,
+  User,
+  ListOrdered,
+  Link2,
+  ArrowUpRight,
+} from "lucide-react";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
@@ -50,6 +59,20 @@ import {
 import { useMDXComponents } from "@/mdx-components";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://knearme.com";
+const CATEGORY_LABELS: Record<string, string> = {
+  chimney: "Chimney",
+  brick: "Brick & Mortar",
+  stone: "Stone",
+  foundation: "Foundation",
+  restoration: "Restoration",
+  maintenance: "Maintenance",
+  costs: "Cost Guides",
+};
+
+const DEFAULT_EXTERNAL_SOURCE = {
+  href: "https://developers.google.com/search/docs/crawling-indexing/links-crawlable",
+  label: "Google guidance: make links crawlable",
+};
 
 // ISR: Revalidate weekly
 export const revalidate = 604800;
@@ -170,6 +193,53 @@ export default async function ArticlePage({ params }: PageParams) {
     .filter((a) => a.slug !== slug)
     .slice(0, 3);
 
+  // Build key links for quick navigation and internal linking
+  type KeyLink = { href: string; label: string; external?: boolean };
+  const keyLinks: KeyLink[] = [];
+  const seen = new Set<string>();
+
+  const addLink = (href: string, label: string, external = false) => {
+    if (!href || seen.has(href)) return;
+    seen.add(href);
+    keyLinks.push({ href, label, external });
+  };
+
+  const formatServiceName = (service: string) =>
+    service
+      .split("-")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+
+  if (frontmatter.pillarSlug) {
+    addLink(
+      `/services/${frontmatter.pillarSlug}`,
+      `Pillar guide: ${formatServiceName(frontmatter.pillarSlug)}`
+    );
+  }
+
+  if (frontmatter.relatedServices && frontmatter.relatedServices.length > 0) {
+    const service = frontmatter.relatedServices[0];
+    if (service) {
+      addLink(`/services/${service}`, `Related service: ${formatServiceName(service)}`);
+    }
+  }
+
+  if (frontmatter.category) {
+    const categoryLabel = CATEGORY_LABELS[frontmatter.category] || frontmatter.category;
+    addLink(`/learn?category=${frontmatter.category}`, `More ${categoryLabel} guides`);
+  }
+
+  relatedArticles.slice(0, 2).forEach((related) =>
+    addLink(`/learn/${related.slug}`, `Related guide: ${related.frontmatter.title}`)
+  );
+
+  const authoritativeSources =
+    frontmatter.authoritativeSources ||
+    (frontmatter.authoritativeSource ? [frontmatter.authoritativeSource] : []);
+
+  const authoritativeLink = authoritativeSources[0] || DEFAULT_EXTERNAL_SOURCE;
+  addLink(authoritativeLink.href, authoritativeLink.label, true);
+
   // Generate structured data
   const articleSchema = generateArticleSchema(article, slug);
   const faqSchema =
@@ -238,9 +308,9 @@ export default async function ArticlePage({ params }: PageParams) {
           </div>
 
           {/* Two-column layout: Content + TOC sidebar */}
-          <div className="flex flex-col lg:flex-row lg:gap-12 max-w-6xl mx-auto">
+          <div className="flex flex-col lg:flex-row lg:gap-14 max-w-6xl mx-auto">
             {/* Main content */}
-            <div className="flex-1 max-w-4xl">
+            <div className="flex-1 w-full max-w-[60ch] md:max-w-[68ch] lg:max-w-[74ch]">
               {/* Article Header */}
               <article>
               <header className="mb-8">
@@ -255,7 +325,7 @@ export default async function ArticlePage({ params }: PageParams) {
                 </h1>
 
                 {/* Description */}
-                <p className="text-lg md:text-xl text-muted-foreground mb-6">
+                <p className="text-lg md:text-xl leading-relaxed text-muted-foreground mb-6">
                   {frontmatter.description}
                 </p>
 
@@ -300,6 +370,41 @@ export default async function ArticlePage({ params }: PageParams) {
                   />
                 </div>
               </header>
+
+              {/* Key links for fast navigation and topical authority */}
+              {keyLinks.length > 0 && (
+                <section className="mb-8" aria-labelledby="key-links-heading">
+                  <div className="rounded-xl border bg-muted/40 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Link2 className="h-4 w-4 text-primary" />
+                      <h2
+                        id="key-links-heading"
+                        className="text-sm font-semibold tracking-tight text-foreground"
+                      >
+                        Key links
+                      </h2>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {keyLinks.map((link) => (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          className="group flex items-start justify-between gap-2 rounded-lg border border-transparent px-2 py-1.5 transition-colors hover:border-muted-foreground/30 hover:bg-muted/20"
+                          target={link.external ? "_blank" : undefined}
+                          rel={link.external ? "noopener noreferrer" : undefined}
+                        >
+                          <span className="text-sm text-primary font-semibold group-hover:text-primary/80">
+                            {link.label}
+                          </span>
+                          {link.external && (
+                            <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              )}
 
               {/* How-To Steps (if provided) */}
               {frontmatter.howToSteps && frontmatter.howToSteps.length > 0 && (
@@ -363,7 +468,7 @@ export default async function ArticlePage({ params }: PageParams) {
               )}
 
               {/* MDX Content */}
-              <div className="prose prose-lg max-w-none">
+              <div className="prose prose-lg max-w-[60ch] md:max-w-[68ch] lg:max-w-[72ch] leading-relaxed prose-headings:tracking-tight prose-headings:leading-tight prose-p:text-muted-foreground prose-p:leading-relaxed prose-li:leading-relaxed">
                 <MDXRemote
                   source={content}
                   components={components}

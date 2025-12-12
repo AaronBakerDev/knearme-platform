@@ -39,7 +39,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Menu, Hammer, BookOpen, MapPin, Building2 } from "lucide-react";
+import { Menu, Hammer, BookOpen, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**

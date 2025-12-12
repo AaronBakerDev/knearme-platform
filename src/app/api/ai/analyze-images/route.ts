@@ -64,7 +64,8 @@ export async function POST(request: NextRequest) {
         contractor_id,
         project_images (
           id,
-          storage_path
+          storage_path,
+          display_order
         )
       `)
       .eq('id', project_id)
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     type ProjectWithImages = {
       id: string;
       contractor_id: string;
-      project_images: Array<{ id: string; storage_path: string }>;
+      project_images: Array<{ id: string; storage_path: string; display_order: number | null }>;
     };
     const project = data as ProjectWithImages | null;
 
@@ -89,8 +90,13 @@ export async function POST(request: NextRequest) {
       return apiError('VALIDATION_ERROR', 'No images to analyze. Please upload photos first.');
     }
 
+    // Ensure stable ordering for AI analysis and alt text mapping
+    const sortedImages = [...images].sort(
+      (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
+    );
+
     // Get public URLs for images
-    const imageUrls = images.map((img) => getPublicUrl('project-images', img.storage_path));
+    const imageUrls = sortedImages.map((img) => getPublicUrl('project-images', img.storage_path));
 
     // Analyze images with GPT-4V
     const analysisResult = await analyzeProjectImages(imageUrls);
@@ -138,7 +144,7 @@ export async function POST(request: NextRequest) {
     // Store generated alt texts in project_images table
     // Images are keyed by index ("0", "1", etc.) matching the order they were analyzed
     if (analysisResult.image_alt_texts && Object.keys(analysisResult.image_alt_texts).length > 0) {
-      const altTextUpdates = images.map((img, index) => {
+      const altTextUpdates = sortedImages.map((img, index) => {
         const altText = analysisResult.image_alt_texts[String(index)];
         if (altText) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

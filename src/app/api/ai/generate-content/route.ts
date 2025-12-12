@@ -35,6 +35,16 @@ const generateQuestionsSchema = z.object({
  */
 const generateContentSchema = z.object({
   project_id: z.string().uuid(),
+  /** Optional client-provided responses (used for text-mode interview) */
+  responses: z
+    .array(
+      z.object({
+        question_id: z.string(),
+        question_text: z.string(),
+        answer: z.string(),
+      })
+    )
+    .optional(),
 });
 
 /**
@@ -142,7 +152,7 @@ export async function POST(request: NextRequest) {
           return apiError('NOT_FOUND', 'Project not found');
         }
 
-        // Get interview session
+        // Get interview session (may be empty if text-mode responses are provided)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: session, error: sessionError } = await (supabase as any)
           .from('interview_sessions')
@@ -153,23 +163,60 @@ export async function POST(request: NextRequest) {
         // Type assertion for session data
         type ContentSessionData = {
           image_analysis?: ImageAnalysisResult;
-          questions?: Array<{ text: string; answer: string }>;
+          questions?: Array<{ id: string; text: string; answer: string }>;
           generated_content?: Record<string, unknown>;
         };
         const sessionData = session as ContentSessionData | null;
 
-        if (sessionError || !sessionData) {
-          return apiError('NOT_FOUND', 'Interview session not found. Please complete the interview first.');
+        const imageAnalysis = (sessionData?.image_analysis || {}) as ImageAnalysisResult;
+
+        let interviewResponses: Array<{ question: string; answer: string }> = [];
+
+        const providedResponses = parsed.data.responses;
+
+        if (providedResponses && providedResponses.length > 0) {
+          interviewResponses = providedResponses.map((r) => ({
+            question: r.question_text,
+            answer: r.answer,
+          }));
+
+          // Persist text responses into the interview session for consistency.
+          const existingQuestions = sessionData?.questions ?? [];
+          const filteredExisting = existingQuestions.filter(
+            (q) => !providedResponses.some((r) => r.question_id === q.id)
+          );
+          const mergedQuestions = [
+            ...filteredExisting,
+            ...providedResponses.map((r) => ({
+              id: r.question_id,
+              text: r.question_text,
+              answer: r.answer,
+            })),
+          ];
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any)
+            .from('interview_sessions')
+            .upsert(
+              {
+                project_id,
+                image_analysis: sessionData?.image_analysis ?? null,
+                questions: mergedQuestions,
+                status: 'in_progress',
+              },
+              { onConflict: 'project_id' }
+            );
+        } else {
+          if (sessionError || !sessionData) {
+            return apiError('NOT_FOUND', 'Interview session not found. Please complete the interview first.');
+          }
+
+          const questions = sessionData.questions ?? [];
+          interviewResponses = questions.map((q) => ({
+            question: q.text,
+            answer: q.answer,
+          }));
         }
-
-        const imageAnalysis = (sessionData.image_analysis || {}) as ImageAnalysisResult;
-        const questions = (sessionData.questions as Array<{ text: string; answer: string }>) || [];
-
-        // Convert questions to interview responses format
-        const interviewResponses = questions.map((q) => ({
-          question: q.text,
-          answer: q.answer,
-        }));
 
         if (interviewResponses.length === 0) {
           return apiError('VALIDATION_ERROR', 'No interview responses found. Please answer the interview questions first.');

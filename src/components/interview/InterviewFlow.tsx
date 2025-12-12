@@ -14,7 +14,7 @@
  * @see /docs/02-requirements/user-journeys.md J2
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Loader2, CheckCircle2, ChevronRight, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -64,14 +64,7 @@ export function InterviewFlow({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch questions if not provided
-  useEffect(() => {
-    if (!initialQuestions) {
-      fetchQuestions();
-    }
-  }, [initialQuestions, projectId]);
-
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -94,7 +87,14 @@ export function InterviewFlow({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [projectId]);
+
+  // Fetch questions if not provided
+  useEffect(() => {
+    if (!initialQuestions) {
+      fetchQuestions();
+    }
+  }, [initialQuestions, fetchQuestions]);
 
   const currentQuestion = questions[currentIndex];
   const progress = questions.length > 0 ? ((currentIndex) / questions.length) * 100 : 0;
@@ -289,7 +289,6 @@ export function InterviewFlow({
             )}
 
             <VoiceRecorder
-              question={currentQuestion.text}
               onRecordingComplete={handleRecordingComplete}
               onTextResponse={handleTextResponse}
               isProcessing={isProcessing}

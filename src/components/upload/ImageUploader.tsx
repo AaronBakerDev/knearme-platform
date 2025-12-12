@@ -15,6 +15,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { Upload, X, Camera, ImageIcon, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -106,6 +107,7 @@ export function ImageUploader({
       setPendingUploads((prev) => [...prev, ...newPending]);
 
       // Process each file
+      let updatedImages = images;
       for (const pending of newPending) {
         try {
           // Validate file
@@ -161,17 +163,19 @@ export function ImageUploader({
           );
           onUploadProgress?.({ fileName: pending.file.name, progress: 60, status: 'uploading' });
 
-          // Upload to Supabase Storage
+          // Upload to Supabase Storage. Signed upload URLs accept direct PUT.
           const uploadRes = await fetch(upload.signed_url, {
             method: 'PUT',
             headers: {
               'Content-Type': 'image/webp',
+              'x-upsert': 'true',
             },
             body: blob,
           });
 
           if (!uploadRes.ok) {
-            throw new Error('Failed to upload to storage');
+            const errText = await uploadRes.text().catch(() => '');
+            throw new Error(errText || 'Failed to upload to storage');
           }
 
           setPendingUploads((prev) =>
@@ -189,7 +193,8 @@ export function ImageUploader({
             height,
           };
 
-          onImagesChange([...images, uploadedImage]);
+          updatedImages = [...updatedImages, uploadedImage];
+          onImagesChange(updatedImages);
           onUploadProgress?.({ fileName: pending.file.name, progress: 100, status: 'complete' });
 
           // Clean up pending entry
@@ -345,10 +350,12 @@ export function ImageUploader({
           {/* Uploaded images */}
           {images.map((image) => (
             <Card key={image.id} className="relative group aspect-square overflow-hidden">
-              <img
+              <Image
                 src={image.url}
                 alt={image.filename}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="object-cover"
               />
               {!disabled && (
                 <button
@@ -369,11 +376,13 @@ export function ImageUploader({
               key={pending.id}
               className="relative aspect-square overflow-hidden bg-muted"
             >
-              <img
+              <Image
                 src={pending.previewUrl}
                 alt="Uploading..."
+                fill
+                unoptimized
                 className={cn(
-                  'w-full h-full object-cover',
+                  'object-cover',
                   pending.error && 'opacity-50'
                 )}
               />

@@ -287,6 +287,14 @@ export default async function NationalServicePage({ params }: PageParams) {
                   </Button>
                   <Button
                     size="lg"
+                    variant="secondary"
+                    className="rounded-full px-8"
+                    asChild
+                  >
+                    <a href={`/tools/masonry-cost-estimator?service=${serviceId}`}>Estimate Cost</a>
+                  </Button>
+                  <Button
+                    size="lg"
                     variant="outline"
                     className="rounded-full px-8"
                     asChild
@@ -362,8 +370,37 @@ export default async function NationalServicePage({ params }: PageParams) {
                   What is {content.label}?
                 </h2>
               </div>
+
+              <div className="mb-8 rounded-2xl border bg-muted/30 p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-1">Planning your project?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Use our tools to budget and scope repairs before you request bids.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Button asChild variant="secondary" className="rounded-full">
+                    <Link href={`/tools/masonry-cost-estimator?service=${serviceId}`}>Cost Estimator</Link>
+                  </Button>
+                  {serviceId === 'chimney-repair' && (
+                    <Button asChild variant="outline" className="rounded-full">
+                      <Link href="/tools/chimney-repair-urgency-checklist">Check Urgency</Link>
+                    </Button>
+                  )}
+                  {serviceId === 'tuckpointing' && (
+                    <Button asChild variant="outline" className="rounded-full">
+                      <Link href="/tools/tuckpointing-calculator">Materials Calculator</Link>
+                    </Button>
+                  )}
+                  {serviceId === 'brick-repair' && (
+                    <Button asChild variant="outline" className="rounded-full">
+                      <Link href="/tools/brick-replacement-calculator">Brick Count Calculator</Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
               <div
-                className="prose-earth max-w-none"
+                className="prose-earth max-w-[72ch] leading-relaxed prose-headings:tracking-tight prose-p:text-muted-foreground"
                 dangerouslySetInnerHTML={{ __html: content.longDescription }}
               />
             </div>

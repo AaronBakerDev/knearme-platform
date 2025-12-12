@@ -30,6 +30,15 @@ export interface ArticleFrontmatter {
   image?: string;
   tags?: string[];
   relatedServices?: string[];
+  pillarSlug?: string;
+  authoritativeSource?: {
+    label: string;
+    href: string;
+  };
+  authoritativeSources?: Array<{
+    label: string;
+    href: string;
+  }>;
   faqs?: Array<{ question: string; answer: string }>;
   howToTitle?: string;
   howToDescription?: string;

@@ -27,7 +27,6 @@ import {
   AlertCircle,
   ArrowRight,
   Sparkles,
-  ExternalLink,
 } from 'lucide-react'
 
 interface ProjectData {

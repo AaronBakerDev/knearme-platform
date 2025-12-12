@@ -20,8 +20,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 export interface VoiceRecorderProps {
-  /** Question being answered */
-  question: string;
   /** Called when recording is complete */
   onRecordingComplete: (audioBlob: Blob) => void;
   /** Called when user types a text response instead */
@@ -45,7 +43,6 @@ type RecordingState = 'idle' | 'recording' | 'recorded' | 'playing' | 'text-mode
  * text input if they prefer typing.
  */
 export function VoiceRecorder({
-  question,
   onRecordingComplete,
   onTextResponse,
   isProcessing = false,

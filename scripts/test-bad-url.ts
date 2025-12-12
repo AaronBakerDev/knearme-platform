@@ -21,8 +21,13 @@ async function testBadUrl() {
     const imageUrl = "undefined/storage/v1/object/public/project-images/foo.webp"; // Simulate missing env var
 
     try {
-        // @ts-ignore
-        await openai.responses.parse({
+        const client = openai as unknown as {
+            responses?: {
+                parse: (...args: unknown[]) => Promise<unknown>;
+            };
+        };
+
+        await client.responses?.parse({
             model: 'gpt-4o',
             instructions: "Analyze",
             input: [
@@ -43,12 +48,10 @@ async function testBadUrl() {
         });
     } catch (error) {
         console.log('❌ Error caught!');
-        // @ts-ignore
-        if (error.status) console.log('Status:', error.status);
-        // @ts-ignore
-        if (error.code) console.log('Code:', error.code);
-        // @ts-ignore
-        if (error.message) console.log('Message:', error.message);
+        const err = error as { status?: unknown; code?: unknown; message?: unknown };
+        if (err.status) console.log('Status:', err.status);
+        if (err.code) console.log('Code:', err.code);
+        if (err.message) console.log('Message:', err.message);
     }
 }
 

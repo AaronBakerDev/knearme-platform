@@ -15,7 +15,7 @@
  * @see src/app/(contractor)/projects/[id]/edit/page.tsx - Integration point
  */
 
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import Image from 'next/image'
 import {
   DndContext,
@@ -185,8 +185,6 @@ export function SortableImageGrid({
   disabled = false,
   className,
 }: SortableImageGridProps) {
-  const [activeId, setActiveId] = useState<string | null>(null)
-
   // Set up sensors for both mouse and touch
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -204,7 +202,6 @@ export function SortableImageGrid({
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event
-      setActiveId(null)
 
       if (over && active.id !== over.id) {
         const oldIndex = images.findIndex((img) => img.id === active.id)
@@ -229,9 +226,7 @@ export function SortableImageGrid({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      onDragStart={(event) => setActiveId(event.active.id as string)}
       onDragEnd={handleDragEnd}
-      onDragCancel={() => setActiveId(null)}
     >
       <SortableContext
         items={images.map((img) => img.id)}

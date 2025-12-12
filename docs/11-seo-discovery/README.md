@@ -23,6 +23,10 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 | [National Service Landing](./page-templates/national-service.md) | `/services/{type}` | **P2** | Phase 3 |
 | [Educational Content](./page-templates/educational-content.md) | `/learn/{slug}` or `/resources/{slug}` | **P2** | Phase 3 |
 
+### Editorial & UX Standards
+
+- [Learn Blog: Internal Linking & Readability Playbook](./learn-blog-linking-readability.md)
+
 ## Implementation Priority Table
 
 ### Phase 1 (Complete)

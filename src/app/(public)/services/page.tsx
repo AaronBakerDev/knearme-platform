@@ -15,9 +15,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import {
-  Hammer,
   ArrowRight,
-  Building2,
   MapPin,
   Sparkles,
   Shield,
