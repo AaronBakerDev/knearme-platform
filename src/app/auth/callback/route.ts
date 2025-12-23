@@ -1,9 +1,10 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 /**
  * Auth callback handler for Supabase OAuth and email verification.
- * Exchanges the auth code for a session and redirects appropriately.
+ * Exchanges the auth code for a session, creates contractor record for new OAuth users,
+ * and redirects appropriately.
  *
  * @see https://supabase.com/docs/guides/auth/server-side/nextjs
  */
@@ -29,8 +30,24 @@ export async function GET(request: Request) {
 
         const contractor = contractorData as { business_name: string | null; city: string | null; services: string[] | null } | null;
 
+        // For new OAuth users, create a contractor record if one doesn't exist
+        if (!contractor) {
+          const adminClient = createAdminClient();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (adminClient as any)
+            .from('contractors')
+            .insert({
+              auth_user_id: user.id,
+              email: user.email,
+              // Leave other fields null - user will complete in profile setup
+            });
+
+          // New user, redirect to profile setup
+          return NextResponse.redirect(`${origin}/profile/setup`);
+        }
+
         // If profile incomplete, redirect to setup
-        if (!contractor?.business_name || !contractor?.city || !contractor?.services?.length) {
+        if (!contractor.business_name || !contractor.city || !contractor.services?.length) {
           return NextResponse.redirect(`${origin}/profile/setup`);
         }
       }
