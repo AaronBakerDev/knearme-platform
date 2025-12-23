@@ -33,7 +33,7 @@ function inlineAssetsPlugin(): Plugin {
 
       // Find and inline CSS
       const cssMatch = html.match(/href="([^"]+\.css)"/);
-      if (cssMatch) {
+      if (cssMatch && cssMatch[1]) {
         const cssPath = resolve(distDir, cssMatch[1].replace(/^\//, ''));
         if (existsSync(cssPath)) {
           const css = readFileSync(cssPath, 'utf-8');
@@ -46,7 +46,7 @@ function inlineAssetsPlugin(): Plugin {
 
       // Find and inline JS
       const jsMatch = html.match(/src="([^"]+\.js)"/);
-      if (jsMatch) {
+      if (jsMatch && jsMatch[1]) {
         const jsPath = resolve(distDir, jsMatch[1].replace(/^\//, ''));
         if (existsSync(jsPath)) {
           const js = readFileSync(jsPath, 'utf-8');

@@ -156,14 +156,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Verify project ownership
-    const { data: project, error: projectError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: project, error: projectError } = await (supabase as any)
       .from('projects')
       .select('id, hero_image_id')
       .eq('id', projectId)
       .eq('contractor_id', contractor.id)
       .single();
 
-    if (projectError || !project) {
+    const typedProject = project as { id: string; hero_image_id: string | null } | null;
+
+    if (projectError || !typedProject) {
       return apiError('NOT_FOUND', 'Project not found');
     }
 
@@ -214,7 +217,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Auto-set hero image if missing
-    if (project && !project.hero_image_id) {
+    if (typedProject && !typedProject.hero_image_id) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase as any)
         .from('projects')
