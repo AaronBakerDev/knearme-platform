@@ -10,8 +10,7 @@
 
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
-import { requireAuth, isAuthError } from '@/lib/api/auth';
+import { requireAuthUnified, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, apiCreated, handleApiError } from '@/lib/api/errors';
 import { slugify } from '@/lib/utils/slugify';
 import type { Project, ProjectWithImages } from '@/types/database';
@@ -44,7 +43,7 @@ const createProjectSchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
@@ -57,13 +56,14 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') ?? '20'), 100);
     const offset = parseInt(searchParams.get('offset') ?? '0');
 
-    const supabase = await createClient();
+    const supabase = await getAuthClient(auth);
 
     // Build query - RLS automatically filters to this contractor
+    // Use explicit relationship hint due to hero_image_id FK ambiguity
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = (supabase as any)
       .from('projects')
-      .select('*, project_images(*)', { count: 'exact' })
+      .select('*, project_images!project_images_project_id_fkey(*)', { count: 'exact' })
       .eq('contractor_id', contractor.id)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     const baseSlug = title ? slugify(title) : `project-${timestamp}`;
     const uniqueSlug = `${baseSlug}-${timestamp}`;
 
-    const supabase = await createClient();
+    const supabase = await getAuthClient(auth);
 
     // Create the project - RLS ensures contractor_id matches auth
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -10,8 +10,7 @@
 
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
-import { requireAuth, isAuthError } from '@/lib/api/auth';
+import { requireAuthUnified, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { slugify } from '@/lib/utils/slugify';
 import type { ProjectWithImages } from '@/types/database';
@@ -29,10 +28,20 @@ const updateProjectSchema = z.object({
   materials: z.array(z.string()).optional(),
   techniques: z.array(z.string()).optional(),
   city: z.string().max(100).optional(),
+  state: z.string().max(50).optional(),
   duration: z.string().max(50).optional(),
   tags: z.array(z.string()).optional(),
   seo_title: z.string().max(70).optional(),
   seo_description: z.string().max(160).optional(),
+  // Case-study narrative fields (for MCP/ChatGPT integration)
+  summary: z.string().max(500).optional(),
+  challenge: z.string().max(2000).optional(),
+  solution: z.string().max(2000).optional(),
+  results: z.string().max(2000).optional(),
+  outcome_highlights: z.array(z.string()).optional(),
+  hero_image_id: z.string().uuid().nullable().optional(),
+  client_type: z.enum(['residential', 'commercial', 'municipal', 'other']).nullable().optional(),
+  budget_range: z.enum(['<5k', '5k-10k', '10k-25k', '25k-50k', '50k+']).nullable().optional(),
 });
 
 /**
@@ -43,18 +52,20 @@ const updateProjectSchema = z.object({
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
 
     const { id } = await params;
     const { contractor } = auth;
-    const supabase = await createClient();
+    const supabase = await getAuthClient(auth);
 
-    const { data: project, error } = await supabase
+    // Use explicit relationship hint due to hero_image_id FK ambiguity
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: project, error } = await (supabase as any)
       .from('projects')
-      .select('*, project_images(*)')
+      .select('*, project_images!project_images_project_id_fkey(*)')
       .eq('id', id)
       .eq('contractor_id', contractor.id)
       .single();
@@ -77,7 +88,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
@@ -96,7 +107,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const updates = parsed.data;
-    const supabase = await createClient();
+    const supabase = await getAuthClient(auth);
 
     // Verify project ownership first
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -134,14 +145,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       updatePayload.project_type_slug = slugify(updates.project_type);
     }
 
-    // Update project
+    // Update project - use explicit relationship hint due to hero_image_id FK ambiguity
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: project, error: updateError } = await (supabase as any)
       .from('projects')
       .update(updatePayload)
       .eq('id', id)
       .eq('contractor_id', contractor.id)
-      .select('*, project_images(*)')
+      .select('*, project_images!project_images_project_id_fkey(*)')
       .single();
 
     if (updateError) {
@@ -164,14 +175,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
 
     const { id } = await params;
     const { contractor } = auth;
-    const supabase = await createClient();
+    const supabase = await getAuthClient(auth);
 
     // Get image paths before deletion (for storage cleanup)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
