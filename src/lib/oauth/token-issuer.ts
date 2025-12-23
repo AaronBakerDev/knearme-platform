@@ -2,10 +2,10 @@
  * OAuth Token Issuer.
  *
  * Issues JWT access tokens for authenticated contractors to use with the MCP server.
- * Tokens are signed with the Supabase JWT secret for easy validation.
+ * Tokens are signed with ECC P-256 (ES256) private key for asymmetric verification.
  *
  * @see /docs/chatgpt-apps-sdk/AUTH_STATE_SECURITY.md
- * @see /mcp-server/src/auth/token-validator.ts - Validates tokens issued here
+ * @see /src/lib/mcp/token-validator.ts - Validates tokens issued here
  */
 
 import * as jose from 'jose';
@@ -35,8 +35,25 @@ export interface TokenOptions {
   expiresIn?: number;
 }
 
-// JWT secret from environment (same as MCP server uses for validation)
-const JWT_SECRET = process.env.SUPABASE_JWT_SECRET || '';
+// ECC P-256 private key for signing (ES256 algorithm)
+const JWT_PRIVATE_KEY = process.env.JWT_PRIVATE_KEY || '';
+
+// Cache the imported key to avoid re-parsing on every call
+let privateKeyCache: CryptoKey | null = null;
+
+/**
+ * Get the private key for signing, with caching.
+ */
+async function getPrivateKey(): Promise<CryptoKey> {
+  if (privateKeyCache) return privateKeyCache;
+
+  if (!JWT_PRIVATE_KEY) {
+    throw new Error('JWT_PRIVATE_KEY not configured');
+  }
+
+  privateKeyCache = await jose.importPKCS8(JWT_PRIVATE_KEY, 'ES256');
+  return privateKeyCache;
+}
 
 /**
  * Issue an access token for a contractor.
@@ -68,26 +85,22 @@ export async function issueAccessToken(
   email: string,
   options: TokenOptions = {}
 ): Promise<string> {
-  if (!JWT_SECRET) {
-    throw new Error('SUPABASE_JWT_SECRET not configured');
-  }
+  const privateKey = await getPrivateKey();
 
   const { expiresIn = 3600 } = options;
   const now = Math.floor(Date.now() / 1000);
-
-  const secret = new TextEncoder().encode(JWT_SECRET);
 
   const token = await new jose.SignJWT({
     sub: userId,
     contractor_id: contractorId,
     email,
   })
-    .setProtectedHeader({ alg: 'HS256' })
+    .setProtectedHeader({ alg: 'ES256' })
     .setIssuedAt(now)
     .setExpirationTime(now + expiresIn)
     .setIssuer('knearme-portfolio')
     .setAudience('knearme-mcp-server')
-    .sign(secret);
+    .sign(privateKey);
 
   return token;
 }
@@ -108,26 +121,22 @@ export async function issueRefreshToken(
   contractorId: string,
   options: TokenOptions = {}
 ): Promise<string> {
-  if (!JWT_SECRET) {
-    throw new Error('SUPABASE_JWT_SECRET not configured');
-  }
+  const privateKey = await getPrivateKey();
 
   const { expiresIn = 7 * 24 * 3600 } = options; // 7 days default
   const now = Math.floor(Date.now() / 1000);
-
-  const secret = new TextEncoder().encode(JWT_SECRET);
 
   const token = await new jose.SignJWT({
     sub: userId,
     contractor_id: contractorId,
     type: 'refresh',
   })
-    .setProtectedHeader({ alg: 'HS256' })
+    .setProtectedHeader({ alg: 'ES256' })
     .setIssuedAt(now)
     .setExpirationTime(now + expiresIn)
     .setIssuer('knearme-portfolio')
     .setAudience('knearme-mcp-server')
-    .sign(secret);
+    .sign(privateKey);
 
   return token;
 }
@@ -138,17 +147,33 @@ export async function issueRefreshToken(
  * @param token - The refresh token to verify
  * @returns Decoded token payload or null if invalid
  */
+// ECC P-256 public key for verification (ES256 algorithm)
+const JWT_PUBLIC_KEY = process.env.JWT_PUBLIC_KEY || '';
+
+// Cache the imported public key
+let publicKeyCache: CryptoKey | null = null;
+
+/**
+ * Get the public key for verification, with caching.
+ */
+async function getPublicKey(): Promise<CryptoKey> {
+  if (publicKeyCache) return publicKeyCache;
+
+  if (!JWT_PUBLIC_KEY) {
+    throw new Error('JWT_PUBLIC_KEY not configured');
+  }
+
+  publicKeyCache = await jose.importSPKI(JWT_PUBLIC_KEY, 'ES256');
+  return publicKeyCache;
+}
+
 export async function verifyRefreshToken(
   token: string
 ): Promise<{ sub: string; contractor_id: string } | null> {
-  if (!JWT_SECRET) {
-    return null;
-  }
-
   try {
-    const secret = new TextEncoder().encode(JWT_SECRET);
-    const { payload } = await jose.jwtVerify(token, secret, {
-      algorithms: ['HS256'],
+    const publicKey = await getPublicKey();
+    const { payload } = await jose.jwtVerify(token, publicKey, {
+      algorithms: ['ES256'],
       audience: 'knearme-mcp-server',
       issuer: 'knearme-portfolio',
     });

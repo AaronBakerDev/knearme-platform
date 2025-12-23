@@ -15,11 +15,30 @@ import * as jose from 'jose';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import type { Contractor } from '@/types/database';
 
-// JWT secret for MCP token validation (same as Supabase JWT secret)
-// In development, falls back to a test secret for local testing
-const DEV_JWT_SECRET = 'dev-test-secret-32-chars-minimum';
-const JWT_SECRET = process.env.SUPABASE_JWT_SECRET || process.env.JWT_SECRET ||
-  (process.env.NODE_ENV !== 'production' ? DEV_JWT_SECRET : '');
+// ECC P-256 public key for MCP token verification (ES256 algorithm)
+const JWT_PUBLIC_KEY = process.env.JWT_PUBLIC_KEY || '';
+
+// Cache the imported public key
+let publicKeyCache: CryptoKey | null = null;
+
+/**
+ * Get the public key for verification, with caching.
+ */
+async function getPublicKey(): Promise<CryptoKey | null> {
+  if (publicKeyCache) return publicKeyCache;
+
+  if (!JWT_PUBLIC_KEY) {
+    return null;
+  }
+
+  try {
+    publicKeyCache = await jose.importSPKI(JWT_PUBLIC_KEY, 'ES256');
+    return publicKeyCache;
+  } catch {
+    console.error('[Auth] Failed to import JWT_PUBLIC_KEY');
+    return null;
+  }
+}
 
 export interface AuthResult {
   user: {
@@ -141,8 +160,9 @@ interface McpTokenPayload {
  * @returns AuthResult if valid, AuthError if invalid
  */
 async function validateBearerToken(token: string): Promise<AuthResult | AuthError> {
-  if (!JWT_SECRET) {
-    console.error('[Auth] JWT_SECRET not configured for Bearer token validation');
+  const publicKey = await getPublicKey();
+  if (!publicKey) {
+    console.error('[Auth] JWT_PUBLIC_KEY not configured for Bearer token validation');
     return {
       type: 'UNAUTHORIZED',
       message: 'Server configuration error.',
@@ -150,9 +170,8 @@ async function validateBearerToken(token: string): Promise<AuthResult | AuthErro
   }
 
   try {
-    const secret = new TextEncoder().encode(JWT_SECRET);
-    const { payload } = await jose.jwtVerify(token, secret, {
-      algorithms: ['HS256'],
+    const { payload } = await jose.jwtVerify(token, publicKey, {
+      algorithms: ['ES256'],
       audience: 'knearme-mcp-server',
       issuer: 'knearme-portfolio',
     });

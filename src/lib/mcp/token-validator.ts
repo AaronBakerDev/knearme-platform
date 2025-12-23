@@ -2,7 +2,7 @@
  * OAuth Token Validator for MCP endpoint.
  *
  * Validates access tokens issued by the KnearMe OAuth server.
- * Tokens are JWTs signed with the Supabase JWT secret.
+ * Tokens are JWTs signed with ECC P-256 (ES256) and verified with the public key.
  *
  * @see /docs/chatgpt-apps-sdk/AUTH_STATE_SECURITY.md
  */
@@ -10,8 +10,25 @@
 import * as jose from 'jose';
 import type { TokenPayload } from './types';
 
-// JWT secret from environment (Supabase JWT secret)
-const JWT_SECRET = process.env.SUPABASE_JWT_SECRET || process.env.JWT_SECRET || '';
+// ECC P-256 public key for verification (ES256 algorithm)
+const JWT_PUBLIC_KEY = process.env.JWT_PUBLIC_KEY || '';
+
+// Cache the imported public key
+let publicKeyCache: CryptoKey | null = null;
+
+/**
+ * Get the public key for verification, with caching.
+ */
+async function getPublicKey(): Promise<CryptoKey> {
+  if (publicKeyCache) return publicKeyCache;
+
+  if (!JWT_PUBLIC_KEY) {
+    throw new Error('JWT_PUBLIC_KEY not configured');
+  }
+
+  publicKeyCache = await jose.importSPKI(JWT_PUBLIC_KEY, 'ES256');
+  return publicKeyCache;
+}
 
 export type TokenValidationResult =
   | { success: true; payload: TokenPayload }
@@ -21,15 +38,15 @@ export type TokenValidationResult =
  * Validate an access token.
  */
 export async function validateToken(token: string): Promise<TokenValidationResult> {
-  if (!JWT_SECRET) {
-    console.error('[MCP Token Validator] JWT_SECRET not configured');
+  if (!JWT_PUBLIC_KEY) {
+    console.error('[MCP Token Validator] JWT_PUBLIC_KEY not configured');
     return { success: false, error: 'Server configuration error' };
   }
 
   try {
-    const secret = new TextEncoder().encode(JWT_SECRET);
-    const { payload } = await jose.jwtVerify(token, secret, {
-      algorithms: ['HS256'],
+    const publicKey = await getPublicKey();
+    const { payload } = await jose.jwtVerify(token, publicKey, {
+      algorithms: ['ES256'],
       audience: 'knearme-mcp-server',
       issuer: 'knearme-portfolio',
     });
@@ -72,6 +89,26 @@ export async function validateToken(token: string): Promise<TokenValidationResul
   }
 }
 
+// ECC P-256 private key for signing (only used in dev mode)
+const JWT_PRIVATE_KEY = process.env.JWT_PRIVATE_KEY || '';
+
+// Cache the imported private key
+let privateKeyCache: CryptoKey | null = null;
+
+/**
+ * Get the private key for signing, with caching.
+ */
+async function getPrivateKey(): Promise<CryptoKey> {
+  if (privateKeyCache) return privateKeyCache;
+
+  if (!JWT_PRIVATE_KEY) {
+    throw new Error('JWT_PRIVATE_KEY not configured');
+  }
+
+  privateKeyCache = await jose.importPKCS8(JWT_PRIVATE_KEY, 'ES256');
+  return privateKeyCache;
+}
+
 /**
  * DEV MODE: Create a test token for development.
  */
@@ -80,11 +117,7 @@ export async function createDevToken(contractorId: string, email: string): Promi
     throw new Error('Cannot create dev tokens in production');
   }
 
-  if (!JWT_SECRET) {
-    throw new Error('JWT_SECRET not configured');
-  }
-
-  const secret = new TextEncoder().encode(JWT_SECRET);
+  const privateKey = await getPrivateKey();
   const now = Math.floor(Date.now() / 1000);
 
   const token = await new jose.SignJWT({
@@ -92,12 +125,12 @@ export async function createDevToken(contractorId: string, email: string): Promi
     contractor_id: contractorId,
     email,
   })
-    .setProtectedHeader({ alg: 'HS256' })
+    .setProtectedHeader({ alg: 'ES256' })
     .setIssuedAt(now)
     .setExpirationTime(now + 3600)
     .setIssuer('knearme-portfolio')
     .setAudience('knearme-mcp-server')
-    .sign(secret);
+    .sign(privateKey);
 
   return token;
 }

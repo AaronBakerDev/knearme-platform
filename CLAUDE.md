@@ -37,6 +37,29 @@ npm run test:e2e     # E2E tests with Playwright
 - **AI**: OpenAI GPT-4V (vision), Whisper (transcription), GPT-4o (generation)
 - **Styling**: Tailwind CSS 4 + shadcn/ui components
 - **Deployment**: Vercel (configured for edge)
+- **Production URL**: https://knearme.co (custom domain)
+
+### Production Infrastructure
+
+| Service | Details |
+|---------|---------|
+| **Hosting** | Vercel |
+| **Production URL** | https://knearme.co |
+| **Preview URL** | https://knearme-portfolio.vercel.app |
+| **Vercel Project** | `knearme-portfolio` |
+| **DNS Provider** | Cloudflare |
+| **Domain Registrar** | Key-Systems GmbH (via reseller) |
+| **Domain Renewal** | December 13 annually |
+
+**DNS Configuration (Cloudflare):**
+- A record: `knearme.co` → `216.150.1.1` (Vercel IP, DNS only mode)
+- CNAME: `www` → `cname.vercel-dns.com`
+- SSL Mode: Full (strict)
+
+**Troubleshooting:**
+- If site shows unstyled HTML or 503 errors on static assets, check domain expiration first
+- Vercel dashboard: https://vercel.com/aaronbakerdevs-projects/knearme-portfolio
+- Cloudflare dashboard: https://dash.cloudflare.com (knearme.co zone)
 
 ### Route Structure
 
