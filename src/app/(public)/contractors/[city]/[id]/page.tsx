@@ -117,7 +117,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     .from('contractors')
     .select(`
       business_name, city, state, description, services, profile_photo_url, city_slug,
-      projects(project_images(storage_path, alt_text, display_order))
+      projects(project_images!project_images_project_id_fkey(storage_path, alt_text, display_order))
     `)
     .eq('id', id)
     .eq('projects.status', 'published')
@@ -202,7 +202,7 @@ export default async function ContractorProfilePage({ params, searchParams }: Pa
       *,
       projects(
         *,
-        project_images(*)
+        project_images!project_images_project_id_fkey(*)
       )
     `)
     .eq('id', id)

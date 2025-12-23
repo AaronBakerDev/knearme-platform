@@ -238,7 +238,7 @@ export function ChimneyUrgencyChecklistWidget() {
             ))}
 
             <div className='text-xs text-muted-foreground leading-relaxed pt-2'>
-              This checklist is informational only — it doesn't replace a professional inspection.
+              This checklist is informational only — it doesn&apos;t replace a professional inspection.
             </div>
           </CardContent>
         </Card>

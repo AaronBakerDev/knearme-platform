@@ -172,9 +172,9 @@ export function PaverBaseCalculatorWidget() {
             </CardTitle>
           </CardHeader>
           <CardContent className='space-y-2 text-sm'>
-            <p>• Compact gravel in 2" lifts with a plate compactor.</p>
+            <p>• Compact gravel in 2&quot; lifts with a plate compactor.</p>
             <p>• Use edge restraints to prevent spreading.</p>
-            <p>• Slope the surface ~1/8" per ft away from the home.</p>
+            <p>• Slope the surface ~1/8&quot; per ft away from the home.</p>
           </CardContent>
         </Card>
       </div>

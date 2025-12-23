@@ -47,7 +47,7 @@ export async function fetchRelatedProjects(
         .select(`
       id, title, slug, city_slug, city, project_type_slug, project_type, contractor_id,
       contractor:contractors(business_name),
-      project_images(storage_path, alt_text, display_order)
+      project_images!project_images_project_id_fkey(storage_path, alt_text, display_order)
     `)
         .eq('status', 'published')
         .neq('id', id)

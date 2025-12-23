@@ -104,6 +104,7 @@ async function captureToolLead(data: ExportPdfRequest): Promise<void> {
 
   // Supabase generated types may not include tool_leads in this repo yet.
   // Cast to any to avoid blocking builds; RLS still protects the table.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
     .from('tool_leads')
     .insert({

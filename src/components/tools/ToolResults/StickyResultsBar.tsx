@@ -64,12 +64,18 @@ export function StickyResultsBar({
   useEffect(() => {
     if (!isVisible) return
 
-    setShouldPulse(true)
-    const timer = setTimeout(() => {
+    // Using setTimeout to batch the state update, avoiding synchronous setState in effect
+    const pulseTimer = setTimeout(() => {
+      setShouldPulse(true)
+    }, 0)
+    const resetTimer = setTimeout(() => {
       setShouldPulse(false)
     }, 600)
 
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(pulseTimer)
+      clearTimeout(resetTimer)
+    }
   }, [summary, isVisible])
 
   return (

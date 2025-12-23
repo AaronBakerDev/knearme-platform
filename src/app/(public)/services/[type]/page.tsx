@@ -121,7 +121,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   const supabase = createAdminClient();
   const { data: projectData } = await supabase
     .from('projects')
-    .select('project_images(storage_path, alt_text, display_order)')
+    .select('project_images!project_images_project_id_fkey(storage_path, alt_text, display_order)')
     .eq('project_type_slug', serviceId)
     .eq('status', 'published')
     .order('published_at', { ascending: false })

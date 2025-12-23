@@ -202,6 +202,7 @@ export function EfflorescenceTreatmentWidget() {
     },
   }
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const result = useMemo(() => planEfflorescenceTreatment(inputs), [
     state.location, state.severity, state.timing, state.wallAge,
     state.dampInterior, state.activeLeak, state.spalling, state.mortarGaps, state.drainageIssues

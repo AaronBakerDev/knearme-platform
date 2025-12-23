@@ -90,6 +90,7 @@ export function RelatedCategories({
         const related: CategoryWithCount[] = categoryMeta.relatedCategories
           .map((relatedSlug) => {
             const meta = getCategoryMeta(relatedSlug);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const stats = categoryStats.find((s: any) => s.category_slug === relatedSlug);
 
             if (!meta || !stats || stats.business_count === 0) {
@@ -139,6 +140,7 @@ export function RelatedCategories({
           </div>
         ) : (
           relatedCategories.map((category) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const Icon = (LucideIcons as any)[category.icon] || Building2;
 
             return (

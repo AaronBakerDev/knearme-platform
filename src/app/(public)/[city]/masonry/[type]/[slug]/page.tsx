@@ -100,7 +100,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     .select(`
       *,
       contractor:contractors(business_name, city, state),
-      project_images(storage_path, alt_text, display_order)
+      project_images!project_images_project_id_fkey(storage_path, alt_text, display_order)
     `)
     .eq('slug', slug)
     .eq('status', 'published')
@@ -169,7 +169,7 @@ export default async function ProjectPage({ params }: PageParams) {
     .select(`
       *,
       contractor:contractors(*),
-      project_images(*)
+      project_images!project_images_project_id_fkey(*)
     `)
     .eq('slug', slug)
     .eq('city_slug', city)

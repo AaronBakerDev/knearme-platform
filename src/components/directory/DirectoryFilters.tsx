@@ -93,8 +93,8 @@ export function DirectoryFilters() {
 
   const hasActiveFilters = currentMinRating || currentHasWebsite || currentHasPhone;
 
-  // Filter content component (reused in both desktop and mobile views)
-  const FilterContent = () => (
+  // Filter content JSX (reused in both desktop and mobile views)
+  const filterContent = (
     <div className="space-y-6">
       {/* Rating Filter */}
       <div>
@@ -222,7 +222,7 @@ export function DirectoryFilters() {
               </SheetDescription>
             </SheetHeader>
             <div className="mt-6 pb-6">
-              <FilterContent />
+              {filterContent}
             </div>
           </SheetContent>
         </Sheet>
@@ -249,7 +249,7 @@ export function DirectoryFilters() {
           </div>
         </CardHeader>
         <CardContent>
-          <FilterContent />
+          {filterContent}
         </CardContent>
       </Card>
     </>

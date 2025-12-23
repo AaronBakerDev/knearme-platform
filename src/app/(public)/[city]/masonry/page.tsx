@@ -110,7 +110,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   // Fetch first published project's cover image for OG
   const { data: projectData } = await supabase
     .from('projects')
-    .select(`project_images(storage_path, alt_text, display_order)`)
+    .select(`project_images!project_images_project_id_fkey(storage_path, alt_text, display_order)`)
     .eq('city_slug', city)
     .eq('status', 'published')
     .order('published_at', { ascending: false })
@@ -176,7 +176,7 @@ export default async function CityHubPage({ params }: PageParams) {
     .select(`
       *,
       contractor:contractors(*),
-      project_images(*)
+      project_images!project_images_project_id_fkey(*)
     `)
     .eq('city_slug', city)
     .eq('status', 'published')

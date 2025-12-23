@@ -112,7 +112,7 @@ export async function getFeaturedProjectsByService(
     .select(`
       *,
       contractor:contractors(id, business_name, city, state, city_slug, profile_photo_url),
-      project_images(id, storage_path, alt_text, display_order, image_type)
+      project_images!project_images_project_id_fkey(id, storage_path, alt_text, display_order, image_type)
     `)
     .eq('project_type_slug', serviceTypeSlug)
     .eq('status', 'published')

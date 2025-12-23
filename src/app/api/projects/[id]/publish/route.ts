@@ -43,7 +43,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: project, error: fetchError } = await (supabase as any)
       .from('projects')
-      .select('*, project_images(*)')
+      .select('*, project_images!project_images_project_id_fkey(*)')
       .eq('id', id)
       .eq('contractor_id', contractor.id)
       .single();
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .update(updatePayload)
       .eq('id', id)
       .eq('contractor_id', contractor.id)
-      .select('*, project_images(*)')
+      .select('*, project_images!project_images_project_id_fkey(*)')
       .single();
 
     if (updateError) {
@@ -218,7 +218,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       })
       .eq('id', id)
       .eq('contractor_id', contractor.id)
-      .select('*, project_images(*)')
+      .select('*, project_images!project_images_project_id_fkey(*)')
       .single();
 
     if (updateError) {
