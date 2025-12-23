@@ -43,14 +43,14 @@ export const createProjectDraftSchema = z.object({
 
 export const addProjectMediaSchema = z.object({
   project_id: z.string().uuid(),
-  files: z.array(
+  images: z.array(
     z.object({
-      file_id: z.string(),
-      filename: z.string(),
-      content_type: z.string(),
+      url: z.string().url(),
+      filename: z.string().optional(),
       image_type: z.enum(['before', 'after', 'progress', 'detail']).optional(),
+      alt_text: z.string().optional(),
     })
-  ),
+  ).min(1).max(10),
 });
 
 export const reorderProjectMediaSchema = z.object({
@@ -136,26 +136,27 @@ export const toolDefinitions = [
   },
   {
     name: 'add_project_media',
-    description: 'Add images to a project draft. Accepts file IDs from ChatGPT uploads.',
+    description: 'Add images to a project draft. Provide image URLs that the server will download and store.',
     inputSchema: {
       type: 'object',
       properties: {
         project_id: { type: 'string', description: 'Project UUID' },
-        files: {
+        images: {
           type: 'array',
+          description: 'Array of images to add (1-10 images)',
           items: {
             type: 'object',
             properties: {
-              file_id: { type: 'string' },
-              filename: { type: 'string' },
-              content_type: { type: 'string' },
-              image_type: { type: 'string', enum: ['before', 'after', 'progress', 'detail'] },
+              url: { type: 'string', description: 'URL of the image to download' },
+              filename: { type: 'string', description: 'Optional filename' },
+              image_type: { type: 'string', enum: ['before', 'after', 'progress', 'detail'], description: 'Image classification' },
+              alt_text: { type: 'string', description: 'Alt text for accessibility' },
             },
-            required: ['file_id', 'filename', 'content_type'],
+            required: ['url'],
           },
         },
       },
-      required: ['project_id', 'files'],
+      required: ['project_id', 'images'],
     },
   },
   {
@@ -315,18 +316,19 @@ export async function handleAddProjectMedia(
   baseUrl: string
 ): Promise<ToolResult<AddProjectMediaOutput>> {
   const client = createClient(auth, baseUrl);
-  const uploadedImages: ProjectImageOutput[] = [];
 
-  for (const file of input.files) {
-    const uploadResult = await client.requestImageUpload(input.project_id, {
-      filename: file.filename,
-      content_type: file.content_type,
-      image_type: file.image_type,
-    });
-    if (!uploadResult.success) return { success: false, error: uploadResult.error };
-    uploadedImages.push(toImageOutput(uploadResult.data.image as unknown as Record<string, unknown>));
+  // Upload images from URLs using the new endpoint
+  const uploadResult = await client.addImagesFromUrls(input.project_id, input.images);
+  if (!uploadResult.success) return { success: false, error: uploadResult.error };
+
+  // Check if any uploads failed
+  const { uploaded, failed, errors } = uploadResult.data;
+  if (uploaded === 0 && failed > 0) {
+    const errorMessages = errors?.map(e => `${e.url}: ${e.error}`).join('; ') || 'Unknown error';
+    return { success: false, error: `Failed to upload images: ${errorMessages}` };
   }
 
+  // Get updated project with all images
   const projectResult = await client.getProject(input.project_id);
   if (!projectResult.success) return { success: false, error: projectResult.error };
 
@@ -336,10 +338,21 @@ export async function handleAddProjectMedia(
   const missing = getMissingPublishFields(project);
   if (imageOutputs.length === 0) missing.push('images');
 
+  // Include partial success info in the response
+  const statusMessage = failed > 0
+    ? `Uploaded ${uploaded} images, ${failed} failed`
+    : `Uploaded ${uploaded} images`;
+
   return {
     success: true,
     result: {
-      structuredContent: { project_id: input.project_id, media_count: imageOutputs.length, missing_fields: missing },
+      structuredContent: {
+        project_id: input.project_id,
+        media_count: imageOutputs.length,
+        missing_fields: missing,
+        upload_status: statusMessage,
+        upload_errors: errors,
+      },
       _meta: buildWidgetMeta('project-media', { project_id: input.project_id, images: imageOutputs, hero_image_id: project.hero_image_id }, { images: imageOutputs }),
     },
   };

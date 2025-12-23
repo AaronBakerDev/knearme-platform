@@ -127,6 +127,8 @@ export interface AddProjectMediaOutput {
     project_id: string;
     media_count: number;
     missing_fields: string[];
+    upload_status?: string;
+    upload_errors?: Array<{ url: string; error: string }>;
   };
   _meta: { images: ProjectImageOutput[] } & WidgetMetaFields;
 }

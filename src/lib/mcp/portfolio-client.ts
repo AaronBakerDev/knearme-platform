@@ -172,6 +172,32 @@ export class PortfolioClient {
     return this.request('GET', `/api/projects/${projectId}/images`);
   }
 
+  /**
+   * Upload images from URLs - for MCP/ChatGPT integration.
+   * The server downloads and stores the images.
+   */
+  async addImagesFromUrls(
+    projectId: string,
+    images: Array<{
+      url: string;
+      filename?: string;
+      image_type?: 'before' | 'after' | 'progress' | 'detail';
+      alt_text?: string;
+    }>
+  ): Promise<ApiResult<{
+    uploaded: number;
+    failed: number;
+    images: Array<{
+      id: string;
+      url: string;
+      image_type: string | null;
+      display_order: number;
+    }>;
+    errors?: Array<{ url: string; error: string }>;
+  }>> {
+    return this.request('POST', `/api/projects/${projectId}/images/from-url`, { images });
+  }
+
   async reorderImages(
     projectId: string,
     imageIds: string[]
