@@ -96,6 +96,7 @@ export function ProjectMedia({ data, context }: ProjectMediaProps) {
 
     const newImages = [...images];
     const [draggedItem] = newImages.splice(draggedIndex, 1);
+    if (!draggedItem) return;
     newImages.splice(targetIndex, 0, draggedItem);
 
     setImages(newImages);
