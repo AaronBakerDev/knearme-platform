@@ -23,7 +23,7 @@ const subscribeSchema = z.object({
   /** Tool name if subscribing via tool PDF download */
   toolName: z.string().optional(),
   /** Any additional custom properties */
-  properties: z.record(z.unknown()).optional(),
+  properties: z.record(z.string(), z.unknown()).optional(),
 })
 
 export async function POST(request: Request) {
