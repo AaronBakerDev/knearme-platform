@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { requireAuthUnified, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, apiCreated, handleApiError } from '@/lib/api/errors';
 import { slugify } from '@/lib/utils/slugify';
+import { composeProjectDescription } from '@/lib/projects/compose-description';
 import type { Project, ProjectWithImages } from '@/types/database';
 
 /**
@@ -28,6 +29,14 @@ const createProjectSchema = z.object({
   project_type: z.string().max(100).optional(),
   /** City for this project (defaults to contractor's city) */
   city: z.string().max(100).optional(),
+  /** State for this project (defaults to contractor's state) */
+  state: z.string().max(50).optional(),
+  /** Case-study narrative fields */
+  summary: z.string().max(500).optional(),
+  challenge: z.string().max(2000).optional(),
+  solution: z.string().max(2000).optional(),
+  results: z.string().max(2000).optional(),
+  outcome_highlights: z.array(z.string()).optional(),
 });
 
 /**
@@ -128,17 +137,39 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const { title, description, project_type, city } = parsed.data;
+    const {
+      title,
+      description,
+      project_type,
+      city,
+      state,
+      summary,
+      challenge,
+      solution,
+      results,
+      outcome_highlights,
+    } = parsed.data;
 
     // Generate slugs for SEO routing
     const projectCity = city ?? contractor.city ?? 'unknown';
-    const citySlug = slugify(`${projectCity}-${contractor.state ?? ''}`);
+    const projectState = state ?? contractor.state ?? null;
+    const citySlug = slugify(`${projectCity}-${projectState ?? ''}`);
     const projectTypeSlug = project_type ? slugify(project_type) : null;
 
     // Generate unique slug for the project URL
     const timestamp = Date.now().toString(36);
     const baseSlug = title ? slugify(title) : `project-${timestamp}`;
     const uniqueSlug = `${baseSlug}-${timestamp}`;
+
+    const descriptionManual = typeof description !== 'undefined' && description !== null;
+    const composedDescription = composeProjectDescription({
+      summary,
+      challenge,
+      solution,
+      results,
+      outcome_highlights,
+    });
+    const descriptionValue = description ?? composedDescription ?? null;
 
     const supabase = await getAuthClient(auth);
 
@@ -149,13 +180,20 @@ export async function POST(request: NextRequest) {
       .insert({
         contractor_id: contractor.id,
         title: title ?? null,
-        description: description ?? null,
+        description: descriptionValue,
+        description_manual: descriptionManual,
         project_type: project_type ?? null,
         project_type_slug: projectTypeSlug,
         city: projectCity,
+        state: projectState,
         city_slug: citySlug,
         slug: uniqueSlug,
         status: 'draft',
+        summary: summary ?? null,
+        challenge: challenge ?? null,
+        solution: solution ?? null,
+        results: results ?? null,
+        outcome_highlights: outcome_highlights ?? null,
       })
       .select('*')
       .single();

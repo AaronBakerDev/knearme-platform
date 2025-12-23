@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { requireAuthUnified, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { slugify } from '@/lib/utils/slugify';
+import { composeProjectDescription } from '@/lib/projects/compose-description';
 import type { ProjectWithImages } from '@/types/database';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -42,6 +43,7 @@ const updateProjectSchema = z.object({
   hero_image_id: z.string().uuid().nullable().optional(),
   client_type: z.enum(['residential', 'commercial', 'municipal', 'other']).nullable().optional(),
   budget_range: z.enum(['<5k', '5k-10k', '10k-25k', '25k-50k', '50k+']).nullable().optional(),
+  description_manual: z.boolean().optional(),
 });
 
 /**
@@ -113,7 +115,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: existing, error: fetchError } = await (supabase as any)
       .from('projects')
-      .select('id, contractor_id, title, city, project_type')
+      .select('id, contractor_id, title, city, state, project_type, description_manual, summary, challenge, solution, results, outcome_highlights')
       .eq('id', id)
       .eq('contractor_id', contractor.id)
       .single();
@@ -124,7 +126,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       contractor_id: string;
       title?: string | null;
       city?: string | null;
+      state?: string | null;
       project_type?: string | null;
+      description_manual?: boolean | null;
+      summary?: string | null;
+      challenge?: string | null;
+      solution?: string | null;
+      results?: string | null;
+      outcome_highlights?: string[] | null;
     };
     const existingProject = existing as ExistingProject | null;
 
@@ -135,14 +144,42 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Build update payload with generated slugs
     const updatePayload: Record<string, unknown> = { ...updates };
 
-    // Regenerate city_slug if city changed
-    if (updates.city && updates.city !== existingProject.city) {
-      updatePayload.city_slug = slugify(`${updates.city}-${contractor.state ?? ''}`);
+    // Regenerate city_slug if city or state changed
+    const cityChanged = typeof updates.city !== 'undefined' && updates.city !== existingProject.city;
+    const stateChanged = typeof updates.state !== 'undefined' && updates.state !== existingProject.state;
+    if (cityChanged || stateChanged) {
+      const nextCity = updates.city ?? existingProject.city ?? contractor.city ?? 'unknown';
+      const nextState = updates.state ?? existingProject.state ?? contractor.state ?? '';
+      updatePayload.city_slug = slugify(`${nextCity}-${nextState}`);
     }
 
     // Regenerate project_type_slug if project_type changed
     if (updates.project_type && updates.project_type !== existingProject.project_type) {
       updatePayload.project_type_slug = slugify(updates.project_type);
+    }
+
+    const hasDescriptionUpdate = Object.prototype.hasOwnProperty.call(updates, 'description');
+    if (hasDescriptionUpdate && typeof updates.description_manual === 'undefined') {
+      updatePayload.description_manual = true;
+    }
+
+    const effectiveDescriptionManual =
+      typeof updates.description_manual !== 'undefined'
+        ? updates.description_manual
+        : existingProject.description_manual ?? false;
+
+    const narrativeUpdated = ['summary', 'challenge', 'solution', 'results', 'outcome_highlights']
+      .some((field) => Object.prototype.hasOwnProperty.call(updates, field));
+
+    if (narrativeUpdated && !effectiveDescriptionManual && !hasDescriptionUpdate) {
+      const composed = composeProjectDescription({
+        summary: updates.summary ?? existingProject.summary,
+        challenge: updates.challenge ?? existingProject.challenge,
+        solution: updates.solution ?? existingProject.solution,
+        results: updates.results ?? existingProject.results,
+        outcome_highlights: updates.outcome_highlights ?? existingProject.outcome_highlights,
+      });
+      updatePayload.description = composed;
     }
 
     // Update project - use explicit relationship hint due to hero_image_id FK ambiguity

@@ -53,8 +53,10 @@ export interface ProjectOutput {
   title: string | null;
   description: string | null;
   project_type: string | null;
+  project_type_slug: string | null;
   city: string | null;
   state: string | null;
+  city_slug: string | null;
   status: ProjectStatus;
   slug: string | null;
   // Narrative fields

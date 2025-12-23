@@ -3,7 +3,7 @@
  *
  * GET    /api/projects/[id]/images - List project images
  * POST   /api/projects/[id]/images - Get signed upload URL + create image record
- * PATCH  /api/projects/[id]/images - Reorder images (update display_order)
+ * PATCH  /api/projects/[id]/images - Reorder images and update labels
  * DELETE /api/projects/[id]/images - Delete an image
  *
  * @see /docs/03-architecture/c4-container.md for upload flow
@@ -11,8 +11,7 @@
 
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
-import { requireAuth, isAuthError } from '@/lib/api/auth';
+import { requireAuthUnified, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, apiCreated, handleApiError } from '@/lib/api/errors';
 import {
   buildStoragePath,
@@ -51,9 +50,19 @@ const deleteImageSchema = z.object({
 /**
  * Schema for reordering images.
  */
-const reorderImagesSchema = z.object({
+const updateImagesSchema = z.object({
   /** Array of image IDs in the new order */
-  image_ids: z.array(z.string().uuid()).min(1),
+  image_ids: z.array(z.string().uuid()).min(1).optional(),
+  /** Array of label updates */
+  labels: z.array(
+    z.object({
+      image_id: z.string().uuid(),
+      image_type: z.enum(['before', 'after', 'progress', 'detail']).nullable().optional(),
+      alt_text: z.string().nullable().optional(),
+    })
+  ).min(1).optional(),
+}).refine((data) => !!data.image_ids || !!data.labels, {
+  message: 'image_ids or labels required',
 });
 
 /**
@@ -63,14 +72,14 @@ const reorderImagesSchema = z.object({
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
 
     const { id: projectId } = await params;
     const { contractor } = auth;
-    const supabase = await createClient();
+    const supabase = await getAuthClient(auth);
 
     // Verify project ownership
     const { data: project, error: projectError } = await supabase
@@ -125,7 +134,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
@@ -144,12 +153,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const { filename, content_type, image_type, display_order, width, height } = parsed.data;
-    const supabase = await createClient();
+    const supabase = await getAuthClient(auth);
 
     // Verify project ownership
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      .select('id')
+      .select('id, hero_image_id')
       .eq('id', projectId)
       .eq('contractor_id', contractor.id)
       .single();
@@ -204,6 +213,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiError('STORAGE_ERROR', uploadResult.error);
     }
 
+    // Auto-set hero image if missing
+    if (project && !project.hero_image_id) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any)
+        .from('projects')
+        .update({ hero_image_id: image.id })
+        .eq('id', projectId)
+        .eq('contractor_id', contractor.id);
+    }
+
     return apiCreated({
       image: {
         ...image,
@@ -228,7 +247,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
@@ -247,7 +266,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     const { image_id } = parsed.data;
-    const supabase = await createClient();
+    const supabase = await getAuthClient(auth);
 
     // Verify project ownership and get image
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -304,12 +323,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 /**
  * PATCH /api/projects/[id]/images
  *
- * Reorder images by updating their display_order.
- * Receives an array of image IDs in the desired order.
+ * Reorder images by updating their display_order and/or update labels.
+ * Accepts image_ids for ordering and labels for before/after + alt text.
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
@@ -319,7 +338,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Parse body
     const body = await request.json();
-    const parsed = reorderImagesSchema.safeParse(body);
+    const parsed = updateImagesSchema.safeParse(body);
 
     if (!parsed.success) {
       return apiError('VALIDATION_ERROR', 'Invalid request', {
@@ -327,8 +346,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    const { image_ids } = parsed.data;
-    const supabase = await createClient();
+    const { image_ids, labels } = parsed.data;
+    const supabase = await getAuthClient(auth);
 
     // Verify project ownership
     const { data: project, error: projectError } = await supabase
@@ -342,19 +361,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return apiError('NOT_FOUND', 'Project not found');
     }
 
+    const idsToVerify = new Set<string>();
+    (image_ids || []).forEach((id) => idsToVerify.add(id));
+    (labels || []).forEach((label) => idsToVerify.add(label.image_id));
+
     // Verify all image IDs belong to this project
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: existingImages, error: fetchError } = await (supabase as any)
       .from('project_images')
       .select('id')
-      .eq('project_id', projectId);
+      .eq('project_id', projectId)
+      .in('id', Array.from(idsToVerify));
 
     if (fetchError) {
       return handleApiError(fetchError);
     }
 
     const existingIds = new Set((existingImages || []).map((img: { id: string }) => img.id));
-    const invalidIds = image_ids.filter((id) => !existingIds.has(id));
+    const invalidIds = Array.from(idsToVerify).filter((id) => !existingIds.has(id));
 
     if (invalidIds.length > 0) {
       return apiError('VALIDATION_ERROR', 'Some image IDs do not belong to this project', {
@@ -363,24 +387,61 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update display_order for each image
-    const updatePromises = image_ids.map((imageId, index) =>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any)
-        .from('project_images')
-        .update({ display_order: index })
-        .eq('id', imageId)
-    );
+    let reorderedCount = 0;
+    let labelsUpdatedCount = 0;
 
-    const results = await Promise.all(updatePromises);
+    if (image_ids && image_ids.length > 0) {
+      const reorderPromises = image_ids.map((imageId, index) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any)
+          .from('project_images')
+          .update({ display_order: index })
+          .eq('id', imageId)
+      );
 
-    // Check for errors
-    const errors = results.filter((r) => r.error);
-    if (errors.length > 0) {
-      console.error('[PATCH /api/projects/[id]/images] Update errors:', errors);
-      return apiError('INTERNAL_ERROR', 'Failed to update some images');
+      const reorderResults = await Promise.all(reorderPromises);
+      const reorderErrors = reorderResults.filter((r) => r.error);
+      if (reorderErrors.length > 0) {
+        console.error('[PATCH /api/projects/[id]/images] Reorder errors:', reorderErrors);
+        return apiError('INTERNAL_ERROR', 'Failed to reorder some images');
+      }
+      reorderedCount = image_ids.length;
     }
 
-    return apiSuccess({ reordered: true, count: image_ids.length });
+    if (labels && labels.length > 0) {
+      const labelPromises = labels.map((label) => {
+        const updatePayload: Record<string, unknown> = {};
+        if (Object.prototype.hasOwnProperty.call(label, 'image_type')) {
+          updatePayload.image_type = label.image_type ?? null;
+        }
+        if (Object.prototype.hasOwnProperty.call(label, 'alt_text')) {
+          updatePayload.alt_text = label.alt_text ?? null;
+        }
+        if (Object.keys(updatePayload).length === 0) {
+          return Promise.resolve({ error: null });
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (supabase as any)
+          .from('project_images')
+          .update(updatePayload)
+          .eq('id', label.image_id);
+      });
+
+      const labelResults = await Promise.all(labelPromises);
+      const labelErrors = labelResults.filter((r) => r.error);
+      if (labelErrors.length > 0) {
+        console.error('[PATCH /api/projects/[id]/images] Label update errors:', labelErrors);
+        return apiError('INTERNAL_ERROR', 'Failed to update some image labels');
+      }
+      labelsUpdatedCount = labels.length;
+    }
+
+    return apiSuccess({
+      reordered: reorderedCount > 0,
+      reorderedCount,
+      labelsUpdated: labelsUpdatedCount > 0,
+      labelsUpdatedCount,
+    });
   } catch (error) {
     return handleApiError(error);
   }

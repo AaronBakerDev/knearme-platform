@@ -8,9 +8,9 @@
  */
 
 import { NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { requireAuth, isAuthError } from '@/lib/api/auth';
+import { requireAuthUnified, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
+import { composeProjectDescription } from '@/lib/projects/compose-description';
 import type { ProjectWithImages } from '@/types/database';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -22,20 +22,22 @@ type RouteParams = { params: Promise<{ id: string }> };
  * Validates that the project has required content before publishing.
  *
  * Requirements for publishing:
- * - title (AI-generated or manual)
- * - description (AI-generated or manual)
- * - At least 1 image
+ * - title
+ * - project type + slug
+ * - city + state
+ * - hero image (auto-set to first upload if missing)
+ * - at least 1 image
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
 
     const { id } = await params;
     const { contractor } = auth;
-    const supabase = await createClient();
+    const supabase = await getAuthClient(auth);
 
     // Get project with images to validate
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,6 +55,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       description?: string | null;
       project_type?: string | null;
       project_type_slug?: string | null;
+      city?: string | null;
+      state?: string | null;
+      hero_image_id?: string | null;
+      description_manual?: boolean | null;
+      summary?: string | null;
+      challenge?: string | null;
+      solution?: string | null;
+      results?: string | null;
+      outcome_highlights?: string[] | null;
       status: string;
       seo_title?: string | null;
       seo_description?: string | null;
@@ -70,16 +81,31 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!projectData.title) {
       errors.push('Project must have a title');
     }
-    if (!projectData.description) {
-      errors.push('Project must have a description');
-    }
     if (!projectData.project_type) {
       errors.push('Project must have a project type');
     } else if (!projectData.project_type_slug) {
       errors.push('Project type slug is missing. Please re-save the project type.');
     }
+    if (!projectData.city) {
+      errors.push('Project must have a city');
+    }
+    if (!projectData.state) {
+      errors.push('Project must have a state');
+    }
     if (!projectData.project_images || projectData.project_images.length === 0) {
       errors.push('Project must have at least one image');
+    }
+    if (!projectData.hero_image_id && projectData.project_images && projectData.project_images.length > 0) {
+      // Auto-assign hero image from the first image (by display_order if available)
+      const sortedImages = [...projectData.project_images].sort((a, b) => {
+        const orderA = (a as { display_order?: number }).display_order ?? 0;
+        const orderB = (b as { display_order?: number }).display_order ?? 0;
+        return orderA - orderB;
+      });
+      projectData.hero_image_id = (sortedImages[0] as { id?: string }).id ?? null;
+    }
+    if (!projectData.hero_image_id) {
+      errors.push('Project must have a hero image');
     }
     if (projectData.status === 'published') {
       return apiError('CONFLICT', 'Project is already published');
@@ -91,22 +117,44 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       });
     }
 
+    const shouldComposeDescription = !projectData.description && !projectData.description_manual;
+    const composedDescription = shouldComposeDescription
+      ? composeProjectDescription({
+          summary: projectData.summary,
+          challenge: projectData.challenge,
+          solution: projectData.solution,
+          results: projectData.results,
+          outcome_highlights: projectData.outcome_highlights,
+        })
+      : null;
+
+    const descriptionForSeo = projectData.description ?? composedDescription ?? '';
+
     // Generate SEO fields if not set
     const seoTitle = projectData.seo_title ?? `${projectData.title} | ${contractor.business_name}`;
     const seoDescription =
       projectData.seo_description ??
-      (projectData.description ? projectData.description.slice(0, 157) + '...' : '');
+      (descriptionForSeo ? descriptionForSeo.slice(0, 157) + '...' : '');
+
+    const updatePayload: Record<string, unknown> = {
+      status: 'published',
+      published_at: new Date().toISOString(),
+      seo_title: seoTitle,
+      seo_description: seoDescription,
+    };
+
+    if (composedDescription) {
+      updatePayload.description = composedDescription;
+    }
+    if (projectData.hero_image_id) {
+      updatePayload.hero_image_id = projectData.hero_image_id;
+    }
 
     // Update to published
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: published, error: updateError } = await (supabase as any)
       .from('projects')
-      .update({
-        status: 'published',
-        published_at: new Date().toISOString(),
-        seo_title: seoTitle,
-        seo_description: seoDescription,
-      })
+      .update(updatePayload)
       .eq('id', id)
       .eq('contractor_id', contractor.id)
       .select('*, project_images(*)')
@@ -131,14 +179,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
 
     const { id } = await params;
     const { contractor } = auth;
-    const supabase = await createClient();
+    const supabase = await getAuthClient(auth);
 
     // Verify project exists and is published
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

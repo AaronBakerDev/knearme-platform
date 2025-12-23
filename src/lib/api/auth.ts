@@ -153,6 +153,8 @@ async function validateBearerToken(token: string): Promise<AuthResult | AuthErro
     const secret = new TextEncoder().encode(JWT_SECRET);
     const { payload } = await jose.jwtVerify(token, secret, {
       algorithms: ['HS256'],
+      audience: 'knearme-mcp-server',
+      issuer: 'knearme-portfolio',
     });
 
     const mcpPayload = payload as unknown as McpTokenPayload;

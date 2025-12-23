@@ -307,10 +307,6 @@ export function getMissingPublishFields(project: ProjectOutput): string[] {
   const missing: string[] = [];
 
   if (!project.title) missing.push('title');
-  if (!project.summary) missing.push('summary');
-  if (!project.challenge) missing.push('challenge');
-  if (!project.solution) missing.push('solution');
-  if (!project.results) missing.push('results');
   if (!project.project_type) missing.push('project_type');
   if (!project.city) missing.push('city');
   if (!project.state) missing.push('state');
@@ -341,8 +337,10 @@ export function toProjectOutput(
     title: apiProject.title as string | null,
     description: apiProject.description as string | null,
     project_type: apiProject.project_type as string | null,
+    project_type_slug: apiProject.project_type_slug as string | null,
     city: apiProject.city as string | null,
     state: apiProject.state as string | null,
+    city_slug: apiProject.city_slug as string | null,
     status: apiProject.status as ProjectStatus,
     slug: apiProject.slug as string | null,
     summary: apiProject.summary as string | null,

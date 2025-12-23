@@ -658,7 +658,9 @@ export async function handleFinalizeProject(
 
   // Construct public URL - this would be configured per environment
   const basePublicUrl = process.env.PUBLIC_SITE_URL || 'https://knearme.com';
-  const url = `${basePublicUrl}/${project.slug}`;
+  const url = project.city_slug && project.project_type_slug && project.slug
+    ? `${basePublicUrl}/${project.city_slug}/masonry/${project.project_type_slug}/${project.slug}`
+    : basePublicUrl;
 
   return {
     success: true,

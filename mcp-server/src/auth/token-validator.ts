@@ -37,6 +37,8 @@ export async function validateToken(token: string): Promise<TokenValidationResul
     const secret = new TextEncoder().encode(JWT_SECRET);
     const { payload } = await jose.jwtVerify(token, secret, {
       algorithms: ['HS256'],
+      audience: 'knearme-mcp-server',
+      issuer: 'knearme-portfolio',
     });
 
     // Validate required claims
@@ -115,6 +117,8 @@ export async function createDevToken(contractorId: string, email: string): Promi
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt(now)
     .setExpirationTime(now + 3600) // 1 hour
+    .setIssuer('knearme-portfolio')
+    .setAudience('knearme-mcp-server')
     .sign(secret);
 
   return token;

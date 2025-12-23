@@ -5,7 +5,7 @@
  * @see /supabase/migrations/002_storage_buckets.sql for bucket configurations
  */
 
-import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import type { BucketName } from './upload';
 
 /**
@@ -22,7 +22,7 @@ export async function createSignedUploadUrl(
   bucket: BucketName,
   path: string
 ): Promise<{ signedUrl: string; token: string } | { error: string }> {
-  const supabase = await createServerClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase.storage.from(bucket).createSignedUploadUrl(path);
 
@@ -50,7 +50,7 @@ export async function createSignedReadUrl(
   path: string,
   expiresIn = 3600
 ): Promise<{ signedUrl: string } | { error: string }> {
-  const supabase = await createServerClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase.storage
     .from(bucket)
