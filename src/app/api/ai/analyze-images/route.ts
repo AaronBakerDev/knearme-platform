@@ -14,8 +14,7 @@
 
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
-import { requireAuth, isAuthError } from '@/lib/api/auth';
+import { requireAuth, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { analyzeProjectImages, projectTypeToSlug } from '@/lib/ai/image-analysis';
 import { getPublicUrl } from '@/lib/storage/upload';
@@ -54,49 +53,52 @@ export async function POST(request: NextRequest) {
     }
 
     const { project_id } = parsed.data;
-    const supabase = await createClient();
 
-    // Verify project ownership and get images
-    const { data, error: projectError } = await supabase
+    // Use auth-appropriate client (admin for bearer, regular for session)
+    const supabase = await getAuthClient(auth);
+
+    // Step 1: Verify project ownership
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: projectData, error: projectError } = await (supabase as any)
       .from('projects')
-      .select(`
-        id,
-        contractor_id,
-        project_images (
-          id,
-          storage_path,
-          display_order
-        )
-      `)
+      .select('id, contractor_id')
       .eq('id', project_id)
       .eq('contractor_id', contractor.id)
       .single();
 
-    // Type assertion for query result
-    type ProjectWithImages = {
-      id: string;
-      contractor_id: string;
-      project_images: Array<{ id: string; storage_path: string; display_order: number | null }>;
-    };
-    const project = data as ProjectWithImages | null;
-
-    if (projectError || !project) {
+    if (projectError || !projectData) {
+      console.error('[analyze-images] Project query failed:', {
+        project_id,
+        contractor_id: contractor.id,
+        error: projectError,
+      });
       return apiError('NOT_FOUND', 'Project not found');
     }
 
-    const images = project.project_images;
+    // Step 2: Get images separately (avoids nested RLS issues)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: imagesData, error: imagesError } = await (supabase as any)
+      .from('project_images')
+      .select('id, storage_path, display_order')
+      .eq('project_id', project_id)
+      .order('display_order', { ascending: true });
+
+    if (imagesError) {
+      console.error('[analyze-images] Images query failed:', {
+        project_id,
+        error: imagesError,
+      });
+    }
+
+    type ProjectImage = { id: string; storage_path: string; display_order: number | null };
+    const images = (imagesData || []) as ProjectImage[];
 
     if (!images || images.length === 0) {
       return apiError('VALIDATION_ERROR', 'No images to analyze. Please upload photos first.');
     }
 
-    // Ensure stable ordering for AI analysis and alt text mapping
-    const sortedImages = [...images].sort(
-      (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
-    );
-
-    // Get public URLs for images
-    const imageUrls = sortedImages.map((img) => getPublicUrl('project-images', img.storage_path));
+    // Get public URLs for images (already sorted by display_order from query)
+    const imageUrls = images.map((img) => getPublicUrl('project-images', img.storage_path));
 
     // Analyze images with GPT-4V
     const analysisResult = await analyzeProjectImages(imageUrls);
@@ -144,7 +146,7 @@ export async function POST(request: NextRequest) {
     // Store generated alt texts in project_images table
     // Images are keyed by index ("0", "1", etc.) matching the order they were analyzed
     if (analysisResult.image_alt_texts && Object.keys(analysisResult.image_alt_texts).length > 0) {
-      const altTextUpdates = sortedImages.map((img, index) => {
+      const altTextUpdates = images.map((img, index) => {
         const altText = analysisResult.image_alt_texts[String(index)];
         if (altText) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
