@@ -65,7 +65,7 @@ export default async function DashboardPage() {
   const draftCount = draftCountRes.count ?? 0;
 
   // Get projects with counts and images
-  const { data: projectsData, count: totalCount } = await supabase
+  const { data: projectsData, error: projectsError, count: totalCount } = await supabase
     .from('projects')
     .select(`
       *,
@@ -79,6 +79,11 @@ export default async function DashboardPage() {
     .eq('contractor_id', contractor.id)
     .order('created_at', { ascending: false })
     .limit(5);
+
+  // Log errors for debugging (RLS issues can cause silent failures)
+  if (projectsError) {
+    console.error('[Dashboard] Projects query error:', projectsError);
+  }
 
   // Type the projects array
   type ProjectImage = {
