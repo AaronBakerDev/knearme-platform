@@ -70,8 +70,8 @@ async function testVisionAnalysis() {
     colors: z.array(z.string()),
   });
 
-  // Use a public test image
-  const testImageUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png';
+  // Use a public test image (Unsplash - no rate limiting)
+  const testImageUrl = 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400';
 
   try {
     const { object } = await generateObject({

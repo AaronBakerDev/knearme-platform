@@ -904,6 +904,369 @@ export function ImageGalleryArtifact({
 
 ---
 
+## Unified Create/Edit Mode
+
+The chat interface supports both project creation and editing through a single unified experience. Each mode initializes differently but uses the same artifact components.
+
+### Chat Modes
+
+```typescript
+type ChatMode = 'create' | 'edit';
+
+interface ChatModeConfig {
+  mode: ChatMode;
+  projectId: string;
+  systemPrompt: string;
+  initialArtifacts: InitialArtifact[];
+  welcomeMessage: string;
+}
+```
+
+### Mode Initialization
+
+#### Create Mode
+- Empty project created in database
+- No initial artifacts
+- AI guides user through information gathering
+- Artifacts appear as data is extracted
+
+```typescript
+const createModeConfig: ChatModeConfig = {
+  mode: 'create',
+  projectId: newProjectId,
+  systemPrompt: CREATION_SYSTEM_PROMPT,
+  initialArtifacts: [],
+  welcomeMessage: "Hey! Ready to add a project? Tell me about it.",
+};
+```
+
+#### Edit Mode (Fresh Start)
+- Existing project loaded from database
+- Initial artifacts pre-populated with current data
+- AI assists with improvements and changes
+- Each session starts clean (no conversation history)
+
+```typescript
+const editModeConfig: ChatModeConfig = {
+  mode: 'edit',
+  projectId: existingProjectId,
+  systemPrompt: EDITING_SYSTEM_PROMPT,
+  initialArtifacts: [
+    {
+      type: 'projectDataCard',
+      data: existingProject,
+      mode: 'editable',
+    },
+    {
+      type: 'imageGallery',
+      data: existingImages,
+      mode: 'editable',
+    },
+    {
+      type: 'contentEditor',
+      data: {
+        title: existingProject.title,
+        description: existingProject.description,
+        seo_title: existingProject.seo_title,
+        seo_description: existingProject.seo_description,
+      },
+      mode: 'editable',
+    },
+    {
+      type: 'progressTracker',
+      data: calculateProgress(existingProject),
+      mode: 'view',
+    },
+  ],
+  welcomeMessage: `Here's your "${existingProject.title}" project. What would you like to change?`,
+};
+```
+
+### Artifact Modes
+
+Each artifact supports different interaction modes:
+
+```typescript
+type ArtifactMode = 'view' | 'editable' | 'editing';
+
+interface ArtifactModeState {
+  mode: ArtifactMode;
+  isDirty: boolean;
+  originalData: unknown;
+  currentData: unknown;
+  lastSaved: Date | null;
+}
+```
+
+| Mode | Behavior |
+|------|----------|
+| `view` | Read-only display |
+| `editable` | Shows edit affordances, click to enter editing |
+| `editing` | Active editing state with save/cancel |
+
+### Edit Mode Artifacts
+
+#### ProjectDataCard (Editable)
+
+```tsx
+interface EditableProjectDataCardProps {
+  data: ExtractedProjectData;
+  mode: ArtifactMode;
+  onEdit: (field: string, value: unknown) => void;
+  onSave: () => Promise<void>;
+  onCancel: () => void;
+}
+
+// Renders with:
+// - Pencil icon on each editable field
+// - Click-to-edit inline inputs
+// - Save/Cancel buttons when editing
+// - Visual dirty state indicator
+```
+
+#### ImageGalleryArtifact (Full CRUD)
+
+```tsx
+interface EditableImageGalleryProps {
+  images: UploadedImage[];
+  mode: ArtifactMode;
+  onAdd: (files: File[]) => void;
+  onRemove: (imageId: string) => void;
+  onReorder: (newOrder: string[]) => void;
+  onCategorize: (imageId: string, type: ImageType) => void;
+  onSetHero: (imageId: string) => void;
+}
+
+// Supports:
+// - Drag-and-drop reordering
+// - Long-press/right-click context menu
+// - Hero image designation
+// - Add via button or drag-drop
+// - Delete with confirmation
+```
+
+#### ContentEditor (Full Editing)
+
+```tsx
+interface EditableContentEditorProps {
+  content: GeneratedContent;
+  mode: ArtifactMode;
+  onFieldChange: (field: string, value: string) => void;
+  onRegenerate: (section: 'title' | 'description' | 'seo') => void;
+  onSave: () => Promise<void>;
+}
+
+// Includes:
+// - TipTap rich text editor for description
+// - Inline title editing
+// - SEO fields with character counts
+// - "Regenerate" buttons per section
+// - Auto-save or explicit save
+```
+
+### Edit Mode Tools
+
+Additional tools available in edit mode:
+
+```typescript
+// Update specific field
+updateField: tool({
+  description: 'Update a specific project field',
+  inputSchema: z.object({
+    field: z.enum(['title', 'description', 'project_type', 'materials', 'techniques', 'tags', 'seo_title', 'seo_description']),
+    value: z.unknown(),
+  }),
+  execute: async ({ field, value }) => {
+    // Returns updated field for artifact refresh
+    return { field, value, updated: true };
+  },
+}),
+
+// Regenerate content section
+regenerateSection: tool({
+  description: 'Regenerate a section with AI',
+  inputSchema: z.object({
+    section: z.enum(['title', 'description', 'seo_title', 'seo_description']),
+    context: z.string().optional().describe('Additional context for regeneration'),
+  }),
+  execute: async ({ section, context }) => {
+    // Generates new content for section
+    return { section, newContent: '...', regenerated: true };
+  },
+}),
+
+// Reorder images
+reorderImages: tool({
+  description: 'Change image display order',
+  inputSchema: z.object({
+    imageOrder: z.array(z.string()).describe('Array of image IDs in new order'),
+  }),
+  execute: async ({ imageOrder }) => {
+    return { imageOrder, reordered: true };
+  },
+}),
+
+// Validate for publish
+validateForPublish: tool({
+  description: 'Check if project is ready to publish',
+  inputSchema: z.object({}),
+  execute: async () => {
+    // Returns validation results
+    return {
+      isValid: boolean,
+      missing: string[],
+      warnings: string[],
+    };
+  },
+}),
+```
+
+### Edit Mode System Prompt
+
+```typescript
+const EDITING_SYSTEM_PROMPT = `You are helping a masonry contractor edit their portfolio project.
+
+The current project state is shown in the artifacts above. Help the user:
+- Improve their title or description
+- Add or reorganize photos
+- Fix any issues preventing publication
+- Enhance SEO metadata
+
+When the user asks to change something:
+1. If it's a simple field update, use the updateField tool
+2. If they want AI help improving content, use regenerateSection tool
+3. If they're managing images, guide them through the ImageGallery artifact
+4. If they ask "what's missing?", use validateForPublish tool
+
+Keep responses brief. The artifacts show the current state - don't repeat what's visible.
+
+Available natural language commands:
+- "Make the title more SEO-friendly" → regenerateSection
+- "Add 'brick pointing' to materials" → updateField
+- "What's missing for publish?" → validateForPublish
+- "Put the after photo first" → reorderImages (or guide to drag-drop)
+`;
+```
+
+### Session Management
+
+#### Fresh Start Pattern
+
+Each edit session starts clean without conversation history:
+
+```typescript
+// In ChatWizard
+useEffect(() => {
+  if (mode === 'edit') {
+    // Load project data
+    const project = await fetchProject(projectId);
+    const images = await fetchImages(projectId);
+
+    // Create initial artifacts (not messages)
+    const initialArtifacts = buildInitialArtifacts(project, images);
+
+    // Set welcome message only
+    setMessages([{
+      id: 'welcome',
+      role: 'assistant',
+      parts: [
+        { type: 'text', text: welcomeMessage },
+        ...initialArtifacts.map(toArtifactPart),
+      ],
+    }]);
+
+    // No history loaded - fresh start
+  }
+}, [mode, projectId]);
+```
+
+#### Why Fresh Start?
+
+1. **Clarity** - User sees current project state, not old conversations
+2. **Performance** - No loading/parsing of potentially long history
+3. **Relevance** - Old creation conversations may not apply to current edits
+4. **Simplicity** - Easier to implement and maintain
+
+### Data Flow: Edit Mode
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        EDIT MODE FLOW                           │
+└─────────────────────────────────────────────────────────────────┘
+
+1. User navigates to /projects/[id]/edit
+   │
+   ▼
+2. ChatWizard initializes in edit mode
+   │
+   ├─► Fetch project: GET /api/projects/[id]
+   ├─► Fetch images: GET /api/projects/[id]/images
+   │
+   ▼
+3. Build initial artifacts from fetched data
+   │
+   ▼
+4. Display welcome message + all artifacts
+   │
+   ▼
+5. User interacts:
+   │
+   ├─► Chat: "Make title more catchy"
+   │   │
+   │   ├─► AI calls regenerateSection({ section: 'title' })
+   │   ├─► New title generated
+   │   ├─► ContentEditor artifact updates
+   │   └─► PATCH /api/projects/[id] saves change
+   │
+   ├─► Direct edit: Click title in ContentEditor
+   │   │
+   │   ├─► Artifact enters 'editing' mode
+   │   ├─► User types new title
+   │   ├─► Click save
+   │   └─► PATCH /api/projects/[id] saves change
+   │
+   └─► Image: Drag to reorder in ImageGallery
+       │
+       ├─► Optimistic UI update
+       ├─► PATCH /api/projects/[id]/images
+       └─► Confirm or rollback
+```
+
+### URL Routing
+
+```typescript
+// Unified chat route handles both modes
+// /projects/new → Create mode
+// /projects/[id]/edit → Edit mode
+
+// In page.tsx
+export default function ProjectChatPage({ params, searchParams }) {
+  const isNewProject = params.id === 'new';
+
+  return (
+    <ChatWizard
+      mode={isNewProject ? 'create' : 'edit'}
+      projectId={isNewProject ? undefined : params.id}
+    />
+  );
+}
+```
+
+### Comparison: Create vs Edit Mode
+
+| Aspect | Create Mode | Edit Mode |
+|--------|-------------|-----------|
+| Initial state | Empty project | Loaded project + images |
+| Welcome message | "What project are you adding?" | "Here's your project. What to change?" |
+| Initial artifacts | None | All populated |
+| Conversation history | Accumulates | Fresh start each session |
+| Primary AI role | Extract information | Assist with improvements |
+| Artifact mode | Becomes editable | Starts editable |
+| Save pattern | Gradual extraction | Immediate on change |
+| Publish flow | After generation | Anytime ready |
+
+---
+
 ## Related Documentation
 
 - **SDK Reference**: `./vercel-ai-sdk-reference.md`
