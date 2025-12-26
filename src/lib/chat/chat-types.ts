@@ -1,0 +1,187 @@
+/**
+ * Type definitions for the chat-based project creation wizard.
+ *
+ * The chat wizard uses a conversational interface to gather project
+ * information before image upload, making AI analysis more contextual.
+ *
+ * @see /docs/03-architecture/c4-container.md for AI pipeline flow
+ */
+
+import type { UploadedImage } from '@/components/upload/ImageUploader';
+
+// Re-export for convenience
+export type { UploadedImage };
+
+/** Message sender role */
+export type MessageRole = 'user' | 'assistant' | 'system';
+
+/** Type of message content for rendering */
+export type MessageType =
+  | 'text'           // Regular text message
+  | 'image-upload'   // Inline image uploader prompt
+  | 'quick-reply'    // Message with quick reply options
+  | 'content-preview' // Generated content card for review
+  | 'action';        // Action button (publish, save draft)
+
+/** Quick reply suggestion button */
+export interface QuickReply {
+  id: string;
+  label: string;
+  value: string;
+}
+
+/** Action button in chat */
+export interface ChatAction {
+  type: 'upload-images' | 'regenerate' | 'publish' | 'save-draft' | 'edit';
+  label: string;
+}
+
+/**
+ * Individual chat message.
+ *
+ * Messages flow in order and are rendered as bubbles.
+ * Metadata varies by message type.
+ */
+export interface ChatMessage {
+  /** Unique message ID */
+  id: string;
+  /** Who sent the message */
+  role: MessageRole;
+  /** Type determines rendering style */
+  type: MessageType;
+  /** Text content of the message */
+  content: string;
+  /** ISO timestamp */
+  timestamp: string;
+  /** Optional metadata for special message types */
+  metadata?: {
+    /** Attached images (for image-upload type) */
+    images?: UploadedImage[];
+    /** Quick reply options (for quick-reply type) */
+    quickReplies?: QuickReply[];
+    /** Generated content (for content-preview type) */
+    contentPreview?: GeneratedContent;
+    /** Action button (for action type) */
+    action?: ChatAction;
+  };
+}
+
+/**
+ * Project data extracted from conversation via OpenAI function calling.
+ *
+ * The AI extracts this structured data from natural conversation,
+ * which is then used to enhance image analysis and content generation.
+ */
+export interface ExtractedProjectData {
+  /** Detected project type (chimney, tuckpointing, etc.) */
+  project_type?: string;
+  /** What problem the customer had */
+  customer_problem?: string;
+  /** How the contractor solved it */
+  solution_approach?: string;
+  /** Materials mentioned in conversation */
+  materials_mentioned?: string[];
+  /** Techniques or methods used */
+  techniques_mentioned?: string[];
+  /** How long the project took */
+  duration?: string;
+  /** Project location (city, state) */
+  location?: string;
+  /** Any challenges faced */
+  challenges?: string;
+  /** What contractor is most proud of */
+  proud_of?: string;
+  /** AI determined enough info to proceed to images */
+  ready_for_images?: boolean;
+}
+
+/**
+ * Generated portfolio content from AI.
+ *
+ * This is the final output that gets saved to the project.
+ */
+export interface GeneratedContent {
+  /** SEO-optimized project title */
+  title: string;
+  /** Long-form project description (400-600 words) */
+  description: string;
+  /** SEO meta title */
+  seo_title: string;
+  /** SEO meta description */
+  seo_description: string;
+  /** Relevant tags for categorization */
+  tags: string[];
+  /** Materials used */
+  materials: string[];
+  /** Techniques demonstrated */
+  techniques: string[];
+}
+
+/** Wizard phases - tracks overall progress */
+export type ChatPhase =
+  | 'conversation'  // Gathering project info via chat
+  | 'uploading'     // User is uploading images
+  | 'analyzing'     // GPT-4V analyzing images
+  | 'generating'    // GPT-4o generating content
+  | 'review'        // User reviewing generated content
+  | 'published';    // Project published successfully
+
+/**
+ * Complete chat session state.
+ *
+ * Persisted to IndexedDB for recovery if user navigates away.
+ */
+export interface ChatSession {
+  /** Unique session ID */
+  id: string;
+  /** Associated project ID */
+  projectId: string;
+  /** Conversation history */
+  messages: ChatMessage[];
+  /** Structured data extracted from chat */
+  extractedData: ExtractedProjectData;
+  /** Uploaded images */
+  images: UploadedImage[];
+  /** Generated content (after generation phase) */
+  generatedContent?: GeneratedContent;
+  /** Current wizard phase */
+  phase: ChatPhase;
+  /** ISO timestamp when created */
+  createdAt: string;
+  /** ISO timestamp when last updated */
+  updatedAt: string;
+}
+
+/**
+ * Streaming chunk from chat API.
+ *
+ * Server-Sent Events format for real-time streaming.
+ */
+export interface ChatStreamChunk {
+  /** Type of chunk */
+  type: 'text' | 'function_call' | 'error' | 'done';
+  /** Text content (for text type) */
+  content?: string;
+  /** Function call name (for function_call type) */
+  functionName?: string;
+  /** Function call arguments (for function_call type) */
+  functionArgs?: ExtractedProjectData;
+  /** Error message (for error type) */
+  error?: string;
+}
+
+/**
+ * Request payload for chat API.
+ */
+export interface ChatRequest {
+  /** Conversation history */
+  messages: ChatMessage[];
+  /** Project ID */
+  projectId: string;
+  /** Current phase */
+  phase: ChatPhase;
+  /** Extracted data so far (for context) */
+  extractedData?: ExtractedProjectData;
+  /** Image analysis results (for generating phase) */
+  imageAnalysis?: Record<string, unknown>;
+}

@@ -123,7 +123,7 @@ export default function ResetPasswordPage() {
               </div>
             </CardContent>
 
-            <CardFooter className="flex flex-col gap-4 pb-8">
+            <CardFooter className="flex flex-col gap-4 pt-4 pb-8">
               <Button
                 type="submit"
                 className="w-full h-10 text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"

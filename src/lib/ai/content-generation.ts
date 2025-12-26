@@ -1,7 +1,7 @@
 /**
- * GPT-4o content generation for portfolio showcases.
+ * Gemini 3.0 Flash content generation for portfolio showcases.
  *
- * Uses OpenAI Responses API with structured outputs for type-safe parsing.
+ * Uses Vercel AI SDK with Google provider for type-safe structured outputs.
  *
  * Generates SEO-optimized content from:
  * - Image analysis results
@@ -9,12 +9,11 @@
  * - Contractor business context
  *
  * @see /docs/03-architecture/c4-container.md for AI pipeline flow
- * @see https://platform.openai.com/docs/guides/structured-outputs
+ * @see https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data
  */
 
-import { LengthFinishReasonError, ContentFilterFinishReasonError } from 'openai/core/error';
-import { zodTextFormat } from 'openai/helpers/zod';
-import { openai, AI_MODELS, OUTPUT_LIMITS, parseAIError, isAIEnabled } from './openai';
+import { generateObject } from 'ai';
+import { getGenerationModel, isGoogleAIEnabled, OUTPUT_LIMITS } from './providers';
 import {
   CONTENT_GENERATION_PROMPT,
   INTERVIEW_QUESTIONS_PROMPT,
@@ -66,9 +65,9 @@ export interface BusinessContext {
 
 /**
  * Generate interview questions based on image analysis.
- * Uses Responses API with structured outputs.
+ * Uses AI SDK with Gemini for structured outputs.
  *
- * @param imageAnalysis - Results from GPT-4o image analysis
+ * @param imageAnalysis - Results from Gemini image analysis
  * @param businessContext - Contractor's business info
  * @returns Array of questions to ask the contractor
  */
@@ -77,37 +76,33 @@ export async function generateInterviewQuestions(
   businessContext: BusinessContext
 ): Promise<InterviewQuestion[]> {
   // Return defaults if AI is unavailable
-  if (!isAIEnabled()) {
+  if (!isGoogleAIEnabled()) {
     return DEFAULT_INTERVIEW_QUESTIONS;
   }
 
   try {
-    const response = await openai.responses.parse({
-      model: AI_MODELS.generation,
-      instructions: INTERVIEW_QUESTIONS_PROMPT,
-      input: buildQuestionGenerationMessage(imageAnalysis, businessContext),
-      text: {
-        format: zodTextFormat(InterviewQuestionsSchema, 'interview_questions'),
-      },
-      max_output_tokens: OUTPUT_LIMITS.questionGeneration,
+    const { object } = await generateObject({
+      model: getGenerationModel(),
+      schema: InterviewQuestionsSchema,
+      system: INTERVIEW_QUESTIONS_PROMPT,
+      prompt: buildQuestionGenerationMessage(imageAnalysis, businessContext),
+      maxOutputTokens: OUTPUT_LIMITS.questionGeneration,
     });
 
-    const parsed = response.output_parsed;
-
-    if (!parsed?.questions || parsed.questions.length === 0) {
+    if (!object?.questions || object.questions.length === 0) {
       return DEFAULT_INTERVIEW_QUESTIONS;
     }
 
-    return parsed.questions;
+    return object.questions;
   } catch (error) {
-    console.error('[generateInterviewQuestions] Error:', parseAIError(error));
+    console.error('[generateInterviewQuestions] Error:', parseContentError(error));
     return DEFAULT_INTERVIEW_QUESTIONS;
   }
 }
 
 /**
  * Generate portfolio content from interview responses.
- * Uses Responses API with structured outputs for type-safe parsing.
+ * Uses AI SDK with Gemini for structured outputs.
  *
  * @param imageAnalysis - Results from image analysis
  * @param interviewResponses - Q&A pairs from the interview
@@ -130,7 +125,7 @@ export async function generatePortfolioContent(
   businessContext: BusinessContext
 ): Promise<GeneratedContent | { error: string; retryable: boolean }> {
   // Check if AI is available
-  if (!isAIEnabled()) {
+  if (!isGoogleAIEnabled()) {
     return {
       error: 'AI content generation is not available',
       retryable: false,
@@ -147,21 +142,17 @@ export async function generatePortfolioContent(
   }
 
   try {
-    const response = await openai.responses.parse({
-      model: AI_MODELS.generation,
-      instructions: CONTENT_GENERATION_PROMPT,
-      input: buildContentGenerationMessage(imageAnalysis, interviewResponses, businessContext),
-      text: {
-        format: zodTextFormat(GeneratedContentSchema, 'generated_content'),
-      },
-      max_output_tokens: OUTPUT_LIMITS.contentGeneration,
+    const { object } = await generateObject({
+      model: getGenerationModel(),
+      schema: GeneratedContentSchema,
+      system: CONTENT_GENERATION_PROMPT,
+      prompt: buildContentGenerationMessage(imageAnalysis, interviewResponses, businessContext),
+      maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
       temperature: 0.7, // Some creativity for engaging content
     });
 
-    const parsed = response.output_parsed;
-
     // Validate required fields
-    if (!parsed?.title || !parsed?.description) {
+    if (!object?.title || !object?.description) {
       return {
         error: 'Generated content is incomplete. Please try again.',
         retryable: true,
@@ -170,31 +161,17 @@ export async function generatePortfolioContent(
 
     // Ensure arrays are properly typed
     return {
-      title: parsed.title,
-      description: parsed.description,
-      seo_title: parsed.seo_title || `${parsed.title} | ${businessContext.business_name}`,
+      title: object.title,
+      description: object.description,
+      seo_title: object.seo_title || `${object.title} | ${businessContext.business_name}`,
       seo_description:
-        parsed.seo_description || parsed.description.slice(0, 157) + '...',
-      tags: parsed.tags || [],
-      materials: parsed.materials || imageAnalysis.materials || [],
-      techniques: parsed.techniques || imageAnalysis.techniques || [],
+        object.seo_description || object.description.slice(0, 157) + '...',
+      tags: object.tags || [],
+      materials: object.materials || imageAnalysis.materials || [],
+      techniques: object.techniques || imageAnalysis.techniques || [],
     };
   } catch (error) {
-    // Handle Responses API specific errors (thrown by responses.parse() helper)
-    if (error instanceof LengthFinishReasonError) {
-      return {
-        error: 'Content generation was truncated. Please try again.',
-        retryable: true,
-      };
-    }
-    if (error instanceof ContentFilterFinishReasonError) {
-      return {
-        error: 'Content was flagged by safety filters. Please try different content.',
-        retryable: false,
-      };
-    }
-
-    const aiError = parseAIError(error);
+    const aiError = parseContentError(error);
     console.error('[generatePortfolioContent] Error:', aiError);
     return { error: aiError.message, retryable: aiError.retryable };
   }
@@ -203,7 +180,6 @@ export async function generatePortfolioContent(
 /**
  * Regenerate content with user feedback.
  * Used when contractor wants to refine the AI output.
- * Uses Responses API with structured outputs.
  *
  * @param previousContent - Previously generated content
  * @param feedback - User's feedback on what to change
@@ -214,7 +190,7 @@ export async function regenerateWithFeedback(
   feedback: string,
   businessContext: BusinessContext
 ): Promise<GeneratedContent | { error: string; retryable: boolean }> {
-  if (!isAIEnabled()) {
+  if (!isGoogleAIEnabled()) {
     return {
       error: 'AI content generation is not available',
       retryable: false,
@@ -222,7 +198,7 @@ export async function regenerateWithFeedback(
   }
 
   try {
-    const regenerationInput = `Here is the previously generated content:
+    const regenerationPrompt = `Here is the previously generated content:
 ${JSON.stringify(previousContent, null, 2)}
 
 The contractor (${businessContext.business_name} in ${businessContext.city}, ${businessContext.state}) has requested changes:
@@ -230,45 +206,86 @@ The contractor (${businessContext.business_name} in ${businessContext.city}, ${b
 
 Please regenerate the content incorporating this feedback while maintaining SEO optimization and professional quality.`;
 
-    const response = await openai.responses.parse({
-      model: AI_MODELS.generation,
-      instructions: CONTENT_GENERATION_PROMPT,
-      input: regenerationInput,
-      text: {
-        format: zodTextFormat(GeneratedContentSchema, 'generated_content'),
-      },
-      max_output_tokens: OUTPUT_LIMITS.contentGeneration,
+    const { object } = await generateObject({
+      model: getGenerationModel(),
+      schema: GeneratedContentSchema,
+      system: CONTENT_GENERATION_PROMPT,
+      prompt: regenerationPrompt,
+      maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
       temperature: 0.7,
     });
 
-    const parsed = response.output_parsed;
-
     return {
-      title: parsed?.title || previousContent.title,
-      description: parsed?.description || previousContent.description,
-      seo_title: parsed?.seo_title || previousContent.seo_title,
-      seo_description: parsed?.seo_description || previousContent.seo_description,
-      tags: parsed?.tags || previousContent.tags,
-      materials: parsed?.materials || previousContent.materials,
-      techniques: parsed?.techniques || previousContent.techniques,
+      title: object?.title || previousContent.title,
+      description: object?.description || previousContent.description,
+      seo_title: object?.seo_title || previousContent.seo_title,
+      seo_description: object?.seo_description || previousContent.seo_description,
+      tags: object?.tags || previousContent.tags,
+      materials: object?.materials || previousContent.materials,
+      techniques: object?.techniques || previousContent.techniques,
     };
   } catch (error) {
-    // Handle Responses API specific errors (thrown by responses.parse() helper)
-    if (error instanceof LengthFinishReasonError) {
+    const aiError = parseContentError(error);
+    console.error('[regenerateWithFeedback] Error:', aiError);
+    return { error: aiError.message, retryable: aiError.retryable };
+  }
+}
+
+/**
+ * Parse errors from content generation into user-friendly messages.
+ */
+function parseContentError(error: unknown): { message: string; retryable: boolean } {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+
+    // Rate limiting
+    if (message.includes('rate') || message.includes('quota') || message.includes('429')) {
       return {
-        error: 'Content regeneration was truncated. Please try again.',
+        message: 'AI service is busy. Please try again in a moment.',
         retryable: true,
       };
     }
-    if (error instanceof ContentFilterFinishReasonError) {
+
+    // Context/token limits
+    if (message.includes('token') || message.includes('length') || message.includes('too long')) {
       return {
-        error: 'Content was flagged by safety filters. Please try different feedback.',
+        message: 'Content is too long for AI processing. Please use shorter inputs.',
         retryable: false,
       };
     }
 
-    const aiError = parseAIError(error);
-    console.error('[regenerateWithFeedback] Error:', aiError);
-    return { error: aiError.message, retryable: aiError.retryable };
+    // Content filtering
+    if (message.includes('safety') || message.includes('blocked') || message.includes('filter')) {
+      return {
+        message: 'Content was flagged by safety filters. Please try different content.',
+        retryable: false,
+      };
+    }
+
+    // Network/timeout
+    if (message.includes('timeout') || message.includes('network')) {
+      return {
+        message: 'AI request timed out. Please try again.',
+        retryable: true,
+      };
+    }
+
+    // API key issues
+    if (message.includes('api key') || message.includes('unauthorized') || message.includes('401')) {
+      return {
+        message: 'AI service configuration error. Please contact support.',
+        retryable: false,
+      };
+    }
+
+    return {
+      message: error.message,
+      retryable: true,
+    };
   }
+
+  return {
+    message: 'An unexpected error occurred with AI processing.',
+    retryable: true,
+  };
 }

@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { PasswordInput } from '@/components/ui/password-input';
+import { PasswordRequirements, validatePassword } from '@/components/ui/password-requirements';
 import { Lock, Loader2, AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 /**
@@ -24,13 +26,6 @@ export default function ResetPasswordConfirmPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const validatePassword = (pwd: string): string | null => {
-    if (pwd.length < 8) return 'Password must be at least 8 characters';
-    if (!/[a-zA-Z]/.test(pwd)) return 'Password must contain at least one letter';
-    if (!/[0-9]/.test(pwd)) return 'Password must contain at least one number';
-    return null;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -41,10 +36,9 @@ export default function ResetPasswordConfirmPage() {
       return;
     }
 
-    // Validate password strength
-    const passwordError = validatePassword(password);
-    if (passwordError) {
-      setError(passwordError);
+    // Validate password strength using imported function
+    if (!validatePassword(password)) {
+      setError('Please ensure your password meets all requirements');
       return;
     }
 
@@ -119,44 +113,49 @@ export default function ResetPasswordConfirmPage() {
               <div className="space-y-2">
                 <Label htmlFor="password">New Password</Label>
                 <div className="relative group">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                  <Input
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
+                  <PasswordInput
                     id="password"
-                    type="password"
                     placeholder="••••••••"
                     className="pl-9 h-10 transition-all focus-visible:ring-2"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (error) setError(null);
+                    }}
                     required
                     disabled={loading}
                     autoComplete="new-password"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground ml-1">
-                  8+ characters, at least 1 letter and 1 number
-                </p>
+                <PasswordRequirements password={password} className="mt-2 ml-1" />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm New Password</Label>
                 <div className="relative group">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                  <Input
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
+                  <PasswordInput
                     id="confirmPassword"
-                    type="password"
                     placeholder="••••••••"
                     className="pl-9 h-10 transition-all focus-visible:ring-2"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (error) setError(null);
+                    }}
                     required
                     disabled={loading}
                     autoComplete="new-password"
                   />
                 </div>
+                {confirmPassword && password !== confirmPassword && (
+                  <p className="text-xs text-destructive ml-1">Passwords do not match</p>
+                )}
               </div>
             </CardContent>
 
-            <CardFooter className="flex flex-col gap-4 pb-8">
+            <CardFooter className="flex flex-col gap-4 pt-4 pb-8">
               <Button
                 type="submit"
                 className="w-full h-10 text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"

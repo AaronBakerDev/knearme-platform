@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { PasswordInput } from '@/components/ui/password-input';
+import { PasswordRequirements, validatePassword } from '@/components/ui/password-requirements';
 import { Mail, Lock, Loader2, MailCheck, ArrowRight } from 'lucide-react';
 import { FormError } from '@/components/ui/form-error';
 import { toast } from 'sonner';
@@ -25,9 +27,37 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const confirmRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * Resend verification email from success screen.
+   */
+  const handleResendVerification = async () => {
+    if (!email) return;
+
+    setResendingVerification(true);
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to resend verification email');
+      }
+
+      toast.success('Verification email sent! Check your inbox.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resend verification email');
+    } finally {
+      setResendingVerification(false);
+    }
+  };
 
   /**
    * Handle Google OAuth sign-up.
@@ -71,13 +101,6 @@ export default function SignupPage() {
     target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [error]);
 
-  const validatePassword = (pwd: string): string | null => {
-    if (pwd.length < 8) return 'Password must be at least 8 characters';
-    if (!/[a-zA-Z]/.test(pwd)) return 'Password must contain at least one letter';
-    if (!/[0-9]/.test(pwd)) return 'Password must contain at least one number';
-    return null;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -88,10 +111,9 @@ export default function SignupPage() {
       return;
     }
 
-    // Validate password strength
-    const passwordError = validatePassword(password);
-    if (passwordError) {
-      setError(passwordError);
+    // Validate password strength using imported function
+    if (!validatePassword(password)) {
+      setError('Please ensure your password meets all requirements');
       return;
     }
 
@@ -141,6 +163,26 @@ export default function SignupPage() {
             </CardHeader>
             <CardContent className="text-center text-muted-foreground pb-8">
               <p>Click the link in your email to verify your account and continue setting up your portfolio.</p>
+              <p className="mt-4 text-sm">
+                Didn&apos;t receive the email?{' '}
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="text-primary h-auto p-0"
+                  onClick={handleResendVerification}
+                  disabled={resendingVerification}
+                >
+                  {resendingVerification ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    'Resend verification email'
+                  )}
+                </Button>
+              </p>
             </CardContent>
             <CardFooter className="flex flex-col gap-3 pb-8">
               <Button variant="outline" className="w-full h-10 hover:bg-muted" onClick={() => setSuccess(false)}>
@@ -202,10 +244,9 @@ export default function SignupPage() {
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative group">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                  <Input
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
+                  <PasswordInput
                     id="password"
-                    type="password"
                     placeholder="••••••••"
                     className="pl-9 h-10 transition-all focus-visible:ring-2"
                     value={password}
@@ -218,18 +259,15 @@ export default function SignupPage() {
                     ref={passwordRef}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground ml-1">
-                  8+ characters, at least 1 letter and 1 number
-                </p>
+                <PasswordRequirements password={password} className="mt-2 ml-1" />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <div className="relative group">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                  <Input
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
+                  <PasswordInput
                     id="confirmPassword"
-                    type="password"
                     placeholder="••••••••"
                     className="pl-9 h-10 transition-all focus-visible:ring-2"
                     value={confirmPassword}
@@ -242,6 +280,9 @@ export default function SignupPage() {
                     ref={confirmRef}
                   />
                 </div>
+                {confirmPassword && password !== confirmPassword && (
+                  <p className="text-xs text-destructive ml-1">Passwords do not match</p>
+                )}
               </div>
             </CardContent>
 

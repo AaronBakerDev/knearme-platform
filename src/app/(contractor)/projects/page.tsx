@@ -14,7 +14,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Plus, MoreVertical, Pencil, Eye, Trash2, Globe, FileEdit, CheckCircle2, Clock, FolderOpen, Archive } from 'lucide-react';
+import { Plus, MoreVertical, Pencil, Eye, Trash2, Globe, FileEdit, CheckCircle2, Clock, FolderOpen, Archive, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +36,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getPublicUrl } from '@/lib/storage/upload';
 import type { ProjectWithImages } from '@/types/database';
 
@@ -45,6 +46,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectWithImages[]>([]);
   const [status, setStatus] = useState<ProjectStatus>('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [deleteProject, setDeleteProject] = useState<ProjectWithImages | null>(null);
 
   // Fetch projects
@@ -56,16 +58,25 @@ export default function ProjectsPage() {
         if (status !== 'all') {
           params.set('status', status);
         }
-        params.set('limit', '50');
+        params.set('limit', '100'); // Increased to handle more projects
 
         const res = await fetch(`/api/projects?${params}`);
         const data = await res.json();
 
         if (res.ok) {
           setProjects(data.projects || []);
+          setError(null);
+        } else {
+          // Display the actual error from the API
+          const errorMessage = data.message || `Error ${res.status}: Failed to load projects`;
+          console.error('[Projects Page] API Error:', res.status, data);
+          setError(errorMessage);
+          setProjects([]);
         }
-      } catch (error) {
-        console.error('Failed to fetch projects:', error);
+      } catch (err) {
+        console.error('[Projects Page] Fetch error:', err);
+        setError('Network error: Failed to connect to server');
+        setProjects([]);
       } finally {
         setIsLoading(false);
       }
@@ -158,6 +169,14 @@ export default function ProjectsPage() {
           </TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {/* Error display */}
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Projects grid */}
       {isLoading ? (

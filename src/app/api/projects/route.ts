@@ -54,8 +54,15 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
+      console.error('[GET /api/projects] Auth failed:', auth.type, auth.message);
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
+
+    console.log('[GET /api/projects] Auth success:', {
+      contractorId: auth.contractor.id,
+      businessName: auth.contractor.business_name,
+      authMethod: auth.authMethod,
+    });
 
     const { contractor } = auth;
     const { searchParams } = new URL(request.url);

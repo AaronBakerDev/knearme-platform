@@ -1,7 +1,7 @@
 /**
- * GPT-4o image analysis for masonry project detection.
+ * Gemini 3.0 Flash image analysis for masonry project detection.
  *
- * Uses OpenAI Responses API with structured outputs for type-safe parsing.
+ * Uses Vercel AI SDK with Google provider for type-safe structured outputs.
  *
  * Analyzes project photos to identify:
  * - Project type (chimney, tuckpointing, etc.)
@@ -10,13 +10,11 @@
  * - Before/after/progress status
  *
  * @see /docs/03-architecture/c4-container.md for AI pipeline flow
- * @see https://platform.openai.com/docs/guides/structured-outputs
+ * @see https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data
  */
 
-import OpenAI from 'openai';
-import { LengthFinishReasonError, ContentFilterFinishReasonError } from 'openai/core/error';
-import { zodTextFormat } from 'openai/helpers/zod';
-import { openai, AI_MODELS, OUTPUT_LIMITS, parseAIError, isAIEnabled } from './openai';
+import { generateObject } from 'ai';
+import { getVisionModel, isGoogleAIEnabled, OUTPUT_LIMITS } from './providers';
 import { IMAGE_ANALYSIS_PROMPT, buildImageAnalysisMessage } from './prompts';
 import { ImageAnalysisSchema } from './schemas';
 
@@ -60,7 +58,7 @@ const DEFAULT_ANALYSIS: ImageAnalysisResult = {
 };
 
 /**
- * Analyze project images using GPT-4o with Responses API.
+ * Analyze project images using Gemini 3.0 Flash with AI SDK.
  *
  * @param imageUrls - Public URLs of images to analyze (max 4 for cost control)
  * @returns Analysis result or error
@@ -81,12 +79,12 @@ export async function analyzeProjectImages(
   imageUrls: string[]
 ): Promise<ImageAnalysisResult | { error: string; retryable: boolean }> {
   // Check if AI is available
-  if (!isAIEnabled()) {
-    console.warn('[analyzeProjectImages] AI not enabled, returning defaults');
+  if (!isGoogleAIEnabled()) {
+    console.warn('[analyzeProjectImages] Google AI not enabled, returning defaults');
     return DEFAULT_ANALYSIS;
   }
 
-  // Limit images to control costs (GPT-4o charges per image)
+  // Limit images to control costs (charges per image)
   const limitedUrls = imageUrls.slice(0, 4);
 
   if (limitedUrls.length === 0) {
@@ -94,40 +92,34 @@ export async function analyzeProjectImages(
   }
 
   try {
-    // Build input array with text prompt + images for Responses API
-    const inputContent: OpenAI.Responses.ResponseInputItem[] = [
-      {
-        type: 'message',
-        role: 'user',
-        content: [
-          { type: 'input_text', text: buildImageAnalysisMessage(limitedUrls) },
-          ...limitedUrls.map((url) => ({
-            type: 'input_image' as const,
-            image_url: url,
-            detail: 'auto' as const, // Let API choose detail level based on image size
-          })),
-        ],
-      },
+    /**
+     * Build multimodal content array for AI SDK.
+     * Format: [{ type: 'text', text: ... }, { type: 'image', image: URL }, ...]
+     *
+     * @see https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data#multimodal-inputs
+     */
+    const content: Array<{ type: 'text'; text: string } | { type: 'image'; image: URL }> = [
+      { type: 'text', text: buildImageAnalysisMessage(limitedUrls) },
+      ...limitedUrls.map((url) => ({
+        type: 'image' as const,
+        image: new URL(url),
+      })),
     ];
 
-    const response = await openai.responses.parse({
-      model: AI_MODELS.vision,
-      instructions: IMAGE_ANALYSIS_PROMPT,
-      input: inputContent,
-      text: {
-        format: zodTextFormat(ImageAnalysisSchema, 'image_analysis'),
-      },
-      max_output_tokens: OUTPUT_LIMITS.imageAnalysis,
+    const { object } = await generateObject({
+      model: getVisionModel(),
+      schema: ImageAnalysisSchema,
+      system: IMAGE_ANALYSIS_PROMPT,
+      messages: [{ role: 'user', content }],
+      maxOutputTokens: OUTPUT_LIMITS.imageAnalysis,
     });
 
-    const parsed = response.output_parsed;
-
-    if (!parsed || !parsed.project_type) {
+    if (!object || !object.project_type) {
       return DEFAULT_ANALYSIS;
     }
 
     // Handle non-masonry images gracefully
-    if (parsed.project_type === 'not_masonry') {
+    if (object.project_type === 'not_masonry') {
       return {
         ...DEFAULT_ANALYSIS,
         quality_notes: 'Image does not appear to show masonry work',
@@ -135,30 +127,88 @@ export async function analyzeProjectImages(
     }
 
     return {
-      project_type: parsed.project_type || DEFAULT_ANALYSIS.project_type,
-      project_type_confidence: parsed.project_type_confidence ?? 0.5,
-      materials: parsed.materials || [],
-      techniques: parsed.techniques || [],
-      image_stage: parsed.image_stage || 'unknown',
-      quality_notes: parsed.quality_notes || '',
-      suggested_title_keywords: parsed.suggested_title_keywords || [],
-      image_alt_texts: parsed.image_alt_texts || {},
+      project_type: object.project_type || DEFAULT_ANALYSIS.project_type,
+      project_type_confidence: object.project_type_confidence ?? 0.5,
+      materials: object.materials || [],
+      techniques: object.techniques || [],
+      image_stage: object.image_stage || 'unknown',
+      quality_notes: object.quality_notes || '',
+      suggested_title_keywords: object.suggested_title_keywords || [],
+      image_alt_texts: object.image_alt_texts || {},
     };
   } catch (error) {
-    // Handle Responses API specific errors (thrown by responses.parse() helper)
-    if (error instanceof LengthFinishReasonError) {
-      console.error('[analyzeProjectImages] Response truncated');
-      return { error: 'Analysis response was too long', retryable: true };
-    }
-    if (error instanceof ContentFilterFinishReasonError) {
-      console.error('[analyzeProjectImages] Content filtered');
-      return { error: 'Content was flagged by safety filters', retryable: false };
-    }
-
-    const aiError = parseAIError(error);
+    // Parse and categorize errors
+    const aiError = parseImageAnalysisError(error);
     console.error('[analyzeProjectImages] Error:', aiError);
     return { error: aiError.message, retryable: aiError.retryable };
   }
+}
+
+/**
+ * Parse errors from image analysis into user-friendly messages.
+ */
+function parseImageAnalysisError(error: unknown): { message: string; retryable: boolean } {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+
+    // Rate limiting
+    if (message.includes('rate') || message.includes('quota') || message.includes('429')) {
+      return {
+        message: 'AI service is busy. Please try again in a moment.',
+        retryable: true,
+      };
+    }
+
+    // Context/token limits
+    if (message.includes('token') || message.includes('length') || message.includes('too long')) {
+      return {
+        message: 'Images are too large for AI processing. Please use smaller images.',
+        retryable: false,
+      };
+    }
+
+    // Content filtering
+    if (message.includes('safety') || message.includes('blocked') || message.includes('filter')) {
+      return {
+        message: 'Content was flagged by safety filters. Please try different images.',
+        retryable: false,
+      };
+    }
+
+    // Network/timeout
+    if (message.includes('timeout') || message.includes('network') || message.includes('fetch')) {
+      return {
+        message: 'AI request timed out. Please try again.',
+        retryable: true,
+      };
+    }
+
+    // Invalid image URL
+    if (message.includes('url') || message.includes('image') || message.includes('400')) {
+      return {
+        message: 'Could not load one or more images. Please check the image URLs.',
+        retryable: false,
+      };
+    }
+
+    // API key issues
+    if (message.includes('api key') || message.includes('unauthorized') || message.includes('401')) {
+      return {
+        message: 'AI service configuration error. Please contact support.',
+        retryable: false,
+      };
+    }
+
+    return {
+      message: error.message,
+      retryable: true,
+    };
+  }
+
+  return {
+    message: 'An unexpected error occurred with AI processing.',
+    retryable: true,
+  };
 }
 
 /**

@@ -266,6 +266,21 @@
   .dark .glow {
     box-shadow: 0 0 30px oklch(0.72 0.14 185 / 0.4);
   }
+
+  /* Chat input floating shadow */
+  .shadow-chat-input {
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 0.05),
+      0 2px 8px oklch(0 0 0 / 0.15),
+      0 8px 24px oklch(0 0 0 / 0.1);
+  }
+
+  .dark .shadow-chat-input {
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 0.08),
+      0 2px 8px oklch(0 0 0 / 0.3),
+      0 8px 24px oklch(0 0 0 / 0.25);
+  }
 }
 
 /* ==========================================================================
@@ -464,6 +479,17 @@
   }
 }
 
+@keyframes message-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .animate-fade-up {
   animation: fade-up 0.6s ease-out forwards;
 }
@@ -478,6 +504,10 @@
 
 .animate-slide-in-right {
   animation: slide-in-right 0.5s ease-out forwards;
+}
+
+.animate-message-in {
+  animation: message-in 0.3s ease-out forwards;
 }
 
 /* Staggered animation delays */
@@ -508,6 +538,7 @@
   .animate-fade-in,
   .animate-scale-in,
   .animate-slide-in-right,
+  .animate-message-in,
   .animate-pulse,
   .animate-spin,
   .animate-bounce {

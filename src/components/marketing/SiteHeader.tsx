@@ -90,7 +90,7 @@ export function SiteHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60 shadow-sm">
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md supports-backdrop-filter:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
@@ -106,7 +106,6 @@ export function SiteHeader() {
             {/* Services Dropdown */}
             <NavigationMenuItem>
               <NavigationMenuTrigger className="h-10">
-                <Hammer className="h-4 w-4 mr-2" />
                 Services
               </NavigationMenuTrigger>
               <NavigationMenuContent>
@@ -141,7 +140,6 @@ export function SiteHeader() {
                 className={cn(navigationMenuTriggerStyle(), "h-10")}
               >
                 <Link href="/denver-co/masonry">
-                  <Building2 className="h-4 w-4 mr-2" />
                   Browse Projects
                 </Link>
               </NavigationMenuLink>
@@ -154,7 +152,6 @@ export function SiteHeader() {
                 className={cn(navigationMenuTriggerStyle(), "h-10")}
               >
                 <Link href="/tools">
-                  <Calculator className="h-4 w-4 mr-2" />
                   Tools
                 </Link>
               </NavigationMenuLink>
@@ -167,7 +164,6 @@ export function SiteHeader() {
                 className={cn(navigationMenuTriggerStyle(), "h-10")}
               >
                 <Link href="/learn">
-                  <BookOpen className="h-4 w-4 mr-2" />
                   Learn
                 </Link>
               </NavigationMenuLink>
@@ -193,34 +189,39 @@ export function SiteHeader() {
         {/* Mobile Menu */}
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
           <SheetTrigger asChild className="md:hidden">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="hover:bg-accent/50">
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-[300px] sm:w-[350px]">
+          <SheetContent side="right" className="w-[300px] sm:w-[350px] border-l border-border/40">
             <SheetHeader>
-              <SheetTitle className="text-left">Menu</SheetTitle>
+              <SheetTitle className="text-left flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
+                  K
+                </div>
+                <span>KnearMe</span>
+              </SheetTitle>
             </SheetHeader>
 
-            <div className="mt-6 flex flex-col gap-4">
-              <Accordion type="single" collapsible className="w-full">
+            <nav className="mt-8 px-2 flex flex-col">
+              <Accordion type="single" collapsible className="w-full border-none">
                 {/* Services Accordion */}
-                <AccordionItem value="services">
-                  <AccordionTrigger className="text-base">
-                    <span className="flex items-center gap-2">
-                      <Hammer className="h-4 w-4" />
+                <AccordionItem value="services" className="border-none">
+                  <AccordionTrigger className="text-base font-medium py-3 px-2 hover:no-underline hover:text-primary hover:bg-accent/30 rounded-lg min-h-[48px]">
+                    <span className="flex items-center gap-3">
+                      <Hammer className="h-5 w-5 text-muted-foreground" />
                       Services
                     </span>
                   </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="flex flex-col gap-2 pl-6">
+                  <AccordionContent className="pb-2">
+                    <div className="flex flex-col gap-0.5 ml-7 rounded-lg bg-muted/30 py-2">
                       {SERVICES.map((service) => (
                         <Link
                           key={service.slug}
                           href={`/services/${service.slug}`}
                           onClick={() => setMobileMenuOpen(false)}
-                          className="text-sm text-muted-foreground hover:text-foreground py-1"
+                          className="text-sm text-muted-foreground hover:text-foreground py-3 px-4 rounded-md hover:bg-accent/50 transition-colors min-h-[44px] flex items-center"
                         >
                           {service.label}
                         </Link>
@@ -228,9 +229,9 @@ export function SiteHeader() {
                       <Link
                         href="/services"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="text-sm font-medium text-primary hover:underline pt-2"
+                        className="text-sm font-medium text-primary hover:text-primary/80 py-3 px-4 mt-1 bg-primary/5 rounded-md min-h-[44px] flex items-center"
                       >
-                        View All Services
+                        View All →
                       </Link>
                     </div>
                   </AccordionContent>
@@ -241,44 +242,44 @@ export function SiteHeader() {
               <Link
                 href="/denver-co/masonry"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 text-base py-2"
+                className="flex items-center gap-3 text-base font-medium py-3 px-2 text-foreground hover:text-primary hover:bg-accent/30 rounded-lg transition-colors min-h-[48px]"
               >
-                <Building2 className="h-4 w-4" />
+                <Building2 className="h-5 w-5 text-muted-foreground" />
                 Browse Projects
               </Link>
 
               <Link
                 href="/learn"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 text-base py-2"
+                className="flex items-center gap-3 text-base font-medium py-3 px-2 text-foreground hover:text-primary hover:bg-accent/30 rounded-lg transition-colors min-h-[48px]"
               >
-                <BookOpen className="h-4 w-4" />
+                <BookOpen className="h-5 w-5 text-muted-foreground" />
                 Learning Center
               </Link>
 
               <Link
                 href="/tools"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 text-base py-2"
+                className="flex items-center gap-3 text-base font-medium py-3 px-2 text-foreground hover:text-primary hover:bg-accent/30 rounded-lg transition-colors min-h-[48px]"
               >
-                <Calculator className="h-4 w-4" />
+                <Calculator className="h-5 w-5 text-muted-foreground" />
                 Tools
               </Link>
 
               {/* Auth Actions */}
-              <div className="border-t pt-4 mt-4 flex flex-col gap-3">
+              <div className="border-t border-border/40 pt-6 mt-6 flex flex-col gap-3">
                 <Link
                   href="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-base text-muted-foreground hover:text-foreground"
+                  className="text-base text-muted-foreground hover:text-foreground transition-colors py-2"
                 >
                   Sign In
                 </Link>
                 <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full">Get Started</Button>
+                  <Button className="w-full rounded-full">Get Started</Button>
                 </Link>
               </div>
-            </div>
+            </nav>
           </SheetContent>
         </Sheet>
       </div>

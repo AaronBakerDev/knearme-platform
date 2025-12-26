@@ -5,6 +5,8 @@ import { FeatureGrid } from "@/components/marketing/FeatureGrid";
 import { PortfolioShowcase } from "@/components/marketing/PortfolioShowcase";
 import { Testimonials } from "@/components/marketing/Testimonials";
 import { Pricing } from "@/components/marketing/Pricing";
+import { SiteHeader } from "@/components/marketing/SiteHeader";
+import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { CTAButton } from "@/components/ui/cta-button";
 import Link from "next/link";
 
@@ -26,8 +28,10 @@ import Link from "next/link";
  */
 export default function Home() {
   return (
-    <>
-      <HeroSection />
+    <div className="flex min-h-screen flex-col font-sans">
+      <SiteHeader />
+      <main className="flex-1">
+        <HeroSection />
       <PainPoints />
       <HowItWorks />
       <FeatureGrid />
@@ -67,6 +71,8 @@ export default function Home() {
           </p>
         </div>
       </section>
-    </>
+      </main>
+      <SiteFooter />
+    </div>
   );
 }

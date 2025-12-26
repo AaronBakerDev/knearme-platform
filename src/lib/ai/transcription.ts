@@ -1,13 +1,19 @@
 /**
- * Whisper audio transcription for contractor interviews.
+ * OpenAI Whisper audio transcription for contractor interviews.
+ *
+ * Uses Vercel AI SDK with OpenAI provider for transcription.
+ * Note: Gemini doesn't have a transcription API via AI SDK yet,
+ * so we keep using OpenAI Whisper for audio-to-text.
  *
  * Transcribes voice recordings from the interview flow into text
  * that can be used for content generation.
  *
  * @see /docs/03-architecture/c4-container.md for AI pipeline flow
+ * @see https://ai-sdk.dev/docs/ai-sdk-core/transcription
  */
 
-import { openai, AI_MODELS, parseAIError, isAIEnabled } from './openai';
+import { experimental_transcribe as transcribe } from 'ai';
+import { getTranscriptionModel, isOpenAIEnabled } from './providers';
 
 /**
  * Result of transcribing audio.
@@ -22,7 +28,7 @@ export interface TranscriptionResult {
 }
 
 /**
- * Transcribe audio using OpenAI Whisper.
+ * Transcribe audio using OpenAI Whisper via AI SDK.
  *
  * @param audioBlob - Audio file as Blob (webm, mp4, wav, etc.)
  * @param filename - Original filename for format detection
@@ -43,7 +49,7 @@ export async function transcribeAudio(
   filename: string = 'recording.webm'
 ): Promise<TranscriptionResult | { error: string; retryable: boolean }> {
   // Check if AI is available
-  if (!isAIEnabled()) {
+  if (!isOpenAIEnabled()) {
     return {
       error: 'AI transcription is not available',
       retryable: false,
@@ -68,29 +74,36 @@ export async function transcribeAudio(
   }
 
   try {
-    // Convert Blob to File for the API
-    const file = new File([audioBlob], filename, { type: audioBlob.type });
+    // Convert Blob to ArrayBuffer for the AI SDK
+    const arrayBuffer = await audioBlob.arrayBuffer();
+    const audioData = new Uint8Array(arrayBuffer);
 
-    const response = await openai.audio.transcriptions.create({
-      file,
-      model: AI_MODELS.transcription,
-      language: 'en', // Optimize for English (masonry contractors in US)
-      response_format: 'verbose_json',
-      prompt: 'This is a masonry contractor describing their work. Common terms: tuckpointing, repointing, mortar, brick, chimney, flashing, weep holes, lintel.',
+    /**
+     * Use AI SDK experimental_transcribe for Whisper.
+     * This provides a unified interface for transcription
+     * that can be swapped to other providers if needed.
+     *
+     * @see https://ai-sdk.dev/docs/ai-sdk-core/transcription
+     */
+    const result = await transcribe({
+      model: getTranscriptionModel(),
+      audio: audioData,
+      // Masonry-specific context to improve accuracy
+      providerOptions: {
+        openai: {
+          language: 'en',
+          prompt: 'This is a masonry contractor describing their work. Common terms: tuckpointing, repointing, mortar, brick, chimney, flashing, weep holes, lintel.',
+        },
+      },
     });
 
-    // Handle response format
-    if (typeof response === 'string') {
-      return { text: response };
-    }
-
     return {
-      text: response.text,
-      language: response.language,
-      duration: response.duration,
+      text: result.text,
+      language: result.language,
+      duration: result.durationInSeconds,
     };
   } catch (error) {
-    const aiError = parseAIError(error);
+    const aiError = parseTranscriptionError(error);
     console.error('[transcribeAudio] Error:', aiError);
     return { error: aiError.message, retryable: aiError.retryable };
   }
@@ -127,6 +140,65 @@ export async function transcribeAudioFromUrl(
       retryable: true,
     };
   }
+}
+
+/**
+ * Parse errors from transcription into user-friendly messages.
+ */
+function parseTranscriptionError(error: unknown): { message: string; retryable: boolean } {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+
+    // Rate limiting
+    if (message.includes('rate') || message.includes('quota') || message.includes('429')) {
+      return {
+        message: 'AI service is busy. Please try again in a moment.',
+        retryable: true,
+      };
+    }
+
+    // File too large
+    if (message.includes('size') || message.includes('large') || message.includes('limit')) {
+      return {
+        message: 'Audio file is too large. Please record a shorter response.',
+        retryable: false,
+      };
+    }
+
+    // Invalid audio format
+    if (message.includes('format') || message.includes('audio') || message.includes('codec')) {
+      return {
+        message: 'Audio format not supported. Please try a different recording.',
+        retryable: false,
+      };
+    }
+
+    // Network/timeout
+    if (message.includes('timeout') || message.includes('network')) {
+      return {
+        message: 'Transcription request timed out. Please try again.',
+        retryable: true,
+      };
+    }
+
+    // API key issues
+    if (message.includes('api key') || message.includes('unauthorized') || message.includes('401')) {
+      return {
+        message: 'AI service configuration error. Please contact support.',
+        retryable: false,
+      };
+    }
+
+    return {
+      message: error.message,
+      retryable: true,
+    };
+  }
+
+  return {
+    message: 'An unexpected error occurred with transcription.',
+    retryable: true,
+  };
 }
 
 /**

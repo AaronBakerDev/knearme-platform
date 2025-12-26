@@ -65,24 +65,18 @@ export default async function DashboardPage() {
   const draftCount = draftCountRes.count ?? 0;
 
   // Get projects with counts and images
-  const { data: projectsData, error: projectsError, count: totalCount } = await supabase
+  // Use explicit FK hint to avoid ambiguity with hero_image_id FK
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: projectsData, error: projectsError, count: totalCount } = await (supabase as any)
     .from('projects')
-    .select(`
-      *,
-      project_images (
-        id,
-        storage_path,
-        image_type,
-        display_order
-      )
-    `, { count: 'exact' })
+    .select('*, project_images!project_images_project_id_fkey(id, storage_path, image_type, display_order)', { count: 'exact' })
     .eq('contractor_id', contractor.id)
     .order('created_at', { ascending: false })
     .limit(5);
 
   // Log errors for debugging (RLS issues can cause silent failures)
   if (projectsError) {
-    console.error('[Dashboard] Projects query error:', projectsError);
+    console.error('[Dashboard] Projects query error:', JSON.stringify(projectsError, null, 2));
   }
 
   // Type the projects array
