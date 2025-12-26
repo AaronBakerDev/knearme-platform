@@ -483,6 +483,269 @@ Contextual hints above input:
 
 ---
 
+## Phase 6: Unified Edit Mode
+
+**Goal:** Enable the same chat interface for editing existing projects, replacing the tab-based edit page.
+
+### Prerequisites
+
+- Phase 1-5 complete (artifact system working for creation)
+- All artifacts support editable mode
+
+### Tasks
+
+#### 6.1 Add Chat Mode Support
+
+**File:** `src/components/chat/ChatWizard.tsx`
+
+```typescript
+interface ChatWizardProps {
+  mode: 'create' | 'edit';
+  projectId?: string;
+}
+
+// Mode-specific initialization
+useEffect(() => {
+  if (mode === 'edit' && projectId) {
+    initializeEditMode(projectId);
+  } else {
+    initializeCreateMode();
+  }
+}, [mode, projectId]);
+```
+
+#### 6.2 Implement Edit Mode Initialization
+
+Load existing project and build initial artifacts:
+
+```typescript
+async function initializeEditMode(projectId: string) {
+  // Fetch project and images
+  const [project, images] = await Promise.all([
+    fetchProject(projectId),
+    fetchImages(projectId),
+  ]);
+
+  // Build initial artifacts
+  const artifacts = [
+    { type: 'projectDataCard', data: project, mode: 'editable' },
+    { type: 'imageGallery', data: images, mode: 'editable' },
+    { type: 'contentEditor', data: extractContent(project), mode: 'editable' },
+    { type: 'progressTracker', data: calculateProgress(project), mode: 'view' },
+  ];
+
+  // Set welcome message with artifacts
+  setMessages([{
+    id: 'welcome',
+    role: 'assistant',
+    parts: [
+      { type: 'text', text: `Here's your "${project.title}" project. What would you like to change?` },
+      ...artifacts.map(toArtifactPart),
+    ],
+  }]);
+}
+```
+
+#### 6.3 Add Edit Mode API Route
+
+**File:** `src/app/api/chat/edit/route.ts`
+
+Separate route with edit-specific tools and system prompt:
+
+```typescript
+const EDITING_TOOLS = {
+  ...COMMON_TOOLS,
+  updateField: tool({...}),
+  regenerateSection: tool({...}),
+  reorderImages: tool({...}),
+  validateForPublish: tool({...}),
+};
+
+const result = streamText({
+  model: openai('gpt-4o'),
+  system: EDITING_SYSTEM_PROMPT,
+  messages: await convertToModelMessages(messages),
+  tools: EDITING_TOOLS,
+});
+```
+
+#### 6.4 Make Artifacts Editable
+
+Update each artifact to support direct inline editing:
+
+**ProjectDataCard:**
+- Add pencil icons on hoverable fields
+- Click-to-edit input fields
+- Save/Cancel buttons
+
+**ImageGalleryArtifact:**
+- Enable @dnd-kit drag-drop reordering
+- Add delete button per image
+- Add "Set as hero" option
+
+**ContentEditor:**
+- Full TipTap integration
+- Real-time character counts
+- Regenerate buttons per section
+
+#### 6.5 Add Edit Mode Tools
+
+```typescript
+// Update specific field
+updateField: tool({
+  description: 'Update a specific project field',
+  inputSchema: z.object({
+    field: z.enum([
+      'title', 'description', 'project_type',
+      'materials', 'techniques', 'tags',
+      'seo_title', 'seo_description'
+    ]),
+    value: z.unknown(),
+  }),
+  execute: async ({ field, value }, { projectId }) => {
+    await patchProject(projectId, { [field]: value });
+    return { field, value, updated: true };
+  },
+}),
+
+// Regenerate content section with AI
+regenerateSection: tool({
+  description: 'Regenerate a section with AI assistance',
+  inputSchema: z.object({
+    section: z.enum(['title', 'description', 'seo_title', 'seo_description']),
+    context: z.string().optional(),
+  }),
+  execute: async ({ section, context }, { projectId }) => {
+    const newContent = await generateSection(projectId, section, context);
+    await patchProject(projectId, { [section]: newContent });
+    return { section, newContent, regenerated: true };
+  },
+}),
+
+// Reorder images
+reorderImages: tool({
+  description: 'Change the display order of images',
+  inputSchema: z.object({
+    imageOrder: z.array(z.string()),
+  }),
+  execute: async ({ imageOrder }, { projectId }) => {
+    await patchImageOrder(projectId, imageOrder);
+    return { imageOrder, reordered: true };
+  },
+}),
+
+// Validate for publish
+validateForPublish: tool({
+  description: 'Check if project is ready to publish',
+  inputSchema: z.object({}),
+  execute: async (_, { projectId }) => {
+    const validation = await validateProject(projectId);
+    return validation;
+  },
+}),
+```
+
+#### 6.6 Update Routing
+
+**File:** `src/app/(contractor)/projects/[id]/edit/page.tsx`
+
+Replace tab-based edit page with ChatWizard in edit mode:
+
+```typescript
+export default function EditProjectPage({ params }: { params: { id: string } }) {
+  return (
+    <ChatWizard
+      mode="edit"
+      projectId={params.id}
+    />
+  );
+}
+```
+
+#### 6.7 Fresh Start Session Management
+
+Each edit session starts clean:
+
+```typescript
+// No session restoration in edit mode
+// Each visit shows current project state
+// Conversation doesn't persist between edit sessions
+
+const getWelcomeMessage = (project: Project) => ({
+  id: 'welcome',
+  role: 'assistant',
+  parts: [
+    {
+      type: 'text',
+      text: `Here's your "${project.title}" project. What would you like to change?`
+    },
+    // ... initial artifacts
+  ],
+});
+```
+
+### Deliverables
+
+- [ ] ChatWizard supports `mode` prop ('create' | 'edit')
+- [ ] Edit mode loads existing project into artifacts
+- [ ] All artifacts support inline editing
+- [ ] Edit-specific tools (updateField, regenerateSection, etc.)
+- [ ] Fresh start per edit session
+- [ ] Deprecate old tab-based edit page
+
+### Verification
+
+```bash
+# Test edit mode
+# 1. Create and publish a project
+# 2. Navigate to /projects/[id]/edit
+# 3. See current project in artifacts
+# 4. Type "make title more catchy"
+# 5. Verify AI regenerates title
+# 6. Click title to edit directly
+# 7. Drag images to reorder
+# 8. Ask "what's missing for publish?"
+# 9. Verify all changes saved
+```
+
+### E2E Test for Edit Mode
+
+```typescript
+test('edit existing project via chat', async ({ page }) => {
+  // Login and create a project first
+  await login(page);
+  const projectId = await createTestProject(page);
+
+  // Navigate to edit
+  await page.goto(`/projects/${projectId}/edit`);
+
+  // Verify artifacts loaded
+  await expect(page.locator('[data-testid="project-data-card"]')).toBeVisible();
+  await expect(page.locator('[data-testid="image-gallery"]')).toBeVisible();
+  await expect(page.locator('[data-testid="content-editor"]')).toBeVisible();
+
+  // Ask AI to improve title
+  await page.fill('[data-testid="chat-input"]', 'Make the title more SEO-friendly');
+  await page.click('[data-testid="send-button"]');
+
+  // Wait for regeneration
+  await expect(page.locator('[data-testid="content-editor"] [data-testid="title"]'))
+    .not.toHaveText(originalTitle);
+
+  // Direct edit
+  await page.click('[data-testid="content-editor"] [data-testid="edit-description"]');
+  await page.fill('[data-testid="description-editor"]', 'Updated description');
+  await page.click('[data-testid="save-button"]');
+
+  // Verify saved
+  await page.reload();
+  await expect(page.locator('[data-testid="content-editor"] [data-testid="description"]'))
+    .toContainText('Updated description');
+});
+```
+
+---
+
 ## Migration Strategy
 
 ### Backward Compatibility
@@ -494,6 +757,7 @@ All phases maintain backward compatibility:
 3. **Phase 3:** Desktop gets split view, mobile unchanged initially
 4. **Phase 4:** Adds inline editing, review page still accessible
 5. **Phase 5:** Adds polish, no functional changes
+6. **Phase 6:** Edit mode replaces tabs (can run in parallel initially)
 
 ### Feature Flags (Optional)
 
