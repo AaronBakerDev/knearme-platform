@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
-import { CheckCircle2, Clock, FolderOpen, Plus, User } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Clock, FolderOpen, Plus, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getPublicUrl } from '@/lib/storage/upload';
+import { CompactStatsStrip, StickyMobileCTA } from '@/components/dashboard';
 
 /**
  * Contractor dashboard showing project overview and quick actions.
@@ -97,73 +98,28 @@ export default async function DashboardPage() {
   const projects = (projectsData ?? []) as ProjectRow[];
 
   return (
-    <div className="space-y-8">
-      {/* Welcome section */}
-      <div className="bg-gradient-to-br from-muted/40 to-muted/20 rounded-2xl p-6">
-        <h1 className="text-3xl font-bold tracking-tight">
+    <div className="space-y-4 md:space-y-8 pb-24 md:pb-0">
+      {/* Welcome section - compact on mobile */}
+      <div className="bg-gradient-to-br from-muted/40 to-muted/20 rounded-xl p-4 md:p-6">
+        <h1 className="text-xl md:text-3xl font-bold tracking-tight">
           Welcome back, {contractor.business_name}
         </h1>
-        <p className="text-muted-foreground mt-1 flex items-center gap-2">
-          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/10">
-            <User className="w-3 h-3 text-primary" />
+        <p className="text-muted-foreground text-sm md:text-base mt-1 flex items-center gap-1.5">
+          <span className="inline-flex items-center justify-center w-4 h-4 md:w-5 md:h-5 rounded-full bg-primary/10">
+            <User className="w-2.5 h-2.5 md:w-3 md:h-3 text-primary" />
           </span>
           {contractor.city}, {contractor.state}
         </p>
       </div>
 
-      {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Published Projects</CardDescription>
-              <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-            <CardTitle className="text-4xl">{publishedCount}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              Visible to potential customers
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Draft Projects</CardDescription>
-              <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-              </div>
-            </div>
-            <CardTitle className="text-4xl">{draftCount}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              Ready to complete and publish
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Total Projects</CardDescription>
-              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <FolderOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-            <CardTitle className="text-4xl">{totalCount ?? 0}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              All time portfolio projects
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Stats strip - compact horizontal layout */}
+      <CompactStatsStrip
+        stats={[
+          { label: 'Published', value: publishedCount, color: 'green' },
+          { label: 'Drafts', value: draftCount, color: 'orange' },
+          { label: 'Total', value: totalCount ?? 0, color: 'blue' },
+        ]}
+      />
 
       {/* Recent projects or empty state */}
       <Card className="border-0 shadow-sm">
@@ -197,20 +153,22 @@ export default async function DashboardPage() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
-              {projects.map((project) => {
+            <div className="space-y-1 md:space-y-2">
+              {projects.map((project, index) => {
                 const coverImage = project.project_images?.find(img => img.image_type === 'after')
                   || project.project_images?.[0];
                 const imageUrl = coverImage ? getPublicUrl('project-images', coverImage.storage_path) : null;
+                const isLast = index === projects.length - 1;
 
                 return (
                   <Link
                     key={project.id}
                     href={`/projects/${project.id}/edit`}
-                    className="group flex items-center justify-between p-4 border rounded-xl hover:bg-muted/50 hover:shadow-sm transition-all duration-200"
+                    className={`group flex items-center justify-between p-2.5 md:p-3 md:border md:rounded-xl hover:bg-muted/50 transition-all duration-200 ${!isLast ? 'border-b md:border-b-0' : ''}`}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                    <div className="flex items-center gap-2.5 md:gap-3 min-w-0 flex-1">
+                      {/* Thumbnail - smaller on mobile */}
+                      <div className="relative w-10 h-10 md:w-14 md:h-14 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                         {imageUrl ? (
                           <Image
                             src={imageUrl}
@@ -220,20 +178,22 @@ export default async function DashboardPage() {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <FolderOpen className="w-6 h-6 text-muted-foreground" />
+                            <FolderOpen className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
                           </div>
                         )}
                       </div>
-                      <div>
-                        <h4 className="font-medium group-hover:text-primary transition-colors">
+                      {/* Project info - truncate on mobile */}
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-medium text-sm md:text-base group-hover:text-primary transition-colors truncate">
                           {project.title || 'Untitled Project'}
                         </h4>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs md:text-sm text-muted-foreground truncate">
                           {project.project_type || 'Masonry Project'} • {project.city || contractor.city}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    {/* Status badge + chevron */}
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                       <Badge
                         variant={project.status === 'published' ? 'default' : 'secondary'}
                         className={project.status === 'published' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0' : ''}
@@ -242,6 +202,8 @@ export default async function DashboardPage() {
                         {project.status === 'draft' && <Clock className="w-3 h-3 mr-1" />}
                         {project.status}
                       </Badge>
+                      {/* Chevron for mobile tap affordance */}
+                      <ChevronRight className="w-4 h-4 text-muted-foreground md:hidden" aria-hidden="true" />
                     </div>
                   </Link>
                 );
@@ -251,8 +213,8 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Quick actions */}
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* Quick actions - hidden on mobile, use sticky CTA instead */}
+      <div className="hidden md:grid gap-6 md:grid-cols-2">
         <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary/50 hover:shadow-md transition-all duration-200">
           <CardHeader>
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
@@ -290,6 +252,9 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Sticky CTA for mobile */}
+      <StickyMobileCTA />
     </div>
   );
 }
