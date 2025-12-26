@@ -1,7 +1,8 @@
 # Vercel AI SDK Reference Guide
 
 > Comprehensive reference for the Vercel AI SDK as used in knearme-portfolio.
-> Last Updated: December 2024 | AI SDK Version: 6.x
+> Last Updated: December 2025 | AI SDK Version: 6.x
+> **Primary Provider:** Google Gemini 3.0 Flash | **Transcription:** OpenAI Whisper
 
 ---
 
@@ -24,9 +25,13 @@
 
 The Vercel AI SDK is a TypeScript library for building AI-powered applications. It provides:
 
-- **AI SDK Core**: Unified API for LLM providers (OpenAI, Anthropic, etc.)
+- **AI SDK Core**: Unified API for LLM providers (Google, OpenAI, Anthropic, etc.)
 - **AI SDK UI**: React hooks for chat interfaces (`useChat`, `useCompletion`, `useObject`)
 - **AI SDK RSC**: React Server Components for Generative UI
+
+**KnearMe uses:**
+- **Gemini 3.0 Flash** for vision, generation, and chat (via `@ai-sdk/google`)
+- **OpenAI Whisper** for transcription only (via `@ai-sdk/openai`)
 
 **Official Documentation:** https://ai-sdk.dev/docs/introduction
 
@@ -39,7 +44,8 @@ The Vercel AI SDK is a TypeScript library for building AI-powered applications. 
 ```json
 {
   "ai": "^6.0.3",                    // Core AI SDK (streaming, tools, UI)
-  "@ai-sdk/openai": "^3.0.1",        // OpenAI provider
+  "@ai-sdk/google": "^1.2.4",        // Google Gemini provider (primary)
+  "@ai-sdk/openai": "^3.0.1",        // OpenAI provider (Whisper only)
   "@ai-sdk/react": "^3.0.3"          // React hooks (useChat)
 }
 ```
@@ -53,6 +59,8 @@ import { useChat } from '@ai-sdk/react';
 // Core utilities
 import {
   streamText,
+  generateObject,
+  experimental_transcribe as transcribe,
   tool,
   convertToModelMessages,
   stepCountIs,
@@ -62,8 +70,12 @@ import {
 // Transport for custom API endpoints
 import { DefaultChatTransport } from 'ai';
 
-// OpenAI provider
-import { openai } from '@ai-sdk/openai';
+// Providers
+import { google } from '@ai-sdk/google';  // Primary: Gemini 3.0 Flash
+import { openai } from '@ai-sdk/openai';  // Secondary: Whisper transcription
+
+// Centralized provider config (preferred)
+import { getChatModel, getVisionModel, getTranscriptionModel } from '@/lib/ai/providers';
 ```
 
 ---
@@ -140,9 +152,10 @@ Tools enable function calling within streaming responses:
 ```typescript
 import { streamText, tool } from 'ai';
 import { z } from 'zod';
+import { getChatModel } from '@/lib/ai/providers';
 
 const result = streamText({
-  model: openai('gpt-4o'),
+  model: getChatModel(),  // google('gemini-3-flash-preview')
   system: 'You are a helpful assistant...',
   messages: await convertToModelMessages(messages),
   tools: {
@@ -269,7 +282,7 @@ function getTextContent(message: UIMessage): string {
 ```typescript
 // app/api/chat/route.ts
 import { streamText, tool, convertToModelMessages } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { getChatModel } from '@/lib/ai/providers';
 
 export const maxDuration = 60; // Allow up to 60s streaming
 
@@ -277,7 +290,7 @@ export async function POST(request: Request) {
   const { messages }: { messages: UIMessage[] } = await request.json();
 
   const result = streamText({
-    model: openai('gpt-4o'),
+    model: getChatModel(),  // Gemini 3.0 Flash
     system: SYSTEM_PROMPT,
     messages: await convertToModelMessages(messages),
     tools: { /* ... */ },
@@ -327,12 +340,13 @@ Generative UI allows streaming React components from the server. This is the fou
 
 ```typescript
 import { streamUI } from 'ai/rsc';
+import { getChatModel } from '@/lib/ai/providers';
 
 async function submitMessage(message: string) {
   'use server';
 
   return streamUI({
-    model: openai('gpt-4o'),
+    model: getChatModel(),  // Gemini 3.0 Flash
     system: 'You are a helpful assistant...',
     messages: [{ role: 'user', content: message }],
 
@@ -444,6 +458,8 @@ const { messages, sendMessage, status, setMessages } = useChat({
 Location: `/src/app/api/chat/route.ts`
 
 ```typescript
+import { getChatModel } from '@/lib/ai/providers';
+
 export async function POST(request: Request) {
   // Auth check
   const auth = await requireAuth();
@@ -451,9 +467,9 @@ export async function POST(request: Request) {
   // Parse messages
   const { messages }: { messages: UIMessage[] } = await request.json();
 
-  // Stream with tools
+  // Stream with tools using Gemini 3.0 Flash
   const result = streamText({
-    model: openai('gpt-4o'),
+    model: getChatModel(),
     system: CONVERSATION_SYSTEM_PROMPT,
     messages: await convertToModelMessages(messages),
     tools: {

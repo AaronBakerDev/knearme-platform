@@ -553,6 +553,8 @@ async function initializeEditMode(projectId: string) {
 Separate route with edit-specific tools and system prompt:
 
 ```typescript
+import { getChatModel } from '@/lib/ai/providers';
+
 const EDITING_TOOLS = {
   ...COMMON_TOOLS,
   updateField: tool({...}),
@@ -562,7 +564,7 @@ const EDITING_TOOLS = {
 };
 
 const result = streamText({
-  model: openai('gpt-4o'),
+  model: getChatModel(),  // Gemini 3.0 Flash
   system: EDITING_SYSTEM_PROMPT,
   messages: await convertToModelMessages(messages),
   tools: EDITING_TOOLS,
@@ -746,6 +748,284 @@ test('edit existing project via chat', async ({ page }) => {
 
 ---
 
+## Phase 7: Persistence & Memory System
+
+**Goal:** Enable incremental data persistence and multi-session memory for project continuity.
+
+### Prerequisites
+
+- Phase 1-6 complete (full artifact system working)
+- Stable tool calling patterns
+
+### Overview
+
+This phase addresses two key improvements:
+1. **Incremental Persistence:** Save data as it's collected, not just at the end
+2. **Project Memory:** Enable multi-session continuity through summarization
+
+### Tasks
+
+#### 7.1 Add Session Recovery (localStorage)
+
+**File:** `src/components/chat/hooks/useSessionRecovery.ts`
+
+Checkpoint unsaved changes to localStorage for recovery if tab closes:
+
+```typescript
+interface SessionRecoveryData {
+  projectId: string;
+  lastMessageId: string;
+  unsavedChanges: Partial<ExtractedProjectData>;
+  uploadedImages: string[];
+  timestamp: Date;
+}
+
+function useSessionRecovery(projectId: string) {
+  // Save to localStorage on every change
+  // Check for recovery data on mount
+  // Show recovery prompt if recent data found
+  return { showRecoveryPrompt, recoveryData, applyRecovery, discardRecovery };
+}
+```
+
+#### 7.2 Add PATCH Endpoint for Partial Updates
+
+**File:** `src/app/api/projects/[id]/route.ts`
+
+```typescript
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const updates = await request.json();
+
+  const allowedFields = [
+    'title', 'description', 'project_type_slug', 'city_slug',
+    'materials', 'techniques', 'tags',
+    'seo_title', 'seo_description', 'status',
+  ];
+
+  const filteredUpdates = Object.fromEntries(
+    Object.entries(updates).filter(([k]) => allowedFields.includes(k))
+  );
+
+  // Update and return
+}
+```
+
+#### 7.3 Update extractProjectData to Save Incrementally
+
+**File:** `src/app/api/chat/route.ts`
+
+```typescript
+extractProjectData: tool({
+  description: 'Extract and save project information',
+  inputSchema: extractProjectDataSchema,
+  execute: async (args, context) => {
+    const { projectId } = context;
+
+    // Build update object (only non-null fields)
+    const updates = buildProjectUpdates(args);
+
+    // Save to database immediately
+    if (Object.keys(updates).length > 0) {
+      await supabase
+        .from('projects')
+        .update(updates)
+        .eq('id', projectId);
+    }
+
+    // Return with save confirmation
+    return {
+      ...args,
+      saved: true,
+      savedAt: new Date().toISOString(),
+    };
+  },
+}),
+```
+
+#### 7.4 Add Save Status to Artifacts
+
+**File:** `src/components/chat/artifacts/shared/SaveStatusBadge.tsx`
+
+```typescript
+interface ArtifactSaveStatus {
+  status: 'saved' | 'saving' | 'unsaved' | 'error';
+  lastSaved: Date | null;
+  error: string | null;
+}
+
+function SaveStatusBadge({ status }: { status: ArtifactSaveStatus }) {
+  // Render check, spinner, or error icon based on status
+}
+```
+
+#### 7.5 Implement Optimistic Updates Hook
+
+**File:** `src/components/chat/hooks/useOptimisticSave.ts`
+
+```typescript
+function useOptimisticSave<T>(
+  initialData: T,
+  saveFn: (data: T) => Promise<void>
+) {
+  // Immediate UI update
+  // Save in background
+  // Rollback on error
+  return { data, save, isSaving, error };
+}
+```
+
+#### 7.6 Add Error Recovery Queue
+
+**File:** `src/lib/chat/save-queue.ts`
+
+```typescript
+interface SaveQueue {
+  pending: SaveOperation[];
+  failed: SaveOperation[];
+}
+
+class SaveQueueManager {
+  enqueue(operation: SaveOperation): void;
+  retry(): Promise<void>;
+  clear(): void;
+}
+```
+
+#### 7.7 Add Database Schema for Memory
+
+**File:** `supabase/migrations/XXX_add_project_memory.sql`
+
+```sql
+-- Add memory to projects table
+ALTER TABLE projects ADD COLUMN memory JSONB DEFAULT '{
+  "decisions": [],
+  "preferences": {},
+  "keyFacts": [],
+  "questionsAnswered": [],
+  "topicsDiscussed": []
+}';
+
+-- Add summary to chat_sessions
+ALTER TABLE chat_sessions ADD COLUMN summary TEXT;
+ALTER TABLE chat_sessions ADD COLUMN key_points JSONB DEFAULT '[]';
+
+-- Optional: persistence tracking
+ALTER TABLE projects ADD COLUMN last_chat_update TIMESTAMPTZ;
+ALTER TABLE projects ADD COLUMN chat_update_count INTEGER DEFAULT 0;
+```
+
+#### 7.8 Implement summarizeSession Tool
+
+**File:** `src/app/api/chat/route.ts` (add to tools)
+
+```typescript
+summarizeSession: tool({
+  description: 'Summarize conversation for future reference',
+  inputSchema: z.object({
+    summary: z.string(),
+    decisions: z.array(z.string()),
+    preferences: z.record(z.unknown()),
+    keyFacts: z.array(z.string()),
+    questionsAnswered: z.array(z.string()),
+  }),
+  execute: async (args, { projectId, sessionId }) => {
+    // Merge with existing memory
+    const existing = await getProjectMemory(projectId);
+    const updated = mergeMemory(existing, args);
+
+    await saveProjectMemory(projectId, updated);
+    await saveSessionSummary(sessionId, args.summary);
+
+    return { saved: true };
+  },
+}),
+```
+
+#### 7.9 Build Context from Memory
+
+**File:** `src/lib/chat/memory-context.ts`
+
+```typescript
+async function buildSessionContext(projectId: string): Promise<string> {
+  const project = await getProject(projectId);
+  const memory = await getProjectMemory(projectId);
+  const recentSessions = await getRecentSessions(projectId, 2);
+
+  return `
+## Current Project State
+Title: ${project.title || 'Untitled'}
+Type: ${project.project_type_slug || 'Not set'}
+
+## Working Memory
+Key Decisions: ${memory.decisions.slice(-5).join('; ')}
+Key Facts: ${memory.keyFacts.slice(-5).join('; ')}
+
+## Recent Sessions
+${recentSessions.map(s => `- ${s.summary}`).join('\n')}
+
+## Already Discussed
+${memory.questionsAnswered.slice(-10).join(', ')}
+`;
+}
+```
+
+#### 7.10 Auto-Summarize on Session End
+
+Trigger summarization when:
+- User navigates away (beforeunload event)
+- Session timeout (inactivity)
+- Explicit "save progress" request
+- Before content generation
+
+### Deliverables
+
+- [ ] `useSessionRecovery` hook with recovery prompt
+- [ ] PATCH endpoint for partial project updates
+- [ ] Incremental save in `extractProjectData` tool
+- [ ] `SaveStatusBadge` component on all artifacts
+- [ ] `useOptimisticSave` hook
+- [ ] `SaveQueueManager` for error recovery
+- [ ] Database migration for memory columns
+- [ ] `summarizeSession` tool
+- [ ] `buildSessionContext` function
+- [ ] Auto-summarize integration
+
+### Verification
+
+```bash
+# Test incremental save
+# 1. Start new project chat
+# 2. Mention project details
+# 3. Close tab without generating
+# 4. Reopen - verify data was saved to database
+
+# Test session recovery
+# 1. Start chat, add some messages
+# 2. Close tab
+# 3. Reopen same project
+# 4. See "Resume previous session?" prompt
+
+# Test memory continuity
+# 1. Complete a conversation
+# 2. Return next day
+# 3. Verify AI remembers key facts
+# 4. Verify AI doesn't re-ask answered questions
+```
+
+### Memory System Metrics
+
+| Metric | Target | How to Measure |
+|--------|--------|----------------|
+| Data loss rate | 0% | Projects with unsaved chat data |
+| Session recovery usage | 50% | Users who apply recovered data |
+| Memory relevance | 4/5 | User rating of AI recall |
+| Context token usage | <2K | Memory context size |
+
+---
+
 ## Migration Strategy
 
 ### Backward Compatibility
@@ -758,6 +1038,7 @@ All phases maintain backward compatibility:
 4. **Phase 4:** Adds inline editing, review page still accessible
 5. **Phase 5:** Adds polish, no functional changes
 6. **Phase 6:** Edit mode replaces tabs (can run in parallel initially)
+7. **Phase 7:** Adds persistence/memory, existing batch save still works as fallback
 
 ### Feature Flags (Optional)
 
@@ -892,6 +1173,8 @@ test('complete project creation with artifacts', async ({ page }) => {
 
 Track these metrics before and after implementation:
 
+### Creation Flow Metrics
+
 | Metric | Baseline | Target | How to Measure |
 |--------|----------|--------|----------------|
 | Time to complete | 5+ min | < 3 min | Session duration |
@@ -899,6 +1182,16 @@ Track these metrics before and after implementation:
 | Photos per project | 3 | 5+ | Average images uploaded |
 | Inline edits | 0 | 3+ | Content editor interactions |
 | User satisfaction | N/A | 4.5/5 | Post-completion survey |
+
+### Edit Flow Metrics (Phase 6)
+
+| Metric | Baseline | Target | How to Measure |
+|--------|----------|--------|----------------|
+| Time to edit | N/A | < 2 min | Session duration for edits |
+| AI-assisted edits | 0 | 40% | Edits using regenerate tools |
+| Direct edit usage | 100% | 60% | Click-to-edit interactions |
+| Edit satisfaction | N/A | 4.5/5 | Post-edit survey |
+| Tab page deprecation | 0% | 100% | Traffic to old vs new edit UI |
 
 ---
 
@@ -947,3 +1240,31 @@ Track these metrics before and after implementation:
 - [ ] `SmartSuggestionPill`
 - [ ] Accessibility audit
 - [ ] Mobile refinements
+
+### Phase 6: Unified Edit Mode
+- [ ] Add `mode` prop to ChatWizard ('create' | 'edit')
+- [ ] Edit mode initialization (load project + images)
+- [ ] Initial artifacts from existing data
+- [ ] Edit-specific API route with tools
+- [ ] Make all artifacts support inline editing
+- [ ] `updateField` tool
+- [ ] `regenerateSection` tool
+- [ ] `reorderImages` tool
+- [ ] `validateForPublish` tool
+- [ ] Fresh start session management
+- [ ] Update routing to use ChatWizard
+- [ ] Deprecate tab-based edit page
+
+### Phase 7: Persistence & Memory System
+- [ ] Add localStorage session recovery
+- [ ] Add PATCH `/api/projects/[id]` for partial updates
+- [ ] Update `extractProjectData` tool to save incrementally
+- [ ] Add save status indicators to artifacts
+- [ ] Implement optimistic updates with rollback
+- [ ] Add error recovery queue for failed saves
+- [ ] Add `memory` JSONB column to `projects` table
+- [ ] Add `summary` and `key_points` columns to `chat_sessions` table
+- [ ] Implement `summarizeSession` tool
+- [ ] Build context from memory on session start
+- [ ] Auto-summarize on session end
+- [ ] Debounced auto-save for ContentEditor

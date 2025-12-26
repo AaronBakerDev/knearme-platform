@@ -17,6 +17,9 @@
 8. [Type Definitions](#type-definitions)
 9. [Component Specifications](#component-specifications)
 10. [Migration Strategy](#migration-strategy)
+11. [Unified Create/Edit Mode](#unified-createedit-mode)
+12. [Data Persistence Strategy](#data-persistence-strategy)
+13. [Project Memory System](#project-memory-system)
 
 ---
 
@@ -468,7 +471,7 @@ export function useProjectData(
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    OpenAI GPT-4o                                │
+│                  Gemini 3.0 Flash                               │
 │   Decides to call: extractProjectData({                         │
 │     project_type: "chimney-rebuild",                            │
 │     duration: "last week",                                      │
@@ -538,9 +541,9 @@ export function useProjectData(
 ### Updated /api/chat/route.ts
 
 ```typescript
-import { openai } from '@ai-sdk/openai';
 import { streamText, tool, convertToModelMessages, stepCountIs, type UIMessage } from 'ai';
 import { z } from 'zod';
+import { getChatModel } from '@/lib/ai/providers';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
 import { CONVERSATION_SYSTEM_PROMPT } from '@/lib/chat/chat-prompts';
 
@@ -604,7 +607,7 @@ export async function POST(request: Request) {
     const { messages }: { messages: UIMessage[] } = await request.json();
 
     const result = streamText({
-      model: openai('gpt-4o'),
+      model: getChatModel(),  // Gemini 3.0 Flash
       system: CONVERSATION_SYSTEM_PROMPT,
       messages: await convertToModelMessages(messages),
       tools: {
@@ -1264,6 +1267,570 @@ export default function ProjectChatPage({ params, searchParams }) {
 | Artifact mode | Becomes editable | Starts editable |
 | Save pattern | Gradual extraction | Immediate on change |
 | Publish flow | After generation | Anytime ready |
+
+---
+
+## Data Persistence Strategy
+
+This section documents how and when data is saved to the database during chat interactions. This is a critical architectural decision affecting reliability, user experience, and data integrity.
+
+### Current Implementation: Batch Save
+
+The existing implementation uses a "batch save at end" pattern:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    CURRENT: BATCH SAVE                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Chat Messages                                                   │
+│       │                                                          │
+│       ▼                                                          │
+│  extractProjectData tool                                         │
+│       │                                                          │
+│       ▼                                                          │
+│  execute: async (args) => args   ◄── NO DATABASE SAVE            │
+│       │                              Just returns data           │
+│       ▼                                                          │
+│  Client: setExtractedData(data)  ◄── React state only            │
+│       │                                                          │
+│       ▼                                                          │
+│  User clicks "Generate Portfolio"                                │
+│       │                                                          │
+│       ▼                                                          │
+│  /api/ai/generate-content        ◄── SAVES TO DATABASE           │
+│                                      (title, description, etc)   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Risk:** If the user closes the tab before clicking "Generate", all extracted data is lost.
+
+**Exception:** Images are saved immediately to Supabase Storage via `/api/projects/[id]/images`.
+
+### Proposed Implementation: Incremental Save
+
+The artifact system introduces an "incremental save" pattern where data is persisted as it's collected:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PROPOSED: INCREMENTAL SAVE                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Chat Message                                                    │
+│       │                                                          │
+│       ▼                                                          │
+│  extractProjectData tool                                         │
+│       │                                                          │
+│       ▼                                                          │
+│  execute: async (args, { projectId }) => {                       │
+│    await saveProjectData(projectId, args);  ◄── SAVE IMMEDIATELY │
+│    return args;                                                  │
+│  }                                                               │
+│       │                                                          │
+│       ▼                                                          │
+│  Client: Update artifact UI      ◄── Show saved state            │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Save Strategy by Tool
+
+| Tool | Current | Proposed | Rationale |
+|------|---------|----------|-----------|
+| `extractProjectData` | Returns data only | **Save to `projects` table** | Prevents data loss |
+| `showProgress` | N/A (display only) | No save | Pure UI feedback |
+| `promptForImages` | N/A (display only) | No save | Image uploads save separately |
+| `showPortfolioPreview` | N/A (display only) | No save | Composite view of existing data |
+| `showContentEditor` | N/A | No save | User explicitly saves edits |
+| `updateField` (edit mode) | N/A | **Save to `projects` table** | Real-time persistence |
+| `regenerateSection` (edit mode) | N/A | **Save to `projects` table** | Persist AI improvements |
+| `reorderImages` (edit mode) | N/A | **Save to `project_images` table** | Persist order changes |
+
+### Tool Execution with Database Saves
+
+```typescript
+// Enhanced tool execution with persistence
+extractProjectData: tool({
+  description: 'Extract and save project information',
+  inputSchema: extractProjectDataSchema,
+  execute: async (args, context) => {
+    const { projectId } = context;
+
+    // Build update object (only non-null fields)
+    const updates: Partial<Project> = {};
+    if (args.project_type) updates.project_type_slug = slugify(args.project_type);
+    if (args.materials_mentioned?.length) updates.materials = args.materials_mentioned;
+    if (args.techniques_mentioned?.length) updates.techniques = args.techniques_mentioned;
+    if (args.location) updates.city = args.location;
+    // ... other fields
+
+    // Save to database
+    if (Object.keys(updates).length > 0) {
+      await supabase
+        .from('projects')
+        .update(updates)
+        .eq('id', projectId);
+    }
+
+    // Return for artifact rendering
+    return {
+      ...args,
+      saved: true,
+      savedAt: new Date().toISOString(),
+    };
+  },
+}),
+```
+
+### Optimistic Updates
+
+For responsive UI, use optimistic updates with rollback on error:
+
+```typescript
+// Client-side optimistic update pattern
+function useOptimisticSave<T>(
+  initialData: T,
+  saveFn: (data: T) => Promise<void>
+) {
+  const [data, setData] = useState(initialData);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const previousDataRef = useRef<T>(initialData);
+
+  const save = useCallback(async (newData: Partial<T>) => {
+    const merged = { ...data, ...newData };
+
+    // Optimistic update
+    previousDataRef.current = data;
+    setData(merged);
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      await saveFn(merged);
+    } catch (err) {
+      // Rollback on error
+      setData(previousDataRef.current);
+      setError(err as Error);
+      throw err;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [data, saveFn]);
+
+  return { data, save, isSaving, error };
+}
+```
+
+### Artifact Save Status Indicator
+
+Each artifact displays its persistence status:
+
+```typescript
+interface ArtifactSaveStatus {
+  status: 'saved' | 'saving' | 'unsaved' | 'error';
+  lastSaved: Date | null;
+  error: string | null;
+}
+
+// In artifact component
+function SaveStatusBadge({ status }: { status: ArtifactSaveStatus }) {
+  return (
+    <div className="flex items-center gap-1 text-xs">
+      {status.status === 'saved' && (
+        <>
+          <Check className="h-3 w-3 text-green-500" />
+          <span className="text-muted-foreground">Saved</span>
+        </>
+      )}
+      {status.status === 'saving' && (
+        <>
+          <Loader2 className="h-3 w-3 animate-spin" />
+          <span className="text-muted-foreground">Saving...</span>
+        </>
+      )}
+      {status.status === 'error' && (
+        <>
+          <AlertCircle className="h-3 w-3 text-destructive" />
+          <span className="text-destructive">Save failed</span>
+        </>
+      )}
+    </div>
+  );
+}
+```
+
+### Error Recovery
+
+When a save fails, the system should:
+
+1. **Show error state** - Visual indicator on the artifact
+2. **Preserve local data** - Don't discard user's changes
+3. **Allow retry** - Provide a retry button
+4. **Queue for later** - If offline, queue saves for when connection returns
+
+```typescript
+interface SaveQueue {
+  pending: SaveOperation[];
+  failed: SaveOperation[];
+}
+
+interface SaveOperation {
+  id: string;
+  projectId: string;
+  field: string;
+  value: unknown;
+  timestamp: Date;
+  retryCount: number;
+}
+
+// Retry failed saves with exponential backoff
+async function retrySaves(queue: SaveQueue) {
+  for (const op of queue.failed) {
+    if (op.retryCount >= 3) continue; // Max retries exceeded
+
+    try {
+      await saveField(op.projectId, op.field, op.value);
+      queue.failed = queue.failed.filter(o => o.id !== op.id);
+    } catch (err) {
+      op.retryCount++;
+    }
+  }
+}
+```
+
+### Session Recovery
+
+If a user returns to an incomplete session, the system should restore their progress:
+
+```typescript
+interface SessionRecoveryData {
+  projectId: string;
+  lastMessageId: string;
+  unsavedChanges: Partial<ExtractedProjectData>;
+  uploadedImages: string[];
+  timestamp: Date;
+}
+
+// Save recovery data to localStorage periodically
+function useSessionRecovery(projectId: string) {
+  const { data, setData } = useProjectData();
+
+  // Save to localStorage on every change
+  useEffect(() => {
+    const recovery: SessionRecoveryData = {
+      projectId,
+      lastMessageId: messages[messages.length - 1]?.id,
+      unsavedChanges: data,
+      uploadedImages: images.map(i => i.id),
+      timestamp: new Date(),
+    };
+    localStorage.setItem(`chat-recovery-${projectId}`, JSON.stringify(recovery));
+  }, [data, projectId, messages, images]);
+
+  // Check for recovery data on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(`chat-recovery-${projectId}`);
+    if (saved) {
+      const recovery = JSON.parse(saved) as SessionRecoveryData;
+      // Check if data is recent (within 24 hours)
+      if (Date.now() - new Date(recovery.timestamp).getTime() < 24 * 60 * 60 * 1000) {
+        setShowRecoveryPrompt(true);
+        setRecoveryData(recovery);
+      }
+    }
+  }, [projectId]);
+
+  return { showRecoveryPrompt, recoveryData, applyRecovery, discardRecovery };
+}
+```
+
+### Debounced Auto-Save
+
+For frequent changes (like typing in ContentEditor), use debounced saves:
+
+```typescript
+// Debounced save hook
+function useDebouncedSave<T>(
+  value: T,
+  saveFn: (value: T) => Promise<void>,
+  delay: number = 1000
+) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      setIsSaving(true);
+      try {
+        await saveFn(value);
+        setLastSaved(new Date());
+      } finally {
+        setIsSaving(false);
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [value, saveFn, delay]);
+
+  return { isSaving, lastSaved };
+}
+
+// Usage in ContentEditor
+function ContentEditor({ initialContent, projectId }) {
+  const [content, setContent] = useState(initialContent);
+
+  const saveFn = useCallback(async (data: ContentData) => {
+    await fetch(`/api/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        title: data.title,
+        description: data.description,
+        seo_title: data.seo_title,
+        seo_description: data.seo_description,
+      }),
+    });
+  }, [projectId]);
+
+  const { isSaving, lastSaved } = useDebouncedSave(content, saveFn, 2000);
+
+  // ... render with save status
+}
+```
+
+### Persistence Strategy by Mode
+
+| Aspect | Create Mode | Edit Mode |
+|--------|-------------|-----------|
+| **When to save** | After each `extractProjectData` call | Immediately on field change |
+| **What triggers save** | Tool execution | User action (blur, submit) |
+| **Save indicator** | Subtle (auto-save) | Explicit (show saved state) |
+| **Failure handling** | Queue for retry | Show error, allow retry |
+| **Recovery** | localStorage checkpoint | Database is source of truth |
+
+### API Endpoint Changes
+
+To support incremental saves, update the project API:
+
+```typescript
+// PATCH /api/projects/[id]
+// Supports partial updates for any project field
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return apiError('UNAUTHORIZED');
+
+  const updates = await request.json();
+
+  // Validate: only allowed fields
+  const allowedFields = [
+    'title', 'description', 'project_type_slug', 'city_slug',
+    'materials', 'techniques', 'tags',
+    'seo_title', 'seo_description',
+    'status',
+  ];
+
+  const filteredUpdates = Object.fromEntries(
+    Object.entries(updates).filter(([k]) => allowedFields.includes(k))
+  );
+
+  if (Object.keys(filteredUpdates).length === 0) {
+    return apiError('VALIDATION_ERROR', 'No valid fields to update');
+  }
+
+  // Update project
+  const { data, error } = await supabase
+    .from('projects')
+    .update(filteredUpdates)
+    .eq('id', params.id)
+    .eq('contractor_id', auth.contractor.id)
+    .select()
+    .single();
+
+  if (error) return apiError('DATABASE_ERROR', error.message);
+
+  return apiSuccess({ project: data, updated: Object.keys(filteredUpdates) });
+}
+```
+
+### Database Schema: Persistence Tracking
+
+Optional: Add tracking columns for debugging and analytics:
+
+```sql
+-- Add persistence tracking to projects table
+ALTER TABLE projects ADD COLUMN last_chat_update TIMESTAMPTZ;
+ALTER TABLE projects ADD COLUMN chat_update_count INTEGER DEFAULT 0;
+
+-- Trigger to update on changes
+CREATE OR REPLACE FUNCTION track_chat_updates()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.last_chat_update = NOW();
+  NEW.chat_update_count = COALESCE(OLD.chat_update_count, 0) + 1;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER projects_chat_update_trigger
+BEFORE UPDATE ON projects
+FOR EACH ROW
+WHEN (OLD.* IS DISTINCT FROM NEW.*)
+EXECUTE FUNCTION track_chat_updates();
+```
+
+### Migration Path
+
+1. **Phase 1:** Keep current batch save, add localStorage recovery
+2. **Phase 2:** Add PATCH endpoint for partial updates
+3. **Phase 3:** Update tools to save incrementally
+4. **Phase 4:** Add optimistic updates and save status UI
+5. **Phase 5:** Add offline queue and retry logic
+
+---
+
+## Project Memory System
+
+> **Note:** This section documents a future enhancement for multi-session project memory. See Implementation Roadmap Phase 7 for timeline.
+
+### Overview
+
+Projects can have multiple chat sessions over time. To provide continuity without loading full history, we use a summarization-based memory system.
+
+### Memory Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         PROJECT                                  │
+├─────────────────────────────────────────────────────────────────┤
+│  Core Data: title, description, images, etc.                     │
+├─────────────────────────────────────────────────────────────────┤
+│  project_memory: {                                               │
+│    decisions: ["Prefers traditional brick style"],               │
+│    preferences: { tone: "professional", detail: "high" },        │
+│    keyFacts: ["Historic 1920s home", "HOA approval needed"],     │
+│    questionsAnswered: ["What materials?", "Timeline?"],          │
+│  }                                                               │
+├─────────────────────────────────────────────────────────────────┤
+│  chat_sessions:                                                  │
+│    Session 1 → summary: "Initial project setup..."               │
+│    Session 2 → summary: "Added photos, refined description..."   │
+│    Session 3 → (current, no summary yet)                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Memory Types
+
+```typescript
+interface ProjectMemory {
+  // Accumulated knowledge across all sessions
+  decisions: string[];           // Key decisions made
+  preferences: Record<string, unknown>; // User preferences
+  keyFacts: string[];           // Important project facts
+  questionsAnswered: string[];  // Questions we don't need to re-ask
+  topicsDiscussed: string[];    // For continuity
+}
+
+interface SessionSummary {
+  sessionId: string;
+  summary: string;              // 2-3 sentence summary
+  keyPoints: string[];          // Bullet points
+  timestamp: Date;
+}
+```
+
+### Context Building
+
+When starting a new session, build context from memory:
+
+```typescript
+async function buildSessionContext(projectId: string): Promise<string> {
+  const project = await getProject(projectId);
+  const memory = await getProjectMemory(projectId);
+  const recentSessions = await getRecentSessions(projectId, 2);
+
+  return `
+## Current Project State
+Title: ${project.title || 'Untitled'}
+Type: ${project.project_type_slug || 'Not set'}
+Status: ${project.status}
+Images: ${project.images?.length || 0}
+
+## Working Memory
+Key Decisions: ${memory.decisions.slice(-5).join('; ')}
+User Preferences: ${JSON.stringify(memory.preferences)}
+Key Facts: ${memory.keyFacts.slice(-5).join('; ')}
+
+## Recent Sessions
+${recentSessions.map(s => `- ${s.summary}`).join('\n')}
+
+## Already Discussed
+${memory.questionsAnswered.slice(-10).join(', ')}
+`;
+}
+```
+
+### Memory Generation Tool
+
+At the end of each session (or periodically), generate a summary:
+
+```typescript
+summarizeSession: tool({
+  description: 'Summarize the current conversation for future reference',
+  inputSchema: z.object({
+    summary: z.string().describe('2-3 sentence summary'),
+    decisions: z.array(z.string()).describe('Decisions made'),
+    preferences: z.record(z.unknown()).describe('Preferences expressed'),
+    keyFacts: z.array(z.string()).describe('Important facts learned'),
+    questionsAnswered: z.array(z.string()).describe('Questions answered'),
+  }),
+  execute: async (args, { projectId, sessionId }) => {
+    // Merge with existing memory
+    const existing = await getProjectMemory(projectId);
+
+    const updated: ProjectMemory = {
+      decisions: [...existing.decisions, ...args.decisions].slice(-20),
+      preferences: { ...existing.preferences, ...args.preferences },
+      keyFacts: [...existing.keyFacts, ...args.keyFacts].slice(-20),
+      questionsAnswered: [...existing.questionsAnswered, ...args.questionsAnswered].slice(-30),
+      topicsDiscussed: existing.topicsDiscussed,
+    };
+
+    await saveProjectMemory(projectId, updated);
+    await saveSessionSummary(sessionId, args.summary, args.decisions);
+
+    return { saved: true };
+  },
+}),
+```
+
+### Database Schema for Memory
+
+```sql
+-- Add memory to projects table
+ALTER TABLE projects ADD COLUMN memory JSONB DEFAULT '{
+  "decisions": [],
+  "preferences": {},
+  "keyFacts": [],
+  "questionsAnswered": [],
+  "topicsDiscussed": []
+}';
+
+-- Add summary to chat_sessions
+ALTER TABLE chat_sessions ADD COLUMN summary TEXT;
+ALTER TABLE chat_sessions ADD COLUMN key_points JSONB DEFAULT '[]';
+```
+
+### When to Generate Summaries
+
+1. **End of session** - When user navigates away or closes chat
+2. **Periodically** - Every 10 messages during long sessions
+3. **On request** - User can ask to save progress
+4. **Before generation** - Before final content generation
 
 ---
 
