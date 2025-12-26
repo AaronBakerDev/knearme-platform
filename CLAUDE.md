@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KnearMe is an AI-powered portfolio platform for masonry contractors. Contractors upload photos, complete voice-driven interviews, and AI generates SEO-optimized project showcases. Built with Next.js 14 (App Router), Supabase, and OpenAI.
+KnearMe is an AI-powered portfolio platform for masonry contractors. Contractors upload photos, complete voice-driven interviews, and AI generates SEO-optimized project showcases. Built with Next.js 14 (App Router), Supabase, and Google Gemini.
 
 **Status:** ✅ MVP Feature Complete (December 2024)
 
@@ -34,7 +34,9 @@ npm run test:e2e     # E2E tests with Playwright
 - **Database**: Supabase PostgreSQL with Row Level Security
 - **Auth**: Supabase Auth (email/password)
 - **Storage**: Supabase Storage for images
-- **AI**: OpenAI GPT-4V (vision), Whisper (transcription), GPT-4o (generation)
+- **AI**: Google Gemini 3.0 Flash (vision, generation, chat) + OpenAI Whisper (transcription)
+  - Provider abstraction via Vercel AI SDK (`@ai-sdk/google`, `@ai-sdk/openai`)
+  - See `src/lib/ai/providers.ts` for model configuration
 - **Styling**: Tailwind CSS 4 + shadcn/ui components
 - **Deployment**: Vercel (configured for edge)
 - **Production URL**: https://knearme.co (custom domain)
@@ -133,7 +135,7 @@ project_images        # Images for projects
 interview_sessions    # AI interview state
   ├── project_id
   ├── questions       # JSONB: Q&A pairs
-  ├── image_analysis  # JSONB: GPT-4V results
+  ├── image_analysis  # JSONB: Gemini vision results
   └── generated_content  # JSONB: Final AI output
 ```
 
@@ -196,14 +198,15 @@ import { useAuth } from '@/hooks/useAuth'            // src/hooks/useAuth.ts
 The 6-step project creation wizard (`/projects/new`):
 
 1. **Image Upload** → Supabase Storage with client-side compression (ImageUploader component)
-2. **Image Analysis** → OpenAI GPT-4V detects project type, materials, techniques
+2. **Image Analysis** → Gemini 3.0 Flash detects project type, materials, techniques
 3. **Voice Interview** → MediaRecorder API → Whisper API (VoiceRecorder + InterviewFlow components)
-4. **Content Generation** → GPT-4o generates title, description, SEO metadata
+4. **Content Generation** → Gemini 3.0 Flash generates title, description, SEO metadata
 5. **Review & Edit** → Contractor reviews/edits AI-generated content
 6. **Publish** → Update project status to `published`
 
 **Key Files:**
-- `/src/lib/ai/` - OpenAI integration (image-analysis.ts, transcription.ts, content-generation.ts)
+- `/src/lib/ai/providers.ts` - Centralized AI provider configuration (Gemini + Whisper)
+- `/src/lib/ai/` - AI integration (image-analysis.ts, transcription.ts, content-generation.ts)
 - `/src/app/api/ai/` - AI API routes (analyze-images, transcribe, generate-content)
 - `/src/components/interview/` - Voice recording and interview components
 - `/src/components/upload/ImageUploader.tsx` - Multi-image upload with compression
@@ -266,8 +269,9 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...  # Server-side only, bypasses RLS
 
-# AI Provider (required for AI features)
-OPENAI_API_KEY=sk-...
+# AI Providers (required for AI features)
+GOOGLE_GENERATIVE_AI_API_KEY=...  # Gemini 3.0 Flash (vision, generation, chat)
+OPENAI_API_KEY=sk-...             # Whisper (transcription only)
 
 # App Config
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
@@ -279,7 +283,7 @@ See `docs/05-decisions/adr/` for full rationale:
 
 1. **ADR-001**: Next.js 14 App Router (SSR for SEO + client interactivity)
 2. **ADR-002**: Supabase (PostgreSQL + Auth + Storage in one platform)
-3. **ADR-003**: OpenAI (GPT-4V for vision, Whisper for voice, GPT-4o for generation)
+3. **ADR-003**: AI Provider Strategy (Gemini 3.0 Flash primary + Whisper for transcription)
 4. **ADR-004**: PWA capabilities (offline-first for contractors in the field)
 
 ## Development Phases
@@ -291,7 +295,7 @@ See `docs/05-decisions/adr/` for full rationale:
 - ✅ Authentication (login, signup, password reset, email verification)
 - ✅ Contractor profile setup (3-step wizard) and edit page
 - ✅ Photo upload to Supabase Storage with compression
-- ✅ AI interview flow (GPT-4V analysis, Whisper transcription, GPT-4o generation)
+- ✅ AI interview flow (Gemini vision analysis, Whisper transcription, Gemini content generation)
 - ✅ 6-step project creation wizard
 - ✅ Projects list with filters and CRUD operations
 - ✅ Project edit page (content, images, SEO tabs)
@@ -321,10 +325,12 @@ See `docs/05-decisions/adr/` for full rationale:
 - Monitor Core Web Vitals (target: LCP < 2.5s)
 
 ### AI Integration
-- Set reasonable timeouts (30s for GPT-4V, 60s for generation)
-- Handle rate limits gracefully (OpenAI: 500 RPM on paid tier)
+- Uses Vercel AI SDK for provider abstraction (`ai`, `@ai-sdk/google`, `@ai-sdk/openai`)
+- Set reasonable timeouts (30s for vision, 60s for generation)
+- Handle rate limits gracefully (Gemini: 1500 RPM free tier, 360 RPM Whisper)
 - Store raw transcripts and AI responses in `interview_sessions` table
 - Allow contractors to edit AI-generated content before publishing
+- Run `npx tsx scripts/test-gemini.ts` to verify AI integration
 
 ## Common Tasks
 

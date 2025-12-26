@@ -1,7 +1,7 @@
 # C4 Model: Container Diagram
 
-> **Version:** 1.1
-> **Last Updated:** December 10, 2025
+> **Version:** 1.2
+> **Last Updated:** December 26, 2025
 > **Level:** 2 - Container
 
 ---
@@ -23,19 +23,21 @@ C4Container
     Container_Boundary(knearme, "KnearMe Platform") {
         Container(pwa, "PWA Client", "Next.js, React", "Voice-first interview flow, photo upload, portfolio viewing")
         Container(api, "API Routes", "Next.js API", "RESTful endpoints for data operations and AI orchestration")
-        Container(ai_pipeline, "AI Pipeline", "TypeScript", "Orchestrates OpenAI calls for vision, transcription, generation")
+        Container(ai_pipeline, "AI Pipeline", "TypeScript", "Orchestrates Gemini + Whisper calls for vision, transcription, generation")
     }
 
     ContainerDb(postgres, "PostgreSQL", "Supabase", "Stores contractors, projects, interviews, images metadata")
     ContainerDb(storage, "Object Storage", "Supabase Storage", "Stores project images with CDN delivery")
 
-    System_Ext(openai, "OpenAI API", "GPT-4o (vision + generation), Whisper - via Responses API")
+    System_Ext(gemini, "Google Gemini API", "Gemini 3.0 Flash (vision + generation + chat)")
+    System_Ext(openai, "OpenAI API", "Whisper (transcription only)")
     System_Ext(auth, "Supabase Auth", "Email/password authentication")
 
     Rel(contractor, pwa, "Uses", "HTTPS")
     Rel(pwa, api, "Calls", "HTTPS/JSON")
     Rel(api, ai_pipeline, "Invokes")
-    Rel(ai_pipeline, openai, "Calls", "HTTPS/JSON")
+    Rel(ai_pipeline, gemini, "Vision/Gen", "HTTPS/JSON")
+    Rel(ai_pipeline, openai, "Transcribe", "HTTPS/JSON")
     Rel(api, postgres, "Reads/Writes", "PostgreSQL")
     Rel(api, storage, "Uploads/Downloads", "HTTPS")
     Rel(pwa, auth, "Authenticates", "HTTPS")
@@ -85,10 +87,10 @@ C4Container
 │  └──────┬───────┘     │  images      │        └──────────────┘            │
 │         │             │  interviews  │                                     │
 │         ▼             └──────────────┘                                     │
-│  ┌──────────────┐                                                          │
-│  │  OpenAI API  │                                                          │
-│  │  (External)  │                                                          │
-│  └──────────────┘                                                          │
+│  ┌──────────────┐  ┌──────────────┐                                        │
+│  │  Gemini API  │  │  OpenAI API  │                                        │
+│  │ (Vision/Gen) │  │  (Whisper)   │                                        │
+│  └──────────────┘  └──────────────┘                                                          │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -133,17 +135,18 @@ C4Container
 
 | Attribute | Value |
 |-----------|-------|
-| **Technology** | TypeScript, OpenAI SDK |
+| **Technology** | TypeScript, Vercel AI SDK |
 | **Purpose** | Orchestrate all AI operations |
-| **External Dependency** | OpenAI API |
+| **External Dependencies** | Google Gemini API, OpenAI API (Whisper) |
 | **Location** | Internal module, called by API routes |
 
 **Responsibilities:**
-- Send images to GPT-4V for analysis
+- Send images to Gemini 3.0 Flash for analysis
 - Send audio to Whisper for transcription
-- Send prompts to GPT-4o for content generation
+- Send prompts to Gemini 3.0 Flash for content generation
+- Stream chat responses with tool calling
 - Handle retries and error cases
-- Validate and parse AI responses
+- Validate and parse AI responses with Zod schemas
 
 ### 4. PostgreSQL Database
 
@@ -183,7 +186,8 @@ sequenceDiagram
     participant C as PWA Client
     participant API as API Routes
     participant AI as AI Pipeline
-    participant OAI as OpenAI
+    participant GEM as Gemini
+    participant OAI as OpenAI (Whisper)
     participant DB as PostgreSQL
     participant S3 as Storage
 
@@ -197,8 +201,8 @@ sequenceDiagram
 
     C->>API: POST /api/ai/analyze
     API->>AI: analyzeProjectImages(paths)
-    AI->>OAI: GPT-4V vision request
-    OAI-->>AI: Project type, materials
+    AI->>GEM: Gemini 3.0 Flash vision request
+    GEM-->>AI: Project type, materials
     AI-->>API: Analysis result
     API-->>C: Display confirmation
 
@@ -211,8 +215,8 @@ sequenceDiagram
 
     C->>API: POST /api/ai/generate
     API->>AI: generateContent(analysis, transcripts)
-    AI->>OAI: GPT-4o request
-    OAI-->>AI: Generated content
+    AI->>GEM: Gemini 3.0 Flash request
+    GEM-->>AI: Generated content
     AI-->>API: Title, description, tags
     API-->>C: Preview for approval
 
@@ -235,7 +239,7 @@ sequenceDiagram
 | **Database** | Supabase PostgreSQL | Relational data |
 | **Storage** | Supabase Storage | Images with CDN |
 | **Auth** | Supabase Auth | Email/password |
-| **AI** | OpenAI API | Vision, transcription, generation |
+| **AI** | Gemini 3.0 Flash + Whisper | Vision, generation, chat + transcription |
 | **Hosting** | Vercel | Deployment, CDN, edge |
 
 ---
@@ -265,7 +269,7 @@ sequenceDiagram
 ┌─────────────────────────────────────────────────────────────────┐
 │                  INTERNAL (Server-side Only)                     │
 │                                                                 │
-│    • OpenAI API calls (API key protected)                       │
+│    • AI API calls (Gemini + Whisper, API keys protected)        │
 │    • Database direct access (service role)                      │
 │    • Storage admin operations                                   │
 └─────────────────────────────────────────────────────────────────┘
