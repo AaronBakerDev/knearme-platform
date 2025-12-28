@@ -33,6 +33,7 @@ import { ProjectEditFormArtifact } from '@/components/chat/artifacts/ProjectEdit
 import { PublishSuccessModal } from '@/components/publish/PublishSuccessModal';
 import { useCompleteness } from '@/components/chat/hooks';
 import { formatProjectLocation } from '@/lib/utils/location';
+import { getPublicUrl } from '@/lib/storage/upload';
 import type { Contractor, ProjectWithImages, ProjectImage } from '@/types/database';
 import type { RelatedProject } from '@/lib/data/projects';
 import type { ExtractedProjectData } from '@/lib/chat/chat-types';
@@ -74,31 +75,43 @@ export default function ProjectEditPage({ params }: PageParams) {
 
   /**
    * Fetch project data.
+   *
+   * Performance: Fetches contractor and project in parallel.
+   * Images are extracted from the project response (no separate API call needed).
    */
   const fetchProject = useCallback(async () => {
     try {
-      // Fetch contractor info
-      const meRes = await fetch('/api/contractors/me');
-      if (meRes.ok) {
-        const meData = await meRes.json();
-        setContractorId(meData.contractor?.id || '');
-        setContractor(meData.contractor || null);
-      }
+      // Fetch contractor and project in parallel for faster loading
+      const [meRes, projectRes] = await Promise.all([
+        fetch('/api/contractors/me'),
+        fetch(`/api/projects/${id}`),
+      ]);
 
-      // Fetch project
-      const projectRes = await fetch(`/api/projects/${id}`);
+      // Handle project response first (critical path)
       if (!projectRes.ok) {
         router.push('/projects');
         return;
       }
       const projectData = await projectRes.json();
-      setProject(projectData.project);
+      const proj = projectData.project as ProjectWithImages;
+      setProject(proj);
 
-      // Fetch images
-      const imagesRes = await fetch(`/api/projects/${id}/images`);
-      if (imagesRes.ok) {
-        const imagesData = await imagesRes.json();
-        setImages(imagesData.images || []);
+      // Extract images from project response and add URLs client-side
+      // This eliminates the need for a separate /api/projects/{id}/images call
+      const projectImages = proj.project_images || [];
+      const imagesWithUrls: ImageWithUrl[] = projectImages
+        .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+        .map((img) => ({
+          ...img,
+          url: getPublicUrl('project-images', img.storage_path),
+        }));
+      setImages(imagesWithUrls);
+
+      // Handle contractor response
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        setContractorId(meData.contractor?.id || '');
+        setContractor(meData.contractor || null);
       }
     } catch (error) {
       console.error('Failed to fetch project:', error);
@@ -112,8 +125,11 @@ export default function ProjectEditPage({ params }: PageParams) {
     fetchProject();
   }, [fetchProject]);
 
+  /**
+   * Fetch related projects (lazy-loaded after main content).
+   * This is non-blocking - page is interactive before this completes.
+   */
   const fetchRelatedProjects = useCallback(async () => {
-    if (!project) return;
     try {
       const res = await fetch(`/api/projects/${id}/related`);
       if (res.ok) {
@@ -123,11 +139,14 @@ export default function ProjectEditPage({ params }: PageParams) {
     } catch (error) {
       console.error('Failed to fetch related projects:', error);
     }
-  }, [id, project]);
+  }, [id]);
 
+  // Lazy-load related projects after main content is ready
   useEffect(() => {
-    fetchRelatedProjects();
-  }, [fetchRelatedProjects]);
+    if (project) {
+      fetchRelatedProjects();
+    }
+  }, [project, fetchRelatedProjects]);
 
   /**
    * Refresh images from API.
