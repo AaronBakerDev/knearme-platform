@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "npm run build:widget && next build --webpack",
-    "build:widget": "cd mcp-server/widgets && npm run build",
+    "build:widget": "cd mcp-server/widgets && npm install && npm run build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
