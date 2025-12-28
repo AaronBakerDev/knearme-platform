@@ -217,7 +217,9 @@ export default async function ContractorProfilePage({ params, searchParams }: Pa
   }
 
   // Filter to only published projects and sort by most recent
-  const allPublishedProjects = contractor.projects
+  const contractorProjects = contractor.projects ?? [];
+
+  const allPublishedProjects = contractorProjects
     .filter((p) => p.status === 'published')
     .sort((a, b) => {
       const dateA = new Date(a.published_at || a.created_at).getTime();
@@ -240,7 +242,8 @@ export default async function ContractorProfilePage({ params, searchParams }: Pa
 
   // Add cover image to each project (first image by display_order)
   const projectsWithCovers: ProjectWithCover[] = paginatedProjects.map((project) => {
-    const sortedImages = project.project_images.sort(
+    const projectImages = project.project_images ?? [];
+    const sortedImages = [...projectImages].sort(
       (a, b) => a.display_order - b.display_order
     );
     return {

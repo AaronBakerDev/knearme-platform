@@ -42,9 +42,16 @@ export async function createClient() {
  * WARNING: This bypasses Row Level Security - use with caution!
  */
 export function createAdminClient() {
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
+
+  if (!serviceRoleKey) {
+    throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
+  }
+
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!,
+    serviceRoleKey,
     {
       cookies: {
         getAll() {
