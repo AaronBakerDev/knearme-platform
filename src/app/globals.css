@@ -510,6 +510,103 @@
   animation: message-in 0.3s ease-out forwards;
 }
 
+/* Canvas item entrance animation for artifacts */
+@keyframes canvas-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-canvas-item-in {
+  animation: canvas-item-in 0.4s ease-out forwards;
+}
+
+/* Chip slide-in animation for materials/techniques */
+@keyframes chip-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-chip-slide-in {
+  animation: chip-slide-in 0.3s ease-out forwards;
+}
+
+/* Chip stagger delays */
+.chip-stagger-1 { animation-delay: 0.05s; opacity: 0; }
+.chip-stagger-2 { animation-delay: 0.1s; opacity: 0; }
+.chip-stagger-3 { animation-delay: 0.15s; opacity: 0; }
+.chip-stagger-4 { animation-delay: 0.2s; opacity: 0; }
+.chip-stagger-5 { animation-delay: 0.25s; opacity: 0; }
+.chip-stagger-6 { animation-delay: 0.3s; opacity: 0; }
+
+/* Glow pulse animation for ready state */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px oklch(0.72 0.14 185 / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 35px oklch(0.72 0.14 185 / 0.5);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Toast slide up animation */
+@keyframes toast-slide-up {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  90% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+}
+
+.animate-toast-slide-up {
+  animation: toast-slide-up 3s ease-out forwards;
+}
+
+/* Progress bar fill animation */
+@keyframes progress-fill {
+  from { width: 0; }
+  to { width: var(--progress, 0%); }
+}
+
+.animate-progress-fill {
+  animation: progress-fill 0.5s ease-out forwards;
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Staggered animation delays */
 .stagger-1 { animation-delay: 0.1s; }
 .stagger-2 { animation-delay: 0.2s; }
@@ -539,6 +636,7 @@
   .animate-scale-in,
   .animate-slide-in-right,
   .animate-message-in,
+  .animate-canvas-item-in,
   .animate-pulse,
   .animate-spin,
   .animate-bounce {

@@ -6,7 +6,7 @@
 
 The original `sitemap.ts` file has been replaced with a **segmented sitemap architecture** to handle the growing number of directory listings (34,809+ businesses across 613 cities).
 
-### Old Approach (sitemap.ts - now .backup)
+### Old Approach (sitemap.ts - see git history)
 - Single sitemap file returning all URLs
 - Would eventually hit Google's 50,000 URL limit
 - Expensive to generate (queries all data on every request)
@@ -58,4 +58,4 @@ The `robots.txt` still points to `/sitemap.xml` which now serves as the sitemap 
 
 ## Rollback
 
-If you need to rollback, rename `sitemap.ts.backup` back to `sitemap.ts` and delete the new route files. However, the new approach is strongly recommended for production.
+If you need to rollback, recover the previous `sitemap.ts` from git history and remove the new route files. The new approach is strongly recommended for production.

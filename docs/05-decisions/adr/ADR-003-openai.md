@@ -28,21 +28,22 @@ The AI pipeline is the core differentiator of KnearMe. It must be:
 
 ## Decision
 
-**We will use the Vercel AI SDK with Google Gemini 3.0 Flash as primary provider.**
+**We will use the Vercel AI SDK with Google Gemini 3 Flash (preview) as primary provider.**
 
 Specifically:
-- **Gemini 3.0 Flash** for image analysis (vision)
-- **Gemini 3.0 Flash** for content generation
-- **Gemini 3.0 Flash** for chat/streaming
+- **Gemini 3 Flash (preview)** for image analysis (vision)
+- **Gemini 3 Flash (preview)** for content generation
+- **Gemini 3 Flash (preview)** for chat/streaming
 - **OpenAI Whisper** for voice transcription (AI SDK doesn't yet support Gemini audio)
 - **Vercel AI SDK** (`ai`, `@ai-sdk/google`, `@ai-sdk/openai`) for provider abstraction
 - **Zod schemas** with `generateObject()` for type-safe structured outputs
+- **Reliability-first policy:** preview models are gated and must have a stable fallback (e.g., `gemini-2.5-flash`)
 
 ---
 
 ## Rationale: Why Gemini over OpenAI?
 
-| Factor | OpenAI GPT-4o | Gemini 3.0 Flash | Winner |
+| Factor | OpenAI GPT-4o | Gemini 3 Flash (preview) | Winner |
 |--------|--------------|------------------|--------|
 | **Cost (input/1M)** | $2.50 | $0.50 | Gemini (80% cheaper) |
 | **Cost (output/1M)** | $10.00 | $3.00 | Gemini (70% cheaper) |
@@ -73,7 +74,7 @@ Specifically:
 | Trade-off | Mitigation |
 |-----------|------------|
 | **Whisper still on OpenAI** | AI SDK transcription via OpenAI; Gemini audio coming |
-| **Model availability** | Gemini 3.0 Flash in preview; monitor for GA |
+| **Model availability** | Gemini 3 Flash is preview; monitor for GA and use fallback |
 | **Learning curve** | AI SDK patterns differ from direct OpenAI SDK |
 
 ### Neutral
@@ -94,9 +95,12 @@ import { google } from '@ai-sdk/google';
 import { openai } from '@ai-sdk/openai';
 
 export const AI_MODELS = {
+  // Gemini API (preview)
   vision: 'gemini-3-flash-preview',
   generation: 'gemini-3-flash-preview',
   chat: 'gemini-3-flash-preview',
+  // Stable fallback
+  fallback: 'gemini-2.5-flash',
   transcription: 'whisper-1',
 } as const;
 
@@ -126,6 +130,20 @@ export function getTranscriptionModel() {
   return openai.transcription(AI_MODELS.transcription);
 }
 ```
+
+### Model IDs by Provider
+
+**Gemini API (`@ai-sdk/google`):**
+- `gemini-3-flash-preview`
+- `gemini-3-pro-preview`
+- `gemini-3-pro-image-preview`
+
+**Vercel AI Gateway (optional routing):**
+- `google/gemini-3-flash`
+- `google/gemini-3-pro-preview`
+
+**Reliability note:** Gemini 3 models are preview. Keep a stable fallback (`gemini-2.5-flash`) and gate preview use.
+**Preview gating:** Set `AI_PREVIEW_MODELS=true` to opt into preview Gemini 3 models; otherwise the app uses the stable fallback.
 
 ### Image Analysis (Gemini Vision)
 
@@ -232,9 +250,9 @@ return result.toUIMessageStreamResponse();
 
 | Model | Use Case | Cost per Project |
 |-------|----------|------------------|
-| Gemini 3.0 Flash | Image analysis (4 images) | ~$0.02 |
+| Gemini 3 Flash (preview) | Image analysis (4 images) | ~$0.02 |
 | Whisper | Transcription (2 min audio) | ~$0.02 |
-| Gemini 3.0 Flash | Content generation | ~$0.01 |
+| Gemini 3 Flash (preview) | Content generation | ~$0.01 |
 | **Total** | | **~$0.05 per project** |
 
 **vs Previous (OpenAI only): ~$0.15 per project**
@@ -251,7 +269,7 @@ return result.toUIMessageStreamResponse();
 ## Environment Variables
 
 ```bash
-# Primary AI (Gemini 3.0 Flash)
+# Primary AI (Gemini 3 Flash - preview)
 GOOGLE_GENERATIVE_AI_API_KEY=your-google-key
 
 # Secondary AI (Whisper transcription)
@@ -288,7 +306,7 @@ This decision will be validated by:
 |------|--------|
 | Dec 8, 2025 | Initial: OpenAI Chat Completions API |
 | Dec 10, 2025 | Updated: OpenAI Responses API with `responses.parse()` |
-| Dec 26, 2025 | **Migrated: Gemini 3.0 Flash via Vercel AI SDK** |
+| Dec 26, 2025 | **Migrated: Gemini 3 Flash (preview) via Vercel AI SDK** |
 
 ---
 
@@ -302,4 +320,4 @@ This decision will be validated by:
 
 ---
 
-*This ADR was updated December 26, 2025 to reflect migration from OpenAI to Gemini 3.0 Flash via Vercel AI SDK.*
+*This ADR was updated December 26, 2025 to reflect migration from OpenAI to Gemini 3 Flash (preview) via Vercel AI SDK.*

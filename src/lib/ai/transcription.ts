@@ -46,7 +46,7 @@ export interface TranscriptionResult {
  */
 export async function transcribeAudio(
   audioBlob: Blob,
-  filename: string = 'recording.webm'
+  _filename: string = 'recording.webm'
 ): Promise<TranscriptionResult | { error: string; retryable: boolean }> {
   // Check if AI is available
   if (!isOpenAIEnabled()) {
@@ -118,7 +118,7 @@ export async function transcribeAudio(
  */
 export async function transcribeAudioFromUrl(
   audioUrl: string,
-  filename: string = 'recording.webm'
+  _filename: string = 'recording.webm'
 ): Promise<TranscriptionResult | { error: string; retryable: boolean }> {
   try {
     // Fetch the audio file
@@ -132,7 +132,7 @@ export async function transcribeAudioFromUrl(
     }
 
     const blob = await response.blob();
-    return transcribeAudio(blob, filename);
+    return transcribeAudio(blob, _filename);
   } catch (error) {
     console.error('[transcribeAudioFromUrl] Fetch error:', error);
     return {

@@ -1,7 +1,7 @@
 # Testing Strategy
 
 > **Version:** 1.0
-> **Last Updated:** December 8, 2025
+> **Last Updated:** December 26, 2025
 > **Scope:** MVP Testing Approach
 
 ---
@@ -10,7 +10,7 @@
 
 For MVP, we prioritize:
 1. **Critical path coverage** - The AI interview flow must work
-2. **Integration reliability** - Supabase + OpenAI connections
+2. **Integration reliability** - Supabase + AI provider connections (Gemini + Whisper)
 3. **Mobile-first validation** - Primary use case is phone
 4. **Fast feedback** - Catch issues before they reach users
 

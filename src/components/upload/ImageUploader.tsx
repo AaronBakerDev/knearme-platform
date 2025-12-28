@@ -284,18 +284,19 @@ export function ImageUploader({
 
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Upload area */}
+      {/* Upload area - compact on desktop */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          'relative border-2 border-dashed rounded-lg p-6 transition-colors',
+          'relative border-2 border-dashed rounded-lg transition-colors',
+          'p-4 md:p-3', // Tighter padding on desktop
           isDragging && 'border-primary bg-primary/5',
           disabled || remainingSlots <= 0
             ? 'opacity-50 cursor-not-allowed'
             : 'cursor-pointer hover:border-primary/50',
-          'min-h-[150px] flex flex-col items-center justify-center gap-3'
+          'min-h-[120px] md:min-h-[100px] flex flex-col items-center justify-center gap-2 md:gap-1.5'
         )}
         onClick={() => !disabled && remainingSlots > 0 && fileInputRef.current?.click()}
       >
@@ -310,35 +311,36 @@ export function ImageUploader({
           capture="environment" // Use back camera on mobile
         />
 
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Upload className="h-8 w-8" />
-          <Camera className="h-8 w-8" />
+        <div className="flex items-center gap-2 md:gap-1.5 text-muted-foreground">
+          <Upload className="h-6 w-6 md:h-5 md:w-5" />
+          <Camera className="h-6 w-6 md:h-5 md:w-5" />
         </div>
 
         <div className="text-center">
-          <p className="font-medium">
+          <p className="font-medium text-sm md:text-sm">
             {isDragging ? 'Drop images here' : 'Tap to add photos'}
           </p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {remainingSlots > 0
               ? `${remainingSlots} of ${maxImages} slots remaining`
               : 'Maximum images reached'}
           </p>
         </div>
 
-        {/* Mobile-specific buttons */}
-        <div className="flex gap-2 mt-2">
+        {/* Gallery button - more prominent on mobile, subtle on desktop */}
+        <div className="flex gap-2 mt-1 md:mt-0">
           <Button
             type="button"
             variant="outline"
             size="sm"
+            className="h-8 md:h-7 text-xs"
             disabled={disabled || remainingSlots <= 0}
             onClick={(e) => {
               e.stopPropagation();
               fileInputRef.current?.click();
             }}
           >
-            <ImageIcon className="h-4 w-4 mr-2" />
+            <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
             Gallery
           </Button>
         </div>

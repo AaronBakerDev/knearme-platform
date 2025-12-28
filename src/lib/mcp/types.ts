@@ -26,6 +26,7 @@ export interface ProjectOutput {
   description: string | null;
   project_type: string | null;
   project_type_slug: string | null;
+  neighborhood: string | null;
   city: string | null;
   state: string | null;
   city_slug: string | null;
@@ -37,6 +38,7 @@ export interface ProjectOutput {
   results: string | null;
   outcome_highlights: string[] | null;
   hero_image_id: string | null;
+  hero_image_url: string | null;
   client_type: ClientType | null;
   budget_range: BudgetRange | null;
   materials: string[] | null;
@@ -105,6 +107,7 @@ export interface WidgetMetaFields {
   };
   'openai/widgetDomain'?: string;
   'openai/widgetPrefersBorder'?: boolean;
+  'openai/widgetDescription'?: string;
   'openai/outputTemplate'?: string;
   widgetTemplate?: string;
   widgetData?: unknown;
@@ -128,9 +131,9 @@ export interface AddProjectMediaOutput {
     media_count: number;
     missing_fields: string[];
     upload_status?: string;
-    upload_errors?: Array<{ url: string; error: string }>;
+    upload_errors?: Array<{ file_id?: string; url?: string; error: string }>;
   };
-  _meta: { images: ProjectImageOutput[] } & WidgetMetaFields;
+  _meta: { images: ProjectImageOutput[]; uploads?: Array<Record<string, unknown>> } & WidgetMetaFields;
 }
 
 export interface MediaUpdateOutput {
@@ -145,6 +148,7 @@ export interface UpdateProjectSectionsOutput {
   structuredContent: {
     project_id: string;
     missing_fields: string[];
+    can_publish: boolean;
   };
   _meta: { project: ProjectOutput } & WidgetMetaFields;
 }
@@ -152,7 +156,8 @@ export interface UpdateProjectSectionsOutput {
 export interface UpdateProjectMetaOutput {
   structuredContent: {
     project_id: string;
-    status: 'ok';
+    missing_fields: string[];
+    can_publish: boolean;
   };
   _meta: { project: ProjectOutput } & WidgetMetaFields;
 }
@@ -162,6 +167,23 @@ export interface FinalizeProjectOutput {
     project_id: string;
     status: 'published';
     url: string;
+  };
+  _meta: { project: ProjectWithImages } & WidgetMetaFields;
+}
+
+export interface PublishProjectOutput {
+  structuredContent: {
+    project_id: string;
+    status: 'published';
+    url: string;
+  };
+  _meta: { project: ProjectWithImages } & WidgetMetaFields;
+}
+
+export interface UnpublishProjectOutput {
+  structuredContent: {
+    project_id: string;
+    status: 'draft';
   };
   _meta: { project: ProjectWithImages } & WidgetMetaFields;
 }

@@ -10,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { OfflineIndicator } from '@/components/pwa/OfflineIndicator';
 import { PushNotificationPrompt } from '@/components/pwa/PushNotificationPrompt';
 import { AppProgressBar } from '@/components/navigation/app-progress-bar';
 import { ContractorMobileNav } from '@/components/navigation/ContractorMobileNav';
@@ -160,8 +159,6 @@ export default async function ContractorLayout({
         </div>
       </header>
 
-      {/* Offline indicator - shows when offline or drafts pending */}
-      <OfflineIndicator />
       <PushNotificationPrompt eligible={(projectCount ?? 0) > 0} />
 
       {/* Main content */}

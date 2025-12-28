@@ -10,11 +10,33 @@
 
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import sanitizeHtml from 'sanitize-html';
 import { requireAuthUnified, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { slugify } from '@/lib/utils/slugify';
 import { composeProjectDescription } from '@/lib/projects/compose-description';
+import { blocksToHtml, descriptionBlocksSchema, sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
 import type { ProjectWithImages } from '@/types/database';
+
+/**
+ * Allowed HTML tags for sanitized description content.
+ * Defense-in-depth: Even if client-side sanitization is bypassed, server blocks XSS.
+ * @see src/components/chat/artifacts/ContentEditor.tsx - client-side sanitization
+ */
+const ALLOWED_HTML_TAGS = ['p', 'strong', 'em', 'ul', 'ol', 'li', 'br'];
+
+/**
+ * Sanitize HTML content to prevent XSS attacks.
+ * Used as a Zod transform for the description field.
+ */
+function sanitizeDescription(html: string | undefined): string | undefined {
+  if (!html) return html;
+  return sanitizeHtml(html, {
+    allowedTags: ALLOWED_HTML_TAGS,
+    allowedAttributes: {},
+    disallowedTagsMode: 'discard',
+  });
+}
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -24,16 +46,20 @@ type RouteParams = { params: Promise<{ id: string }> };
  */
 const updateProjectSchema = z.object({
   title: z.string().max(200).optional(),
-  description: z.string().max(5000).optional(),
+  // Task A1: Sanitize HTML content server-side to prevent XSS
+  description: z.string().max(5000).optional().transform(sanitizeDescription),
+  description_blocks: descriptionBlocksSchema.optional(),
   project_type: z.string().max(100).optional(),
   materials: z.array(z.string()).optional(),
   techniques: z.array(z.string()).optional(),
+  neighborhood: z.string().max(100).optional(),
   city: z.string().max(100).optional(),
   state: z.string().max(50).optional(),
   duration: z.string().max(50).optional(),
   tags: z.array(z.string()).optional(),
   seo_title: z.string().max(70).optional(),
   seo_description: z.string().max(160).optional(),
+  status: z.enum(['draft', 'archived']).optional(),
   // Case-study narrative fields (for MCP/ChatGPT integration)
   summary: z.string().max(500).optional(),
   challenge: z.string().max(2000).optional(),
@@ -109,13 +135,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const updates = parsed.data;
+    if (typeof updates.description_blocks !== 'undefined') {
+      updates.description_blocks = sanitizeDescriptionBlocks(updates.description_blocks);
+    }
+
+    if (
+      typeof updates.description === 'undefined' &&
+      typeof updates.description_blocks !== 'undefined'
+    ) {
+      updates.description = blocksToHtml(updates.description_blocks);
+    }
     const supabase = await getAuthClient(auth);
 
     // Verify project ownership first
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: existing, error: fetchError } = await (supabase as any)
       .from('projects')
-      .select('id, contractor_id, title, city, state, project_type, description_manual, summary, challenge, solution, results, outcome_highlights')
+      .select('id, contractor_id, title, city, state, project_type, description_manual, summary, challenge, solution, results, outcome_highlights, status')
       .eq('id', id)
       .eq('contractor_id', contractor.id)
       .single();
@@ -134,6 +170,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       solution?: string | null;
       results?: string | null;
       outcome_highlights?: string[] | null;
+      status?: 'draft' | 'published' | 'archived' | null;
     };
     const existingProject = existing as ExistingProject | null;
 
@@ -161,6 +198,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const hasDescriptionUpdate = Object.prototype.hasOwnProperty.call(updates, 'description');
     if (hasDescriptionUpdate && typeof updates.description_manual === 'undefined') {
       updatePayload.description_manual = true;
+    }
+
+    if (typeof updates.status !== 'undefined') {
+      if (updates.status === 'draft' && existingProject.status !== 'archived') {
+        return apiError('VALIDATION_ERROR', 'Only archived projects can be restored to draft.');
+      }
+      if (updates.status === 'archived') {
+        updatePayload.published_at = null;
+      }
     }
 
     const effectiveDescriptionManual =

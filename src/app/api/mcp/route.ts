@@ -11,7 +11,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { validateToken } from '@/lib/mcp/token-validator';
 import { dispatchTool, toolDefinitions } from '@/lib/mcp/tools';
 import { widgetResource, getWidgetResourceResponse } from '@/lib/mcp/widget';
@@ -50,10 +49,6 @@ function createErrorResponse(
     id,
     error,
   };
-}
-
-function formatZodError(error: z.ZodError): string {
-  return error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
 }
 
 // ============================================================================
@@ -127,6 +122,7 @@ async function handleToolCall(
           text: JSON.stringify(result.result.structuredContent),
         },
       ],
+      structuredContent: result.result.structuredContent,
       _meta: result.result._meta,
     });
   } catch (err) {

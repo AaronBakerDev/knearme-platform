@@ -50,12 +50,10 @@ export function useUrlState<T extends ToolState>(
   // Initialize state from URL params if present, otherwise use defaults
   const initializeState = useCallback((): T => {
     const state = { ...defaultState }
-    let hasParams = false
 
     for (const key in defaultState) {
       const urlValue = searchParams.get(key)
       if (urlValue !== null) {
-        hasParams = true
         const defaultValue = defaultState[key]
 
         // Parse based on default value type

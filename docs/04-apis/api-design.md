@@ -1,7 +1,7 @@
 # API Design Document
 
 > **Version:** 1.0
-> **Last Updated:** December 8, 2025
+> **Last Updated:** December 26, 2025
 > **Base URL:** `https://knearme.com/api`
 
 ---
@@ -394,7 +394,7 @@ Get a signed URL for direct upload to Supabase Storage.
 
 ### POST /ai/analyze-images
 
-Analyze uploaded project images using GPT-4V.
+Analyze uploaded project images using Gemini 3 Flash (preview) via the AI SDK.
 
 **Request:**
 ```json
@@ -448,7 +448,7 @@ audio: <binary file data>
 
 ### POST /ai/generate
 
-Generate project content using GPT-4o.
+Generate project content using Gemini 3 Flash (preview) via the AI SDK.
 
 **Request:**
 ```json

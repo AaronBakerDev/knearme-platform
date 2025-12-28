@@ -226,7 +226,7 @@ Sitemap: https://knearme.com/sitemap.xml
 **Implementation Tasks:**
 - [ ] Create dynamic route handler
 - [ ] Build `getProjectsByCityAndType()` database query
-- [ ] Implement service description generator (OpenAI)
+- [ ] Implement service description generator (AI SDK - Gemini 3 Flash preview)
 - [ ] Add Service schema to `structured-data.ts`
 - [ ] Create RelatedServices component
 - [ ] Create NearbyCities component
@@ -845,7 +845,7 @@ export async function getRelatedProjects(
 
 **Implementation Tasks:**
 - [ ] Add city stats to database
-- [ ] Generate climate-specific content (OpenAI)
+- [ ] Generate climate-specific content (AI SDK - Gemini 3 Flash preview)
 - [ ] Source hero images
 
 **Success Metrics:**

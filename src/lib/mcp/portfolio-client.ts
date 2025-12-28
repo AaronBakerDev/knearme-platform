@@ -7,6 +7,7 @@
  * @see /docs/chatgpt-apps-sdk/PORTFOLIO_TOOL_MAPPING.md
  */
 
+import { getPublicUrl } from '@/lib/storage/upload';
 import type { ProjectOutput, ProjectImageOutput, ProjectStatus } from './types';
 
 interface ApiError {
@@ -31,6 +32,7 @@ interface ProjectWithImages {
   title?: string | null;
   project_type?: string | null;
   project_type_slug?: string | null;
+  neighborhood?: string | null;
   city?: string | null;
   state?: string | null;
   city_slug?: string | null;
@@ -151,6 +153,10 @@ export class PortfolioClient {
     return this.request('POST', `/api/projects/${projectId}/publish`);
   }
 
+  async unpublishProject(projectId: string): Promise<ApiResult<{ project: ProjectWithImages }>> {
+    return this.request('DELETE', `/api/projects/${projectId}/publish`);
+  }
+
   async requestImageUpload(
     projectId: string,
     input: {
@@ -244,7 +250,7 @@ export function getMissingPublishFields(project: ProjectOutput): string[] {
   if (!project.project_type) missing.push('project_type');
   if (!project.city) missing.push('city');
   if (!project.state) missing.push('state');
-  if (!project.hero_image_id) missing.push('hero_image');
+  if (!project.hero_image_id) missing.push('hero_image_id');
   return missing;
 }
 
@@ -260,6 +266,7 @@ export function toProjectOutput(apiProject: Record<string, unknown>): ProjectOut
     description: apiProject.description as string | null,
     project_type: apiProject.project_type as string | null,
     project_type_slug: apiProject.project_type_slug as string | null,
+    neighborhood: apiProject.neighborhood as string | null,
     city: apiProject.city as string | null,
     state: apiProject.state as string | null,
     city_slug: apiProject.city_slug as string | null,
@@ -279,6 +286,7 @@ export function toProjectOutput(apiProject: Record<string, unknown>): ProjectOut
     tags: apiProject.tags as string[] | null,
     seo_title: apiProject.seo_title as string | null,
     seo_description: apiProject.seo_description as string | null,
+    hero_image_url: apiProject.hero_image_url as string | null ?? null,
     created_at: apiProject.created_at as string,
     updated_at: apiProject.updated_at as string,
     published_at: apiProject.published_at as string | null,
@@ -286,11 +294,30 @@ export function toProjectOutput(apiProject: Record<string, unknown>): ProjectOut
 }
 
 export function toImageOutput(apiImage: Record<string, unknown>): ProjectImageOutput {
+  const storagePath = apiImage.storage_path as string | undefined;
+  const resolvedUrl = typeof apiImage.url === 'string'
+    ? (apiImage.url as string)
+    : storagePath
+      ? getPublicUrl('project-images', storagePath)
+      : '';
+
   return {
     id: apiImage.id as string,
-    url: apiImage.url as string,
+    url: resolvedUrl,
     image_type: apiImage.image_type as ProjectImageOutput['image_type'],
     alt_text: apiImage.alt_text as string | null,
     display_order: apiImage.display_order as number,
   };
+}
+
+export function attachHeroImageUrl(
+  project: ProjectOutput,
+  images: ProjectImageOutput[]
+): ProjectOutput {
+  if (!project.hero_image_id) {
+    return { ...project, hero_image_url: null };
+  }
+
+  const heroImage = images.find((img) => img.id === project.hero_image_id);
+  return { ...project, hero_image_url: heroImage?.url ?? null };
 }

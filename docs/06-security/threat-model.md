@@ -1,7 +1,7 @@
 # Security Threat Model
 
 > **Version:** 1.0
-> **Last Updated:** December 8, 2025
+> **Last Updated:** December 26, 2025
 > **Methodology:** STRIDE Analysis
 
 ---
@@ -42,8 +42,8 @@ KnearMe is a web application handling:
 │             │        TRUST BOUNDARY 3                            │
 │             ▼                                                    │
 │    ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
-│    │   Supabase   │  │   Supabase   │  │   OpenAI     │        │
-│    │   Database   │  │   Storage    │  │     API      │        │
+│    │   Supabase   │  │   Supabase   │  │ AI Providers│        │
+│    │   Database   │  │   Storage    │  │ Gemini+Whisper│       │
 │    └──────────────┘  └──────────────┘  └──────────────┘        │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘

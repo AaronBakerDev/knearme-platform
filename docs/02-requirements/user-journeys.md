@@ -1,7 +1,7 @@
 # User Journeys
 
 > **Version:** 1.0
-> **Last Updated:** December 8, 2025
+> **Last Updated:** December 26, 2025
 > **Related:** `01-vision/personas.md`
 
 ---
@@ -152,9 +152,9 @@ sequenceDiagram
     actor M as Mike
     participant UI as App UI
     participant S as Supabase Storage
-    participant Vision as GPT-4V
+    participant Vision as Gemini 3 Flash (preview)
     participant Whisper as Whisper API
-    participant Gen as GPT-4o
+    participant Gen as Gemini 3 Flash (preview)
     participant DB as Database
 
     Note over M,DB: Step 1: Photo Upload

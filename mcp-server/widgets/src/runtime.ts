@@ -1,51 +1,35 @@
 /**
  * OpenAI Widget Runtime Interface.
  *
- * Type definitions and helpers for interacting with the ChatGPT widget bridge.
+ * Helper functions for interacting with the ChatGPT widget bridge.
  * The window.openai object is injected by ChatGPT when the widget loads.
  *
+ * Type definitions are in ./types.ts - this file provides runtime utilities.
+ *
  * @see /docs/chatgpt-apps-sdk/BUILDING.md
+ * @see ./types.ts for OpenAiApi and OpenAiGlobals interfaces
  */
+
+import { useState, useEffect, useCallback } from 'react';
+import type { OpenAiApi, DisplayMode, Theme } from './types';
 
 // ============================================================================
-// TYPE DEFINITIONS
+// RUNTIME CONTEXT TYPE (for legacy compatibility)
 // ============================================================================
-
-/**
- * Display modes supported by ChatGPT widgets.
- */
-export type DisplayMode = 'inline' | 'fullscreen' | 'pip' | 'carousel';
-
-/**
- * Safe area insets for widget positioning.
- */
-export interface SafeArea {
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-}
-
-/**
- * View bounds for the widget.
- */
-export interface ViewBounds {
-  width: number;
-  height: number;
-}
 
 /**
  * Runtime context provided by ChatGPT.
+ * This is a simplified view of the OpenAiGlobals for context-based hooks.
  */
 export interface RuntimeContext {
   /** Current display mode */
   displayMode: DisplayMode;
   /** Safe area insets */
-  safeArea: SafeArea;
+  safeArea: { top: number; right: number; bottom: number; left: number };
   /** View bounds */
-  view: ViewBounds;
+  view: { width: number; height: number };
   /** Color scheme preference */
-  colorScheme: 'light' | 'dark';
+  colorScheme: Theme;
 }
 
 /**
@@ -65,68 +49,17 @@ export interface ToolResult<T = unknown> {
 export type WidgetState = Record<string, unknown>;
 
 /**
- * OpenAI widget bridge interface.
- * This is available as window.openai in the widget iframe.
+ * Bridge interface for the mock implementation.
+ * Provides a subset of OpenAiApi methods for development.
  */
-export interface OpenAIBridge {
-  /**
-   * Call an MCP tool and get the result.
-   *
-   * @param toolName - The tool to call
-   * @param args - Tool arguments
-   * @returns Tool result with structuredContent and _meta
-   */
+interface MockBridge {
   callTool<T = unknown>(toolName: string, args: Record<string, unknown>): Promise<ToolResult<T>>;
-
-  /**
-   * Send a follow-up message to the model.
-   * Use this when the user takes an action that should trigger model reasoning.
-   *
-   * @param message - The message to send
-   * @param widgetState - Optional state to include for model context
-   */
   sendFollowUpMessage(message: string, widgetState?: WidgetState): Promise<void>;
-
-  /**
-   * Request a different display mode.
-   * Only use fullscreen when the UI truly requires it.
-   *
-   * @param mode - The requested display mode
-   */
   requestDisplayMode(mode: DisplayMode): Promise<void>;
-
-  /**
-   * Notify ChatGPT of the widget's intrinsic height.
-   * Call this when content changes to ensure proper sizing.
-   *
-   * @param height - The desired height in pixels
-   */
   notifyIntrinsicHeight(height: number): void;
-
-  /**
-   * Open an external URL in a new tab.
-   * The URL must be in the redirect_domains allowlist.
-   *
-   * @param url - The URL to open
-   */
   openExternal(url: string): Promise<void>;
-
-  /**
-   * Close the widget.
-   */
   close(): void;
-
-  /**
-   * Get the current runtime context.
-   */
   getContext(): RuntimeContext;
-
-  /**
-   * Subscribe to context changes.
-   *
-   * @param callback - Called when context changes
-   * @returns Unsubscribe function
-   */
   onContextChange(callback: (context: RuntimeContext) => void): () => void;
 }
 
@@ -134,17 +67,11 @@ export interface OpenAIBridge {
 // RUNTIME ACCESS
 // ============================================================================
 
-declare global {
-  interface Window {
-    openai?: OpenAIBridge;
-  }
-}
-
 /**
- * Get the OpenAI bridge, throwing if not available.
+ * Get the OpenAI API, throwing if not available.
  * Use this in production widgets.
  */
-export function getOpenAI(): OpenAIBridge {
+export function getOpenAI(): OpenAiApi {
   if (!window.openai) {
     throw new Error('OpenAI bridge not available. Widget must run inside ChatGPT.');
   }
@@ -159,12 +86,58 @@ export function isInChatGPT(): boolean {
 }
 
 /**
- * Get the OpenAI bridge or a mock for development.
+ * Get the OpenAI API or a mock for development.
  * In development, returns a mock that logs calls to console.
+ *
+ * Note: The mock implements a simplified bridge interface for development.
+ * Production widgets should use the full OpenAiApi from window.openai.
  */
-export function getOpenAIOrMock(): OpenAIBridge {
+export function getOpenAIOrMock(): MockBridge {
   if (window.openai) {
-    return window.openai;
+    // Adapt the real API to the bridge interface
+    const api = window.openai;
+    return {
+      callTool: async <T = unknown>(toolName: string, args: Record<string, unknown>): Promise<ToolResult<T>> => {
+        await api.callTool(toolName, args);
+        // Return a placeholder since the real API doesn't return ToolResult
+        return { structuredContent: {} as T };
+      },
+      sendFollowUpMessage: async (message: string, widgetState?: WidgetState) => {
+        await api.sendFollowUpMessage({ prompt: message });
+        if (widgetState) {
+          api.setWidgetState(widgetState);
+        }
+      },
+      requestDisplayMode: async (mode: DisplayMode) => {
+        await api.requestDisplayMode({ mode });
+      },
+      notifyIntrinsicHeight: (height: number) => {
+        api.notifyIntrinsicHeight(height);
+      },
+      openExternal: async (url: string) => {
+        api.openExternal({ href: url });
+      },
+      close: () => {
+        api.requestClose();
+      },
+      getContext: (): RuntimeContext => ({
+        displayMode: api.displayMode,
+        safeArea: api.safeArea,
+        view: { width: 400, height: api.maxHeight }, // approximation
+        colorScheme: api.theme,
+      }),
+      onContextChange: (callback: (context: RuntimeContext) => void) => {
+        // Call immediately with current context
+        callback({
+          displayMode: api.displayMode,
+          safeArea: api.safeArea,
+          view: { width: 400, height: api.maxHeight },
+          colorScheme: api.theme,
+        });
+        // Return no-op unsubscribe - use hooks.ts for proper subscriptions
+        return () => {};
+      },
+    };
   }
 
   // Development mock
@@ -174,7 +147,7 @@ export function getOpenAIOrMock(): OpenAIBridge {
     displayMode: 'inline',
     safeArea: { top: 0, right: 0, bottom: 0, left: 0 },
     view: { width: 400, height: 600 },
-    colorScheme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+    colorScheme: typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
   };
 
   return {
@@ -212,10 +185,10 @@ export function getOpenAIOrMock(): OpenAIBridge {
 // HOOKS
 // ============================================================================
 
-import { useState, useEffect, useCallback } from 'react';
-
 /**
  * React hook to get and subscribe to the runtime context.
+ *
+ * @deprecated Use hooks from ./hooks.ts for proper useSyncExternalStore subscriptions.
  */
 export function useRuntimeContext(): RuntimeContext {
   const [context, setContext] = useState<RuntimeContext>(() => {

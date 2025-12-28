@@ -13,9 +13,12 @@
 4. [Phase 3: Live Preview](#phase-3-live-preview)
 5. [Phase 4: Content Editor](#phase-4-content-editor)
 6. [Phase 5: Polish](#phase-5-polish)
-7. [Migration Strategy](#migration-strategy)
-8. [Testing Strategy](#testing-strategy)
-9. [Risk Mitigation](#risk-mitigation)
+7. [Phase 6: Unified Edit Mode](#phase-6-unified-edit-mode)
+8. [Phase 7: Persistence & Memory](#phase-7-persistence--memory-system)
+9. [Phase 8: Agent Architecture](#phase-8-agent-architecture)
+10. [Migration Strategy](#migration-strategy)
+11. [Testing Strategy](#testing-strategy)
+12. [Risk Mitigation](#risk-mitigation)
 
 ---
 
@@ -49,6 +52,18 @@ Phase 1 (Foundation)
                                        │
                                        └─► Phase 5 (Polish)
 ```
+
+---
+
+## Research Findings & Adjustments (Dec 26, 2025)
+
+1. **Tool part states** — AI SDK v6 emits tool parts with `input-streaming`, `input-available`, `output-available`, and `output-error`. Artifact rendering must handle all states.
+2. **RSC usage** — `@ai-sdk/rsc` is experimental. Treat generative UI as optional/flagged for production.
+3. **Model IDs** — Gemini 3 is preview in the Gemini API. Use `gemini-3-flash-preview` (Gemini API) or `google/gemini-3-flash` (AI Gateway) and keep a stable fallback (e.g., `gemini-2.5-flash`).
+4. **Transcription** — `experimental_transcribe` is still experimental; add size/type limits and explicit error UI.
+5. **Voice-first gap** — MVP requires a voice interview path; add explicit tasks in Phase 1.
+6. **Fast path** — Add “Accept & Publish” to maintain <3 minute publish target.
+7. **Instrumentation** — Add KPI events in Phase 8 (time-to-publish, interview completion, regeneration).
 
 ---
 
@@ -136,6 +151,13 @@ if (part.type.startsWith('tool-')) {
 
 Define all artifact-related types.
 
+#### 1.6 Voice Interview Foundation (MVP Alignment)
+
+Add baseline voice interview support to match product goals:
+- Mic permissions + error handling
+- Record → transcribe → text injection flow
+- Fallback to text input when transcription fails
+
 ### Deliverables
 
 - [ ] Artifact directory structure created
@@ -143,6 +165,7 @@ Define all artifact-related types.
 - [ ] `ProjectDataCard` renders extraction results inline
 - [ ] Existing chat continues to work unchanged
 - [ ] Loading skeleton shown during tool execution
+- [ ] Voice interview flow works on mobile
 
 ### Verification
 
@@ -564,12 +587,14 @@ const EDITING_TOOLS = {
 };
 
 const result = streamText({
-  model: getChatModel(),  // Gemini 3.0 Flash
+  model: getChatModel(),  // Gemini 3 Flash (preview)
   system: EDITING_SYSTEM_PROMPT,
   messages: await convertToModelMessages(messages),
   tools: EDITING_TOOLS,
 });
 ```
+
+> Note (Dec 28, 2025): `/api/chat/edit` is now deprecated and forwards to the unified `/api/chat` route.
 
 #### 6.4 Make Artifacts Editable
 
@@ -1026,6 +1051,325 @@ Trigger summarization when:
 
 ---
 
+## Phase 8: Agent Architecture
+
+**Goal:** Improve agent reliability, observability, and capability through architectural enhancements.
+
+### Prerequisites
+
+- Phase 1 complete (basic artifact system)
+- Langfuse account configured
+
+### Overview
+
+This phase addresses critical gaps in the current agent implementation:
+1. **Step Limit:** Increase from 3 to 10 for multi-tool flows
+2. **Additional Tools:** Add `requestClarification` for uncertainty handling
+3. **Observability:** Integrate Langfuse for full tracing
+4. **Type Safety:** Improve tool context typing
+
+### Tasks
+
+#### 8.1 Increase Step Limit
+
+**File:** `src/app/api/chat/route.ts`
+
+Change step limit to allow multi-tool responses:
+
+```typescript
+// Current (too restrictive):
+stopWhen: stepCountIs(3)   // ❌ Only allows 3 tool calls total
+
+// Recommended:
+stopWhen: stepCountIs(10)  // ✅ Allows multiple tools per response
+```
+
+**Rationale:**
+- Allows `extractProjectData` + `showProgress` + text response in single turn
+- Handles retry scenarios gracefully
+- Aligns with typical conversation complexity
+
+#### 8.2 Add requestClarification Tool
+
+**File:** `src/app/api/chat/route.ts`
+
+Add tool for uncertainty handling:
+
+```typescript
+requestClarification: tool({
+  description: `Ask the user to clarify when confidence is low.
+    Use when:
+    - Confidence < 0.7 on extracted data
+    - Multiple interpretations possible
+    - Critical fields need confirmation`,
+  inputSchema: z.object({
+    field: z.string(),
+    currentValue: z.string().optional(),
+    alternatives: z.array(z.string()).optional(),
+    question: z.string(),
+    confidence: z.number().min(0).max(1),
+    context: z.string().optional(),
+  }),
+  execute: async (args) => args,
+}),
+```
+
+**See:** `chat-artifacts-spec.md` for ClarificationCard component spec.
+
+#### 8.3 Add Langfuse Integration
+
+**File:** `src/lib/observability/langfuse.ts` (new)
+
+```typescript
+import { Langfuse } from 'langfuse';
+
+export const langfuse = new Langfuse({
+  publicKey: process.env.LANGFUSE_PUBLIC_KEY,
+  secretKey: process.env.LANGFUSE_SECRET_KEY,
+  baseUrl: process.env.LANGFUSE_BASE_URL,
+  enabled: process.env.LANGFUSE_ENABLED !== 'false',
+});
+
+export function isLangfuseEnabled(): boolean {
+  return !!(
+    process.env.LANGFUSE_PUBLIC_KEY &&
+    process.env.LANGFUSE_SECRET_KEY &&
+    process.env.LANGFUSE_ENABLED !== 'false'
+  );
+}
+```
+
+#### 8.4 Add Tracing to Chat Route
+
+**File:** `src/app/api/chat/route.ts`
+
+Wrap chat processing with Langfuse traces:
+
+```typescript
+import { createChatTrace, trackError, trackUsage } from '@/lib/observability/tracing';
+
+export async function POST(request: Request) {
+  const startTime = Date.now();
+  const trace = isLangfuseEnabled()
+    ? createChatTrace({ userId: 'pending', sessionId: 'pending', messageCount: 0 })
+    : null;
+
+  try {
+    // Auth, parse, process...
+
+    const result = streamText({
+      // ...existing config
+      onFinish: async (result) => {
+        if (result.usage && trace?.trace) {
+          trackUsage(trace.trace, {
+            promptTokens: result.usage.promptTokens,
+            completionTokens: result.usage.completionTokens,
+            totalTokens: result.usage.totalTokens,
+          });
+        }
+        await langfuse.flush();
+      },
+    });
+
+    return result.toUIMessageStreamResponse();
+  } catch (error) {
+    if (trace?.trace) {
+      trackError(trace.trace, error as Error, ChatErrorCategory.UNKNOWN);
+    }
+    await langfuse.flush();
+    throw error;
+  }
+}
+```
+
+#### 8.5 Create Tracing Utilities
+
+**File:** `src/lib/observability/tracing.ts` (new)
+
+```typescript
+import { langfuse } from './langfuse';
+import type { Trace } from 'langfuse';
+
+export interface TraceContext {
+  trace: Trace;
+  userId: string;
+  sessionId: string;
+  projectId?: string;
+}
+
+export function createChatTrace(params: {
+  userId: string;
+  sessionId: string;
+  projectId?: string;
+  messageCount: number;
+}): TraceContext {
+  const trace = langfuse.trace({
+    name: 'chat_message',
+    userId: params.userId,
+    sessionId: params.sessionId,
+    metadata: {
+      projectId: params.projectId,
+      messageCount: params.messageCount,
+    },
+    tags: ['chat', params.projectId ? 'with-project' : 'new-project'],
+  });
+
+  return { trace, ...params };
+}
+
+export function trackUsage(trace: Trace, usage: {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}): void {
+  // Gemini 2.0 Flash pricing
+  const GEMINI_INPUT_COST = 0.075 / 1_000_000;
+  const GEMINI_OUTPUT_COST = 0.30 / 1_000_000;
+
+  const cost =
+    (usage.promptTokens * GEMINI_INPUT_COST) +
+    (usage.completionTokens * GEMINI_OUTPUT_COST);
+
+  trace.update({
+    metadata: { ...usage, estimatedCostUsd: cost.toFixed(6) },
+  });
+}
+
+export function trackError(
+  trace: Trace,
+  error: Error,
+  category: string,
+  context?: Record<string, unknown>
+): void {
+  trace.event({
+    name: 'error',
+    level: 'ERROR',
+    statusMessage: error.message,
+    metadata: { category, ...context },
+  });
+}
+```
+
+#### 8.6 Add Tool Context Typing
+
+**File:** `src/app/api/chat/route.ts`
+
+Pass typed context to tool execute functions:
+
+```typescript
+interface ToolContext {
+  projectId: string;
+  sessionId: string;
+  userId: string;
+}
+
+// In streamText config:
+experimental_toolContext: {
+  projectId,
+  sessionId: session.id,
+  userId: auth.user.id,
+} satisfies ToolContext,
+```
+
+#### 8.7 Add ClarificationCard Component
+
+**File:** `src/components/chat/artifacts/ClarificationCard.tsx`
+
+See `chat-artifacts-spec.md` for full implementation spec.
+
+Key features:
+- Question header with context
+- Confidence indicator bar
+- Confirm/Alternative/Custom input options
+- Amber styling for uncertainty state
+
+#### 8.8 Update System Prompt for Clarification
+
+**File:** `src/lib/chat/chat-prompts.ts`
+
+Add clarification guidance:
+
+```typescript
+const CLARIFICATION_GUIDANCE = `
+## Handling Uncertainty
+
+When you're not sure about something:
+1. For ambiguous terms, call requestClarification with alternatives
+2. Set confidence (0.0 = guess, 1.0 = certain)
+3. If confidence < 0.5, ALWAYS ask for clarification
+4. For critical fields (project type, materials), ask if confidence < 0.7
+
+DO NOT just assume. Users prefer being asked over having wrong data.
+`;
+
+export const CONVERSATION_SYSTEM_PROMPT = `${BASE_PROMPT}\n\n${CLARIFICATION_GUIDANCE}`;
+```
+
+#### 8.9 Add Environment Variables
+
+**File:** `.env.example`
+
+```bash
+# Langfuse Observability
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_BASE_URL=https://cloud.langfuse.com
+LANGFUSE_ENABLED=true
+```
+
+### Deliverables
+
+- [ ] Change `stepCountIs(3)` to `stepCountIs(10)` in chat route
+- [ ] Add `requestClarification` tool with confidence scoring
+- [ ] Create `src/lib/observability/langfuse.ts` client
+- [ ] Create `src/lib/observability/tracing.ts` utilities
+- [ ] Wrap chat route with Langfuse traces
+- [ ] Track token usage and costs
+- [ ] Add `ClarificationCard` artifact component
+- [ ] Update ArtifactRenderer for requestClarification
+- [ ] Add clarification guidance to system prompt
+- [ ] Add Langfuse environment variables to `.env.example`
+
+### Verification
+
+```bash
+# Test step limit
+# 1. Start conversation that triggers multiple tools
+# 2. Verify all tools execute (not cut off at 3)
+
+# Test clarification
+# 1. Send ambiguous message: "I did some brick work"
+# 2. Verify ClarificationCard appears with options
+# 3. Click an option, verify AI proceeds with confirmed value
+
+# Test observability
+# 1. Open Langfuse dashboard
+# 2. Send chat message
+# 3. Verify trace appears with:
+#    - Tool calls as spans
+#    - Token usage
+#    - Duration metrics
+```
+
+### Dependencies
+
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| `langfuse` | `^3.x` | Observability client |
+| `@langfuse/vercel-ai` | `^1.x` | AI SDK integration (optional) |
+
+### Success Metrics
+
+| Metric | Current | Target |
+|--------|---------|--------|
+| Tool calls per session | 1-2 | 4-6 |
+| Step limit errors | Unknown | 0 |
+| Error visibility | 0% | 100% |
+| Cost tracking | None | Per-session |
+| Clarification accuracy | N/A | 90% user acceptance |
+
+---
+
 ## Migration Strategy
 
 ### Backward Compatibility
@@ -1039,6 +1383,7 @@ All phases maintain backward compatibility:
 5. **Phase 5:** Adds polish, no functional changes
 6. **Phase 6:** Edit mode replaces tabs (can run in parallel initially)
 7. **Phase 7:** Adds persistence/memory, existing batch save still works as fallback
+8. **Phase 8:** Adds observability and new tools, existing functionality unchanged
 
 ### Feature Flags (Optional)
 
@@ -1167,6 +1512,24 @@ test('complete project creation with artifacts', async ({ page }) => {
 - Comprehensive test coverage
 - Each phase is independently revertible
 
+### Risk: SDK Version Drift
+
+**Problem:** AI SDK 6 APIs may change while still in beta.
+
+**Mitigation:**
+- Pin exact AI SDK versions
+- Update tool part rendering for new states
+- Verify provider model IDs before release
+
+### Risk: Model ID Mismatch
+
+**Problem:** Provider config uses model IDs not supported by `@ai-sdk/google`.
+
+**Mitigation:**
+- Validate model IDs in development
+- Centralize model config in `src/lib/ai/providers.ts`
+- Update ADR + reference docs on change
+
 ---
 
 ## Success Metrics
@@ -1197,9 +1560,11 @@ Track these metrics before and after implementation:
 
 ## Related Documentation
 
+- **Central Plan**: `./plan.md`
 - **SDK Reference**: `./vercel-ai-sdk-reference.md`
 - **Artifacts Spec**: `./chat-artifacts-spec.md`
 - **UX Patterns**: `./chat-ux-patterns.md`
+- **Observability Spec**: `./observability-spec.md`
 
 ---
 
@@ -1211,6 +1576,8 @@ Track these metrics before and after implementation:
 - [ ] `ProjectDataCard` component
 - [ ] Update `ChatMessage` for artifacts
 - [ ] Type definitions
+- [ ] Tool part state handling (`input-*`, `output-*`)
+- [ ] Voice interview foundation (record → transcribe → inject)
 
 ### Phase 2: Image Integration
 - [ ] `ImageGalleryArtifact` component
@@ -1232,6 +1599,7 @@ Track these metrics before and after implementation:
 - [ ] `showContentEditor` tool
 - [ ] Save/accept flow
 - [ ] Section regeneration
+- [ ] Fast path: “Accept & Publish”
 
 ### Phase 5: Polish
 - [ ] `ProgressTracker` artifact
@@ -1268,3 +1636,16 @@ Track these metrics before and after implementation:
 - [ ] Build context from memory on session start
 - [ ] Auto-summarize on session end
 - [ ] Debounced auto-save for ContentEditor
+
+### Phase 8: Agent Architecture
+- [ ] Change `stepCountIs(3)` to `stepCountIs(10)`
+- [ ] Add `requestClarification` tool
+- [ ] Create `ClarificationCard` artifact component
+- [ ] Create `src/lib/observability/langfuse.ts`
+- [ ] Create `src/lib/observability/tracing.ts`
+- [ ] Wrap chat route with Langfuse traces
+- [ ] Track token usage and costs
+- [ ] Track KPI events (time-to-publish, interview completion, regeneration)
+- [ ] Add tool context typing (`experimental_toolContext`)
+- [ ] Update system prompt with clarification guidance
+- [ ] Add Langfuse env vars to `.env.example`

@@ -403,7 +403,7 @@ npx shadcn@latest add tooltip
 - **ADRs**: `docs/05-decisions/adr/`
 - **Security**: `docs/06-security/threat-model.md`
 - **Testing**: `docs/08-quality/testing-strategy.md`
-- **Sprint Plans**: `todo/sprint-*.md`
+- **Phase Plans**: `todo/ai-sdk-phase-*.md`
 
 ## Getting Help
 

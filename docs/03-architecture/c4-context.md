@@ -1,7 +1,7 @@
 # C4 Model: System Context
 
 > **Version:** 1.1
-> **Last Updated:** December 10, 2025
+> **Last Updated:** December 26, 2025
 > **Level:** 1 - System Context
 
 ---
@@ -23,7 +23,8 @@ C4Context
 
     System(knearme, "KnearMe Platform", "AI-powered project portfolio platform for masonry contractors")
 
-    System_Ext(openai, "OpenAI API", "GPT-4o (vision + generation) via Responses API, Whisper (transcription)")
+    System_Ext(gemini, "Google Gemini API", "Gemini 3 Flash (preview) for vision + generation + chat")
+    System_Ext(openai, "OpenAI API", "Whisper (transcription only)")
     System_Ext(supabase, "Supabase", "Authentication, PostgreSQL database, file storage")
     System_Ext(vercel, "Vercel", "Hosting, CDN, edge functions")
     System_Ext(jobber, "Jobber", "Job management integration (Phase 2)")
@@ -31,7 +32,8 @@ C4Context
 
     Rel(contractor, knearme, "Uploads photos, records voice, approves content")
     Rel(homeowner, knearme, "Browses projects, views portfolios")
-    Rel(knearme, openai, "Analyzes images, transcribes voice, generates content")
+    Rel(knearme, gemini, "Analyzes images, generates content")
+    Rel(knearme, openai, "Transcribes voice")
     Rel(knearme, supabase, "Stores data, authenticates users, serves images")
     Rel(knearme, vercel, "Deploys application, serves pages")
     Rel(knearme, jobber, "Receives job completion webhooks (Phase 2)")
@@ -77,10 +79,10 @@ C4Context
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │    ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│    │   OpenAI     │  │   Supabase   │  │    Vercel    │  │   Jobber     │  │
+│    │ AI Providers │  │   Supabase   │  │    Vercel    │  │   Jobber     │  │
 │    │              │  │              │  │              │  │  (Phase 2)   │  │
-│    │  • GPT-4o    │  │  • Auth      │  │  • Hosting   │  │              │  │
-│    │  • Responses │  │  • Database  │  │  • CDN       │  │  • Webhooks  │  │
+│    │  • Gemini 3  │  │  • Auth      │  │  • Hosting   │  │              │  │
+│    │    Flash     │  │  • Database  │  │  • CDN       │  │  • Webhooks  │  │
 │    │  • Whisper   │  │  • Storage   │  │  • Edge      │  │  • Job data  │  │
 │    └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘  │
 │                                                                             │
@@ -107,7 +109,8 @@ C4Context
 | System | Type | Description |
 |--------|------|-------------|
 | **KnearMe Platform** | Internal | The AI-powered portfolio platform. Handles contractor authentication, project creation workflow, AI pipeline orchestration, and SEO-optimized page generation. |
-| **OpenAI API** | External | AI services provider. GPT-4o for image analysis and content generation (via Responses API with Zod schemas), Whisper for voice transcription. |
+| **Google Gemini API** | External | AI services provider. Gemini 3 Flash (preview) for image analysis, content generation, and chat. |
+| **OpenAI API** | External | Whisper transcription only. |
 | **Supabase** | External | Backend-as-a-service. Provides authentication (email/password), PostgreSQL database, and file storage with CDN. |
 | **Vercel** | External | Hosting platform. Deploys Next.js application, provides CDN, handles SSL/TLS, edge functions. |
 | **Jobber** | External | Job management software (Phase 2). Sends webhooks on job completion for automated project creation. |
@@ -121,7 +124,8 @@ C4Context
 |------|----|-------------|----------|
 | Contractor | KnearMe | Uploads photos, records voice answers, approves generated content | HTTPS, WebSocket |
 | Homeowner | KnearMe | Browses projects, views contractor portfolios | HTTPS |
-| KnearMe | OpenAI | Sends images for analysis, audio for transcription, prompts for generation | HTTPS REST API |
+| KnearMe | Google Gemini API | Sends images for analysis and prompts for generation | HTTPS REST API |
+| KnearMe | OpenAI API | Sends audio for transcription (Whisper) | HTTPS REST API |
 | KnearMe | Supabase | CRUD operations on database, auth verification, file uploads/downloads | HTTPS, WebSocket |
 | KnearMe | Vercel | Deployment pipeline, static asset serving | HTTPS |
 | KnearMe | Jobber | Receives webhook payloads on job completion (Phase 2) | HTTPS Webhook |

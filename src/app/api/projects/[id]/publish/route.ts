@@ -11,6 +11,7 @@ import { NextRequest } from 'next/server';
 import { requireAuthUnified, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { composeProjectDescription } from '@/lib/projects/compose-description';
+import { trackProjectPublished } from '@/lib/observability/kpi-events';
 import type { ProjectWithImages } from '@/types/database';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -21,12 +22,17 @@ type RouteParams = { params: Promise<{ id: string }> };
  * Publish a project, making it visible on the public portfolio.
  * Validates that the project has required content before publishing.
  *
+ * Query Parameters:
+ * - dry_run=true: Only validate without publishing, returns { valid, missing }
+ *
  * Requirements for publishing:
  * - title
  * - project type + slug
  * - city + state
  * - hero image (auto-set to first upload if missing)
  * - at least 1 image
+ *
+ * @see Issue #6 in todo/ai-sdk-phase-6-edit-mode.md for dry_run implementation
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
@@ -38,6 +44,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     const { contractor } = auth;
     const supabase = await getAuthClient(auth);
+
+    // Issue #6: Support dry_run parameter for validation-only checks
+    const { searchParams } = new URL(request.url);
+    const dryRun = searchParams.get('dry_run') === 'true';
 
     // Get project with images to validate
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -67,6 +77,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       status: string;
       seo_title?: string | null;
       seo_description?: string | null;
+      created_at?: string | null;
       project_images?: Array<Record<string, unknown>>;
     };
     const projectData = project as ProjectData | null;
@@ -107,8 +118,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!projectData.hero_image_id) {
       errors.push('Project must have a hero image');
     }
-    if (projectData.status === 'published') {
+
+    // Issue #6: For dry_run, skip the "already published" check since we just want validation
+    if (!dryRun && projectData.status === 'published') {
       return apiError('CONFLICT', 'Project is already published');
+    }
+
+    // Issue #6: If dry_run, return validation result without publishing
+    if (dryRun) {
+      return apiSuccess({
+        valid: errors.length === 0,
+        missing: errors,
+      });
     }
 
     if (errors.length > 0) {
@@ -163,6 +184,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (updateError) {
       console.error('[POST /api/projects/[id]/publish] Update error:', updateError);
       return handleApiError(updateError);
+    }
+
+    // Track time-to-publish KPI
+    // Fire-and-forget: don't block response on tracking
+    if (projectData.created_at) {
+      trackProjectPublished({
+        contractorId: contractor.id,
+        projectId: id,
+        createdAt: projectData.created_at,
+        publishedAt: new Date(),
+      }).catch((err) => console.error('[KPI] trackProjectPublished failed:', err));
     }
 
     return apiSuccess({ project: published as ProjectWithImages });

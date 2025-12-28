@@ -230,7 +230,7 @@ export async function getRelatedServiceTypes(
 
 **Purpose:** SEO content block + user education
 **Length:** 400-500 words
-**Content:** Generated via OpenAI with city + service context
+**Content:** Generated via AI SDK (Gemini 3 Flash preview) with city + service context
 
 **Topics to Cover:**
 - What is {service type}?
@@ -513,7 +513,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 
 ### Phase 2.4: Content Generation
 
-- [ ] Create OpenAI prompt template for service descriptions
+- [ ] Create AI SDK prompt template for service descriptions (Gemini 3 Flash preview)
 - [ ] Generate descriptions for all 6 service types
 - [ ] Review and edit AI-generated content for accuracy
 - [ ] Add city-specific SEO footer content (can be generic initially)

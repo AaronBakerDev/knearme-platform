@@ -11,17 +11,19 @@ import {
   canPublish,
   toProjectOutput,
   toImageOutput,
+  attachHeroImageUrl,
 } from './portfolio-client';
 import { buildWidgetMeta } from './widget';
 import type {
   AuthContext,
-  ProjectImageOutput,
   CreateProjectDraftOutput,
   AddProjectMediaOutput,
   MediaUpdateOutput,
   UpdateProjectSectionsOutput,
   UpdateProjectMetaOutput,
   FinalizeProjectOutput,
+  PublishProjectOutput,
+  UnpublishProjectOutput,
   ListContractorProjectsOutput,
   GetProjectStatusOutput,
 } from './types';
@@ -31,6 +33,7 @@ import type {
 // ============================================================================
 
 export const createProjectDraftSchema = z.object({
+  title: z.string().optional(),
   project_type: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -43,6 +46,18 @@ export const createProjectDraftSchema = z.object({
 
 export const addProjectMediaSchema = z.object({
   project_id: z.string().uuid(),
+  files: z.array(
+    z.object({
+      file_id: z.string(),
+      filename: z.string(),
+      content_type: z.string(),
+      image_type: z.enum(['before', 'after', 'progress', 'detail']).optional(),
+      alt_text: z.string().optional(),
+      display_order: z.number().int().min(0).optional(),
+      width: z.number().int().positive().optional(),
+      height: z.number().int().positive().optional(),
+    })
+  ).min(1).max(10).optional(),
   images: z.array(
     z.object({
       url: z.string().url(),
@@ -50,7 +65,9 @@ export const addProjectMediaSchema = z.object({
       image_type: z.enum(['before', 'after', 'progress', 'detail']).optional(),
       alt_text: z.string().optional(),
     })
-  ).min(1).max(10),
+  ).min(1).max(10).optional(),
+}).refine((data) => (data.files && data.files.length > 0) || (data.images && data.images.length > 0), {
+  message: 'files or images required',
 });
 
 export const reorderProjectMediaSchema = z.object({
@@ -87,6 +104,7 @@ export const updateProjectMetaSchema = z.object({
   project_id: z.string().uuid(),
   title: z.string().optional(),
   project_type: z.string().optional(),
+  neighborhood: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   duration: z.string().optional(),
@@ -115,13 +133,44 @@ export const getProjectStatusSchema = z.object({
 // TOOL DEFINITIONS
 // ============================================================================
 
+const TOOL_OUTPUT_TEMPLATE = 'template://knearme-portfolio';
+
+type ToolHints = {
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  openWorldHint?: boolean;
+};
+
+function buildToolMeta(options: {
+  invoking: string;
+  invoked: string;
+  hints?: ToolHints;
+  widgetAccessible?: boolean;
+  visibility?: 'private';
+}) {
+  return {
+    'openai/outputTemplate': TOOL_OUTPUT_TEMPLATE,
+    'openai/toolInvocation/invoking': options.invoking,
+    'openai/toolInvocation/invoked': options.invoked,
+    ...(options.hints ? { 'openai/toolHints': options.hints } : {}),
+    ...(options.widgetAccessible ? { 'openai/widgetAccessible': true } : {}),
+    ...(options.visibility ? { 'openai/visibility': options.visibility } : {}),
+  };
+}
+
 export const toolDefinitions = [
   {
     name: 'create_project_draft',
+    title: 'Create Project Draft',
     description: 'Create a new draft case-study project. Returns project ID and missing fields.',
+    _meta: buildToolMeta({
+      invoking: 'Creating a new project draft…',
+      invoked: 'Draft created.',
+    }),
     inputSchema: {
       type: 'object',
       properties: {
+        title: { type: 'string', description: 'Optional project title' },
         project_type: { type: 'string', description: 'Type of project (e.g., chimney rebuild)' },
         city: { type: 'string', description: 'City where the project is located' },
         state: { type: 'string', description: 'State where the project is located' },
@@ -136,14 +185,38 @@ export const toolDefinitions = [
   },
   {
     name: 'add_project_media',
-    description: 'Add images to a project draft. Provide image URLs that the server will download and store.',
+    title: 'Add Project Media',
+    description: 'Add images to a project draft. Prefer ChatGPT file IDs; URL imports are supported as a fallback.',
+    _meta: buildToolMeta({
+      invoking: 'Adding project images…',
+      invoked: 'Images queued for upload.',
+      hints: { openWorldHint: true },
+    }),
     inputSchema: {
       type: 'object',
       properties: {
         project_id: { type: 'string', description: 'Project UUID' },
+        files: {
+          type: 'array',
+          description: 'Array of ChatGPT file uploads (1-10 files)',
+          items: {
+            type: 'object',
+            properties: {
+              file_id: { type: 'string', description: 'ChatGPT file ID' },
+              filename: { type: 'string', description: 'Original filename' },
+              content_type: { type: 'string', description: 'MIME type (e.g., image/jpeg)' },
+              image_type: { type: 'string', enum: ['before', 'after', 'progress', 'detail'], description: 'Image classification' },
+              alt_text: { type: 'string', description: 'Alt text for accessibility' },
+              display_order: { type: 'number', description: 'Optional display order index' },
+              width: { type: 'number', description: 'Image width in pixels' },
+              height: { type: 'number', description: 'Image height in pixels' },
+            },
+            required: ['file_id', 'filename', 'content_type'],
+          },
+        },
         images: {
           type: 'array',
-          description: 'Array of images to add (1-10 images)',
+          description: 'Fallback: import images by URL (1-10 images)',
           items: {
             type: 'object',
             properties: {
@@ -156,12 +229,18 @@ export const toolDefinitions = [
           },
         },
       },
-      required: ['project_id', 'images'],
+      required: ['project_id'],
     },
   },
   {
     name: 'reorder_project_media',
+    title: 'Reorder Project Media',
     description: 'Reorder project images.',
+    _meta: buildToolMeta({
+      invoking: 'Reordering images…',
+      invoked: 'Images reordered.',
+      widgetAccessible: true,
+    }),
     inputSchema: {
       type: 'object',
       properties: {
@@ -173,7 +252,13 @@ export const toolDefinitions = [
   },
   {
     name: 'set_project_hero_media',
+    title: 'Set Project Hero Image',
     description: 'Set the hero image for a project.',
+    _meta: buildToolMeta({
+      invoking: 'Setting hero image…',
+      invoked: 'Hero image updated.',
+      widgetAccessible: true,
+    }),
     inputSchema: {
       type: 'object',
       properties: {
@@ -185,7 +270,13 @@ export const toolDefinitions = [
   },
   {
     name: 'set_project_media_labels',
+    title: 'Set Project Media Labels',
     description: 'Label images as before/after/progress/detail and add alt text.',
+    _meta: buildToolMeta({
+      invoking: 'Updating image labels…',
+      invoked: 'Image labels updated.',
+      widgetAccessible: true,
+    }),
     inputSchema: {
       type: 'object',
       properties: {
@@ -208,7 +299,13 @@ export const toolDefinitions = [
   },
   {
     name: 'update_project_sections',
+    title: 'Update Project Sections',
     description: 'Update narrative sections: summary, challenge, solution, results.',
+    _meta: buildToolMeta({
+      invoking: 'Updating project sections…',
+      invoked: 'Project sections updated.',
+      widgetAccessible: true,
+    }),
     inputSchema: {
       type: 'object',
       properties: {
@@ -224,13 +321,19 @@ export const toolDefinitions = [
   },
   {
     name: 'update_project_meta',
+    title: 'Update Project Metadata',
     description: 'Update project metadata: title, type, location, duration, tags, SEO.',
+    _meta: buildToolMeta({
+      invoking: 'Updating project details…',
+      invoked: 'Project details updated.',
+    }),
     inputSchema: {
       type: 'object',
       properties: {
         project_id: { type: 'string' },
         title: { type: 'string' },
         project_type: { type: 'string' },
+        neighborhood: { type: 'string' },
         city: { type: 'string' },
         state: { type: 'string' },
         duration: { type: 'string' },
@@ -244,8 +347,14 @@ export const toolDefinitions = [
     },
   },
   {
-    name: 'finalize_project',
+    name: 'publish_project',
+    title: 'Publish Project',
     description: 'Publish the project. Requires all mandatory fields. Ask for confirmation first.',
+    _meta: buildToolMeta({
+      invoking: 'Publishing project…',
+      invoked: 'Project published.',
+      hints: { destructiveHint: true },
+    }),
     inputSchema: {
       type: 'object',
       properties: { project_id: { type: 'string' } },
@@ -253,8 +362,48 @@ export const toolDefinitions = [
     },
   },
   {
-    name: 'list_contractor_projects',
+    name: 'unpublish_project',
+    title: 'Unpublish Project',
+    description: 'Revert a published project to draft status.',
+    _meta: buildToolMeta({
+      invoking: 'Reverting project to draft…',
+      invoked: 'Project reverted to draft.',
+    }),
+    inputSchema: {
+      type: 'object',
+      properties: { project_id: { type: 'string' } },
+      required: ['project_id'],
+    },
+  },
+  {
+    name: 'list_projects',
+    title: 'List Projects',
     description: "List the contractor's projects. Can filter by status.",
+    _meta: buildToolMeta({
+      invoking: 'Fetching projects…',
+      invoked: 'Projects loaded.',
+      hints: { readOnlyHint: true },
+    }),
+    inputSchema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['draft', 'published', 'archived'] },
+        limit: { type: 'number' },
+        offset: { type: 'number' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'list_contractor_projects',
+    title: 'List Contractor Projects (Legacy)',
+    description: "List the contractor's projects. Can filter by status.",
+    _meta: buildToolMeta({
+      invoking: 'Fetching projects…',
+      invoked: 'Projects loaded.',
+      hints: { readOnlyHint: true },
+      visibility: 'private',
+    }),
     inputSchema: {
       type: 'object',
       properties: {
@@ -267,7 +416,29 @@ export const toolDefinitions = [
   },
   {
     name: 'get_project_status',
+    title: 'Get Project Status',
     description: 'Get project status including images and missing fields.',
+    _meta: buildToolMeta({
+      invoking: 'Fetching project status…',
+      invoked: 'Project status loaded.',
+      hints: { readOnlyHint: true },
+    }),
+    inputSchema: {
+      type: 'object',
+      properties: { project_id: { type: 'string' } },
+      required: ['project_id'],
+    },
+  },
+  {
+    name: 'finalize_project',
+    title: 'Finalize Project (Legacy)',
+    description: 'Publish the project. Requires all mandatory fields. Ask for confirmation first.',
+    _meta: buildToolMeta({
+      invoking: 'Publishing project…',
+      invoked: 'Project published.',
+      hints: { destructiveHint: true },
+      visibility: 'private',
+    }),
     inputSchema: {
       type: 'object',
       properties: { project_id: { type: 'string' } },
@@ -297,15 +468,21 @@ export async function handleCreateProjectDraft(
   if (!result.success) return { success: false, error: result.error };
 
   const project = toProjectOutput(result.data.project as unknown as Record<string, unknown>);
-  const missing = getMissingPublishFields(project);
   const images = (result.data.project as unknown as { project_images?: unknown[] }).project_images || [];
-  if (images.length === 0) missing.push('images');
+  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const projectWithHero = attachHeroImageUrl(project, imageOutputs);
+  const missing = getMissingPublishFields(projectWithHero);
+  if (imageOutputs.length === 0) missing.push('images');
 
   return {
     success: true,
     result: {
       structuredContent: { project_id: project.id, missing_fields: missing },
-      _meta: buildWidgetMeta('project-draft', { project, missing_fields: missing, can_publish: false }, { project }),
+      _meta: buildWidgetMeta(
+        'project-draft',
+        { project: projectWithHero, missing_fields: missing, can_publish: false },
+        { project: projectWithHero }
+      ),
     },
   };
 }
@@ -316,16 +493,64 @@ export async function handleAddProjectMedia(
   baseUrl: string
 ): Promise<ToolResult<AddProjectMediaOutput>> {
   const client = createClient(auth, baseUrl);
+  const uploadErrors: Array<{ file_id?: string; url?: string; error: string }> = [];
+  const uploads: Array<{
+    file_id: string;
+    image_id: string;
+    signed_url: string;
+    token: string;
+    path: string;
+    content_type: string;
+  }> = [];
 
-  // Upload images from URLs using the new endpoint
-  const uploadResult = await client.addImagesFromUrls(input.project_id, input.images);
-  if (!uploadResult.success) return { success: false, error: uploadResult.error };
+  let urlUploaded = 0;
+  let urlFailed = 0;
 
-  // Check if any uploads failed
-  const { uploaded, failed, errors } = uploadResult.data;
-  if (uploaded === 0 && failed > 0) {
-    const errorMessages = errors?.map(e => `${e.url}: ${e.error}`).join('; ') || 'Unknown error';
-    return { success: false, error: `Failed to upload images: ${errorMessages}` };
+  if (input.files && input.files.length > 0) {
+    for (const file of input.files) {
+      const uploadResult = await client.requestImageUpload(input.project_id, {
+        filename: file.filename,
+        content_type: file.content_type,
+        image_type: file.image_type,
+        display_order: file.display_order,
+        width: file.width,
+        height: file.height,
+      });
+
+      if (!uploadResult.success) {
+        uploadErrors.push({ file_id: file.file_id, error: uploadResult.error });
+        continue;
+      }
+
+      uploads.push({
+        file_id: file.file_id,
+        image_id: uploadResult.data.image.id,
+        signed_url: uploadResult.data.upload.signed_url,
+        token: uploadResult.data.upload.token,
+        path: uploadResult.data.upload.path,
+        content_type: file.content_type,
+      });
+    }
+  }
+
+  if (input.images && input.images.length > 0) {
+    const urlResult = await client.addImagesFromUrls(input.project_id, input.images);
+    if (!urlResult.success) return { success: false, error: urlResult.error };
+
+    urlUploaded = urlResult.data.uploaded;
+    urlFailed = urlResult.data.failed;
+    if (urlResult.data.errors) {
+      urlResult.data.errors.forEach((error) => {
+        uploadErrors.push({ url: error.url, error: error.error });
+      });
+    }
+  }
+
+  if (uploads.length === 0 && urlUploaded === 0 && uploadErrors.length > 0) {
+    const errorMessages = uploadErrors
+      .map((error) => error.file_id ? `${error.file_id}: ${error.error}` : `${error.url}: ${error.error}`)
+      .join('; ');
+    return { success: false, error: `Failed to add images: ${errorMessages}` };
   }
 
   // Get updated project with all images
@@ -335,13 +560,16 @@ export async function handleAddProjectMedia(
   const project = toProjectOutput(projectResult.data.project as unknown as Record<string, unknown>);
   const images = (projectResult.data.project as unknown as { project_images?: unknown[] }).project_images || [];
   const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
-  const missing = getMissingPublishFields(project);
+  const projectWithHero = attachHeroImageUrl(project, imageOutputs);
+  const missing = getMissingPublishFields(projectWithHero);
   if (imageOutputs.length === 0) missing.push('images');
 
-  // Include partial success info in the response
-  const statusMessage = failed > 0
-    ? `Uploaded ${uploaded} images, ${failed} failed`
-    : `Uploaded ${uploaded} images`;
+  const statusParts: string[] = [];
+  if (uploads.length > 0) statusParts.push(`Prepared ${uploads.length} upload${uploads.length === 1 ? '' : 's'}`);
+  if (urlUploaded > 0) statusParts.push(`Imported ${urlUploaded} image${urlUploaded === 1 ? '' : 's'}`);
+  if (urlFailed > 0) statusParts.push(`${urlFailed} URL import failed`);
+  if (uploadErrors.length > 0 && urlFailed === 0) statusParts.push(`${uploadErrors.length} upload errors`);
+  const statusMessage = statusParts.length > 0 ? statusParts.join(', ') : 'No images added';
 
   return {
     success: true,
@@ -351,9 +579,13 @@ export async function handleAddProjectMedia(
         media_count: imageOutputs.length,
         missing_fields: missing,
         upload_status: statusMessage,
-        upload_errors: errors,
+        upload_errors: uploadErrors.length > 0 ? uploadErrors : undefined,
       },
-      _meta: buildWidgetMeta('project-media', { project_id: input.project_id, images: imageOutputs, hero_image_id: project.hero_image_id }, { images: imageOutputs }),
+      _meta: buildWidgetMeta(
+        'project-media',
+        { project: projectWithHero, images: imageOutputs },
+        { images: imageOutputs, uploads }
+      ),
     },
   };
 }
@@ -367,16 +599,23 @@ export async function handleReorderProjectMedia(
   const result = await client.reorderImages(input.project_id, input.image_ids);
   if (!result.success) return { success: false, error: result.error };
 
-  const imagesResult = await client.listImages(input.project_id);
-  if (!imagesResult.success) return { success: false, error: imagesResult.error };
+  const projectResult = await client.getProject(input.project_id);
+  if (!projectResult.success) return { success: false, error: projectResult.error };
 
-  const images = imagesResult.data.images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const project = toProjectOutput(projectResult.data.project as unknown as Record<string, unknown>);
+  const images = (projectResult.data.project as unknown as { project_images?: unknown[] }).project_images || [];
+  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const projectWithHero = attachHeroImageUrl(project, imageOutputs);
 
   return {
     success: true,
     result: {
       structuredContent: { project_id: input.project_id, status: 'ok' },
-      _meta: buildWidgetMeta('project-media', { project_id: input.project_id, images }, { images }),
+      _meta: buildWidgetMeta(
+        'project-media',
+        { project: projectWithHero, images: imageOutputs },
+        { images: imageOutputs }
+      ),
     },
   };
 }
@@ -390,16 +629,23 @@ export async function handleSetProjectHeroMedia(
   const result = await client.updateProject(input.project_id, { hero_image_id: input.hero_image_id });
   if (!result.success) return { success: false, error: result.error };
 
-  const imagesResult = await client.listImages(input.project_id);
-  const images = imagesResult.success
-    ? imagesResult.data.images.map((img) => toImageOutput(img as unknown as Record<string, unknown>))
-    : [];
+  const projectResult = await client.getProject(input.project_id);
+  if (!projectResult.success) return { success: false, error: projectResult.error };
+
+  const project = toProjectOutput(projectResult.data.project as unknown as Record<string, unknown>);
+  const images = (projectResult.data.project as unknown as { project_images?: unknown[] }).project_images || [];
+  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const projectWithHero = attachHeroImageUrl(project, imageOutputs);
 
   return {
     success: true,
     result: {
       structuredContent: { project_id: input.project_id, status: 'ok' },
-      _meta: buildWidgetMeta('project-media', { project_id: input.project_id, images, hero_image_id: input.hero_image_id }, { images }),
+      _meta: buildWidgetMeta(
+        'project-media',
+        { project: projectWithHero, images: imageOutputs },
+        { images: imageOutputs }
+      ),
     },
   };
 }
@@ -413,16 +659,23 @@ export async function handleSetProjectMediaLabels(
   const result = await client.updateImageLabels(input.project_id, input.labels);
   if (!result.success) return { success: false, error: result.error };
 
-  const imagesResult = await client.listImages(input.project_id);
-  const images = imagesResult.success
-    ? imagesResult.data.images.map((img) => toImageOutput(img as unknown as Record<string, unknown>))
-    : [];
+  const projectResult = await client.getProject(input.project_id);
+  if (!projectResult.success) return { success: false, error: projectResult.error };
+
+  const project = toProjectOutput(projectResult.data.project as unknown as Record<string, unknown>);
+  const images = (projectResult.data.project as unknown as { project_images?: unknown[] }).project_images || [];
+  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const projectWithHero = attachHeroImageUrl(project, imageOutputs);
 
   return {
     success: true,
     result: {
       structuredContent: { project_id: input.project_id, status: 'ok' },
-      _meta: buildWidgetMeta('project-media', { project_id: input.project_id, images }, { images }),
+      _meta: buildWidgetMeta(
+        'project-media',
+        { project: projectWithHero, images: imageOutputs },
+        { images: imageOutputs }
+      ),
     },
   };
 }
@@ -439,14 +692,21 @@ export async function handleUpdateProjectSections(
 
   const project = toProjectOutput(result.data.project as unknown as Record<string, unknown>);
   const images = (result.data.project as { project_images?: unknown[] }).project_images || [];
-  const missing = getMissingPublishFields(project);
-  if (images.length === 0) missing.push('images');
+  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const projectWithHero = attachHeroImageUrl(project, imageOutputs);
+  const missing = getMissingPublishFields(projectWithHero);
+  if (imageOutputs.length === 0) missing.push('images');
+  const publishable = canPublish(projectWithHero, imageOutputs.length);
 
   return {
     success: true,
     result: {
-      structuredContent: { project_id, missing_fields: missing },
-      _meta: buildWidgetMeta('project-draft', { project, missing_fields: missing, can_publish: canPublish(project, images.length) }, { project }),
+      structuredContent: { project_id, missing_fields: missing, can_publish: publishable },
+      _meta: buildWidgetMeta(
+        'project-draft',
+        { project: projectWithHero, missing_fields: missing, can_publish: publishable },
+        { project: projectWithHero }
+      ),
     },
   };
 }
@@ -463,23 +723,30 @@ export async function handleUpdateProjectMeta(
 
   const project = toProjectOutput(result.data.project as unknown as Record<string, unknown>);
   const images = (result.data.project as { project_images?: unknown[] }).project_images || [];
-  const missing = getMissingPublishFields(project);
-  if (images.length === 0) missing.push('images');
+  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const projectWithHero = attachHeroImageUrl(project, imageOutputs);
+  const missing = getMissingPublishFields(projectWithHero);
+  if (imageOutputs.length === 0) missing.push('images');
+  const publishable = canPublish(projectWithHero, imageOutputs.length);
 
   return {
     success: true,
     result: {
-      structuredContent: { project_id, status: 'ok' },
-      _meta: buildWidgetMeta('project-draft', { project, missing_fields: missing, can_publish: canPublish(project, images.length) }, { project }),
+      structuredContent: { project_id, missing_fields: missing, can_publish: publishable },
+      _meta: buildWidgetMeta(
+        'project-draft',
+        { project: projectWithHero, missing_fields: missing, can_publish: publishable },
+        { project: projectWithHero }
+      ),
     },
   };
 }
 
-export async function handleFinalizeProject(
+export async function handlePublishProject(
   input: z.infer<typeof finalizeProjectSchema>,
   auth: AuthContext,
   baseUrl: string
-): Promise<ToolResult<FinalizeProjectOutput>> {
+): Promise<ToolResult<PublishProjectOutput>> {
   const client = createClient(auth, baseUrl);
   const result = await client.publishProject(input.project_id);
   if (!result.success) return { success: false, error: result.error };
@@ -487,6 +754,7 @@ export async function handleFinalizeProject(
   const project = toProjectOutput(result.data.project as unknown as Record<string, unknown>);
   const images = (result.data.project as { project_images?: unknown[] }).project_images || [];
   const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const projectWithHero = attachHeroImageUrl(project, imageOutputs);
 
   const basePublicUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.co';
   const url = project.city_slug && project.project_type_slug && project.slug
@@ -497,9 +765,54 @@ export async function handleFinalizeProject(
     success: true,
     result: {
       structuredContent: { project_id: input.project_id, status: 'published', url },
-      _meta: buildWidgetMeta('project-status', { project: { ...project, images: imageOutputs }, missing_fields: [], can_publish: false, public_url: url }, { project: { ...project, images: imageOutputs } }),
+      _meta: buildWidgetMeta(
+        'project-status',
+        { project: { ...projectWithHero, images: imageOutputs }, missing_fields: [], can_publish: false, public_url: url },
+        { project: { ...projectWithHero, images: imageOutputs } }
+      ),
     },
   };
+}
+
+export async function handleUnpublishProject(
+  input: z.infer<typeof finalizeProjectSchema>,
+  auth: AuthContext,
+  baseUrl: string
+): Promise<ToolResult<UnpublishProjectOutput>> {
+  const client = createClient(auth, baseUrl);
+  const result = await client.unpublishProject(input.project_id);
+  if (!result.success) return { success: false, error: result.error };
+
+  const project = toProjectOutput(result.data.project as unknown as Record<string, unknown>);
+  const images = (result.data.project as { project_images?: unknown[] }).project_images || [];
+  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const projectWithHero = attachHeroImageUrl(project, imageOutputs);
+
+  const missing = getMissingPublishFields(projectWithHero);
+  if (imageOutputs.length === 0) missing.push('images');
+  const publishable = canPublish(projectWithHero, imageOutputs.length);
+
+  return {
+    success: true,
+    result: {
+      structuredContent: { project_id: input.project_id, status: 'draft' },
+      _meta: buildWidgetMeta(
+        'project-status',
+        { project: { ...projectWithHero, images: imageOutputs }, missing_fields: missing, can_publish: publishable },
+        { project: { ...projectWithHero, images: imageOutputs } }
+      ),
+    },
+  };
+}
+
+export async function handleFinalizeProject(
+  input: z.infer<typeof finalizeProjectSchema>,
+  auth: AuthContext,
+  baseUrl: string
+): Promise<ToolResult<FinalizeProjectOutput>> {
+  const publishResult = await handlePublishProject(input, auth, baseUrl);
+  if (!publishResult.success) return publishResult;
+  return { success: true, result: publishResult.result };
 }
 
 export async function handleListContractorProjects(
@@ -511,13 +824,32 @@ export async function handleListContractorProjects(
   const result = await client.listProjects({ status: input.status, limit: input.limit || 10, offset: input.offset || 0 });
   if (!result.success) return { success: false, error: result.error };
 
-  const projects = result.data.projects.map((p) => toProjectOutput(p as unknown as Record<string, unknown>));
+  const projects = result.data.projects.map((p) => {
+    const project = toProjectOutput(p as unknown as Record<string, unknown>);
+    const images = (p as { project_images?: unknown[] }).project_images || [];
+    const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+    return attachHeroImageUrl(project, imageOutputs);
+  });
+  const offset = input.offset || 0;
+  const count = offset + projects.length;
+  const hasMore = result.data.total > count;
 
   return {
     success: true,
     result: {
-      structuredContent: { count: projects.length, has_more: result.data.total > (input.offset || 0) + projects.length },
-      _meta: buildWidgetMeta('project-list', { projects, total: result.data.total, status_filter: input.status }, { projects }),
+      structuredContent: { count, has_more: hasMore },
+      _meta: buildWidgetMeta(
+        'project-list',
+        {
+          projects,
+          count,
+          has_more: hasMore,
+          offset,
+          limit: input.limit || 10,
+          status_filter: input.status,
+        },
+        { projects }
+      ),
     },
   };
 }
@@ -534,15 +866,20 @@ export async function handleGetProjectStatus(
   const project = toProjectOutput(result.data.project as unknown as Record<string, unknown>);
   const images = (result.data.project as { project_images?: unknown[] }).project_images || [];
   const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
-  const missing = getMissingPublishFields(project);
+  const projectWithHero = attachHeroImageUrl(project, imageOutputs);
+  const missing = getMissingPublishFields(projectWithHero);
   if (imageOutputs.length === 0) missing.push('images');
-  const publishable = canPublish(project, imageOutputs.length);
+  const publishable = canPublish(projectWithHero, imageOutputs.length);
 
   return {
     success: true,
     result: {
       structuredContent: { project_id: input.project_id, status: project.status, missing_fields: missing, can_publish: publishable },
-      _meta: buildWidgetMeta('project-status', { project: { ...project, images: imageOutputs }, missing_fields: missing, can_publish: publishable }, { project: { ...project, images: imageOutputs } }),
+      _meta: buildWidgetMeta(
+        'project-status',
+        { project: { ...projectWithHero, images: imageOutputs }, missing_fields: missing, can_publish: publishable },
+        { project: { ...projectWithHero, images: imageOutputs } }
+      ),
     },
   };
 }
@@ -597,15 +934,30 @@ export async function dispatchTool(
       if (!parsed.success) return { success: false, error: formatZodError(parsed.error) };
       return handleUpdateProjectMeta(parsed.data, auth, baseUrl);
     }
-    case 'finalize_project': {
+    case 'publish_project': {
       const parsed = finalizeProjectSchema.safeParse(toolArgs);
       if (!parsed.success) return { success: false, error: formatZodError(parsed.error) };
-      return handleFinalizeProject(parsed.data, auth, baseUrl);
+      return handlePublishProject(parsed.data, auth, baseUrl);
+    }
+    case 'unpublish_project': {
+      const parsed = finalizeProjectSchema.safeParse(toolArgs);
+      if (!parsed.success) return { success: false, error: formatZodError(parsed.error) };
+      return handleUnpublishProject(parsed.data, auth, baseUrl);
     }
     case 'list_contractor_projects': {
       const parsed = listContractorProjectsSchema.safeParse(toolArgs);
       if (!parsed.success) return { success: false, error: formatZodError(parsed.error) };
       return handleListContractorProjects(parsed.data, auth, baseUrl);
+    }
+    case 'list_projects': {
+      const parsed = listContractorProjectsSchema.safeParse(toolArgs);
+      if (!parsed.success) return { success: false, error: formatZodError(parsed.error) };
+      return handleListContractorProjects(parsed.data, auth, baseUrl);
+    }
+    case 'finalize_project': {
+      const parsed = finalizeProjectSchema.safeParse(toolArgs);
+      if (!parsed.success) return { success: false, error: formatZodError(parsed.error) };
+      return handleFinalizeProject(parsed.data, auth, baseUrl);
     }
     case 'get_project_status': {
       const parsed = getProjectStatusSchema.safeParse(toolArgs);

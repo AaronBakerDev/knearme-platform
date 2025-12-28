@@ -1,7 +1,7 @@
 # Data Model Documentation
 
 > **Version:** 1.0
-> **Last Updated:** December 8, 2025
+> **Last Updated:** December 26, 2025
 > **Database:** PostgreSQL 15 (Supabase)
 
 ---
@@ -293,7 +293,7 @@ Stores AI interview state and results.
 | `id` | `uuid` | NO | `gen_random_uuid()` | Primary key |
 | `project_id` | `uuid` | NO | - | FK to `projects.id` |
 | `questions` | `jsonb` | NO | `'[]'` | Array of Q&A objects |
-| `image_analysis` | `jsonb` | YES | `NULL` | GPT-4V analysis result |
+| `image_analysis` | `jsonb` | YES | `NULL` | Gemini 3 Flash (preview) vision analysis result |
 | `raw_transcripts` | `text[]` | NO | `'{}'` | Whisper transcriptions |
 | `generated_content` | `jsonb` | YES | `NULL` | Full AI generation result |
 | `status` | `text` | NO | `'in_progress'` | in_progress, completed, approved |

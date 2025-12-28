@@ -11,7 +11,6 @@
  */
 
 import type { Metadata } from 'next';
-import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 
 export const metadata: Metadata = {
   title: {

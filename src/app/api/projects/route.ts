@@ -8,12 +8,14 @@
  * @see /supabase/migrations/001_initial_schema.sql for RLS policies
  */
 
+import { randomUUID } from 'crypto';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { requireAuthUnified, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, apiCreated, handleApiError } from '@/lib/api/errors';
 import { slugify } from '@/lib/utils/slugify';
 import { composeProjectDescription } from '@/lib/projects/compose-description';
+import { trackProjectCreated } from '@/lib/observability/kpi-events';
 import type { Project, ProjectWithImages } from '@/types/database';
 
 /**
@@ -164,9 +166,10 @@ export async function POST(request: NextRequest) {
     const projectTypeSlug = project_type ? slugify(project_type) : null;
 
     // Generate unique slug for the project URL
-    const timestamp = Date.now().toString(36);
-    const baseSlug = title ? slugify(title) : `project-${timestamp}`;
-    const uniqueSlug = `${baseSlug}-${timestamp}`;
+    const slugSeed = randomUUID().split('-')[0];
+    const baseSlug = title ? slugify(title) : 'project';
+    const safeBaseSlug = baseSlug || 'project';
+    const uniqueSlug = `${safeBaseSlug}-${slugSeed}`;
 
     const descriptionManual = typeof description !== 'undefined' && description !== null;
     const composedDescription = composeProjectDescription({
@@ -209,6 +212,13 @@ export async function POST(request: NextRequest) {
       console.error('[POST /api/projects] Insert error:', error);
       return handleApiError(error);
     }
+
+    // Track project creation for time-to-publish KPI
+    // Fire-and-forget: don't block response on tracking
+    trackProjectCreated({
+      contractorId: contractor.id,
+      projectId: project.id,
+    }).catch((err) => console.error('[KPI] trackProjectCreated failed:', err));
 
     // Return with empty images array to match ProjectWithImages type
     const projectWithImages: ProjectWithImages = {

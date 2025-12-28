@@ -391,7 +391,7 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
 - **Service Description:**
   - Auto-generated content (400-500 words)
   - Common use cases, typical timelines, cost considerations
-  - Generated via OpenAI with city + service type context
+- Generated via AI SDK (Gemini 3 Flash preview) with city + service type context
 
 - **Filtered Project Grid:**
   - Only projects tagged with this service type
@@ -443,7 +443,7 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
 
 - **Project Description:**
   - 400-600 words, AI-generated from contractor interview
-  - GPT-4V image analysis insights
+- Gemini 3 Flash (preview) image analysis insights
   - Structured paragraphs: challenge, solution, outcome
 
 - **Image Gallery:**
@@ -645,7 +645,7 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
 ### Content Production Workflow
 
 **AI-Assisted Content Creation:**
-1. **Outline Generation:** GPT-4 from content plan + keyword research
+1. **Outline Generation:** Gemini 3 Flash (preview) from content plan + keyword research
 2. **First Draft:** AI writes 60-70% of content
 3. **Human Editing:** Subject matter expert reviews, adds nuance (30-40%)
 4. **Image Sourcing:** Mix of project portfolio images + stock
@@ -1090,7 +1090,7 @@ High-priority underserved queries with low competition:
 
 | Advantage | Description | Impact on SEO |
 |-----------|-------------|---------------|
-| **🚀 AI-Powered Content** | GPT-4 generates project descriptions 10x faster | Faster scaling (100s of projects/month) |
+| **🚀 AI-Powered Content** | Gemini 3 Flash (preview) generates project descriptions 10x faster | Faster scaling (100s of projects/month) |
 | **🎯 Hyper-Local Pages** | City + service type pages | Rank for long-tail local queries |
 | **📷 Real Project Portfolios** | Contractors upload real photos | Higher engagement, lower bounce rate |
 | **🆓 Free Contractor Profiles** | No pay-to-win bias | More contractor adoption → more content |

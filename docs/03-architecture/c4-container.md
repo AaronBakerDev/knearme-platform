@@ -23,13 +23,13 @@ C4Container
     Container_Boundary(knearme, "KnearMe Platform") {
         Container(pwa, "PWA Client", "Next.js, React", "Voice-first interview flow, photo upload, portfolio viewing")
         Container(api, "API Routes", "Next.js API", "RESTful endpoints for data operations and AI orchestration")
-        Container(ai_pipeline, "AI Pipeline", "TypeScript", "Orchestrates Gemini + Whisper calls for vision, transcription, generation")
+        Container(ai_pipeline, "AI Pipeline", "TypeScript", "Orchestrates AI SDK calls to Gemini + Whisper for vision, transcription, generation")
     }
 
     ContainerDb(postgres, "PostgreSQL", "Supabase", "Stores contractors, projects, interviews, images metadata")
     ContainerDb(storage, "Object Storage", "Supabase Storage", "Stores project images with CDN delivery")
 
-    System_Ext(gemini, "Google Gemini API", "Gemini 3.0 Flash (vision + generation + chat)")
+    System_Ext(gemini, "Google Gemini API", "Gemini 3 Flash (preview) (vision + generation + chat)")
     System_Ext(openai, "OpenAI API", "Whisper (transcription only)")
     System_Ext(auth, "Supabase Auth", "Email/password authentication")
 
@@ -141,9 +141,9 @@ C4Container
 | **Location** | Internal module, called by API routes |
 
 **Responsibilities:**
-- Send images to Gemini 3.0 Flash for analysis
+- Send images to Gemini 3 Flash (preview) for analysis
 - Send audio to Whisper for transcription
-- Send prompts to Gemini 3.0 Flash for content generation
+- Send prompts to Gemini 3 Flash (preview) for content generation
 - Stream chat responses with tool calling
 - Handle retries and error cases
 - Validate and parse AI responses with Zod schemas
@@ -201,7 +201,7 @@ sequenceDiagram
 
     C->>API: POST /api/ai/analyze
     API->>AI: analyzeProjectImages(paths)
-    AI->>GEM: Gemini 3.0 Flash vision request
+    AI->>GEM: Gemini 3 Flash (preview) vision request
     GEM-->>AI: Project type, materials
     AI-->>API: Analysis result
     API-->>C: Display confirmation
@@ -215,7 +215,7 @@ sequenceDiagram
 
     C->>API: POST /api/ai/generate
     API->>AI: generateContent(analysis, transcripts)
-    AI->>GEM: Gemini 3.0 Flash request
+    AI->>GEM: Gemini 3 Flash (preview) request
     GEM-->>AI: Generated content
     AI-->>API: Title, description, tags
     API-->>C: Preview for approval
@@ -239,7 +239,7 @@ sequenceDiagram
 | **Database** | Supabase PostgreSQL | Relational data |
 | **Storage** | Supabase Storage | Images with CDN |
 | **Auth** | Supabase Auth | Email/password |
-| **AI** | Gemini 3.0 Flash + Whisper | Vision, generation, chat + transcription |
+| **AI** | Gemini 3 Flash (preview) + Whisper | Vision, generation, chat + transcription |
 | **Hosting** | Vercel | Deployment, CDN, edge |
 
 ---

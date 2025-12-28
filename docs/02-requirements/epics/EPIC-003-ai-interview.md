@@ -1,7 +1,7 @@
 # EPIC-003: AI Interview Flow
 
 > **Version:** 1.1
-> **Last Updated:** December 10, 2025
+> **Last Updated:** December 26, 2025
 > **Status:** Ready for Development
 > **Priority:** Must Have (MVP) - CRITICAL PATH
 
@@ -18,18 +18,19 @@ The AI Interview is the core value proposition of KnearMe. This epic covers the 
 - **Time Savings**: Replaces 30+ minutes of writing with 2-3 minutes of voice input
 - **Accessibility**: Voice-first design works for contractors who don't type well
 
-### AI Provider Strategy (OpenAI Unified)
+### AI Provider Strategy (AI SDK: Gemini 3 Flash (preview) + Whisper)
 
-| Component | Provider | API | Cost |
+| Component | Provider | API | Notes |
 |-----------|----------|-----|------|
-| **Image Analysis** | OpenAI GPT-4o | `responses.parse()` | $2.50/1M in, $10/1M out |
-| **Voice Transcription** | OpenAI Whisper | `audio.transcriptions.create()` | $0.006/minute |
-| **Content Generation** | OpenAI GPT-4o | `responses.parse()` | $2.50/1M in, $10/1M out |
+| **Image Analysis** | Google Gemini 3 Flash (preview) | AI SDK `generateObject()` | See ADR-003 for pricing |
+| **Voice Transcription** | OpenAI Whisper | AI SDK `experimental_transcribe()` | See ADR-003 for pricing |
+| **Content Generation** | Google Gemini 3 Flash (preview) | AI SDK `generateObject()` | See ADR-003 for pricing |
 
-**Why OpenAI Only:**
-- Unified provider = single API key, single billing, consistent error handling
-- Type-safe outputs with Zod schemas via Responses API
-- GPT-4o excels at construction/trade image understanding
+**Why AI SDK + Gemini:**
+- Provider abstraction with a single SDK surface
+- Fast, cost-effective models with large context
+- Type-safe outputs with Zod schemas
+- Reliability-first policy: preview models are gated with stable fallback
 - See [ADR-003](/docs/05-decisions/adr/ADR-003-openai.md) for full rationale
 
 ### Success Metrics
@@ -77,47 +78,34 @@ The AI Interview is the core value proposition of KnearMe. This epic covers the 
 
 #### Technical Notes
 
-- **Provider**: OpenAI GPT-4o (vision)
-- **API**: Responses API with `responses.parse()` and Zod schemas
+- **Provider**: Gemini 3 Flash (preview) via AI SDK
+- **API**: `generateObject()` with Zod schemas
 - **Endpoint**: `POST /api/ai/analyze-images`
 - **Input**: Array of image URLs from storage
 - **Output**: Type-safe `ImageAnalysisResult` via Zod validation
-- **Fallback**: Manual selection if API fails or timeout
+- **Fallback**: Manual selection or stable model fallback if API fails
 
 ```typescript
-// OpenAI Responses API call with structured outputs
-import OpenAI from 'openai';
-import { zodResponseFormat } from 'openai/helpers/zod';
+// AI SDK image analysis with structured outputs
+import { generateObject } from 'ai';
+import { getVisionModel } from '@/lib/ai/providers';
 import { ImageAnalysisSchema } from './schemas';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 const analyzeImages = async (imageUrls: string[]) => {
-  const inputContent: OpenAI.Responses.ResponseInputItem[] = [
-    {
-      type: 'message',
-      role: 'user',
-      content: [
-        { type: 'input_text', text: 'Analyze these masonry project images...' },
-        ...imageUrls.map(url => ({
-          type: 'input_image' as const,
-          image_url: url,
-        })),
-      ],
-    },
+  const content = [
+    { type: 'text', text: 'Analyze these masonry project images...' },
+    ...imageUrls.map((url) => ({ type: 'image', image: new URL(url) })),
   ];
 
-  const response = await openai.responses.parse({
-    model: 'gpt-4o',
-    instructions: IMAGE_ANALYSIS_PROMPT,
-    input: inputContent,
-    text: {
-      format: zodResponseFormat(ImageAnalysisSchema, 'image_analysis'),
-    },
-    max_output_tokens: 500,
+  const { object } = await generateObject({
+    model: getVisionModel(),
+    schema: ImageAnalysisSchema,
+    system: IMAGE_ANALYSIS_PROMPT,
+    messages: [{ role: 'user', content }],
+    maxOutputTokens: 500,
   });
 
-  return response.output_parsed; // Type-safe ImageAnalysisResult
+  return object; // Type-safe ImageAnalysisResult
 };
 ```
 
@@ -264,29 +252,26 @@ const useVoiceRecorder = () => {
 
 #### Technical Notes
 
-- **Provider**: OpenAI Whisper API
+- **Provider**: OpenAI Whisper via AI SDK
 - **Endpoint**: `POST /api/ai/transcribe`
 - **Model**: `whisper-1`
-- **Cost**: ~$0.006/minute
 - **Language**: English (en)
+- **Fallback**: Text-only input when transcription fails
 
 ```typescript
-import OpenAI from 'openai';
+import { experimental_transcribe as transcribe } from 'ai';
+import { getTranscriptionModel } from '@/lib/ai/providers';
 
-const openai = new OpenAI();
-
-const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
-  const formData = new FormData();
-  formData.append('file', audioBlob, 'audio.webm');
-  formData.append('model', 'whisper-1');
-  formData.append('language', 'en');
-
-  const response = await openai.audio.transcriptions.create({
-    file: formData.get('file') as File,
-    model: 'whisper-1',
+const transcribeAudio = async (audioData: ArrayBuffer): Promise<string> => {
+  const result = await transcribe({
+    model: getTranscriptionModel(),
+    audio: audioData,
+    providerOptions: {
+      openai: { language: 'en' },
+    },
   });
 
-  return response.text;
+  return result.text;
 };
 ```
 
@@ -524,37 +509,33 @@ interface InterviewSession {
 
 #### Technical Notes
 
-- **Provider**: OpenAI GPT-4o
-- **API**: Responses API with `responses.parse()` and Zod schemas
+- **Provider**: Gemini 3 Flash (preview) via AI SDK
+- **API**: `generateObject()` with Zod schemas
 - **Endpoint**: `POST /api/ai/generate-content`
 - **Temperature**: 0.7 (balanced creativity/consistency)
 - **Max Output Tokens**: 1500
 
 ```typescript
-// OpenAI Responses API with type-safe structured outputs
-import OpenAI from 'openai';
-import { zodResponseFormat } from 'openai/helpers/zod';
+// AI SDK with type-safe structured outputs
+import { generateObject } from 'ai';
+import { getGenerationModel } from '@/lib/ai/providers';
 import { GeneratedContentSchema } from './schemas';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const generateContent = async (
   imageAnalysis: ImageAnalysisResult,
   interviewResponses: Array<{ question: string; answer: string }>,
   businessContext: BusinessContext
 ): Promise<GeneratedContent> => {
-  const response = await openai.responses.parse({
-    model: 'gpt-4o',
-    instructions: CONTENT_GENERATION_PROMPT,
-    input: buildContentGenerationMessage(imageAnalysis, interviewResponses, businessContext),
-    text: {
-      format: zodResponseFormat(GeneratedContentSchema, 'generated_content'),
-    },
-    max_output_tokens: 1500,
+  const { object } = await generateObject({
+    model: getGenerationModel(),
+    schema: GeneratedContentSchema,
+    system: CONTENT_GENERATION_PROMPT,
+    prompt: buildContentGenerationMessage(imageAnalysis, interviewResponses, businessContext),
+    maxOutputTokens: 1500,
     temperature: 0.7,
   });
 
-  return response.output_parsed; // Type-safe GeneratedContent
+  return object; // Type-safe GeneratedContent
 };
 ```
 
@@ -628,22 +609,24 @@ const generateContent = async (
 |-------------|--------|-------|
 | Image analysis time | <10s | Gemini API |
 | Voice transcription time | <5s | Whisper API |
-| Content generation time | <15s | GPT-4o |
+| Content generation time | <15s | Gemini 3 Flash (preview) |
 | Interview completion rate | >85% | Funnel metric |
 | Voice recording quality | 16kHz mono | Whisper optimal |
 
 ---
 
-## Cost Projections (OpenAI Unified)
+## Cost Projections (Gemini + Whisper via AI SDK)
 
 **Per Project (Average Case):**
 
 | Component | Usage | Cost |
 |-----------|-------|------|
-| GPT-4o Image Analysis | ~500 tokens in/out | ~$0.08 |
+| Gemini 3 Flash (preview) Image Analysis | ~500 tokens in/out | ~$0.08 |
 | Whisper Transcription | ~2 minutes | ~$0.02 |
-| GPT-4o Content Generation | ~2000 tokens | ~$0.05 |
+| Gemini 3 Flash (preview) Content Generation | ~2000 tokens | ~$0.05 |
 | **Total per project** | | **~$0.15** |
+
+*Estimates only. Update using ADR-003 when pricing changes or Gemini 3 exits preview.*
 
 **Monthly Projections:**
 
@@ -661,7 +644,8 @@ const generateContent = async (
 |------------|------|-------|
 | EPIC-002 | Internal | Requires uploaded photos |
 | EPIC-004 | Internal | Feeds into publishing |
-| OpenAI API | External | GPT-4o (vision + generation) + Whisper |
+| Google Gemini API | External | Gemini 3 Flash (preview) for vision + generation |
+| OpenAI API | External | Whisper transcription |
 
 ---
 
@@ -825,7 +809,7 @@ interface InterviewSession {
   // Raw transcripts for debugging
   raw_transcripts: string[];
 
-  // Generated content (GPT-4o)
+  // Generated content (Gemini 3 Flash - preview)
   generated_content: {
     title: string;
     description: string;

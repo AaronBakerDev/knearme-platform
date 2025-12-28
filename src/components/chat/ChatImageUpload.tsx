@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import { ImageIcon, Loader2 } from 'lucide-react';
+import { ImageIcon } from 'lucide-react';
 import { ImageUploader, type UploadedImage } from '@/components/upload/ImageUploader';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';

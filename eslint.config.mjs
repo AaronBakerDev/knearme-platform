@@ -14,7 +14,27 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated assets we don't lint
     "public/**",
+    "mcp-server/dist/**",
+    "mcp-server/widgets/dist/**",
   ]),
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
+  {
+    files: ["mcp-server/widgets/src/**/*.{ts,tsx}"],
+    rules: {
+      "@next/next/no-img-element": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

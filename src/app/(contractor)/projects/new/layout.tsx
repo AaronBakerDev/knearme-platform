@@ -4,13 +4,12 @@
  * Overrides the default contractor layout to provide an immersive,
  * ChatGPT-style experience without navigation chrome or container constraints.
  *
- * Key differences from parent layout:
- * - No header navigation
- * - Full viewport height/width
- * - No container constraints
+ * Uses CSS breakout pattern to escape parent's `container mx-auto`:
+ * - `w-screen` sets width to 100vw (full viewport width)
+ * - `margin-left: calc(50% - 50vw)` shifts element to align with viewport edge
  *
  * @see /src/app/(contractor)/layout.tsx for parent layout
- * @see /docs/03-architecture/ui-patterns.md for design decisions
+ * @see /src/app/(contractor)/projects/[id]/edit/layout.tsx for similar pattern
  */
 
 import { redirect } from 'next/navigation';
@@ -30,7 +29,9 @@ export default async function ChatLayout({
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-background">
+    <div
+      className="fixed inset-0 top-14 overflow-hidden bg-background z-10"
+    >
       {children}
     </div>
   );

@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
+import { estimateTokens } from '@/lib/chat/context-loader';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -32,11 +33,13 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { role, content, metadata } = body;
+    const { role, content, parts, metadata } = body;
+    const contentValue = typeof content === 'string' ? content : '';
+    const hasParts = Array.isArray(parts) && parts.length > 0;
 
-    if (!role || !content) {
+    if (!role || (!contentValue && !hasParts)) {
       return NextResponse.json(
-        { error: 'role and content are required' },
+        { error: 'role and content or parts are required' },
         { status: 400 }
       );
     }
@@ -54,7 +57,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: session, error: sessionError } = await (supabase as any)
       .from('chat_sessions')
-      .select('id')
+      .select('id, message_count')
       .eq('id', sessionId)
       .single();
 
@@ -65,15 +68,20 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Insert message
+    // Insert message with full parts array stored in metadata for tool call visibility
+    // Parts include text, tool-call, and tool-result types from Vercel AI SDK
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: message, error } = await (supabase as any)
       .from('chat_messages')
       .insert({
         session_id: sessionId,
         role,
-        content,
-        metadata: metadata || {},
+        content: contentValue,
+        metadata: {
+          ...(metadata || {}),
+          // Store full parts array if provided, otherwise create text-only parts
+          parts: parts || [{ type: 'text', text: content }],
+        },
       })
       .select()
       .single();
@@ -81,6 +89,25 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (error) {
       console.error('[POST /api/chat/sessions/[id]/messages] Error:', error);
       throw error;
+    }
+
+    // Update session message count + estimated tokens for context loading
+    const newCount = (session.message_count ?? 0) + 1;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: updateError } = await (supabase as any)
+      .from('chat_sessions')
+      .update({
+        message_count: newCount,
+        estimated_tokens: estimateTokens(newCount, true, false),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', sessionId);
+
+    if (updateError) {
+      console.error(
+        '[POST /api/chat/sessions/[id]/messages] Failed to update message count:',
+        updateError
+      );
     }
 
     return NextResponse.json({ message }, { status: 201 });

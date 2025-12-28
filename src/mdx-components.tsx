@@ -138,9 +138,11 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
 
     // Images with Next.js optimization
-    img: ({ src, alt, ref: _ref, ...props }) => {
+    img: ({ src, alt, ref: _ref, className, ...props }) => {
       // Skip if no src
       if (!src) return null;
+
+      const imageClassName = ['rounded-lg w-full', className].filter(Boolean).join(' ');
 
       // External images use regular img tag
       if (src.startsWith("http")) {
@@ -150,8 +152,9 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
             <img
               src={src}
               alt={alt || ""}
-              className="rounded-lg w-full"
+              className={imageClassName}
               loading="lazy"
+              {...props}
             />
             {alt && (
               <span className="block text-sm text-muted-foreground text-center mt-2">
@@ -170,7 +173,8 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
             alt={alt || ""}
             width={800}
             height={450}
-            className="rounded-lg w-full h-auto"
+            className={['rounded-lg w-full h-auto', className].filter(Boolean).join(' ')}
+            {...props}
           />
           {alt && (
             <span className="block text-sm text-muted-foreground text-center mt-2">

@@ -19,21 +19,19 @@ export default function DashboardLoading() {
         <Skeleton className="h-5 w-40" />
       </div>
 
-      {/* Stats cards skeleton */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Stats strip skeleton */}
+      <div className="flex gap-3 md:gap-6 py-3 px-3 md:px-4 bg-muted/30 rounded-xl overflow-x-auto">
         {[1, 2, 3].map((i) => (
-          <Card key={i} className="border-0 shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="w-10 h-10 rounded-full" />
-              </div>
-              <Skeleton className="h-10 w-16 mt-2" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-3 w-36" />
-            </CardContent>
-          </Card>
+          <div key={i} className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+            <Skeleton className="w-2 h-2 md:w-8 md:h-8 rounded-full" />
+            <div className="min-w-0">
+              <Skeleton className="h-6 md:h-7 w-10 md:w-12" />
+              <Skeleton className="h-3 w-12 mt-1" />
+            </div>
+            {i < 3 && (
+              <div className="w-px h-8 bg-border ml-auto hidden md:block" />
+            )}
+          </div>
         ))}
       </div>
 

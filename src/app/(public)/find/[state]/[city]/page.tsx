@@ -30,7 +30,7 @@ import {
   getCategoryListings,
 } from '@/lib/data/directory';
 import { getCategoryMeta } from '@/lib/constants/directory-categories';
-import { generateBreadcrumbSchema, schemaToString } from '@/lib/seo/structured-data';
+import { schemaToString } from '@/lib/seo/structured-data';
 import type { DirectoryPlace } from '@/types/directory';
 
 // ISR: Revalidate every 24 hours

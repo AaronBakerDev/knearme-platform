@@ -54,6 +54,7 @@ const fieldLabels: Record<string, string> = {
   project_type: 'Project Type',
   city: 'City',
   state: 'State',
+  hero_image: 'Hero Image',
   hero_image_id: 'Hero Image',
   images: 'Images',
 };

@@ -18,11 +18,13 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin, Calendar, Wrench, ArrowLeft } from 'lucide-react';
+import sanitizeHtml from 'sanitize-html';
 import { createAdminClient } from '@/lib/supabase/server';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PhotoGallery } from '@/components/portfolio/PhotoGallery';
+import { DescriptionBlocks } from '@/components/portfolio/DescriptionBlocks';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 import { RelatedProjects } from '@/components/seo/RelatedProjects';
 import { fetchRelatedProjects } from '@/lib/data/projects';
@@ -31,6 +33,8 @@ import {
   schemaToString,
 } from '@/lib/seo/structured-data';
 import { getPublicUrl } from '@/lib/storage/upload';
+import { sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
+import { formatProjectLocation } from '@/lib/utils/location';
 import type { Project, Contractor, ProjectImage } from '@/types/database';
 
 type PageParams = {
@@ -83,6 +87,42 @@ type ProjectWithRelations = Project & {
   contractor: Contractor;
   project_images: ProjectImage[];
 };
+
+const ALLOWED_DESCRIPTION_TAGS = ['p', 'strong', 'em', 'ul', 'ol', 'li', 'br'];
+
+function hasHtmlTags(text: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(text);
+}
+
+function renderDescription(description: string, blocks: unknown) {
+  const parsedBlocks = sanitizeDescriptionBlocks(blocks);
+  if (parsedBlocks.length > 0) {
+    return <DescriptionBlocks blocks={parsedBlocks} />;
+  }
+
+  if (hasHtmlTags(description)) {
+    const safeHtml = sanitizeHtml(description, {
+      allowedTags: ALLOWED_DESCRIPTION_TAGS,
+      allowedAttributes: {},
+      disallowedTagsMode: 'discard',
+    });
+
+    return (
+      <article
+        className="prose prose-lg max-w-none mb-8"
+        dangerouslySetInnerHTML={{ __html: safeHtml }}
+      />
+    );
+  }
+
+  return (
+    <article className="prose prose-lg max-w-none mb-8">
+      {description.split(/\n\s*\n/).map((paragraph, idx) => (
+        <p key={idx}>{paragraph}</p>
+      ))}
+    </article>
+  );
+}
 
 /**
  * Generate metadata for SEO including OG/Twitter images.
@@ -188,6 +228,11 @@ export default async function ProjectPage({ params }: PageParams) {
   const images = project.project_images.sort(
     (a, b) => a.display_order - b.display_order
   );
+  const locationLabel = formatProjectLocation({
+    neighborhood: project.neighborhood,
+    city: project.city,
+    state: project.state ?? contractor.state,
+  });
 
   // Generate structured data
   const projectSchema = generateProjectSchema(project as Project, contractor, images);
@@ -251,12 +296,12 @@ export default async function ProjectPage({ params }: PageParams) {
               <h1 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">{project.title}</h1>
 
               <div className="flex flex-wrap gap-3">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 text-sm">
-                  <MapPin className="h-4 w-4 text-primary" />
-                  <span className="font-medium">
-                    {project.city}, {contractor.state}
-                  </span>
-                </div>
+                {locationLabel && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 text-sm">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <span className="font-medium">{locationLabel}</span>
+                  </div>
+                )}
                 {publishedDate && (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 text-sm">
                     <Calendar className="h-4 w-4 text-primary" />
@@ -301,11 +346,8 @@ export default async function ProjectPage({ params }: PageParams) {
             )}
 
             {/* Description */}
-            <article className="prose prose-lg max-w-none mb-8">
-              {project.description?.split('\n\n').map((paragraph, idx) => (
-                <p key={idx}>{paragraph}</p>
-              ))}
-            </article>
+            {project.description &&
+              renderDescription(project.description, project.description_blocks)}
 
             {/* Materials & Techniques */}
             <div className="grid md:grid-cols-2 gap-6 mb-8">

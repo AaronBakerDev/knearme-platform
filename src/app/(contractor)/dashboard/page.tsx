@@ -240,14 +240,14 @@ export default async function DashboardPage() {
             <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-2">
               <User className="w-6 h-6 text-muted-foreground" />
             </div>
-            <CardTitle className="text-lg">Complete Your Profile</CardTitle>
+            <CardTitle className="text-lg">Edit Profile</CardTitle>
             <CardDescription>
-              Add more details to help customers find and trust you
+              Keep your business details and services up to date
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="outline" asChild className="w-full" size="lg">
-              <Link href="/profile/edit">Edit Profile</Link>
+              <Link href="/profile/edit">Update Profile</Link>
             </Button>
           </CardContent>
         </Card>

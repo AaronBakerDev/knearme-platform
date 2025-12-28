@@ -40,7 +40,6 @@ function generateUrlEntry(
   </url>`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function GET(
   _request: Request,
   context: { params: Promise<Record<string, string>> }

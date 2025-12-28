@@ -1,7 +1,7 @@
 # Launch Checklist & Plan
 
 > **Version:** 1.0
-> **Last Updated:** December 8, 2025
+> **Last Updated:** December 26, 2025
 > **Target Launch:** MVP Soft Launch
 
 ---
@@ -35,7 +35,8 @@ We're doing a **controlled soft launch** rather than a public launch:
 | Database schema deployed | ⬜ | Dev | Run migrations |
 | RLS policies active | ⬜ | Dev | Test with different users |
 | Supabase Storage bucket created | ⬜ | Dev | `project-images` bucket |
-| OpenAI API key configured | ⬜ | Dev | Production key with billing |
+| Gemini API key configured | ⬜ | Dev | Production key with billing |
+| OpenAI Whisper key configured | ⬜ | Dev | Production key with billing |
 | Vercel project deployed | ⬜ | Dev | Connected to GitHub |
 | Custom domain configured | ⬜ | Dev | knearme.com (or similar) |
 | SSL/TLS active | ⬜ | Auto | Via Vercel |
@@ -249,7 +250,7 @@ Based on soft launch feedback, prioritize:
 
 | Risk | Likelihood | Mitigation |
 |------|------------|------------|
-| AI costs exceed budget | Medium | Set OpenAI usage limits, monitor daily |
+| AI costs exceed budget | Medium | Set Gemini/OpenAI usage limits, monitor daily |
 | Contractors don't return | High | Personal follow-up, push notifications |
 | Voice recording issues on iOS | Medium | Test extensively, text fallback prominent |
 | SEO doesn't gain traction | Medium | Focus on long-tail keywords, local |
@@ -264,7 +265,8 @@ Based on soft launch feedback, prioritize:
 | Dev Lead | [Your contact] | On-call 8am-10pm |
 | Supabase Support | support@supabase.com | Via dashboard |
 | Vercel Support | support@vercel.com | Via dashboard |
-| OpenAI Support | help.openai.com | Ticket system |
+| Google AI Support | ai.google.dev | Docs + support |
+| OpenAI Support | help.openai.com | Ticket system (Whisper) |
 
 ---
 

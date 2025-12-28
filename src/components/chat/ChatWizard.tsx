@@ -6,159 +6,629 @@
  * Full-screen immersive chat interface for gathering project info,
  * uploading images, and generating portfolio content.
  *
- * Design: "Void Interface" - minimal chrome, floating elements,
- * messages centered in a 650px column.
+ * Layout (matching edit page pattern):
+ * - Desktop (lg+): Flex layout with chat (flex-1) + collapsible canvas (400px)
+ * - Canvas starts collapsed, auto-expands when first photo uploaded
+ * - Tablet/Mobile: Single column chat + preview pill/overlay
  *
  * Uses Vercel AI SDK v6's useChat hook for streaming chat.
  * Persists conversation to database so users can resume sessions.
  *
  * @see /src/app/api/chat/route.ts for the streaming chat API
  * @see /src/app/api/chat/sessions/ for persistence API
+ * @see /src/components/chat/CanvasPanel.tsx for side panel layout pattern
  * @see https://sdk.vercel.ai/docs/ai-sdk-ui for AI SDK v6 docs
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage } from 'ai';
-import { Loader2, AlertCircle, Sparkles } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, X, CheckCircle2, RefreshCw } from 'lucide-react';
 import { ChatMessages } from './ChatMessages';
 import { ChatInput } from './ChatInput';
 import { ChatPhotoSheet } from './ChatPhotoSheet';
+import { CanvasPanel, type CanvasPanelSize, type CanvasTab } from './CanvasPanel';
+import { PreviewPill } from './PreviewPill';
+import { PreviewOverlay } from './PreviewOverlay';
+import { CollectedDataPeekBar } from './CollectedDataPeekBar';
+import { QuickActionChips } from './QuickActionChips';
 import { Button } from '@/components/ui/button';
-import { getOpeningMessage } from '@/lib/chat/chat-prompts';
+import { getOpeningMessage, getEditOpeningMessage } from '@/lib/chat/chat-prompts';
+import {
+  createSummarySystemMessage,
+  type ContextLoadResult,
+} from '@/lib/chat/context-shared';
+import {
+  useInlineImages,
+  useProjectData,
+  useCompleteness,
+  useAutoSummarize,
+  useSaveQueue,
+  useQuickActions,
+  useMilestoneToasts,
+  MilestoneToast,
+} from './hooks';
+import type { QuickActionItem, QuickActionType } from './hooks';
+import { SaveIndicator } from './artifacts/shared/SaveStatusBadge';
 import type { UploadedImage } from '@/components/upload/ImageUploader';
-import type { ExtractedProjectData, ChatPhase } from '@/lib/chat/chat-types';
+import type { ExtractedProjectData, ChatPhase, GeneratedContent } from '@/lib/chat/chat-types';
+import type { ShowPortfolioPreviewOutput, SuggestQuickActionsOutput } from '@/lib/chat/tool-schemas';
 import { cn } from '@/lib/utils';
+import { formatProjectLocation } from '@/lib/utils/location';
+import { parseDescriptionBlocksFromHtml } from '@/lib/content/description-blocks.client';
+import { blocksToHtml, sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
+import type { Contractor, Project, ProjectImage } from '@/types/database';
+import type { RelatedProject } from '@/lib/data/projects';
 
 /**
- * Database message format from /api/chat/sessions endpoints.
+ * Task A6: Type-safe interface for ContentEditor tool parts.
+ * Used for safe updates when regenerating content.
  */
-interface DbMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  metadata?: Record<string, unknown>;
-  created_at: string;
+interface ContentEditorToolPart {
+  type: 'tool-showContentEditor';
+  state: string;
+  toolCallId: string;
+  output?: unknown;
+  input?: unknown;
+  errorText?: string;
 }
 
 /**
- * Convert database message to Vercel AI SDK UIMessage format.
+ * Task A6: Type guard to validate ContentEditor tool part structure.
+ * @see /src/types/artifacts.ts for related type definitions
  */
-function dbMessageToUIMessage(dbMsg: DbMessage): UIMessage {
-  return {
-    id: dbMsg.id,
-    role: dbMsg.role,
-    parts: [{ type: 'text', text: dbMsg.content }],
+function isContentEditorToolPart(part: unknown): part is ContentEditorToolPart {
+  if (typeof part !== 'object' || part === null) return false;
+  const p = part as Record<string, unknown>;
+  return (
+    p.type === 'tool-showContentEditor' &&
+    typeof p.state === 'string' &&
+    typeof p.toolCallId === 'string'
+  );
+}
+
+const QUICK_ACTION_LIMIT = 5;
+
+const QUICK_ACTION_TYPES: QuickActionType[] = [
+  'addPhotos',
+  'generate',
+  'openForm',
+  'showPreview',
+  'insert',
+];
+
+function isQuickActionType(value: string): value is QuickActionType {
+  return QUICK_ACTION_TYPES.includes(value as QuickActionType);
+}
+
+function mergeQuickActions(primary: QuickActionItem[], fallback: QuickActionItem[]): QuickActionItem[] {
+  const merged: QuickActionItem[] = [];
+  const seen = new Set<string>();
+
+  const addAction = (action: QuickActionItem) => {
+    if (action.type === 'insert' && !action.value) return;
+    const key = `${action.type}:${action.label}`.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(action);
   };
+
+  for (const action of [...primary, ...fallback]) {
+    addAction(action);
+    if (merged.length >= QUICK_ACTION_LIMIT) break;
+  }
+
+  return merged;
 }
+
+function coerceQuickActionSuggestions(payload: unknown): QuickActionItem[] {
+  if (!payload || typeof payload !== 'object') return [];
+  const actions = (payload as SuggestQuickActionsOutput).actions;
+  if (!Array.isArray(actions)) return [];
+
+  const now = Date.now();
+  return actions
+    .flatMap((action, index): QuickActionItem[] => {
+      if (!action || typeof action !== 'object') return [];
+      const { label, type, value } = action as {
+        label?: unknown;
+        type?: unknown;
+        value?: unknown;
+      };
+
+      if (typeof label !== 'string' || !label.trim()) return [];
+      if (typeof type !== 'string' || !isQuickActionType(type)) return [];
+      if (type === 'insert' && (typeof value !== 'string' || !value.trim())) return [];
+
+      return [
+        {
+          id: `agent-${now}-${index}`,
+          label: label.trim(),
+          type,
+          value: typeof value === 'string' ? value : undefined,
+        },
+      ];
+    })
+    .slice(0, QUICK_ACTION_LIMIT);
+}
+
+async function getResponseErrorMessage(response: Response, fallback: string): Promise<string> {
+  const contentType = response.headers.get('content-type');
+  if (!contentType?.includes('application/json')) {
+    return fallback;
+  }
+
+  try {
+    const data = await response.json();
+    return data?.error?.message ?? data?.message ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function mergeUniqueStrings(...arrays: string[][]): string[] {
+  return Array.from(
+    new Set(
+      arrays
+        .flat()
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+    )
+  );
+}
+
+/**
+ * Mode determines whether ChatWizard is creating a new project or editing existing.
+ *
+ * - 'create': Gathering project info from scratch, uses conversation prompts
+ * - 'edit': Refining existing project content, loads project data on mount
+ */
+export type ChatWizardMode = 'create' | 'edit';
 
 interface ChatWizardProps {
-  /** Project ID to associate with this wizard session */
-  projectId: string;
+  /**
+   * Project ID to associate with this wizard session.
+   * In create mode, this is null initially and set after first message
+   * triggers project creation via onEnsureProject.
+   */
+  projectId: string | null;
+  /**
+   * Eager creation callback - creates project on first user message.
+   * Only used in create mode. Returns the new project ID.
+   * Called before sending the first message to enable immediate persistence.
+   *
+   * Fallback: Also called by useInlineImages if user uploads before typing.
+   *
+   * @see /src/app/(contractor)/projects/new/page.tsx for implementation
+   */
+  onEnsureProject?: () => Promise<string>;
+  /**
+   * Operation mode - 'create' for new projects, 'edit' for existing.
+   * Edit mode loads existing project data and uses edit-focused prompts.
+   * @default 'create'
+   */
+  mode?: ChatWizardMode;
   /** Called when wizard completes successfully */
   onComplete?: (projectId: string) => void;
   /** Called when user wants to cancel */
   onCancel?: () => void;
   /** Optional additional className */
   className?: string;
+  /** Optional form content for the side panel */
+  formContent?: React.ReactNode;
+  /** Optional public preview data for full parity rendering */
+  publicPreview?: {
+    project: Project;
+    contractor: Contractor;
+    images: (ProjectImage & { url?: string })[];
+    relatedProjects?: RelatedProject[];
+  };
+  /** Callback when project data changes (edit mode) */
+  onProjectUpdate?: () => void;
 }
 
 /**
  * Main chat wizard component.
  *
- * Flow:
+ * Flow (Create Mode):
  * 1. Conversation - Gather project info (photos can be added anytime via floating button)
  * 2. Generate - When user has photos + conversation, they can generate content
  * 3. Review - User reviews/edits content
  * 4. Publish - Save and publish
+ *
+ * Flow (Edit Mode):
+ * 1. Load existing project data + images
+ * 2. Review - Start in review phase with existing content
+ * 3. Edit via chat - User requests changes, AI applies them
+ * 4. Publish - Save updates and optionally publish
  */
 export function ChatWizard({
   projectId,
+  onEnsureProject,
+  mode = 'create',
   onComplete,
-  onCancel,
   className,
+  formContent,
+  publicPreview,
+  onProjectUpdate,
 }: ChatWizardProps) {
-  const [phase, setPhase] = useState<ChatPhase>('conversation');
+  const isEditMode = mode === 'edit';
+  // In edit mode, start in 'review' phase; in create mode, start in 'conversation'
+  const [phase, setPhase] = useState<ChatPhase>(isEditMode ? 'review' : 'conversation');
   const [extractedData, setExtractedData] = useState<ExtractedProjectData>({});
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState('');
+  const [agentQuickActions, setAgentQuickActions] = useState<QuickActionItem[]>([]);
+  const { currentMilestone, triggerMilestone, dismissMilestone, resetMilestones } = useMilestoneToasts();
+  /**
+   * When true, shows a retry button for recoverable errors (e.g., load failures).
+   * Critical errors that can be retried should set this along with setError.
+   * @see Issue #4 in todo/ai-sdk-phase-6-edit-mode.md
+   */
+  const [canRetry, setCanRetry] = useState(false);
+  const [isSavingContent, setIsSavingContent] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regeneratingSection, setRegeneratingSection] = useState<'title' | 'description' | 'seo' | null>(null);
 
   // Photo sheet state (replaces floating panel)
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
 
+  // Preview overlay state for tablet/mobile
+  const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
+  const [overlayTab, setOverlayTab] = useState<'preview' | 'form'>('preview');
+  const [previewHints, setPreviewHints] = useState<{
+    title: string | null;
+    message: string | null;
+    highlightFields: string[];
+    updatedAt: number | null;
+  }>({
+    title: null,
+    message: null,
+    highlightFields: [],
+    updatedAt: null,
+  });
+
+  const milestoneReadyRef = useRef(false);
+  const prevImageCountRef = useRef(0);
+  const prevProjectTypeRef = useRef<string | undefined>(undefined);
+  const prevMaterialsCountRef = useRef(0);
+  const prevCanGenerateRef = useRef(false);
+  const prevPhaseRef = useRef<ChatPhase>(phase);
+
+  // Canvas state for desktop (matches edit page behavior)
+  const [canvasSize, setCanvasSize] = useState<CanvasPanelSize>(
+    isEditMode ? 'medium' : 'collapsed'
+  );
+  const [canvasTab, setCanvasTab] = useState<CanvasTab>('preview');
+  const hasFormContent = Boolean(formContent);
+
+  const previewHighlightTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewMessageTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Inline image upload hook for drag-drop and artifact actions
+  // EAGER CREATION: Project is created on first message, so projectId exists before image upload.
+  // We keep onEnsureProject as a fallback for edge cases (e.g., user uploads before typing).
+  const {
+    addImages,
+    categorizeImage,
+    removeImage,
+    error: imageError,
+    clearError: clearImageError,
+  } = useInlineImages({
+    projectId: projectId || '',
+    initialImages: uploadedImages,
+    onImagesChange: setUploadedImages,
+    onEnsureProject, // Fallback: create project if user uploads before sending a message
+  });
+
+  // Derived data for live preview canvas
+  const projectData = useProjectData(extractedData, uploadedImages);
+  const completeness = useCompleteness(extractedData, uploadedImages);
+  const previewTitle = previewHints.title ?? projectData.suggestedTitle;
+
+  // Auto-expand canvas when first photo is uploaded (desktop only)
+  const hasPhotos = uploadedImages.length > 0;
+  useEffect(() => {
+    if (hasPhotos && canvasSize === 'collapsed') {
+      setCanvasSize('medium');
+    }
+  }, [hasPhotos, canvasSize]);
+
   // Session persistence state
   const [sessionId, setSessionId] = useState<string | null>(null);
+
+  /**
+   * Auto-summarize session on end (tab close, inactivity).
+   * Only triggers when the conversation exceeds the context budget.
+   * Uses Beacon API for reliable delivery even on tab close.
+   *
+   * @see /src/lib/chat/memory.ts for memory system
+   * @see /src/app/api/chat/sessions/[id]/summarize/route.ts
+   */
+  const { updateMessageCount } = useAutoSummarize({
+    sessionId,
+    enabled: true,
+    minMessages: 3,
+  });
+
+  /**
+   * Optimistic save queue with retry.
+   * Replaces the old debounced save for more reliable persistence.
+   *
+   * @see /src/components/chat/hooks/useSaveQueue.ts
+   */
+  const { save: queueSave, status: saveStatus } = useSaveQueue({
+    sessionId,
+    enabled: true,
+  });
+
   const [isLoadingSession, setIsLoadingSession] = useState(true);
 
   // Track which messages have been saved to avoid duplicates
   const savedMessageIds = useRef<Set<string>>(new Set());
   const lastMessageCount = useRef<number>(0);
+  const processedExtractToolCalls = useRef<Set<string>>(new Set());
 
-  // Create welcome message for new sessions
-  const welcomeMessage: UIMessage = {
-    id: 'welcome',
-    role: 'assistant',
-    parts: [{ type: 'text', text: getOpeningMessage() }],
-  };
+  const logPreviewEvent = useCallback((event: string, details?: Record<string, unknown>) => {
+    if (process.env.NODE_ENV === 'production') return;
+    console.info('[Preview]', event, details ?? {});
+  }, []);
+
+  /**
+   * Create initial welcome message based on mode.
+   *
+   * - Create mode: Generic opening message
+   * - Edit mode: Personalized edit greeting (updated after project loads)
+   */
+  const getWelcomeMessage = useCallback(
+    (projectTitle?: string | null): UIMessage => ({
+      id: 'welcome',
+      role: 'assistant',
+      parts: [
+        {
+          type: 'text',
+          text: isEditMode
+            ? getEditOpeningMessage(projectTitle ?? undefined)
+            : getOpeningMessage(),
+        },
+      ],
+    }),
+    [isEditMode]
+  );
 
   // AI SDK v6 chat hook
   // NOTE: `messages` prop only sets initial value - use setMessages for async updates
+  // Unified chat route now handles both create and edit flows with a shared tool set.
+  // For create mode with lazy creation, use 'new' as placeholder until projectId is set.
+  //
+  // FIX: Memoize initial messages to prevent infinite re-renders
+  // @see https://github.com/vercel/ai/issues/5428
+  const initialMessages = useMemo(
+    () => [getWelcomeMessage()],
+    [getWelcomeMessage]
+  );
+
+  // CRITICAL: Use stable ID that NEVER changes during this component's lifecycle!
+  // Any dynamic value (projectId, sessionId) that changes mid-conversation will cause
+  // useChat to reset to initialMessages, losing the entire conversation.
+  // Generate a stable ID once on mount using useRef.
+  // @see https://github.com/vercel/ai/issues/5428
+  const stableChatId = useRef(`chat-${mode}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
   const { messages, sendMessage, status, setMessages } = useChat({
-    id: `chat-${projectId}`,
-    messages: [welcomeMessage],
+    id: stableChatId.current,
+    messages: initialMessages,
     transport: new DefaultChatTransport({
       api: '/api/chat',
     }),
   });
 
   /**
-   * Load existing session or create new one on mount.
-   * Uses /api/chat/sessions/by-project/[projectId] which handles get-or-create.
-   * Uses setMessages() to update chat after async load completes.
+   * Load session and project data on mount.
+   *
+   * Create Mode: Skip session loading if projectId is null.
+   *   On first message, onEnsureProject creates project, updating projectId prop.
+   *   This effect then runs to create/restore the session.
+   * Edit Mode: Loads project data, creates fresh session per visit.
+   *
+   * @see /api/chat/sessions/by-project/[projectId] for session persistence
    */
   useEffect(() => {
     async function loadSession() {
       try {
-        const response = await fetch(`/api/chat/sessions/by-project/${projectId}`);
-        if (!response.ok) {
-          throw new Error('Failed to load session');
-        }
+        if (isEditMode) {
+          // ===== EDIT MODE =====
+          // Load existing project data + images, RESUME existing session
 
-        const { session, isNew } = await response.json();
-        setSessionId(session.id);
+          // Step 1: Load project data
+          const projectResponse = await fetch(`/api/projects/${projectId}`);
+          if (!projectResponse.ok) {
+            throw new Error('Failed to load project');
+          }
+          const { project } = await projectResponse.json();
 
-        // If existing session with messages, restore them
-        if (!isNew && session.messages && session.messages.length > 0) {
-          const uiMessages = session.messages.map(dbMessageToUIMessage);
+          // Step 2: Load project images
+          const imagesResponse = await fetch(`/api/projects/${projectId}/images`);
+          if (!imagesResponse.ok) {
+            throw new Error('Failed to load project images');
+          }
+          const { images } = await imagesResponse.json();
 
-          // Use setMessages to update the chat with loaded messages
-          setMessages(uiMessages);
+          // Step 3: Set loaded data
+          setUploadedImages(images || []);
 
-          // Mark existing messages as already saved
-          session.messages.forEach((msg: DbMessage) => {
-            savedMessageIds.current.add(msg.id);
+          // Convert project to extracted data format for preview
+          const locationLabel = formatProjectLocation({
+            neighborhood: project.neighborhood,
+            city: project.city,
+            state: project.state,
           });
-          lastMessageCount.current = uiMessages.length;
+          setExtractedData({
+            project_type: project.project_type || undefined,
+            materials_mentioned: project.materials || [],
+            techniques_mentioned: project.techniques || [],
+            location: locationLabel || undefined,
+          });
 
-          // Restore phase and extracted data if available
-          if (session.phase) {
-            setPhase(session.phase);
+          // Step 4: RESUME existing session (same pattern as create mode)
+          // Uses get-or-create pattern to maintain ONE session per project
+          const sessionResponse = await fetch(`/api/chat/sessions/by-project/${projectId}`);
+          if (!sessionResponse.ok) {
+            throw new Error('Failed to load session');
           }
-          if (session.extracted_data && Object.keys(session.extracted_data).length > 0) {
-            setExtractedData(session.extracted_data);
+
+          const { session, isNew } = await sessionResponse.json();
+          setSessionId(session.id);
+
+          if (!isNew) {
+            // Load existing conversation context including tool parts
+            const contextResponse = await fetch(
+              `/api/chat/sessions/${session.id}/context?projectId=${projectId}`
+            );
+
+            if (contextResponse.ok) {
+              const context: ContextLoadResult = await contextResponse.json();
+
+              if (context.messages.length > 0) {
+                let messagesToLoad = context.messages;
+
+                // If using compacted loading, prepend summary as system context
+                if (!context.loadedFully && context.summary) {
+                  const summaryMessage = createSummarySystemMessage(
+                    context.summary,
+                    context.projectData
+                  );
+                  messagesToLoad = [summaryMessage, ...context.messages];
+                }
+
+                // Set messages in chat (includes tool parts for visibility)
+                setMessages(messagesToLoad);
+
+                // Mark as already saved to avoid re-saving
+                context.messages.forEach((msg) => {
+                  savedMessageIds.current.add(msg.id);
+                });
+                lastMessageCount.current = messagesToLoad.length;
+
+                // Restore phase if available in session
+                if (session.phase) {
+                  setPhase(session.phase);
+                }
+              }
+            }
+          } else {
+            // New session - show welcome message with project title
+            setMessages([getWelcomeMessage(project.title)]);
           }
+        } else {
+          // ===== CREATE MODE =====
+          // Use get-or-create pattern with smart context loading
+          // See /src/lib/chat/context-loader.ts for loading strategy
+          const response = await fetch(`/api/chat/sessions/by-project/${projectId}`);
+          if (!response.ok) {
+            throw new Error('Failed to load session');
+          }
+
+          const { session, isNew } = await response.json();
+          setSessionId(session.id);
+
+          if (!isNew) {
+            // SMART CONTEXT LOADING: Load conversation context based on size
+            // - Short conversations: Full message history
+            // - Long conversations: Summary + recent messages
+            // @see /src/lib/chat/context-loader.ts for loading strategy
+            const contextResponse = await fetch(
+              `/api/chat/sessions/${session.id}/context?projectId=${projectId}`
+            );
+
+            if (contextResponse.ok) {
+              const context: ContextLoadResult = await contextResponse.json();
+
+              if (context.messages.length > 0) {
+                let messagesToLoad = context.messages;
+
+                // If using compacted loading, prepend summary as system context
+                if (!context.loadedFully && context.summary) {
+                  const summaryMessage = createSummarySystemMessage(
+                    context.summary,
+                    context.projectData
+                  );
+                  messagesToLoad = [summaryMessage, ...context.messages];
+                }
+
+                // Set messages in chat
+                setMessages(messagesToLoad);
+
+                // Mark as already saved to avoid re-saving
+                context.messages.forEach((msg) => {
+                  savedMessageIds.current.add(msg.id);
+                });
+                lastMessageCount.current = messagesToLoad.length;
+
+                // Restore phase if available in session
+                if (session.phase) {
+                  setPhase(session.phase);
+                }
+              }
+
+              // Set extracted data from project (source of truth)
+              if (context.projectData.extractedData &&
+                  Object.keys(context.projectData.extractedData).length > 0) {
+                setExtractedData(context.projectData.extractedData);
+              }
+            }
+          }
+          // New session keeps the welcome message already set by useChat
         }
-        // New session keeps the welcome message already set by useChat
       } catch (err) {
         console.error('[ChatWizard] Failed to load session:', err);
+        // Issue #4: Set persistent error with retry capability
+        setError(
+          isEditMode
+            ? 'Failed to load project. Please try again or refresh the page.'
+            : 'Failed to start session. Please try again.'
+        );
+        setCanRetry(true);
         // Keep welcome message on error
       } finally {
         setIsLoadingSession(false);
       }
     }
 
+    // LAZY CREATION: In create mode with no projectId, skip session loading.
+    // User can chat locally; session will be created after first image upload.
+    if (!projectId && !isEditMode) {
+      setIsLoadingSession(false);
+      return;
+    }
+
     loadSession();
-  }, [projectId, setMessages]);
+  }, [projectId, isEditMode, setMessages, getWelcomeMessage]);
+
+  /**
+   * Retry handler for recoverable errors (e.g., load failures).
+   * Resets state and re-triggers session loading.
+   * @see Issue #4 in todo/ai-sdk-phase-6-edit-mode.md
+   */
+  const handleRetry = useCallback(() => {
+    setError(null);
+    setCanRetry(false);
+    setIsLoadingSession(true);
+    // The useEffect above will re-run when isLoadingSession changes,
+    // but we need to trigger a fresh load. Use a key change pattern.
+    // For simplicity, just reload the page for now.
+    window.location.reload();
+  }, []);
 
   /**
    * Save new messages to database after AI responses complete.
@@ -178,13 +648,17 @@ export function ChatWizard({
         if (msg.id === 'welcome') continue;
 
         try {
+          const parts = msg.parts;
           // Extract text content from parts
-          const textContent = msg.parts
-            ?.filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-            .map((p) => p.text)
-            .join('\n') || '';
+          const textContent =
+            parts
+              ?.filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+              .map((p) => p.text)
+              .join('\n') || '';
+          const hasParts = Array.isArray(parts) && parts.length > 0;
+          const hasNonTextParts = hasParts && parts.some((p) => p.type !== 'text');
 
-          if (!textContent) continue;
+          if (!textContent && !hasNonTextParts) continue;
 
           const response = await fetch(`/api/chat/sessions/${sessionId}/messages`, {
             method: 'POST',
@@ -192,6 +666,7 @@ export function ChatWizard({
             body: JSON.stringify({
               role: msg.role,
               content: textContent,
+              parts: hasParts ? parts : undefined, // Store full parts array including tool calls
               metadata: {},
             }),
           });
@@ -211,88 +686,320 @@ export function ChatWizard({
   }, [sessionId, status, messages]);
 
   /**
+   * Update auto-summarize message count on message changes.
+   * This resets the inactivity timer and ensures proper summarization.
+   */
+  useEffect(() => {
+    updateMessageCount(messages.length);
+  }, [messages.length, updateMessageCount]);
+
+  /**
    * Check for tool results in messages to extract data.
    *
    * In AI SDK v6, tool parts use type `tool-${toolName}` pattern
    * and have `state` and `output` properties.
    */
   useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role === 'assistant' && lastMessage.parts) {
-      for (const part of lastMessage.parts) {
+    if (messages.length === 0) return;
+
+    const pendingResults: ExtractedProjectData[] = [];
+
+    for (const message of messages) {
+      if (message.role !== 'assistant' || !message.parts) continue;
+
+      for (const part of message.parts) {
+        if (typeof part !== 'object' || part === null) continue;
+
+        const toolPart = part as {
+          type?: string;
+          state?: string;
+          output?: unknown;
+          toolCallId?: string;
+        };
+
         // In v6, tool parts have type 'tool-extractProjectData'
         // and state 'output-available' when result is ready
-        if (
-          part.type === 'tool-extractProjectData' &&
-          'state' in part &&
-          part.state === 'output-available' &&
-          'output' in part
-        ) {
-          const result = part.output as ExtractedProjectData;
-          if (result) {
-            setExtractedData((prev) => ({ ...prev, ...result }));
-          }
+        if (toolPart.type !== 'tool-extractProjectData') continue;
+        if (toolPart.state !== 'output-available') continue;
+        if (!toolPart.toolCallId) continue;
+        if (processedExtractToolCalls.current.has(toolPart.toolCallId)) continue;
+
+        const result = toolPart.output as ExtractedProjectData;
+        if (result && typeof result === 'object') {
+          pendingResults.push(result);
+          processedExtractToolCalls.current.add(toolPart.toolCallId);
+          logPreviewEvent('extractProjectData', {
+            toolCallId: toolPart.toolCallId,
+            keys: Object.keys(result),
+          });
         }
       }
     }
-  }, [messages]);
+
+    if (pendingResults.length > 0) {
+      setExtractedData((prev) =>
+        pendingResults.reduce<ExtractedProjectData>(
+          (acc, result) => ({ ...acc, ...result }),
+          prev
+        )
+      );
+    }
+  }, [messages, logPreviewEvent]);
+
+  useEffect(() => {
+    if (messages.length === 0) {
+      processedExtractToolCalls.current.clear();
+    }
+  }, [messages.length]);
 
   /**
    * Save extracted data to session when it changes.
+   * Uses optimistic save queue with automatic retry.
    */
   useEffect(() => {
     if (!sessionId || Object.keys(extractedData).length === 0) return;
 
-    // Debounce the save to avoid too many API calls
-    const timeout = setTimeout(async () => {
+    // Queue save with coalescing (handles rapid updates)
+    queueSave({
+      extracted_data: extractedData,
+      phase,
+    });
+  }, [sessionId, extractedData, phase, queueSave]);
+
+  /**
+   * Sync extracted data to project record.
+   *
+   * CRITICAL: This effect persists extracted interview data to the project
+   * so it's available for content generation and publishing.
+   *
+   * Maps ExtractedProjectData fields to Project API fields:
+   * - project_type → project_type
+   * - customer_problem → challenge
+   * - solution_approach → solution
+   * - materials_mentioned → materials
+   * - techniques_mentioned → techniques
+   * - duration → duration
+   * - city → city
+   * - state → state
+   *
+   * @see /src/app/api/projects/[id]/route.ts PATCH endpoint
+   */
+  const lastSyncedData = useRef<string>('');
+
+  useEffect(() => {
+    // Skip if no projectId, no data, or edit mode
+    if (!projectId || isEditMode) return;
+    if (Object.keys(extractedData).length === 0) return;
+
+    // Check if data has actually changed (avoid unnecessary API calls)
+    const dataHash = JSON.stringify(extractedData);
+    if (dataHash === lastSyncedData.current) return;
+
+    // Debounce: wait 1 second after last change before syncing
+    const syncTimeout = setTimeout(async () => {
       try {
-        await fetch(`/api/chat/sessions/${sessionId}`, {
+        // Map extracted fields to project API fields
+        const projectUpdate: Record<string, unknown> = {};
+
+        if (extractedData.project_type) {
+          projectUpdate.project_type = extractedData.project_type;
+        }
+        if (extractedData.city) {
+          projectUpdate.city = extractedData.city;
+        }
+        if (extractedData.state) {
+          projectUpdate.state = extractedData.state;
+        }
+        if (extractedData.duration) {
+          projectUpdate.duration = extractedData.duration;
+        }
+        if (extractedData.materials_mentioned?.length) {
+          projectUpdate.materials = extractedData.materials_mentioned;
+        }
+        if (extractedData.techniques_mentioned?.length) {
+          projectUpdate.techniques = extractedData.techniques_mentioned;
+        }
+        // Map interview fields to case-study narrative fields
+        if (extractedData.customer_problem) {
+          projectUpdate.challenge = extractedData.customer_problem;
+        }
+        if (extractedData.solution_approach) {
+          projectUpdate.solution = extractedData.solution_approach;
+        }
+
+        // Only sync if we have fields to update
+        if (Object.keys(projectUpdate).length === 0) return;
+
+        const response = await fetch(`/api/projects/${projectId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            extracted_data: extractedData,
-            phase,
-          }),
+          body: JSON.stringify(projectUpdate),
         });
-      } catch (err) {
-        console.error('[ChatWizard] Failed to save session data:', err);
-      }
-    }, 1000);
 
-    return () => clearTimeout(timeout);
-  }, [sessionId, extractedData, phase]);
+        if (response.ok) {
+          lastSyncedData.current = dataHash;
+          console.log('[ChatWizard] Synced extracted data to project:', Object.keys(projectUpdate));
+        } else {
+          console.error('[ChatWizard] Failed to sync extracted data:', response.status);
+        }
+      } catch (err) {
+        console.error('[ChatWizard] Error syncing extracted data:', err);
+      }
+    }, 1000); // 1 second debounce
+
+    return () => clearTimeout(syncTimeout);
+  }, [projectId, extractedData, isEditMode]);
 
   const isLoading = status === 'streaming' || status === 'submitted';
 
-  // Can generate when we have at least one photo and some conversation
-  const canGenerate = uploadedImages.length > 0 && messages.length > 2;
+  // Can generate when completeness hook says we have enough data
+  const canGenerate = completeness.canGenerate && messages.length > 2;
+
+  const heuristicQuickActions = useQuickActions({
+    extractedData,
+    completeness,
+    imageCount: uploadedImages.length,
+    hasFormContent,
+    allowGenerate: canGenerate,
+  });
+
+  const quickActions = useMemo(
+    () => mergeQuickActions(agentQuickActions, heuristicQuickActions),
+    [agentQuickActions, heuristicQuickActions]
+  );
+
+  useEffect(() => {
+    resetMilestones();
+    milestoneReadyRef.current = false;
+    prevImageCountRef.current = 0;
+    prevProjectTypeRef.current = undefined;
+    prevMaterialsCountRef.current = 0;
+    prevCanGenerateRef.current = false;
+    prevPhaseRef.current = isEditMode ? 'review' : 'conversation';
+    setAgentQuickActions([]);
+  }, [projectId, resetMilestones, isEditMode]);
+
+  useEffect(() => {
+    if (isLoadingSession) return;
+
+    if (!milestoneReadyRef.current) {
+      milestoneReadyRef.current = true;
+      prevImageCountRef.current = uploadedImages.length;
+      prevProjectTypeRef.current = extractedData.project_type;
+      prevMaterialsCountRef.current = extractedData.materials_mentioned?.length ?? 0;
+      prevCanGenerateRef.current = canGenerate;
+      prevPhaseRef.current = phase;
+      return;
+    }
+
+    if (prevImageCountRef.current === 0 && uploadedImages.length > 0) {
+      triggerMilestone('firstPhoto');
+    }
+
+    if (!prevProjectTypeRef.current && extractedData.project_type) {
+      triggerMilestone('typeDetected');
+    }
+
+    const materialsCount = extractedData.materials_mentioned?.length ?? 0;
+    if (prevMaterialsCountRef.current < 2 && materialsCount >= 2) {
+      triggerMilestone('materialsFound');
+    }
+
+    if (!prevCanGenerateRef.current && canGenerate) {
+      triggerMilestone('readyToGenerate');
+    }
+
+    if (prevPhaseRef.current === 'generating' && phase === 'review') {
+      triggerMilestone('generated');
+    }
+
+    prevImageCountRef.current = uploadedImages.length;
+    prevProjectTypeRef.current = extractedData.project_type;
+    prevMaterialsCountRef.current = materialsCount;
+    prevCanGenerateRef.current = canGenerate;
+    prevPhaseRef.current = phase;
+  }, [
+    isLoadingSession,
+    uploadedImages.length,
+    extractedData.project_type,
+    extractedData.materials_mentioned,
+    canGenerate,
+    phase,
+    triggerMilestone,
+  ]);
 
   /**
    * Send a text message.
+   *
+   * EAGER CREATION: In create mode, if no project exists, we create one
+   * before sending the first message. This triggers session creation
+   * and enables persistence from the start.
+   *
    * NOTE: All useCallback hooks must be declared BEFORE any conditional returns
    * to satisfy React's Rules of Hooks (consistent hook order on every render).
+   *
+   * @see /src/app/(contractor)/projects/new/page.tsx for ensureProject implementation
    */
   const handleSendMessage = useCallback(
     async (text: string) => {
       setError(null);
+      setAgentQuickActions([]);
       try {
-        await sendMessage({ text });
+        // EAGER CREATION: Create project on first message if not exists
+        // This ensures session persistence is available from the start
+        if (!projectId && onEnsureProject && !isEditMode) {
+          try {
+            await onEnsureProject();
+            // projectId prop will update via parent state change
+            // Session loading useEffect will trigger automatically
+          } catch (err) {
+            console.error('[ChatWizard] Failed to create project:', err);
+            setError('Failed to start project. Please try again.');
+            return;
+          }
+        }
+
+        // Pass projectId and sessionId in the request body for API context
+        // @see /src/app/api/chat/route.ts expects these in the body
+        await sendMessage(
+          { text },
+          {
+            body: {
+              projectId: projectId || undefined,
+              sessionId: sessionId || undefined,
+            },
+          }
+        );
       } catch (err) {
         console.error('[ChatWizard] Send error:', err);
         setError('Failed to send message. Please try again.');
       }
     },
-    [sendMessage]
+    [sendMessage, projectId, sessionId, onEnsureProject, isEditMode]
   );
 
   /**
    * Handle voice recording (transcribe and send).
+   *
+   * EAGER CREATION: Like handleSendMessage, creates project on first voice message.
    */
   const handleVoiceRecording = useCallback(
     async (blob: Blob) => {
       setError(null);
+      setAgentQuickActions([]);
 
       try {
+        // EAGER CREATION: Create project on first message if not exists
+        if (!projectId && onEnsureProject && !isEditMode) {
+          try {
+            await onEnsureProject();
+          } catch (err) {
+            console.error('[ChatWizard] Failed to create project:', err);
+            setError('Failed to start project. Please try again.');
+            return;
+          }
+        }
+
         // Create form data for transcription API
         const formData = new FormData();
         formData.append('audio', blob, 'recording.webm');
@@ -309,14 +1016,23 @@ export function ChatWizard({
         const { text } = await response.json();
 
         if (text) {
-          await sendMessage({ text });
+          // Pass projectId and sessionId in the request body for API context
+          await sendMessage(
+            { text },
+            {
+              body: {
+                projectId: projectId || undefined,
+                sessionId: sessionId || undefined,
+              },
+            }
+          );
         }
       } catch (err) {
         console.error('[ChatWizard] Transcription error:', err);
         setError('Failed to transcribe voice. Please try typing instead.');
       }
     },
-    [sendMessage]
+    [sendMessage, projectId, sessionId, onEnsureProject, isEditMode]
   );
 
   /**
@@ -324,7 +1040,8 @@ export function ChatWizard({
    */
   const handleImagesChange = useCallback((images: UploadedImage[]) => {
     setUploadedImages(images);
-  }, []);
+    logPreviewEvent('imagesUpdated', { count: images.length });
+  }, [logPreviewEvent]);
 
   /**
    * Generate content from conversation + images.
@@ -339,23 +1056,58 @@ export function ChatWizard({
     setError(null);
 
     try {
+      let currentProjectId = projectId;
+
+      if (!currentProjectId && onEnsureProject && !isEditMode) {
+        try {
+          currentProjectId = await onEnsureProject();
+        } catch (err) {
+          console.error('[ChatWizard] Failed to create project:', err);
+          setError('Failed to start project. Please try again.');
+          setPhase('conversation');
+          return;
+        }
+      }
+
+      if (!currentProjectId) {
+        setError('Missing project context. Please try again.');
+        setPhase('conversation');
+        return;
+      }
+
       // Step 1: Analyze images
       const analysisResponse = await fetch('/api/ai/analyze-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: projectId }),
+        body: JSON.stringify({ project_id: currentProjectId }),
       });
 
       if (!analysisResponse.ok) {
-        throw new Error('Image analysis failed');
+        const message = await getResponseErrorMessage(
+          analysisResponse,
+          'Image analysis failed. Please try again.'
+        );
+        throw new Error(message);
       }
 
       const analysisResult = await analysisResponse.json();
 
       // Merge analysis with extracted data
-      const combinedData = {
+      const analysis = analysisResult?.analysis as Record<string, unknown> | undefined;
+      const analysisMaterials = normalizeStringArray(analysis?.materials);
+      const analysisTechniques = normalizeStringArray(analysis?.techniques);
+
+      const combinedData: ExtractedProjectData = {
         ...extractedData,
-        ...analysisResult.analysis,
+        ...(analysis ?? {}),
+        materials_mentioned: mergeUniqueStrings(
+          extractedData.materials_mentioned ?? [],
+          analysisMaterials
+        ),
+        techniques_mentioned: mergeUniqueStrings(
+          extractedData.techniques_mentioned ?? [],
+          analysisTechniques
+        ),
       };
 
       setExtractedData(combinedData);
@@ -366,35 +1118,764 @@ export function ChatWizard({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          project_id: projectId,
+          project_id: currentProjectId,
           image_analysis: analysisResult.analysis,
           extracted_data: combinedData,
         }),
       });
 
       if (!generateResponse.ok) {
-        throw new Error('Content generation failed');
+        const message = await getResponseErrorMessage(
+          generateResponse,
+          'Content generation failed. Please try again.'
+        );
+        throw new Error(message);
       }
 
       setPhase('review');
 
       // Redirect to edit page for review
-      if (onComplete) {
-        onComplete(projectId);
+      if (onComplete && currentProjectId) {
+        onComplete(currentProjectId);
       }
     } catch (err) {
       console.error('[ChatWizard] Generation error:', err);
-      setError('Failed to generate content. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to generate content. Please try again.');
       setPhase('conversation');
     }
-  }, [projectId, uploadedImages, extractedData, onComplete]);
+  }, [projectId, uploadedImages, extractedData, onComplete, onEnsureProject, isEditMode]);
 
-  // Clear error after 5 seconds
+  /**
+   * Handle opening the photo sheet (used by both button and artifact actions).
+   */
+  const handleOpenPhotoSheet = useCallback(() => {
+    setShowPhotoSheet(true);
+  }, []);
+
+  const handleInsertPrompt = useCallback((text: string) => {
+    setInputValue(text);
+  }, []);
+
+  const handleQuickAction = useCallback(
+    (action: 'addPhotos' | 'generate' | 'openForm' | 'showPreview') => {
+      setAgentQuickActions([]);
+      switch (action) {
+        case 'addPhotos':
+          handleOpenPhotoSheet();
+          break;
+        case 'generate':
+          handleGenerate();
+          break;
+        case 'openForm':
+          if (!hasFormContent) return;
+          if (canvasSize === 'collapsed') {
+            setCanvasSize('medium');
+          }
+          setCanvasTab('form');
+          setOverlayTab('form');
+          setShowPreviewOverlay(true);
+          break;
+        case 'showPreview':
+          if (canvasSize === 'collapsed') {
+            setCanvasSize('medium');
+          }
+          setCanvasTab('preview');
+          setOverlayTab('preview');
+          setShowPreviewOverlay(true);
+          break;
+        default:
+          break;
+      }
+    },
+    [
+      handleGenerate,
+      handleOpenPhotoSheet,
+      hasFormContent,
+      canvasSize,
+      setCanvasSize,
+      setCanvasTab,
+      setOverlayTab,
+      setShowPreviewOverlay,
+    ]
+  );
+
+  /**
+   * Update the latest ContentEditor tool part with regenerated content.
+   * Task A6: Uses type guard for safe updates.
+   */
+  const updateContentEditorOutput = useCallback(
+    (content: GeneratedContent) => {
+      setMessages((currentMessages) => {
+        for (let i = currentMessages.length - 1; i >= 0; i -= 1) {
+          const message = currentMessages[i];
+          // Task A6: Add proper null check for TypeScript safety
+          if (!message || !message.parts || message.parts.length === 0) continue;
+
+          // Task A6: Use type guard to find and validate ContentEditor part
+          const partIndex = message.parts.findIndex(isContentEditorToolPart);
+
+          if (partIndex === -1) continue;
+
+          const part = message.parts[partIndex];
+          // Task A6: Validate with type guard for TypeScript safety
+          if (!isContentEditorToolPart(part)) continue;
+
+          const nextOutput = {
+            title: content.title,
+            description: content.description,
+            seo_title: content.seo_title,
+            seo_description: content.seo_description,
+            tags: content.tags,
+            materials: content.materials,
+            techniques: content.techniques,
+            editable: true,
+          };
+
+          // Task A6: Create updated part, cast to maintain SDK compatibility
+          // The spread preserves all SDK properties; we only update 'output'
+          const nextParts = [...message.parts];
+          nextParts[partIndex] = {
+            ...part,
+            output: nextOutput,
+          } as typeof part;
+
+          const nextMessages = [...currentMessages];
+          nextMessages[i] = {
+            ...message,
+            parts: nextParts,
+          };
+
+          return nextMessages;
+        }
+
+        return currentMessages;
+      });
+    },
+    [setMessages]
+  );
+
+  /**
+   * Handle artifact actions from ImageGalleryArtifact and other artifacts.
+   * Routes actions to the appropriate handlers from useInlineImages.
+   */
+  const handleArtifactAction = useCallback(
+    (action: { type: string; payload?: unknown }) => {
+      if (action.type === 'suggestQuickActions') {
+        const nextActions = coerceQuickActionSuggestions(action.payload);
+        if (nextActions.length > 0) {
+          setAgentQuickActions(nextActions);
+        }
+        return;
+      }
+
+      if (action.type === 'accept') {
+        const payload = action.payload as {
+          title: string;
+          description: string;
+          seo_title?: string;
+          seo_description?: string;
+        };
+
+        if (!payload?.title || !payload?.description) {
+          setError('Missing content to save. Please try again.');
+          return;
+        }
+
+        setIsSavingContent(true);
+        setError(null);
+
+        void (async () => {
+          try {
+            const response = await fetch(`/api/projects/${projectId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: payload.title,
+                description: payload.description,
+                description_blocks: parseDescriptionBlocksFromHtml(payload.description),
+                seo_title: payload.seo_title,
+                seo_description: payload.seo_description,
+              }),
+            });
+
+            if (!response.ok) {
+              let message = 'Failed to save content. Please try again.';
+              try {
+                const data = await response.json();
+                if (data?.error?.message) {
+                  message = data.error.message;
+                } else if (data?.message) {
+                  message = data.message;
+                }
+              } catch {
+                // Ignore JSON parse errors and keep fallback message.
+              }
+              throw new Error(message);
+            }
+
+            setPhase('review');
+            setSuccessMessage('Content saved to your project.');
+            onProjectUpdate?.();
+          } catch (err) {
+            console.error('[ChatWizard] Failed to save content:', err);
+            setError(err instanceof Error ? err.message : 'Failed to save content. Please try again.');
+          } finally {
+            setIsSavingContent(false);
+          }
+        })();
+      } else if (action.type === 'acceptAndPublish') {
+        // One-tap accept and publish flow
+        const payload = action.payload as {
+          title: string;
+          description: string;
+          seo_title?: string;
+          seo_description?: string;
+        };
+
+        if (!payload?.title || !payload?.description) {
+          setError('Missing content to save. Please try again.');
+          return;
+        }
+
+        setIsSavingContent(true);
+        setError(null);
+
+        void (async () => {
+          try {
+            // Step 1: Save the content
+            const saveResponse = await fetch(`/api/projects/${projectId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: payload.title,
+                description: payload.description,
+                description_blocks: parseDescriptionBlocksFromHtml(payload.description),
+                seo_title: payload.seo_title,
+                seo_description: payload.seo_description,
+              }),
+            });
+
+            if (!saveResponse.ok) {
+              let message = 'Failed to save content. Please try again.';
+              try {
+                const data = await saveResponse.json();
+                if (data?.error?.message) {
+                  message = data.error.message;
+                } else if (data?.message) {
+                  message = data.message;
+                }
+              } catch {
+                // Ignore JSON parse errors
+              }
+              throw new Error(message);
+            }
+
+            // Step 2: Publish the project
+            const publishResponse = await fetch(`/api/projects/${projectId}/publish`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!publishResponse.ok) {
+              let message = 'Content saved, but publishing failed. You can publish from the dashboard.';
+              try {
+                const data = await publishResponse.json();
+                if (data?.error?.message) {
+                  message = data.error.message;
+                } else if (data?.error?.missing) {
+                  message = `Cannot publish: ${(data.error.missing as string[]).join(', ')}`;
+                }
+              } catch {
+                // Ignore JSON parse errors
+              }
+              throw new Error(message);
+            }
+
+            setPhase('review');
+            setSuccessMessage('Project published! Your portfolio is now live.');
+            triggerMilestone('published');
+            onProjectUpdate?.();
+          } catch (err) {
+            console.error('[ChatWizard] Accept & Publish error:', err);
+            setError(err instanceof Error ? err.message : 'Failed to publish. Please try again.');
+          } finally {
+            setIsSavingContent(false);
+          }
+        })();
+      } else if (action.type === 'reject') {
+        setPhase('review');
+        setSuccessMessage('Okay, we can keep refining. Tell me what you want to change.');
+      } else if (action.type === 'regenerate') {
+        const payload = action.payload as {
+          section?: 'title' | 'description' | 'seo';
+          guidance?: string;
+          preserveElements?: string[];
+          current?: {
+            title?: string;
+            description?: string;
+            seo_title?: string;
+            seo_description?: string;
+            tags?: string[];
+            materials?: string[];
+            techniques?: string[];
+          };
+        };
+
+        const section = payload?.section;
+        if (!section) {
+          setError('Missing section to regenerate.');
+          return;
+        }
+
+        const feedbackParts: string[] = [];
+        if (section === 'title') {
+          feedbackParts.push('Regenerate only the title.');
+        } else if (section === 'description') {
+          feedbackParts.push('Regenerate only the description.');
+        } else {
+          feedbackParts.push('Regenerate only the SEO title and SEO description.');
+        }
+
+        feedbackParts.push('Keep all other fields consistent with the current content.');
+
+        if (payload?.guidance) {
+          feedbackParts.push(`Guidance: ${payload.guidance}.`);
+        }
+        if (payload?.preserveElements && payload.preserveElements.length > 0) {
+          feedbackParts.push(`Preserve: ${payload.preserveElements.join(', ')}.`);
+        }
+
+        if (payload?.current?.title) {
+          feedbackParts.push(`Current title: "${payload.current.title}".`);
+        }
+        if (payload?.current?.description) {
+          feedbackParts.push('Use the existing description context when rewriting.');
+        }
+        if (payload?.current?.tags && payload.current.tags.length > 0) {
+          feedbackParts.push(`Tags: ${payload.current.tags.join(', ')}.`);
+        }
+        if (payload?.current?.materials && payload.current.materials.length > 0) {
+          feedbackParts.push(`Materials: ${payload.current.materials.join(', ')}.`);
+        }
+        if (payload?.current?.techniques && payload.current.techniques.length > 0) {
+          feedbackParts.push(`Techniques: ${payload.current.techniques.join(', ')}.`);
+        }
+
+        setIsRegenerating(true);
+        setRegeneratingSection(section);
+        setError(null);
+
+        // Task A5: Add AbortController with timeout for cleanup
+        const abortController = new AbortController();
+        const REGENERATE_TIMEOUT_MS = 30000; // 30 seconds
+        const timeoutId = setTimeout(() => abortController.abort(), REGENERATE_TIMEOUT_MS);
+
+        void (async () => {
+          try {
+            const response = await fetch('/api/ai/generate-content?action=regenerate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                project_id: projectId,
+                feedback: feedbackParts.join(' '),
+              }),
+              signal: abortController.signal, // Task A5: Enable cancellation
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+              let message = 'Failed to regenerate content. Please try again.';
+              // Task A5: Safely handle non-JSON responses
+              const contentType = response.headers.get('content-type');
+              if (contentType?.includes('application/json')) {
+                try {
+                  const data = await response.json();
+                  if (data?.error?.message) {
+                    message = data.error.message;
+                  } else if (data?.message) {
+                    message = data.message;
+                  }
+                } catch {
+                  // Ignore JSON parse errors
+                }
+              }
+              throw new Error(message);
+            }
+
+            const data = await response.json();
+
+            // Task A5: Validate response structure before using
+            if (!data?.content || typeof data.content !== 'object') {
+              throw new Error('Invalid response: missing content object.');
+            }
+
+            const { title, description } = data.content as Record<string, unknown>;
+            if (!title || !description) {
+              throw new Error('Invalid response: missing required fields (title, description).');
+            }
+
+            updateContentEditorOutput(data.content as GeneratedContent);
+            setSuccessMessage(`Regenerated ${section} section.`);
+          } catch (err) {
+            console.error('[ChatWizard] Regeneration error:', err);
+
+            // Task A5: Specific error messages for different failure types
+            if (err instanceof DOMException && err.name === 'AbortError') {
+              setError('Regeneration timed out. Please try again.');
+            } else if (err instanceof TypeError && err.message.includes('fetch')) {
+              setError('Network error. Check your connection and try again.');
+            } else {
+              setError(
+                err instanceof Error
+                  ? err.message
+                  : 'Failed to regenerate content. Please try again.'
+              );
+            }
+          } finally {
+            clearTimeout(timeoutId);
+            setIsRegenerating(false);
+            setRegeneratingSection(null);
+          }
+        })();
+      } else if (action.type === 'categorize') {
+        const { imageId, category } = action.payload as {
+          imageId: string;
+          category: string;
+        };
+        categorizeImage(imageId, category as 'before' | 'after' | 'progress' | 'detail');
+      } else if (action.type === 'remove') {
+        const { imageId } = action.payload as { imageId: string };
+        removeImage(imageId);
+      } else if (action.type === 'add') {
+        handleOpenPhotoSheet();
+      } else if (action.type === 'showPreview') {
+        const payload = action.payload as ShowPortfolioPreviewOutput | undefined;
+
+        if (payload) {
+          const nextHighlightFields = (payload.highlightFields || []).map((field) =>
+            field.toLowerCase()
+          );
+
+          setPreviewHints((prev) => ({
+            title: payload.title ?? prev.title,
+            message: payload.message ?? prev.message,
+            highlightFields: payload.highlightFields ? nextHighlightFields : prev.highlightFields,
+            updatedAt: Date.now(),
+          }));
+
+          logPreviewEvent('showPortfolioPreview', {
+            title: payload.title ?? null,
+            message: payload.message ?? null,
+            highlightFields: payload.highlightFields ?? null,
+          });
+
+          if (payload.highlightFields) {
+            if (previewHighlightTimeout.current) {
+              clearTimeout(previewHighlightTimeout.current);
+            }
+            previewHighlightTimeout.current = setTimeout(() => {
+              setPreviewHints((prev) => ({ ...prev, highlightFields: [] }));
+            }, 4000);
+          }
+
+          if (payload.message) {
+            if (previewMessageTimeout.current) {
+              clearTimeout(previewMessageTimeout.current);
+            }
+            previewMessageTimeout.current = setTimeout(() => {
+              setPreviewHints((prev) => ({ ...prev, message: null }));
+            }, 4000);
+          }
+        }
+
+        // Side-effect from showPortfolioPreview tool - open mobile preview overlay
+        // On desktop the preview is already visible in the split pane
+        if (canvasSize === 'collapsed') {
+          setCanvasSize('medium');
+        }
+        setCanvasTab('preview');
+        setOverlayTab('preview');
+        setShowPreviewOverlay(true);
+      } else if (action.type === 'updateDescriptionBlocks') {
+        const payload = action.payload as { blocks?: unknown };
+
+        if (!payload?.blocks) {
+          setError('Missing description blocks to save.');
+          return;
+        }
+
+        const sanitizedBlocks = sanitizeDescriptionBlocks(payload.blocks);
+        const descriptionHtml = blocksToHtml(sanitizedBlocks);
+
+        setIsSavingContent(true);
+        setError(null);
+
+        void (async () => {
+          try {
+            const response = await fetch(`/api/projects/${projectId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                description: descriptionHtml,
+                description_blocks: sanitizedBlocks,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to save description blocks');
+            }
+
+            setSuccessMessage('Description updated!');
+            onProjectUpdate?.();
+          } catch (err) {
+            console.error('[ChatWizard] Failed to save description blocks:', err);
+            setError('Failed to save description blocks. Please try again.');
+          } finally {
+            setIsSavingContent(false);
+          }
+        })();
+      } else if (action.type === 'openForm') {
+        if (!hasFormContent) return;
+        if (canvasSize === 'collapsed') {
+          setCanvasSize('medium');
+        }
+        setCanvasTab('form');
+      } else if (action.type === 'updateProjectData') {
+        // ===== EDIT MODE: Update multiple project data fields =====
+        const payload = action.payload as {
+          project_type?: string;
+          materials?: string[];
+          techniques?: string[];
+        };
+
+        if (
+          !payload ||
+          (typeof payload.project_type === 'undefined' &&
+            typeof payload.materials === 'undefined' &&
+            typeof payload.techniques === 'undefined')
+        ) {
+          setError('Missing project data to update.');
+          return;
+        }
+
+        setIsSavingContent(true);
+        setError(null);
+
+        void (async () => {
+          try {
+            const response = await fetch(`/api/projects/${projectId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                project_type: payload.project_type,
+                materials: payload.materials,
+                techniques: payload.techniques,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to update project data');
+            }
+
+            // Keep extracted data in sync for live preview
+            setExtractedData((prev) => ({
+              ...prev,
+              project_type: payload.project_type ?? prev.project_type,
+              materials_mentioned: payload.materials ?? prev.materials_mentioned,
+              techniques_mentioned: payload.techniques ?? prev.techniques_mentioned,
+            }));
+            const updatedFields = [
+              payload.project_type !== undefined && 'project_type',
+              payload.materials !== undefined && 'materials',
+              payload.techniques !== undefined && 'techniques',
+            ].filter(Boolean) as string[];
+            logPreviewEvent('projectDataUpdated', { fields: updatedFields });
+
+            setSuccessMessage('Project data updated.');
+            onProjectUpdate?.();
+          } catch (err) {
+            console.error('[ChatWizard] Failed to update project data:', err);
+            setError(err instanceof Error ? err.message : 'Failed to update project data.');
+          } finally {
+            setIsSavingContent(false);
+          }
+        })();
+      } else if (action.type === 'updateField') {
+        // ===== EDIT MODE: Update a specific field =====
+        const payload = action.payload as {
+          field: string;
+          value: string | string[];
+          reason?: string;
+        };
+
+        if (!payload?.field || payload?.value === undefined) {
+          setError('Missing field or value for update.');
+          return;
+        }
+
+        setIsSavingContent(true);
+        setError(null);
+
+        void (async () => {
+          try {
+            const updatePayload: Record<string, unknown> = {
+              [payload.field]: payload.value,
+            };
+
+            if (payload.field === 'description' && typeof payload.value === 'string') {
+              updatePayload.description_blocks = parseDescriptionBlocksFromHtml(payload.value);
+            }
+
+            const response = await fetch(`/api/projects/${projectId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(updatePayload),
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to update field');
+            }
+
+            if (payload.field === 'materials' && Array.isArray(payload.value)) {
+              setExtractedData((prev) => ({
+                ...prev,
+                materials_mentioned: payload.value as string[],
+              }));
+              logPreviewEvent('projectDataUpdated', { fields: ['materials'] });
+            }
+            if (payload.field === 'techniques' && Array.isArray(payload.value)) {
+              setExtractedData((prev) => ({
+                ...prev,
+                techniques_mentioned: payload.value as string[],
+              }));
+              logPreviewEvent('projectDataUpdated', { fields: ['techniques'] });
+            }
+
+            setSuccessMessage(`Updated ${payload.field}.`);
+            onProjectUpdate?.();
+          } catch (err) {
+            console.error('[ChatWizard] Failed to update field:', err);
+            setError(err instanceof Error ? err.message : 'Failed to update field.');
+          } finally {
+            setIsSavingContent(false);
+          }
+        })();
+      } else if (action.type === 'reorderImages' || action.type === 'reorder') {
+        // ===== EDIT MODE: Reorder images =====
+        const payload = action.payload as {
+          imageIds: string[];
+          reason?: string;
+        };
+
+        if (!payload?.imageIds || payload.imageIds.length === 0) {
+          setError('Missing image order.');
+          return;
+        }
+
+        setIsSavingContent(true);
+        setError(null);
+
+        void (async () => {
+          try {
+            const response = await fetch(`/api/projects/${projectId}/images`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image_ids: payload.imageIds }),
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to reorder images');
+            }
+
+            // Update local state to reflect new order
+            const reorderedImages = payload.imageIds
+              .map((id) => uploadedImages.find((img) => img.id === id))
+              .filter(Boolean) as typeof uploadedImages;
+            setUploadedImages(reorderedImages);
+
+            setSuccessMessage('Images reordered.');
+            onProjectUpdate?.();
+          } catch (err) {
+            console.error('[ChatWizard] Failed to reorder images:', err);
+            setError(err instanceof Error ? err.message : 'Failed to reorder images.');
+          } finally {
+            setIsSavingContent(false);
+          }
+        })();
+      } else if (action.type === 'validateForPublish') {
+        // ===== EDIT MODE: Validate publish readiness =====
+        // Issue #6: Use server-side validation via dry_run parameter
+        // This ensures validation rules are consistent with actual publish endpoint
+        void (async () => {
+          try {
+            // Call publish endpoint with dry_run=true for validation only
+            const response = await fetch(`/api/projects/${projectId}/publish?dry_run=true`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to validate project');
+            }
+
+            const { valid, missing } = await response.json();
+
+            if (!valid && missing && missing.length > 0) {
+              setError(`Not ready to publish. Missing: ${missing.join(', ')}`);
+            } else {
+              setSuccessMessage('Ready to publish! All requirements met.');
+            }
+          } catch (err) {
+            console.error('[ChatWizard] Validation error:', err);
+            setError('Failed to validate project.');
+          }
+        })();
+      }
+    },
+    [
+      canvasSize,
+      hasFormContent,
+      categorizeImage,
+      removeImage,
+      handleOpenPhotoSheet,
+      onProjectUpdate,
+      projectId,
+      setCanvasSize,
+      setCanvasTab,
+      updateContentEditorOutput,
+      setShowPreviewOverlay,
+      uploadedImages,
+      logPreviewEvent,
+      triggerMilestone,
+    ]
+  );
+
+  // Clear error after 5 seconds (but not if canRetry - those are persistent)
+  // Issue #4: Recoverable errors with retry capability should persist
   useEffect(() => {
-    if (!error) return;
+    if (!error || canRetry) return;
     const timeout = setTimeout(() => setError(null), 5000);
     return () => clearTimeout(timeout);
-  }, [error]);
+  }, [error, canRetry]);
+
+  // Clear success message after 5 seconds
+  useEffect(() => {
+    if (!successMessage) return;
+    const timeout = setTimeout(() => setSuccessMessage(null), 5000);
+    return () => clearTimeout(timeout);
+  }, [successMessage]);
+
+  useEffect(() => {
+    return () => {
+      if (previewHighlightTimeout.current) {
+        clearTimeout(previewHighlightTimeout.current);
+      }
+      if (previewMessageTimeout.current) {
+        clearTimeout(previewMessageTimeout.current);
+      }
+    };
+  }, []);
 
   // Show loading state while session loads
   // NOTE: This early return is AFTER all hooks to satisfy Rules of Hooks
@@ -402,76 +1883,232 @@ export function ChatWizard({
     return (
       <div className={cn('flex flex-col items-center justify-center h-full', className)}>
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-        <p className="mt-4 text-sm text-muted-foreground">Loading conversation...</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          {isEditMode ? 'Loading project...' : 'Loading conversation...'}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className={cn('relative flex flex-col h-full', className)}>
-      {/* Error display - floating at top center */}
-      {error && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 max-w-[500px] w-full px-4">
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm border border-destructive/20 shadow-lg animate-fade-in">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        </div>
-      )}
+    <div className={cn('relative h-full min-h-0', className)}>
+      <MilestoneToast milestone={currentMilestone} onDismiss={dismissMilestone} />
+      {/*
+        Split-pane layout (matching edit page):
+        - Desktop (lg+): Flex with chat (flex-1) + collapsible canvas (400px)
+        - Tablet/Mobile: Single column chat + preview pill/overlay
+      */}
+      <div className="flex h-full min-h-0">
+        {/* ===== CHAT COLUMN ===== */}
+        <div className="relative flex-1 min-w-0 flex flex-col h-full min-h-0 lg:border-r lg:border-border/50">
+          {/* Save status indicator - subtle top-right badge */}
+          {!isEditMode && saveStatus !== 'idle' && (
+            <div className="absolute top-3 right-3 z-10">
+              <SaveIndicator status={saveStatus} />
+            </div>
+          )}
 
-      {/* Chat messages - fills available space, centered column */}
-      <ChatMessages
-        messages={messages}
-        isLoading={isLoading}
-        className="flex-1"
-      />
+          {/* Error display - floating at top center */}
+          {/* Issue #4: Added retry button for recoverable errors */}
+          {error && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 max-w-[360px] w-full px-4">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm border border-destructive/20 shadow-lg animate-fade-in">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span className="flex-1 line-clamp-2">{error}</span>
+                {canRetry && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRetry}
+                    className="ml-2 h-7 px-2 text-xs border-destructive/30 hover:bg-destructive/10"
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Retry
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
 
-      {/* Loading indicator for analysis/generation - centered overlay */}
-      {(phase === 'analyzing' || phase === 'generating') && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
-          <div className="flex flex-col items-center gap-3 animate-fade-in">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">
-              {phase === 'analyzing' ? 'Analyzing your photos...' : 'Writing your description...'}
-            </span>
-          </div>
-        </div>
-      )}
+          {/* Success message display */}
+          {successMessage && (
+            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 max-w-[360px] w-full px-4">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 text-emerald-600 text-sm border border-emerald-500/20 shadow-lg animate-fade-in">
+                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                <span className="line-clamp-2">{successMessage}</span>
+              </div>
+            </div>
+          )}
 
-      {/* Fixed bottom input area with gradient fade */}
-      {(phase === 'conversation' || phase === 'review') && (
-        <div className="sticky bottom-0 pb-6 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent">
-          <div className="max-w-[650px] mx-auto px-4">
-            {/* Generate button - above input when ready */}
-            {canGenerate && phase === 'conversation' && (
-              <Button
-                onClick={handleGenerate}
-                disabled={isLoading}
-                className="w-full mb-3 rounded-full h-11"
-                size="lg"
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Generate Portfolio Page
-              </Button>
-            )}
+          {/* Image upload error display */}
+          {imageError && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 max-w-[360px] w-full px-4">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm border border-destructive/20 shadow-lg animate-fade-in">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span className="line-clamp-2">{imageError.message}</span>
+                <button
+                  onClick={clearImageError}
+                  className="ml-auto hover:bg-destructive/20 rounded p-0.5"
+                  aria-label="Dismiss error"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
 
-            {/* Floating input with attachment button */}
-            <ChatInput
-              onSend={handleSendMessage}
-              onVoiceRecording={handleVoiceRecording}
-              onAttachPhotos={() => setShowPhotoSheet(true)}
-              photoCount={uploadedImages.length}
-              disabled={isLoading}
-              isLoading={isLoading}
-              placeholder={
-                phase === 'review'
-                  ? 'Tell me what to change...'
-                  : 'Type or tap mic to record...'
-              }
+          {/* Chat messages - fills available space */}
+          <ChatMessages
+            messages={messages}
+            isLoading={isLoading}
+            onArtifactAction={handleArtifactAction}
+            images={uploadedImages}
+            className="flex-1 overflow-y-auto"
+            isSaving={isSavingContent}
+          />
+
+          {/* Loading indicator for analysis/generation - centered overlay */}
+          {(phase === 'analyzing' || phase === 'generating') && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+              <div className="flex flex-col items-center gap-3 animate-fade-in">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">
+                  {phase === 'analyzing' ? 'Analyzing your photos...' : 'Writing your description...'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {isSavingContent && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-10">
+              <div className="flex flex-col items-center gap-3 animate-fade-in">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">
+                  Saving your edits...
+                </span>
+              </div>
+            </div>
+          )}
+
+          {isRegenerating && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-10">
+              <div className="flex flex-col items-center gap-3 animate-fade-in">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">
+                  {regeneratingSection
+                    ? `Regenerating ${regeneratingSection}...`
+                    : 'Regenerating content...'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Peek bar - visible on mobile and tablet, hidden on desktop (which has side canvas) */}
+          <div className="lg:hidden">
+            <CollectedDataPeekBar
+              data={projectData}
+              completeness={completeness}
+              onExpand={() => {
+                setOverlayTab('preview');
+                setShowPreviewOverlay(true);
+              }}
             />
           </div>
+
+          {/* Fixed bottom input area with gradient fade */}
+          {(phase === 'conversation' || phase === 'review') && (
+            <div className="sticky bottom-0 pb-4 pt-3 bg-gradient-to-t from-background via-background/95 to-transparent">
+              <div className="max-w-[720px] mx-auto px-4">
+                <QuickActionChips
+                  actions={quickActions}
+                  onInsertPrompt={handleInsertPrompt}
+                  onAction={handleQuickAction}
+                  disabled={isLoading}
+                  className="mb-3"
+                />
+
+                {/* Generate button - above input when ready */}
+                {canGenerate && phase === 'conversation' && (
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={isLoading}
+                    className={cn(
+                      'w-full mb-3 rounded-full h-11',
+                      completeness.visualState === 'ready' && 'animate-glow-pulse'
+                    )}
+                    size="lg"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate Portfolio Page
+                  </Button>
+                )}
+
+                {/* Floating input with attachment button */}
+                <ChatInput
+                  onSend={handleSendMessage}
+                  onVoiceRecording={handleVoiceRecording}
+                  onAttachPhotos={handleOpenPhotoSheet}
+                  photoCount={uploadedImages.length}
+                  disabled={isLoading}
+                  isLoading={isLoading}
+                  value={inputValue}
+                  onChange={setInputValue}
+                  placeholder={
+                    phase === 'review'
+                      ? 'Tell me what to change...'
+                      : 'Type or tap mic to record...'
+                  }
+                  onImageDrop={addImages}
+                />
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* ===== CANVAS COLUMN (Desktop only) ===== */}
+        <CanvasPanel
+          projectId={projectId ?? 'new'}
+          data={projectData}
+          completeness={completeness}
+          highlightFields={previewHints.highlightFields}
+          previewMessage={previewHints.message}
+          publicPreview={publicPreview}
+          titleOverride={previewHints.title}
+          size={canvasSize}
+          onSizeChange={setCanvasSize}
+          activeTab={hasFormContent ? canvasTab : 'preview'}
+          onTabChange={setCanvasTab}
+          formContent={formContent}
+          className="hidden lg:flex"
+        />
+      </div>
+
+      {/* ===== TABLET PREVIEW PILL (768-1023px) ===== */}
+      <div className="hidden md:block lg:hidden">
+        <PreviewPill
+          title={previewTitle}
+          percentage={completeness.percentage}
+          onClick={() => {
+            setOverlayTab('preview');
+            setShowPreviewOverlay(true);
+          }}
+        />
+      </div>
+
+      {/* ===== PREVIEW OVERLAY (Tablet + Mobile) ===== */}
+      <PreviewOverlay
+        open={showPreviewOverlay}
+        onOpenChange={setShowPreviewOverlay}
+        data={projectData}
+        completeness={completeness}
+        publicPreview={publicPreview}
+        titleOverride={previewHints.title}
+        highlightFields={previewHints.highlightFields}
+        previewMessage={previewHints.message}
+        formContent={formContent}
+        activeTab={overlayTab}
+        onTabChange={setOverlayTab}
+      />
 
       {/* Photo sheet (bottom drawer) */}
       <ChatPhotoSheet
@@ -481,47 +2118,8 @@ export function ChatWizard({
         images={uploadedImages}
         onImagesChange={handleImagesChange}
         disabled={isLoading}
+        onEnsureProject={onEnsureProject}
       />
-    </div>
-  );
-}
-
-/**
- * Phase indicator component.
- */
-function PhaseIndicator({ phase, imageCount = 0 }: { phase: ChatPhase; imageCount?: number }) {
-  const phases: { key: ChatPhase; label: string }[] = [
-    { key: 'conversation', label: 'Chat' },
-    { key: 'analyzing', label: 'Analyze' },
-    { key: 'generating', label: 'Write' },
-    { key: 'review', label: 'Review' },
-    { key: 'published', label: 'Done' },
-  ];
-
-  const currentIndex = phases.findIndex((p) => p.key === phase);
-
-  return (
-    <div className="flex items-center gap-1">
-      {phases.slice(0, 4).map((p, i) => (
-        <div
-          key={p.key}
-          className={cn(
-            'w-2 h-2 rounded-full transition-colors',
-            i < currentIndex
-              ? 'bg-primary'
-              : i === currentIndex
-                ? 'bg-primary animate-pulse'
-                : 'bg-muted-foreground/30'
-          )}
-          title={p.label}
-        />
-      ))}
-      <span className="text-xs text-muted-foreground ml-2">
-        {phases[currentIndex]?.label ?? 'Chat'}
-        {imageCount > 0 && phase === 'conversation' && (
-          <span className="ml-1 text-primary">• {imageCount} photo{imageCount !== 1 ? 's' : ''}</span>
-        )}
-      </span>
     </div>
   );
 }

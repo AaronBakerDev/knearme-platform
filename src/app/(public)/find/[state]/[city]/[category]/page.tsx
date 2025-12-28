@@ -22,8 +22,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Star, Phone, Globe, ArrowRight, ChevronLeft } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/server';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 import { Pagination } from '@/components/directory/Pagination';
@@ -33,11 +32,7 @@ import {
   getTotalBusinessCount,
   type ListingFilters,
 } from '@/lib/data/directory';
-import {
-  getCategoryMeta,
-  getRelatedCategories,
-  isValidCategorySlug,
-} from '@/lib/constants/directory-categories';
+import { getCategoryMeta, isValidCategorySlug } from '@/lib/constants/directory-categories';
 import { generateFAQSchema, schemaToString } from '@/lib/seo/structured-data';
 import type { DirectoryPlace } from '@/types/directory';
 import { DirectoryFilters } from '@/components/directory/DirectoryFilters';
@@ -168,7 +163,6 @@ export default async function CategoryListingPage({ params, searchParams }: Page
   const totalPages = Math.ceil(totalCount / BUSINESSES_PER_PAGE);
 
   // Related categories
-  const relatedCategories = getRelatedCategories(category);
 
   // Check if there are portfolio projects for this category in this city
   const supabase = createAdminClient();

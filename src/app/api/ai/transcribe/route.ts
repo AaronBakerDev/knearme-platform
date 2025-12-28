@@ -16,6 +16,36 @@ import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { transcribeAudio, cleanTranscription } from '@/lib/ai/transcription';
 
 /**
+ * Transcription constraints.
+ *
+ * @see Whisper limits: https://platform.openai.com/docs/guides/speech-to-text
+ */
+/** Allowed MIME types for audio transcription */
+const ALLOWED_MIME_TYPES = [
+  'audio/webm',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/ogg',
+] as const;
+
+type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
+
+/** Type guard for allowed MIME types */
+function isAllowedMimeType(mime: string): mime is AllowedMimeType {
+  return (ALLOWED_MIME_TYPES as readonly string[]).includes(mime);
+}
+
+const TRANSCRIPTION_CONSTRAINTS = {
+  /** Maximum file size in bytes (10MB - conservative limit, Whisper max is 25MB) */
+  MAX_FILE_SIZE_BYTES: 10 * 1024 * 1024,
+  /** Minimum file size in bytes (1KB - prevents empty recordings) */
+  MIN_FILE_SIZE_BYTES: 1000,
+} as const;
+
+/**
  * Request schema for audio transcription.
  */
 const transcribeSchema = z.object({
@@ -51,38 +81,29 @@ export async function POST(request: NextRequest) {
       return apiError('VALIDATION_ERROR', 'No audio file provided');
     }
 
-    if (!metadataJson) {
-      return apiError('VALIDATION_ERROR', 'No metadata provided');
+    // Validate audio file size
+    if (audioFile.size > TRANSCRIPTION_CONSTRAINTS.MAX_FILE_SIZE_BYTES) {
+      const maxMB = TRANSCRIPTION_CONSTRAINTS.MAX_FILE_SIZE_BYTES / (1024 * 1024);
+      return apiError(
+        'VALIDATION_ERROR',
+        `Audio file too large. Maximum size is ${maxMB}MB.`
+      );
     }
 
-    // Parse and validate metadata
-    let metadata: unknown;
-    try {
-      metadata = JSON.parse(metadataJson);
-    } catch {
-      return apiError('VALIDATION_ERROR', 'Invalid metadata JSON');
+    if (audioFile.size < TRANSCRIPTION_CONSTRAINTS.MIN_FILE_SIZE_BYTES) {
+      return apiError(
+        'VALIDATION_ERROR',
+        'Recording is too short. Please try again with a longer recording.'
+      );
     }
 
-    const parsed = transcribeSchema.safeParse(metadata);
-    if (!parsed.success) {
-      return apiError('VALIDATION_ERROR', 'Invalid metadata', {
-        errors: parsed.error.flatten().fieldErrors,
-      });
-    }
-
-    const { project_id, question_id, question_text } = parsed.data;
-    const supabase = await createClient();
-
-    // Verify project ownership
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('id, contractor_id')
-      .eq('id', project_id)
-      .eq('contractor_id', contractor.id)
-      .single();
-
-    if (projectError || !project) {
-      return apiError('NOT_FOUND', 'Project not found');
+    // Validate audio MIME type
+    const mimeType = audioFile.type.split(';')[0] ?? ''; // Strip codec params like "audio/webm;codecs=opus"
+    if (!mimeType || !isAllowedMimeType(mimeType)) {
+      return apiError(
+        'VALIDATION_ERROR',
+        `Unsupported audio format: ${mimeType}. Please use webm, mp4, mp3, or wav.`
+      );
     }
 
     // Convert File to Blob for transcription
@@ -98,58 +119,93 @@ export async function POST(request: NextRequest) {
     // Clean up the transcription
     const cleanedText = cleanTranscription(result.text);
 
-    // Store the Q&A in interview session
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: existingSession } = await (supabase as any)
-      .from('interview_sessions')
-      .select('*')
-      .eq('project_id', project_id)
-      .single();
-
-    // Type assertion for session data
-    type TranscribeSessionData = {
-      questions?: Record<string, unknown>[];
-      raw_transcripts?: string[];
-    };
-    const sessionData = existingSession as TranscribeSessionData | null;
-
-    // Build questions array with this response
-    const existingQuestions = (sessionData?.questions || []) as Record<string, unknown>[];
-    const updatedQuestions = [
-      ...existingQuestions.filter((q: Record<string, unknown>) => q.id !== question_id),
-      {
-        id: question_id,
-        text: question_text,
-        answer: cleanedText,
-        raw_transcription: result.text,
-        duration: result.duration,
-      },
-    ];
-
-    // Update raw transcripts array
-    const existingTranscripts = sessionData?.raw_transcripts || [];
-
-    // Upsert interview session
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: sessionError } = await (supabase as any).from('interview_sessions').upsert(
-      {
-        project_id,
-        questions: updatedQuestions,
-        raw_transcripts: [...existingTranscripts, result.text],
-        status: 'in_progress',
-      },
-      {
-        onConflict: 'project_id',
+    // If metadata provided, store in interview session (interview flow)
+    // Otherwise, just return transcription (chat flow)
+    if (metadataJson) {
+      // Parse and validate metadata
+      let metadata: unknown;
+      try {
+        metadata = JSON.parse(metadataJson);
+      } catch {
+        return apiError('VALIDATION_ERROR', 'Invalid metadata JSON');
       }
-    );
 
-    if (sessionError) {
-      console.error('[POST /api/ai/transcribe] Session error:', sessionError);
-      // Don't fail - transcription still succeeded
+      const parsed = transcribeSchema.safeParse(metadata);
+      if (!parsed.success) {
+        return apiError('VALIDATION_ERROR', 'Invalid metadata', {
+          errors: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const { project_id, question_id, question_text } = parsed.data;
+      const supabase = await createClient();
+
+      // Verify project ownership
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('id, contractor_id')
+        .eq('id', project_id)
+        .eq('contractor_id', contractor.id)
+        .single();
+
+      if (projectError || !project) {
+        return apiError('NOT_FOUND', 'Project not found');
+      }
+
+      // Store the Q&A in interview session
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existingSession } = await (supabase as any)
+        .from('interview_sessions')
+        .select('*')
+        .eq('project_id', project_id)
+        .single();
+
+      // Type assertion for session data
+      type TranscribeSessionData = {
+        questions?: Record<string, unknown>[];
+        raw_transcripts?: string[];
+      };
+      const sessionData = existingSession as TranscribeSessionData | null;
+
+      // Build questions array with this response
+      const existingQuestions = (sessionData?.questions || []) as Record<string, unknown>[];
+      const updatedQuestions = [
+        ...existingQuestions.filter((q: Record<string, unknown>) => q.id !== question_id),
+        {
+          id: question_id,
+          text: question_text,
+          answer: cleanedText,
+          raw_transcription: result.text,
+          duration: result.duration,
+        },
+      ];
+
+      // Update raw transcripts array
+      const existingTranscripts = sessionData?.raw_transcripts || [];
+
+      // Upsert interview session
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: sessionError } = await (supabase as any).from('interview_sessions').upsert(
+        {
+          project_id,
+          questions: updatedQuestions,
+          raw_transcripts: [...existingTranscripts, result.text],
+          status: 'in_progress',
+        },
+        {
+          onConflict: 'project_id',
+        }
+      );
+
+      if (sessionError) {
+        console.error('[POST /api/ai/transcribe] Session error:', sessionError);
+        // Don't fail - transcription still succeeded
+      }
     }
 
     return apiSuccess({
-      transcription: cleanedText,
+      text: cleanedText,
+      transcription: cleanedText, // Alias for compatibility
       raw: result.text,
       duration: result.duration,
       language: result.language,

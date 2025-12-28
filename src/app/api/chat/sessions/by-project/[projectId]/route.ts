@@ -4,7 +4,8 @@
  * GET /api/chat/sessions/by-project/[projectId]
  *
  * Returns existing session for the project or creates a new one.
- * This ensures each project has a single active chat session.
+ * This ensures each project has a single active chat session
+ * shared across all chat entry points.
  */
 
 import { NextResponse } from 'next/server';
@@ -35,13 +36,13 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     const supabase = await createClient();
 
-    // Check if session exists for this project
+    // Check if session exists for this project (single shared session)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: existingSession, error: fetchError } = await (supabase as any)
       .from('chat_sessions')
       .select('id, project_id, contractor_id, title, phase, extracted_data, created_at, updated_at')
       .eq('project_id', projectId)
-      .order('created_at', { ascending: false })
+      .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -73,10 +74,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     // Get messages for the session
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const typedSession = session as Record<string, unknown>;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: messages, error: messagesError } = await (supabase as any)
+    const { data: messages, error: messagesError } = await supabase
       .from('chat_messages')
       .select('id, role, content, metadata, created_at')
       .eq('session_id', typedSession.id)

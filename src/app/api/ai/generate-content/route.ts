@@ -21,6 +21,7 @@ import {
   generatePortfolioContent,
   regenerateWithFeedback,
 } from '@/lib/ai/content-generation';
+import { trackInterviewCompleted, trackContentRegenerated } from '@/lib/observability/kpi-events';
 import type { ImageAnalysisResult } from '@/lib/ai/image-analysis';
 
 /**
@@ -243,6 +244,15 @@ export async function POST(request: NextRequest) {
           })
           .eq('project_id', project_id);
 
+        // Track interview completion KPI
+        // Fire-and-forget: don't block response on tracking
+        trackInterviewCompleted({
+          contractorId: contractor.id,
+          projectId: project_id,
+          questionCount: interviewResponses.length,
+          contentLength: (result.description?.length || 0) + (result.title?.length || 0),
+        }).catch((err) => console.error('[KPI] trackInterviewCompleted failed:', err));
+
         // Update project with generated content
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabase as any)
@@ -321,6 +331,15 @@ export async function POST(request: NextRequest) {
         if ('error' in result) {
           return apiError('AI_SERVICE_ERROR', result.error);
         }
+
+        // Track content regeneration KPI
+        // Fire-and-forget: don't block response on tracking
+        trackContentRegenerated({
+          contractorId: contractor.id,
+          projectId: project_id,
+          section: 'all',
+          feedbackProvided: feedback.length > 0,
+        }).catch((err) => console.error('[KPI] trackContentRegenerated failed:', err));
 
         // Update session and project with new content
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

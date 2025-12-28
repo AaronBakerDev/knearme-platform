@@ -11,15 +11,16 @@
 2. [Artifact Types](#artifact-types)
 3. [Component Architecture](#component-architecture)
 4. [Tool-to-Artifact Mapping](#tool-to-artifact-mapping)
-5. [State Management](#state-management)
-6. [Data Flow](#data-flow)
-7. [API Changes](#api-changes)
-8. [Type Definitions](#type-definitions)
-9. [Component Specifications](#component-specifications)
-10. [Migration Strategy](#migration-strategy)
-11. [Unified Create/Edit Mode](#unified-createedit-mode)
-12. [Data Persistence Strategy](#data-persistence-strategy)
-13. [Project Memory System](#project-memory-system)
+5. [Confidence Scoring & Clarification](#confidence-scoring--clarification)
+6. [State Management](#state-management)
+7. [Data Flow](#data-flow)
+8. [API Changes](#api-changes)
+9. [Type Definitions](#type-definitions)
+10. [Component Specifications](#component-specifications)
+11. [Migration Strategy](#migration-strategy)
+12. [Unified Create/Edit Mode](#unified-createedit-mode)
+13. [Data Persistence Strategy](#data-persistence-strategy)
+14. [Project Memory System](#project-memory-system)
 
 ---
 
@@ -54,6 +55,7 @@ When the AI calls a tool, the result becomes an artifact that renders as a rich 
 | `PortfolioPreview` | `showPortfolioPreview` | Live preview of the portfolio being built |
 | `ContentEditor` | `showContentEditor` | Inline editing of AI-generated content |
 | `ProgressTracker` | `showProgress` | Visual checklist of collected information |
+| `ClarificationCard` | `requestClarification` | Ask for confirmation when AI is uncertain |
 
 ### Artifact States
 
@@ -312,6 +314,258 @@ showContentEditor: tool({
 }),
 ```
 
+### New requestClarification Tool
+
+Ask for user confirmation when extracted data is uncertain:
+
+```typescript
+requestClarification: tool({
+  description: `Ask the user to clarify or confirm extracted information.
+    Use when:
+    - Confidence in extracted data is below 0.7
+    - Multiple interpretations are possible
+    - Information seems inconsistent with prior context
+    - Critical fields need explicit confirmation`,
+  inputSchema: z.object({
+    field: z.string().describe('The field being clarified (e.g., "project_type", "materials")'),
+    currentValue: z.string().optional().describe('What we think it is'),
+    alternatives: z.array(z.string()).optional().describe('Other possible interpretations'),
+    question: z.string().describe('Natural language question to ask'),
+    confidence: z.number().min(0).max(1).describe('How confident we are (0-1)'),
+    context: z.string().optional().describe('Why we are uncertain'),
+  }),
+  execute: async (args) => args,
+}),
+```
+
+---
+
+## Confidence Scoring & Clarification
+
+When the AI extracts data from natural conversation, confidence can vary. The `requestClarification` tool enables the AI to ask for confirmation when uncertain.
+
+### When to Request Clarification
+
+The AI should call `requestClarification` in these scenarios:
+
+| Scenario | Example | Confidence |
+|----------|---------|------------|
+| Ambiguous input | "I did some brick work" → Type unclear | 0.3-0.5 |
+| Multiple interpretations | "Red brick" → Brick type or color? | 0.4-0.6 |
+| Contradictory context | Previously said "chimney", now says "wall" | 0.2-0.4 |
+| Critical field | Project type affects entire portfolio | < 0.8 required |
+| Inference vs explicit | AI guessed from context, not stated | 0.5-0.7 |
+
+### Confidence Thresholds
+
+```typescript
+const CONFIDENCE_THRESHOLDS = {
+  // Below this, always request clarification
+  REQUIRE_CLARIFICATION: 0.5,
+
+  // Between these, consider context
+  SUGGEST_CONFIRMATION: 0.7,
+
+  // Above this, proceed without asking
+  HIGH_CONFIDENCE: 0.85,
+};
+
+// In extractProjectData tool execution
+function shouldRequestClarification(
+  field: string,
+  confidence: number,
+  isCriticalField: boolean
+): boolean {
+  if (confidence < CONFIDENCE_THRESHOLDS.REQUIRE_CLARIFICATION) return true;
+  if (isCriticalField && confidence < CONFIDENCE_THRESHOLDS.SUGGEST_CONFIRMATION) return true;
+  return false;
+}
+
+const CRITICAL_FIELDS = ['project_type', 'location', 'materials_mentioned'];
+```
+
+### ClarificationCard Component
+
+```typescript
+// src/components/chat/artifacts/ClarificationCard.tsx
+
+interface ClarificationCardProps {
+  data: {
+    field: string;
+    currentValue?: string;
+    alternatives?: string[];
+    question: string;
+    confidence: number;
+    context?: string;
+  };
+  onConfirm: (value: string) => void;
+  onReject: () => void;
+  onProvideNew: (value: string) => void;
+}
+
+export function ClarificationCard({
+  data,
+  onConfirm,
+  onReject,
+  onProvideNew,
+}: ClarificationCardProps) {
+  const [customValue, setCustomValue] = useState('');
+
+  return (
+    <ArtifactCard className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+      {/* Question header */}
+      <div className="flex items-start gap-2 mb-3">
+        <HelpCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-medium">{data.question}</p>
+          {data.context && (
+            <p className="text-sm text-muted-foreground mt-1">{data.context}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Confidence indicator */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs text-muted-foreground">AI confidence:</span>
+        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+          <div
+            className={cn(
+              'h-full rounded-full',
+              data.confidence < 0.5 && 'bg-red-500',
+              data.confidence >= 0.5 && data.confidence < 0.7 && 'bg-amber-500',
+              data.confidence >= 0.7 && 'bg-green-500'
+            )}
+            style={{ width: `${data.confidence * 100}%` }}
+          />
+        </div>
+        <span className="text-xs font-medium">{Math.round(data.confidence * 100)}%</span>
+      </div>
+
+      {/* Options */}
+      <div className="space-y-2">
+        {/* Confirm current value */}
+        {data.currentValue && (
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => onConfirm(data.currentValue!)}
+          >
+            <Check className="h-4 w-4 mr-2 text-green-500" />
+            Yes, it's "{data.currentValue}"
+          </Button>
+        )}
+
+        {/* Alternatives */}
+        {data.alternatives?.map((alt) => (
+          <Button
+            key={alt}
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={() => onConfirm(alt)}
+          >
+            Actually, it's "{alt}"
+          </Button>
+        ))}
+
+        {/* Custom input */}
+        <div className="flex gap-2">
+          <Input
+            placeholder="Something else..."
+            value={customValue}
+            onChange={(e) => setCustomValue(e.target.value)}
+          />
+          <Button
+            variant="secondary"
+            onClick={() => onProvideNew(customValue)}
+            disabled={!customValue}
+          >
+            Use this
+          </Button>
+        </div>
+      </div>
+    </ArtifactCard>
+  );
+}
+```
+
+### Flow with Clarification
+
+```
+User: "I rebuilt a brick thing last week"
+         │
+         ▼
+AI extracts: project_type = "brick-work"
+         │
+         ▼
+Confidence: 0.4 (ambiguous "thing")
+         │
+         ▼
+AI calls requestClarification({
+  field: "project_type",
+  currentValue: "brick repair",
+  alternatives: ["chimney", "wall", "steps", "foundation"],
+  question: "What kind of brick project was it?",
+  confidence: 0.4,
+  context: "I heard 'brick thing' but want to make sure I categorize it correctly"
+})
+         │
+         ▼
+ClarificationCard renders inline
+         │
+         ▼
+User clicks: "Actually, it's 'chimney'"
+         │
+         ▼
+extractProjectData called with confirmed value
+         │
+         ▼
+Data saved with high confidence
+```
+
+### Handling Clarification Responses
+
+```typescript
+// In ChatWizard when user responds to clarification
+function handleClarificationResponse(field: string, confirmedValue: string) {
+  // Add to messages as user response
+  const userMessage: UIMessage = {
+    id: generateId(),
+    role: 'user',
+    parts: [{ type: 'text', text: confirmedValue }],
+  };
+
+  // The AI will see this and update extractProjectData with high confidence
+  sendMessage({ text: confirmedValue });
+
+  // Optionally, directly update extracted data
+  updateExtractedData({ [field]: confirmedValue });
+}
+```
+
+### System Prompt Guidance
+
+Add to system prompt for clarification behavior:
+
+```typescript
+const CLARIFICATION_PROMPT_ADDITION = `
+## Handling Uncertainty
+
+When you're not sure about something the user said:
+1. For ambiguous terms, call requestClarification with alternatives
+2. Set confidence based on how sure you are (0.0 = guess, 1.0 = certain)
+3. If confidence < 0.5, ALWAYS ask for clarification
+4. For critical fields (project type, materials), ask if confidence < 0.7
+
+DO NOT just assume or guess. Users prefer being asked over having wrong data.
+
+Example:
+- User says: "I worked on that masonry project"
+- You're not sure if it's chimney, tuckpointing, or general repair
+- Call requestClarification with all possibilities
+- Wait for their response before extracting with high confidence
+`;
+```
+
 ---
 
 ## State Management
@@ -471,7 +725,7 @@ export function useProjectData(
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                  Gemini 3.0 Flash                               │
+│               Gemini 3 Flash (preview)                          │
 │   Decides to call: extractProjectData({                         │
 │     project_type: "chimney-rebuild",                            │
 │     duration: "last week",                                      │
@@ -607,7 +861,7 @@ export async function POST(request: Request) {
     const { messages }: { messages: UIMessage[] } = await request.json();
 
     const result = streamText({
-      model: getChatModel(),  // Gemini 3.0 Flash
+      model: getChatModel(),  // Gemini 3 Flash (preview)
       system: CONVERSATION_SYSTEM_PROMPT,
       messages: await convertToModelMessages(messages),
       tools: {
@@ -671,7 +925,8 @@ export type ArtifactType =
   | 'showProgress'
   | 'promptForImages'
   | 'showPortfolioPreview'
-  | 'showContentEditor';
+  | 'showContentEditor'
+  | 'requestClarification';
 
 /** Tool part from UIMessage */
 export interface ToolPart {
@@ -690,7 +945,8 @@ export type ArtifactPart =
   | { type: 'tool-showProgress'; state: 'output-available'; output: ProgressData }
   | { type: 'tool-promptForImages'; state: 'output-available'; output: ImagePromptData }
   | { type: 'tool-showPortfolioPreview'; state: 'output-available'; output: PortfolioPreviewData }
-  | { type: 'tool-showContentEditor'; state: 'output-available'; output: ContentEditorData };
+  | { type: 'tool-showContentEditor'; state: 'output-available'; output: ContentEditorData }
+  | { type: 'tool-requestClarification'; state: 'output-available'; output: ClarificationData };
 
 /** Progress tracker data */
 export interface ProgressData {
@@ -737,6 +993,16 @@ export interface ContentEditorData {
   materials?: string[];
   techniques?: string[];
   editable: boolean;
+}
+
+/** Clarification request data */
+export interface ClarificationData {
+  field: string;
+  currentValue?: string;
+  alternatives?: string[];
+  question: string;
+  confidence: number;
+  context?: string;
 }
 
 /** Artifact action events */
@@ -1274,7 +1540,7 @@ export default function ProjectChatPage({ params, searchParams }) {
 
 This section documents how and when data is saved to the database during chat interactions. This is a critical architectural decision affecting reliability, user experience, and data integrity.
 
-### Current Implementation: Batch Save
+### Current Implementation: Batch Save (Project Data)
 
 The existing implementation uses a "batch save at end" pattern:
 
@@ -1304,9 +1570,19 @@ The existing implementation uses a "batch save at end" pattern:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Risk:** If the user closes the tab before clicking "Generate", all extracted data is lost.
+**Risk:** If the user closes the tab before clicking "Generate", project fields may remain incomplete because extracted data is not written to the `projects` table during chat.
 
 **Exception:** Images are saved immediately to Supabase Storage via `/api/projects/[id]/images`.
+
+### Current Implementation: Full Chat History + Tool Parts
+
+The chat system **does** persist full message history (including tool parts) into `chat_messages.metadata.parts`, and uses smart context loading to resume sessions:
+
+- Messages are saved via `POST /api/chat/sessions/[id]/messages` with `parts` included
+- Context is loaded with `/api/chat/sessions/[id]/context` (full history for short sessions; summary + recent messages for long sessions)
+- Tool parts are restored client-side and rendered as artifacts
+
+**Known limitation:** tool-only messages without any text content are currently skipped by the client-side save logic, so those tool parts will not persist unless paired with a text part.
 
 ### Proposed Implementation: Incremental Save
 

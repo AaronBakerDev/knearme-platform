@@ -2,11 +2,15 @@
  * Widget Resource Handler for MCP endpoint.
  *
  * Serves widget metadata for ChatGPT rendering.
- * The actual widget bundle is served from /mcp/widget or built inline.
+ * The widget bundle is built from mcp-server/widgets using Vite.
+ * Run `npm run build` in mcp-server/widgets to rebuild.
  *
  * @see /docs/chatgpt-apps-sdk/BUILDING.md
+ * @see /mcp-server/widgets/ for widget source code
  */
 
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 import type { WidgetMetaFields } from './types';
 
 /**
@@ -38,14 +42,26 @@ export const widgetMeta: WidgetMetaFields = {
   },
   'openai/widgetDomain': 'knearme.co',
   'openai/widgetPrefersBorder': true,
+  'openai/widgetDescription': 'KnearMe portfolio management widgets',
   'openai/outputTemplate': 'template://knearme-portfolio',
 };
 
 /**
- * Minimal widget HTML for serverless environments.
- * In production, this would be replaced with the built widget bundle.
+ * Path to the built widget bundle.
+ * Built by running `npm run build` in mcp-server/widgets.
  */
-const WIDGET_HTML = `<!DOCTYPE html>
+const WIDGET_BUNDLE_PATH = join(process.cwd(), 'mcp-server/widgets/dist/widget.html');
+
+/**
+ * Cached widget bundle to avoid repeated file reads.
+ */
+let widgetBundleCache: string | null = null;
+
+/**
+ * Minimal fallback widget HTML for when the bundle isn't available.
+ * Used during development or if the build hasn't run.
+ */
+const FALLBACK_WIDGET_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -79,7 +95,6 @@ const WIDGET_HTML = `<!DOCTYPE html>
       if (data.template === 'project-draft' || data.template === 'project-status') {
         const project = data.data?.project || {};
         const missing = data.data?.missing_fields || [];
-        const canPublish = data.data?.can_publish || false;
 
         app.innerHTML = \`
           <div class="card">
@@ -117,9 +132,28 @@ const WIDGET_HTML = `<!DOCTYPE html>
 
 /**
  * Get widget HTML bundle.
+ * Loads the built React widget if available, otherwise returns fallback.
  */
 export function getWidgetBundle(): string {
-  return WIDGET_HTML;
+  // Return cached bundle if available
+  if (widgetBundleCache) {
+    return widgetBundleCache;
+  }
+
+  // Try to load the built widget bundle
+  try {
+    if (existsSync(WIDGET_BUNDLE_PATH)) {
+      widgetBundleCache = readFileSync(WIDGET_BUNDLE_PATH, 'utf-8');
+      console.log('[Widget] Loaded built widget bundle from:', WIDGET_BUNDLE_PATH);
+      return widgetBundleCache;
+    }
+  } catch (error) {
+    console.warn('[Widget] Failed to load built widget bundle:', error);
+  }
+
+  // Fall back to minimal inline widget
+  console.warn('[Widget] Using fallback widget. Run "npm run build" in mcp-server/widgets to build the full widget.');
+  return FALLBACK_WIDGET_HTML;
 }
 
 /**

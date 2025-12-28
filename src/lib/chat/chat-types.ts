@@ -71,6 +71,9 @@ export interface ChatMessage {
  *
  * The AI extracts this structured data from natural conversation,
  * which is then used to enhance image analysis and content generation.
+ *
+ * IMPORTANT: city and state are required for publishing.
+ * @see /src/app/api/projects/[id]/publish/route.ts for server requirements
  */
 export interface ExtractedProjectData {
   /** Detected project type (chimney, tuckpointing, etc.) */
@@ -85,8 +88,12 @@ export interface ExtractedProjectData {
   techniques_mentioned?: string[];
   /** How long the project took */
   duration?: string;
-  /** Project location (city, state) */
+  /** Project location (city, state) - deprecated, use city+state */
   location?: string;
+  /** City where project was done (required for SEO URL) */
+  city?: string;
+  /** State/province where project was done (required for SEO URL) */
+  state?: string;
   /** Any challenges faced */
   challenges?: string;
   /** What contractor is most proud of */
@@ -184,4 +191,80 @@ export interface ChatRequest {
   extractedData?: ExtractedProjectData;
   /** Image analysis results (for generating phase) */
   imageAnalysis?: Record<string, unknown>;
+}
+
+/**
+ * Context provided to tool execute functions.
+ *
+ * This context enables tools to perform database operations, check permissions,
+ * and access user-specific data. It is provided via closure when creating tools
+ * in the chat route handlers.
+ *
+ * ## Usage Pattern
+ *
+ * Tools should receive context via closure, not execution args:
+ *
+ * ```typescript
+ * // In route handler after auth:
+ * const context: ToolContext = {
+ *   userId: auth.user.id,
+ *   contractorId: auth.contractor.id,
+ *   projectId: requestBody.projectId,  // from request
+ *   sessionId: requestBody.sessionId,  // from request
+ * };
+ *
+ * // Create tool with context in closure:
+ * const myTool = tool({
+ *   description: '...',
+ *   inputSchema: z.object({ ... }),
+ *   execute: async (args) => {
+ *     // Context available via closure
+ *     const { data } = await supabase
+ *       .from('projects')
+ *       .select('*')
+ *       .eq('id', context.projectId)
+ *       .eq('contractor_id', context.contractorId)
+ *       .single();
+ *     return { ...args, data };
+ *   },
+ * });
+ * ```
+ *
+ * ## Why Closure Over Execution Args
+ *
+ * The Vercel AI SDK's tool execute function only receives the model's
+ * output (args). Context must be provided via closure because:
+ *
+ * 1. Security: Model can't manipulate context (userId, contractorId)
+ * 2. Type safety: Context is typed separately from tool input schema
+ * 3. Consistency: Same pattern as other Next.js route handlers
+ *
+ * @see /src/app/api/chat/route.ts - Main chat route
+ * @see /src/app/api/chat/edit/route.ts - Legacy edit route (forwards to unified chat)
+ * @see https://ai-sdk.dev/docs/ai-sdk-core/tools - Vercel AI SDK tools
+ */
+export interface ToolContext {
+  /**
+   * Current project ID (optional - may not exist in create flow).
+   * Used for project-specific operations like image upload, content save.
+   */
+  projectId?: string;
+
+  /**
+   * Current chat session ID (optional - may be creating new session).
+   * Used for persisting conversation state and extracted data.
+   */
+  sessionId?: string;
+
+  /**
+   * Authenticated user's Supabase auth.users ID.
+   * Always required - tools should never execute without auth.
+   */
+  userId: string;
+
+  /**
+   * Authenticated user's contractor ID from contractors table.
+   * Always required - used for RLS and data access.
+   */
+  contractorId: string;
 }

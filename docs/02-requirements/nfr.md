@@ -1,7 +1,7 @@
 # Non-Functional Requirements (NFR)
 
 > **Version:** 1.0
-> **Last Updated:** December 8, 2025
+> **Last Updated:** December 26, 2025
 > **Status:** Ready for Development
 
 ---
@@ -42,7 +42,7 @@ graph LR
 | Write operations | < 500ms | < 1s | Create/update project |
 | Image upload | < 3s | < 5s | Per image, including processing |
 | AI analysis | < 10s | < 15s | Gemini image analysis |
-| AI generation | < 15s | < 25s | GPT-4o content generation |
+| AI generation | < 15s | < 25s | Gemini 3 Flash (preview) content generation |
 | Voice transcription | < 5s | < 8s | Whisper, per recording |
 
 ### 1.3 Image Performance
@@ -123,7 +123,7 @@ graph TD
 | Failure Scenario | Fallback Behavior |
 |------------------|-------------------|
 | Gemini API down | Queue for retry, show "Processing" |
-| OpenAI API down | Queue for retry, manual fallback option |
+| OpenAI Whisper API down | Text-only input mode |
 | Whisper API down | Text-only input mode |
 | Supabase Storage down | Show placeholder images |
 | Database connection lost | Read from edge cache |
@@ -553,8 +553,7 @@ All NFRs are considered met when:
 
 | Provider | Model | Constraint |
 |----------|-------|------------|
-| Google | Gemini 2.5 Flash | 1M context, 15 images/request |
-| OpenAI | GPT-4o | 128K context, $10/1M output tokens |
+| Google | Gemini 3 Flash (preview) | Preview model; gate usage and keep fallback (e.g., Gemini 2.5 Flash) |
 | OpenAI | Whisper | 25MB audio file limit |
 
 ## Appendix C: Vercel AI SDK Integration
@@ -570,7 +569,7 @@ For building reactive AI interfaces, the Vercel AI SDK provides:
 
 ```typescript
 // Example: AI Interview with Vercel AI SDK
-import { useChat } from 'ai/react';
+import { useChat } from '@ai-sdk/react';
 
 export function AIInterview() {
   const { messages, input, handleSubmit, isLoading } = useChat({

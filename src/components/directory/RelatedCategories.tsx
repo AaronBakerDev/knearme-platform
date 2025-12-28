@@ -21,7 +21,6 @@ import { ArrowRight, Building2 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { getCategoryMeta } from '@/lib/constants/directory-categories';
 import { useEffect, useState } from 'react';
 

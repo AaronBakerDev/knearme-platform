@@ -15,6 +15,3 @@ export { ChatTypingIndicator } from './ChatTypingIndicator';
 export { ChatQuickReplies, QUICK_REPLY_PRESETS } from './ChatQuickReplies';
 export { ChatImageUpload } from './ChatImageUpload';
 export { ChatPhotoSheet } from './ChatPhotoSheet';
-
-// Legacy export (deprecated - use ChatPhotoSheet instead)
-export { ChatPhotoPanel } from './ChatPhotoPanel';

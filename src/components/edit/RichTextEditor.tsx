@@ -36,6 +36,8 @@ interface RichTextEditorProps {
   content: string
   /** Callback when content changes */
   onChange: (html: string) => void
+  /** Toolbar layout variant */
+  toolbarVariant?: 'full' | 'compact'
   /** Placeholder text shown when editor is empty */
   placeholder?: string
   /** Minimum word count required (shows indicator if below) */
@@ -97,8 +99,18 @@ function ToolbarButton({
 /**
  * Editor toolbar with formatting buttons.
  */
-function EditorToolbar({ editor, disabled }: { editor: Editor | null; disabled?: boolean }) {
+function EditorToolbar({
+  editor,
+  disabled,
+  variant = 'full',
+}: {
+  editor: Editor | null
+  disabled?: boolean
+  variant?: 'full' | 'compact'
+}) {
   if (!editor) return null
+
+  const showHistoryControls = variant === 'full'
 
   return (
     <div className="flex flex-wrap gap-1 border-b border-border p-2 bg-muted/50">
@@ -140,23 +152,29 @@ function EditorToolbar({ editor, disabled }: { editor: Editor | null; disabled?:
         <ListOrdered className="h-4 w-4" />
       </ToolbarButton>
 
-      <div className="w-px h-6 bg-border mx-1 self-center" />
+      {showHistoryControls && (
+        <div className="w-px h-6 bg-border mx-1 self-center" />
+      )}
 
-      <ToolbarButton
-        onClick={() => editor.chain().focus().undo().run()}
-        disabled={disabled || !editor.can().undo()}
-        title="Undo (Ctrl+Z)"
-      >
-        <Undo className="h-4 w-4" />
-      </ToolbarButton>
+      {showHistoryControls && (
+        <>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={disabled || !editor.can().undo()}
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo className="h-4 w-4" />
+          </ToolbarButton>
 
-      <ToolbarButton
-        onClick={() => editor.chain().focus().redo().run()}
-        disabled={disabled || !editor.can().redo()}
-        title="Redo (Ctrl+Shift+Z)"
-      >
-        <Redo className="h-4 w-4" />
-      </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={disabled || !editor.can().redo()}
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            <Redo className="h-4 w-4" />
+          </ToolbarButton>
+        </>
+      )}
     </div>
   )
 }
@@ -219,6 +237,7 @@ function CountDisplay({
 export function RichTextEditor({
   content,
   onChange,
+  toolbarVariant = 'full',
   placeholder = 'Describe your project...',
   minWords = 200,
   maxChars,
@@ -279,7 +298,7 @@ export function RichTextEditor({
         className
       )}
     >
-      <EditorToolbar editor={editor} disabled={disabled} />
+      <EditorToolbar editor={editor} disabled={disabled} variant={toolbarVariant} />
 
       <EditorContent
         editor={editor}

@@ -14,7 +14,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Plus, MoreVertical, Pencil, Eye, Trash2, Globe, FileEdit, CheckCircle2, Clock, FolderOpen, Archive, AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Plus, MoreVertical, Pencil, Eye, Trash2, Globe, FileEdit, CheckCircle2, Clock, FolderOpen, Archive, RotateCcw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -43,11 +44,22 @@ import type { ProjectWithImages } from '@/types/database';
 type ProjectStatus = 'all' | 'draft' | 'published' | 'archived';
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState<ProjectWithImages[]>([]);
   const [status, setStatus] = useState<ProjectStatus>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteProject, setDeleteProject] = useState<ProjectWithImages | null>(null);
+
+  function formatProjectDate(project: ProjectWithImages): string | null {
+    const dateValue = project.published_at || project.updated_at || project.created_at;
+    if (!dateValue) return null;
+    return new Date(dateValue).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }
 
   // Fetch projects
   useEffect(() => {
@@ -68,7 +80,10 @@ export default function ProjectsPage() {
           setError(null);
         } else {
           // Display the actual error from the API
-          const errorMessage = data.message || `Error ${res.status}: Failed to load projects`;
+          const errorMessage =
+            data?.error?.message ||
+            data?.message ||
+            `Error ${res.status}: Failed to load projects`;
           console.error('[Projects Page] API Error:', res.status, data);
           setError(errorMessage);
           setProjects([]);
@@ -120,6 +135,34 @@ export default function ProjectsPage() {
       }
     } catch (error) {
       console.error('Failed to toggle publish:', error);
+    }
+  }
+
+  async function handleArchive(project: ProjectWithImages, restore = false) {
+    const nextStatus = restore ? 'draft' : 'archived';
+
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setProjects((prev) =>
+          prev.map((p) => (p.id === project.id ? data.project : p))
+        );
+      } else {
+        const data = await res.json().catch(() => null);
+        const message =
+          data?.error?.message || data?.message || 'Failed to update project status';
+        console.error('[Projects Page] Archive error:', message);
+        setError(message);
+      }
+    } catch (error) {
+      console.error('Failed to update project status:', error);
+      setError('Network error: Failed to update project status');
     }
   }
 
@@ -231,7 +274,11 @@ export default function ProjectsPage() {
             const isDraft = project.status === 'draft';
 
             return (
-              <Card key={project.id} className="overflow-hidden group border-0 shadow-sm hover:shadow-lg transition-all duration-200">
+              <Card
+                key={project.id}
+                className="overflow-hidden group border-0 shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer"
+                onClick={() => router.push(`/projects/${project.id}/edit`)}
+              >
                 {/* Thumbnail */}
                 <div className="relative h-48 bg-muted overflow-hidden">
                   {thumbnail ? (
@@ -273,12 +320,17 @@ export default function ProjectsPage() {
                       {project.title || 'Untitled Project'}
                     </CardTitle>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-70 hover:opacity-100">
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-70 hover:opacity-100"
+                          aria-label="Project actions"
+                        >
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenuItem asChild>
                           <Link href={`/projects/${project.id}/edit`}>
                             <Pencil className="h-4 w-4 mr-2" />
@@ -297,19 +349,32 @@ export default function ProjectsPage() {
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleTogglePublish(project)}>
-                          {isPublished ? (
-                            <>
-                              <FileEdit className="h-4 w-4 mr-2" />
-                              Unpublish
-                            </>
-                          ) : (
-                            <>
-                              <Globe className="h-4 w-4 mr-2" />
-                              Publish
-                            </>
-                          )}
-                        </DropdownMenuItem>
+                        {project.status !== 'archived' ? (
+                          <>
+                            <DropdownMenuItem onClick={() => handleTogglePublish(project)}>
+                              {isPublished ? (
+                                <>
+                                  <FileEdit className="h-4 w-4 mr-2" />
+                                  Unpublish
+                                </>
+                              ) : (
+                                <>
+                                  <Globe className="h-4 w-4 mr-2" />
+                                  Publish
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleArchive(project)}>
+                              <Archive className="h-4 w-4 mr-2" />
+                              Archive
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <DropdownMenuItem onClick={() => handleArchive(project, true)}>
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Restore to Draft
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
@@ -324,6 +389,11 @@ export default function ProjectsPage() {
                 </CardHeader>
 
                 <CardContent>
+                  {formatProjectDate(project) && (
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {formatProjectDate(project)}
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
                     {project.description || 'No description'}
                   </p>

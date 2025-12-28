@@ -87,7 +87,32 @@ function sanitizeLogDetails(details?: Record<string, unknown>): Record<string, u
 /**
  * Structured error logger - can be swapped for external service later.
  */
+/**
+ * Extract error message from various error formats.
+ * Handles Error instances, Supabase errors, and generic objects.
+ */
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'object' && error !== null) {
+    // Handle Supabase/PostgreSQL error format
+    const errObj = error as Record<string, unknown>;
+    if (typeof errObj.message === 'string') {
+      return errObj.message;
+    }
+    // Fallback to JSON stringify for unknown object formats
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'Unknown error (could not serialize)';
+    }
+  }
+  return String(error);
+}
+
 export function logApiError(error: unknown, context: ErrorLogContext): void {
+  const errorMessage = extractErrorMessage(error);
   const payload = {
     level: 'error' as const,
     requestId: context.requestId,
@@ -96,13 +121,10 @@ export function logApiError(error: unknown, context: ErrorLogContext): void {
     duration: context.duration,
     userId: context.userId,
     details: sanitizeLogDetails(context.details),
-    error:
-      error instanceof Error
-        ? {
-          message: error.message,
-          ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
-        }
-        : { message: String(error) },
+    error: {
+      message: errorMessage,
+      ...(error instanceof Error && process.env.NODE_ENV === 'development' && { stack: error.stack }),
+    },
   };
 
   logger.error('API error', payload);
@@ -176,59 +198,71 @@ export function handleApiError(
 
   logApiError(error, logContext);
 
-  if (error instanceof Error) {
-    // Known Supabase errors
-    if (error.message.includes('JWT')) {
-      return apiError('UNAUTHORIZED', 'Session expired. Please log in again.', undefined, requestId);
-    }
-    if (error.message.includes('duplicate key')) {
-      return apiError('CONFLICT', 'This resource already exists.', undefined, requestId);
-    }
-    if (error.message.includes('violates foreign key')) {
-      return apiError('VALIDATION_ERROR', 'Referenced resource not found.', undefined, requestId);
-    }
+  // Extract error message from various formats
+  const errorMessage = extractErrorMessage(error);
 
-    // RLS violations
-    if (
-      error.message.includes('row-level security') ||
-      error.message.includes('RLS') ||
-      error.message.includes('permission denied')
-    ) {
-      return apiError(
-        'RLS_VIOLATION',
-        'You do not have access to this resource.',
-        undefined,
-        requestId
-      );
-    }
+  // Check for known error patterns in the extracted message
+  // Known Supabase/auth errors
+  if (errorMessage.includes('JWT')) {
+    return apiError('UNAUTHORIZED', 'Session expired. Please log in again.', undefined, requestId);
+  }
+  if (errorMessage.includes('duplicate key')) {
+    return apiError('CONFLICT', 'This resource already exists.', undefined, requestId);
+  }
+  if (errorMessage.includes('violates foreign key')) {
+    return apiError('VALIDATION_ERROR', 'Referenced resource not found.', undefined, requestId);
+  }
 
-    // Timeouts
-    if (
-      error.message.toLowerCase().includes('timeout') ||
-      error.message.includes('ETIMEDOUT') ||
-      error.message.includes('AbortError')
-    ) {
-      return apiError(
-        'TIMEOUT',
-        'Request timed out. Please try again.',
-        undefined,
-        requestId
-      );
-    }
+  // Schema errors (like missing column)
+  if (errorMessage.includes('Could not find') && errorMessage.includes('column')) {
+    return apiError(
+      'INTERNAL_ERROR',
+      'Database schema error. Please contact support.',
+      undefined,
+      requestId
+    );
+  }
 
-    // External service down
-    if (
-      error.message.includes('ECONNREFUSED') ||
-      error.message.includes('ENOTFOUND') ||
-      error.message.includes('503')
-    ) {
-      return apiError(
-        'SERVICE_UNAVAILABLE',
-        'A required service is unavailable. Please try again shortly.',
-        undefined,
-        requestId
-      );
-    }
+  // RLS violations
+  if (
+    errorMessage.includes('row-level security') ||
+    errorMessage.includes('RLS') ||
+    errorMessage.includes('permission denied')
+  ) {
+    return apiError(
+      'RLS_VIOLATION',
+      'You do not have access to this resource.',
+      undefined,
+      requestId
+    );
+  }
+
+  // Timeouts
+  if (
+    errorMessage.toLowerCase().includes('timeout') ||
+    errorMessage.includes('ETIMEDOUT') ||
+    errorMessage.includes('AbortError')
+  ) {
+    return apiError(
+      'TIMEOUT',
+      'Request timed out. Please try again.',
+      undefined,
+      requestId
+    );
+  }
+
+  // External service down
+  if (
+    errorMessage.includes('ECONNREFUSED') ||
+    errorMessage.includes('ENOTFOUND') ||
+    errorMessage.includes('503')
+  ) {
+    return apiError(
+      'SERVICE_UNAVAILABLE',
+      'A required service is unavailable. Please try again shortly.',
+      undefined,
+      requestId
+    );
   }
 
   return apiError('INTERNAL_ERROR', 'An unexpected error occurred. Please try again.', undefined, requestId);

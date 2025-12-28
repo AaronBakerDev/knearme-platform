@@ -187,8 +187,7 @@ export function EfflorescenceTreatmentWidget() {
 
   const { state, setState, getShareableUrl } = useUrlState(defaultState)
 
-  // Convert flat state to EfflorescenceInputs for the calculation
-  const inputs: EfflorescenceInputs = {
+  const result = useMemo(() => planEfflorescenceTreatment({
     location: state.location,
     severity: state.severity,
     timing: state.timing,
@@ -200,10 +199,7 @@ export function EfflorescenceTreatmentWidget() {
       mortarGaps: state.mortarGaps,
       drainageIssues: state.drainageIssues,
     },
-  }
-
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
-  const result = useMemo(() => planEfflorescenceTreatment(inputs), [
+  }), [
     state.location, state.severity, state.timing, state.wallAge,
     state.dampInterior, state.activeLeak, state.spalling, state.mortarGaps, state.drainageIssues
   ])

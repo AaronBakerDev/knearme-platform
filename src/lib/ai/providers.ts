@@ -59,9 +59,21 @@ export const AI_MODELS = {
   generation: 'gemini-3-flash-preview',
   /** Chat model for conversational AI (Gemini 3.0 Flash) */
   chat: 'gemini-3-flash-preview',
+  /** Stable fallback model for reliability-first flows */
+  fallback: 'gemini-2.0-flash',
   /** Transcription model (OpenAI Whisper - AI SDK doesn't support Gemini transcription yet) */
   transcription: 'whisper-1',
 } as const;
+
+/**
+ * Gate preview models behind a feature flag for reliability-first flows.
+ * Set AI_PREVIEW_MODELS=true to use preview Gemini 3 models.
+ */
+const PREVIEW_MODELS_ENABLED = process.env.AI_PREVIEW_MODELS === 'true';
+
+function getGeminiModel(task: 'vision' | 'generation' | 'chat') {
+  return PREVIEW_MODELS_ENABLED ? AI_MODELS[task] : AI_MODELS.fallback;
+}
 
 /**
  * Output token limits to prevent runaway costs.
@@ -88,7 +100,7 @@ export function getVisionModel() {
   if (!isGoogleAIEnabled()) {
     throw new Error('Google AI not configured. Set GOOGLE_GENERATIVE_AI_API_KEY.');
   }
-  return google(AI_MODELS.vision);
+  return google(getGeminiModel('vision'));
 }
 
 /**
@@ -99,7 +111,7 @@ export function getGenerationModel() {
   if (!isGoogleAIEnabled()) {
     throw new Error('Google AI not configured. Set GOOGLE_GENERATIVE_AI_API_KEY.');
   }
-  return google(AI_MODELS.generation);
+  return google(getGeminiModel('generation'));
 }
 
 /**
@@ -110,7 +122,7 @@ export function getChatModel() {
   if (!isGoogleAIEnabled()) {
     throw new Error('Google AI not configured. Set GOOGLE_GENERATIVE_AI_API_KEY.');
   }
-  return google(AI_MODELS.chat);
+  return google(getGeminiModel('chat'));
 }
 
 /**
