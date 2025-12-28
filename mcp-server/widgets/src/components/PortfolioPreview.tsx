@@ -7,6 +7,7 @@
  * @see /docs/chatgpt-apps-sdk/UI_UX.md
  */
 
+import type { JSX } from 'react';
 import { useToolOutput, useTheme } from './hooks';
 
 // ============================================================================
