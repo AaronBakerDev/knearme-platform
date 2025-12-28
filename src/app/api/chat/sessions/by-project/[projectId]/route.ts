@@ -75,10 +75,11 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     // Get messages for the session
     const typedSession = session as Record<string, unknown>;
-    const { data: messages, error: messagesError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: messages, error: messagesError } = await (supabase as any)
       .from('chat_messages')
       .select('id, role, content, metadata, created_at')
-      .eq('session_id', typedSession.id)
+      .eq('session_id', typedSession.id as string)
       .order('created_at', { ascending: true });
 
     if (messagesError) {
