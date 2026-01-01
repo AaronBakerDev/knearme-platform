@@ -22,6 +22,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { UploadedImage } from '@/components/upload/ImageUploader';
 import { compressImage, COMPRESSION_PRESETS } from '@/lib/images/compress';
+import { mergeImagesById } from '@/lib/images/mergeImagesById';
 import { validateFile } from '@/lib/storage/upload';
 import { ResponsivePhotoModal, PhotoModalDoneButton } from './ResponsivePhotoModal';
 import { PhotoGridContent } from './PhotoGridContent';
@@ -146,6 +147,16 @@ export function ChatPhotoSheet({
   const imagesRef = useRef(images);
   imagesRef.current = images;
 
+  useEffect(() => {
+    if (images.length === 0) return;
+    const uniqueCount = new Set(images.map((img) => img.id)).size;
+    if (uniqueCount === images.length) return;
+
+    const deduped = mergeImagesById(images, []);
+    imagesRef.current = deduped;
+    onImagesChange(deduped);
+  }, [images, onImagesChange]);
+
   // Keep ref in sync with prop changes (e.g., when project is created via onEnsureProject)
   useEffect(() => {
     if (projectId) {
@@ -169,7 +180,8 @@ export function ChatPhotoSheet({
       if (!files || files.length === 0) return;
 
       // Check max limit - use ref for latest value
-      const remainingSlots = MAX_IMAGES - imagesRef.current.length;
+      const uniqueImageCount = new Set(imagesRef.current.map((img) => img.id)).size;
+      const remainingSlots = MAX_IMAGES - uniqueImageCount;
       if (remainingSlots <= 0) {
         setUploadError(`Maximum ${MAX_IMAGES} photos allowed`);
         return;
@@ -194,7 +206,6 @@ export function ChatPhotoSheet({
 
         // Upload files in parallel with concurrency limit
         // Process in batches of MAX_CONCURRENT_UPLOADS
-        const successfulUploads: UploadedImage[] = [];
         const failedUploads: string[] = [];
 
         for (let i = 0; i < filesToUpload.length; i += MAX_CONCURRENT_UPLOADS) {
@@ -205,9 +216,10 @@ export function ChatPhotoSheet({
           );
 
           // Process results from this batch
+          const newUploads: UploadedImage[] = [];
           results.forEach((result, index) => {
             if (result.status === 'fulfilled') {
-              successfulUploads.push(result.value);
+              newUploads.push(result.value);
             } else {
               const fileName = batch[index]?.name || 'Unknown file';
               console.warn(`[ChatPhotoSheet] Failed to upload ${fileName}:`, result.reason);
@@ -217,8 +229,10 @@ export function ChatPhotoSheet({
 
           // Update UI incrementally after each batch completes
           // Use imagesRef.current to get latest images (avoid stale closure)
-          if (successfulUploads.length > 0) {
-            onImagesChange([...imagesRef.current, ...successfulUploads]);
+          if (newUploads.length > 0) {
+            const mergedImages = mergeImagesById(imagesRef.current, newUploads);
+            imagesRef.current = mergedImages;
+            onImagesChange(mergedImages);
           }
         }
 

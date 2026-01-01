@@ -41,6 +41,21 @@ const DISMISS_KEY = 'knearme-install-prompt-dismissed';
 const DISMISS_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
+ * Checks if we're on a mobile device.
+ * Desktop browsers should not see the install prompt.
+ */
+function isMobile(): boolean {
+  if (typeof window === 'undefined') return false;
+  // Check for common mobile user agents
+  const mobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+  // Also check for touch capability + small screen (catches some edge cases)
+  const touchSmallScreen = navigator.maxTouchPoints > 0 && window.innerWidth < 768;
+  return mobileUA || touchSmallScreen;
+}
+
+/**
  * Checks if we're on iOS (Safari doesn't support beforeinstallprompt).
  */
 function isIOS(): boolean {
@@ -67,14 +82,18 @@ function isStandalone(): boolean {
  */
 function isDismissed(): boolean {
   if (typeof window === 'undefined') return false;
-  const dismissed = localStorage.getItem(DISMISS_KEY);
-  if (!dismissed) return false;
+  try {
+    const dismissed = localStorage.getItem(DISMISS_KEY);
+    if (!dismissed) return false;
 
-  const dismissedAt = parseInt(dismissed, 10);
-  if (isNaN(dismissedAt)) return false;
+    const dismissedAt = parseInt(dismissed, 10);
+    if (isNaN(dismissedAt)) return false;
 
-  // Check if dismissal has expired
-  return Date.now() - dismissedAt < DISMISS_DURATION_MS;
+    // Check if dismissal has expired
+    return Date.now() - dismissedAt < DISMISS_DURATION_MS;
+  } catch {
+    return false;
+  }
 }
 
 export function InstallPrompt() {
@@ -84,6 +103,11 @@ export function InstallPrompt() {
   const [isInstalling, setIsInstalling] = useState(false);
 
   useEffect(() => {
+    // Only show on mobile devices - desktop users shouldn't see this
+    if (!isMobile()) {
+      return;
+    }
+
     // Don't show if already installed or dismissed
     if (isStandalone() || isDismissed()) {
       return;
@@ -93,8 +117,11 @@ export function InstallPrompt() {
     if (isIOS()) {
       // Delay showing iOS instructions to not be intrusive
       const timer = setTimeout(() => {
-        setShowIOSInstructions(true);
-        setShowBanner(true);
+        // Re-check dismissal before showing (covers race conditions)
+        if (!isDismissed()) {
+          setShowIOSInstructions(true);
+          setShowBanner(true);
+        }
       }, 5000);
       return () => clearTimeout(timer);
     }
@@ -106,7 +133,12 @@ export function InstallPrompt() {
       // Store the event for later use
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       // Show our custom banner after a short delay
-      setTimeout(() => setShowBanner(true), 3000);
+      // Re-check dismissal before showing (covers race conditions)
+      setTimeout(() => {
+        if (!isDismissed()) {
+          setShowBanner(true);
+        }
+      }, 3000);
     };
 
     // Listen for successful install
@@ -124,6 +156,15 @@ export function InstallPrompt() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
+  }, []);
+
+  const recordDismissal = useCallback((timestamp = Date.now()) => {
+    setShowBanner(false);
+    try {
+      localStorage.setItem(DISMISS_KEY, timestamp.toString());
+    } catch {
+      // Ignore storage failures (e.g., private mode or blocked storage).
+    }
   }, []);
 
   const handleInstall = useCallback(async () => {
@@ -144,7 +185,7 @@ export function InstallPrompt() {
         // User accepted - banner will hide via appinstalled event
       } else {
         // User dismissed the prompt
-        setShowBanner(false);
+        recordDismissal();
       }
     } catch (error) {
       console.error('[PWA] Install prompt error:', error);
@@ -152,13 +193,11 @@ export function InstallPrompt() {
       setIsInstalling(false);
       setDeferredPrompt(null);
     }
-  }, [deferredPrompt]);
+  }, [deferredPrompt, recordDismissal]);
 
   const handleDismiss = useCallback(() => {
-    setShowBanner(false);
-    // Store dismissal timestamp
-    localStorage.setItem(DISMISS_KEY, Date.now().toString());
-  }, []);
+    recordDismissal();
+  }, [recordDismissal]);
 
   if (!showBanner) {
     return null;

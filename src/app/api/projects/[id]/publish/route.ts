@@ -12,6 +12,7 @@ import { requireAuthUnified, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { composeProjectDescription } from '@/lib/projects/compose-description';
 import { trackProjectPublished } from '@/lib/observability/kpi-events';
+import { getPublishedProjectLimit, normalizePlanTier } from '@/lib/billing/plan-limits';
 import type { ProjectWithImages } from '@/types/database';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -86,6 +87,37 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiError('NOT_FOUND', 'Project not found');
     }
 
+    const planTier = normalizePlanTier(contractor.plan_tier);
+    const publishedProjectLimit = getPublishedProjectLimit(planTier);
+    let planLimitMessage: string | null = null;
+
+    if (publishedProjectLimit !== null) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { count, error: countError } = await (supabase as any)
+        .from('projects')
+        .select('id', { count: 'exact', head: true })
+        .eq('contractor_id', contractor.id)
+        .eq('status', 'published')
+        .neq('id', id);
+
+      if (countError) {
+        console.error('[POST /api/projects/[id]/publish] Count error:', countError);
+        return handleApiError(countError);
+      }
+
+      if ((count ?? 0) >= publishedProjectLimit) {
+        planLimitMessage = `Free plan limit reached (${publishedProjectLimit} published projects).`;
+
+        if (!dryRun) {
+          return apiError(
+            'FORBIDDEN',
+            'Free plan limit reached. Upgrade to publish more projects.',
+            { limit: publishedProjectLimit, plan: planTier }
+          );
+        }
+      }
+    }
+
     // Validate publishability
     const errors: string[] = [];
 
@@ -126,9 +158,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Issue #6: If dry_run, return validation result without publishing
     if (dryRun) {
+      const missing = planLimitMessage ? [...errors, planLimitMessage] : errors;
       return apiSuccess({
-        valid: errors.length === 0,
-        missing: errors,
+        valid: missing.length === 0,
+        missing,
       });
     }
 

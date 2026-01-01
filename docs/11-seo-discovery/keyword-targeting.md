@@ -31,13 +31,17 @@ KNearMe targets two distinct keyword audiences:
 | Keyword Pattern | Example | Search Volume (Denver) | Competition | Priority | Target Page Type |
 |-----------------|---------|------------------------|-------------|----------|-----------------|
 | **{service} in {city}** | "chimney repair in Denver" | 880/mo | Medium | **P0** | Service Type by City |
-| **{city} {service} contractors** | "Denver masonry contractors" | 590/mo | Medium | **P0** | City Hub |
-| **{service} near me** | "tuckpointing near me" | 1,300/mo (national) | High | **P1** | City Hub (geo-targeted) |
-| **best {service} {city}** | "best masonry Denver" | 320/mo | Low | **P1** | City Hub |
+| **{city} {service} contractors** | "Denver masonry contractors" | 590/mo | Medium | **P0** | City Hub (Roundup) |
+| **{service} near me** | "tuckpointing near me" | 1,300/mo (national) | High | **P1** | City Hub (Roundup, geo-targeted) |
+| **best {service} {city}** | "best masonry Denver" | 320/mo | Low | **P1** | Review Analysis Hub |
 | **{service} cost {city}** | "chimney rebuild cost Denver" | 210/mo | Low | **P2** | Educational Content |
-| **{service} {city} reviews** | "chimney repair Denver reviews" | 140/mo | Low | **P2** | City Hub (with reviews, Phase 3) |
-| **{service} contractor near me** | "masonry contractor near me" | 890/mo (national) | High | **P1** | City Hub |
+| **{service} {city} reviews** | "chimney repair Denver reviews" | 140/mo | Low | **P2** | Review Analysis Hub (Phase 3) |
+| **{service} contractor near me** | "masonry contractor near me" | 890/mo (national) | High | **P1** | City Hub (Roundup) |
 | **{city} {service}** | "Denver chimney repair" | 720/mo | Medium | **P0** | Service Type by City |
+
+**Page Type Definitions:**
+- **City Hub (Roundup):** Content hub built from contractor-generated projects and profiles. No review analysis.
+- **Review Analysis Hub:** Separate editorial pipeline for “best {service} in {city}” and review-intent queries. Based on market review signals; links to city hub roundups and proof pages.
 
 **Volume Notes:**
 - Denver metro (population 3M) used as baseline
@@ -51,11 +55,11 @@ KNearMe targets two distinct keyword audiences:
 
 | Keyword | Monthly Volume | Competition | Priority | Target Page |
 |---------|----------------|-------------|----------|-------------|
-| **masonry project examples {city}** | 100-500 | Low | **P1** | City Hub |
+| **masonry project examples {city}** | 100-500 | Low | **P1** | City Hub (Roundup) |
 | **chimney repair portfolio** | 200-500 | Low | **P1** | Service Type by City |
 | **before after masonry repair** | 500-1,000 | Medium | **P1** | Project Detail (image optimization) |
-| **{service} contractor reviews {city}** | 100-300 | Low | **P2** | City Hub (Phase 3 with reviews) |
-| **licensed {service} contractor {city}** | 150-400 | Low | **P2** | City Hub |
+| **{service} contractor reviews {city}** | 100-300 | Low | **P2** | Review Analysis Hub (Phase 3) |
+| **licensed {service} contractor {city}** | 150-400 | Low | **P2** | City Hub (Roundup) |
 | **{service} estimate {city}** | 200-600 | Low | **P2** | Contractor Profile (CTA) |
 
 **Content Gap Opportunities:**
@@ -112,7 +116,7 @@ Based on `/docs/content-planning/masonry/content-plan.md`:
 
 **"Near Me" Optimization:**
 - Geo-targeting via Google My Business (future)
-- City Hub pages optimized for local pack rankings
+- City Hub (Roundup) pages optimized for local pack rankings
 - Schema.org `areaServed` property for service radius
 
 ---
@@ -182,9 +186,10 @@ Based on `/docs/content-planning/masonry/content-plan.md`:
 | **/contractor/{username}** | {contractor name} | {contractor business name}, {city} {service} contractor | <10/mo (branded) | **P0** |
 
 **Optimization Strategy:**
-- **City Hub:** H1 = "{City} Masonry Contractors", meta title includes "Find Best Masonry Contractors in {City}"
+- **City Hub (Roundup):** H1 = "{City} Masonry Contractors", meta title includes "Find Masonry Contractors in {City}"
 - **Service Type:** H1 = "{Service} in {City}", meta title = "Expert {Service} Contractors in {City} | KNearMe"
 - **Project Detail:** H1 = AI-generated project title, meta title = "{Title} | {Contractor Name} | {City}"
+- **Review Analysis Hub:** H1 = "Best {Service} in {City}", with methodology, review data sources, and a disclaimer.
 
 ### 4.2 National Service Landing Pages (Phase 3)
 
@@ -204,7 +209,7 @@ Based on `/docs/content-planning/masonry/content-plan.md` Section 1:
 **Content Strategy:**
 - 1,500-2,500 words per page
 - FAQ section (target featured snippets)
-- Links to City Hubs offering this service
+- Links to City Hub (Roundup) pages offering this service
 - Embedded project galleries (8-12 featured projects)
 
 ### 4.3 Educational Content (Phase 3)
@@ -225,7 +230,7 @@ Based on `/docs/content-planning/masonry/content-plan.md` Section 2:
 **SEO Optimization:**
 - H1 = Exact match primary keyword (or close variation)
 - H2/H3 = Secondary keywords and related questions
-- Internal links to 2-3 City Hubs or Service Type pages
+- Internal links to 2-3 City Hub (Roundup) pages or Service Type pages
 - FAQ schema for featured snippets
 
 ### 4.4 Problem-Solution Guides (Phase 3)
@@ -392,7 +397,7 @@ Based on `/docs/content-planning/masonry/content-plan.md` Section 3:
 
 - [x] Identify primary keyword patterns (homeowner keywords)
 - [x] Map service type keywords to database slugs
-- [x] Optimize existing City Hub and Project Detail pages
+- [x] Optimize existing City Hub (Roundup) and Project Detail pages
 - [x] Define geographic keyword strategy (Colorado focus)
 
 ### Phase 2 (January - February 2025)

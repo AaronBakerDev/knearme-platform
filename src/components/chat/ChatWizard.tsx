@@ -28,12 +28,14 @@ import { ChatMessages } from './ChatMessages';
 import { ChatInput } from './ChatInput';
 import { ChatPhotoSheet } from './ChatPhotoSheet';
 import { CanvasPanel, type CanvasPanelSize, type CanvasTab } from './CanvasPanel';
+import { VoiceLiveControls, type VoiceTalkMode } from './VoiceLiveControls';
 import { PreviewPill } from './PreviewPill';
 import { PreviewOverlay } from './PreviewOverlay';
 import { CollectedDataPeekBar } from './CollectedDataPeekBar';
 import { QuickActionChips } from './QuickActionChips';
 import { Button } from '@/components/ui/button';
-import { getOpeningMessage, getEditOpeningMessage } from '@/lib/chat/chat-prompts';
+import { MicPermissionPrompt } from '@/components/voice';
+import { getOpeningMessage } from '@/lib/chat/chat-prompts';
 import {
   createSummarySystemMessage,
   type ContextLoadResult,
@@ -45,6 +47,8 @@ import {
   useAutoSummarize,
   useSaveQueue,
   useQuickActions,
+  useVoiceModeManager,
+  useLiveVoiceSession,
   useMilestoneToasts,
   MilestoneToast,
 } from './hooks';
@@ -52,10 +56,17 @@ import type { QuickActionItem, QuickActionType } from './hooks';
 import { SaveIndicator } from './artifacts/shared/SaveStatusBadge';
 import type { UploadedImage } from '@/components/upload/ImageUploader';
 import type { ExtractedProjectData, ChatPhase, GeneratedContent } from '@/lib/chat/chat-types';
-import type { ShowPortfolioPreviewOutput, SuggestQuickActionsOutput } from '@/lib/chat/tool-schemas';
+import type {
+  GeneratePortfolioContentOutput,
+  ShowPortfolioPreviewOutput,
+  SuggestQuickActionsOutput,
+} from '@/lib/chat/tool-schemas';
 import { cn } from '@/lib/utils';
 import { formatProjectLocation } from '@/lib/utils/location';
-import { parseDescriptionBlocksFromHtml } from '@/lib/content/description-blocks.client';
+import { getPublicUrl } from '@/lib/storage/upload';
+import {
+  buildDescriptionBlocksFromContent,
+} from '@/lib/content/description-blocks.client';
 import { blocksToHtml, sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
 import type { Contractor, Project, ProjectImage } from '@/types/database';
 import type { RelatedProject } from '@/lib/data/projects';
@@ -94,6 +105,8 @@ const QUICK_ACTION_TYPES: QuickActionType[] = [
   'generate',
   'openForm',
   'showPreview',
+  'composeLayout',
+  'checkPublishReady',
   'insert',
 ];
 
@@ -119,6 +132,43 @@ function mergeQuickActions(primary: QuickActionItem[], fallback: QuickActionItem
   }
 
   return merged;
+}
+
+/**
+ * Tool types that trigger side-effects in ArtifactRenderer.
+ * When messages are restored from session history, we need to track
+ * these tool call IDs to prevent re-firing side-effects.
+ * @see /src/components/chat/artifacts/ArtifactRenderer.tsx SIDE_EFFECT_TOOLS
+ */
+const SIDE_EFFECT_TOOL_TYPES = new Set([
+  'tool-showContentEditor',
+  'tool-showPortfolioPreview',
+  'tool-updateField',
+  'tool-updateDescriptionBlocks',
+  'tool-suggestQuickActions',
+  'tool-composePortfolioLayout',
+  'tool-reorderImages',
+  'tool-regenerateSection',
+  'tool-validateForPublish',
+]);
+
+/**
+ * Extract side-effect tool call IDs from messages.
+ * Used to pre-populate processedSideEffectToolCalls when restoring session.
+ */
+function extractSideEffectToolCallIds(messages: UIMessage[]): Set<string> {
+  const ids = new Set<string>();
+  for (const msg of messages) {
+    if (!msg.parts) continue;
+    for (const part of msg.parts) {
+      if (typeof part !== 'object' || part === null) continue;
+      const toolPart = part as { type?: string; toolCallId?: string };
+      if (toolPart.type && toolPart.toolCallId && SIDE_EFFECT_TOOL_TYPES.has(toolPart.type)) {
+        ids.add(toolPart.toolCallId);
+      }
+    }
+  }
+  return ids;
 }
 
 function coerceQuickActionSuggestions(payload: unknown): QuickActionItem[] {
@@ -185,6 +235,37 @@ function mergeUniqueStrings(...arrays: string[][]): string[] {
   );
 }
 
+type DeepToolChoice = 'generatePortfolioContent' | 'checkPublishReady' | 'composePortfolioLayout';
+
+function inferDeepToolChoice(text: string): DeepToolChoice | undefined {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  const wantsLayout =
+    /\blayout\b/.test(normalized) ||
+    /\b(description|content)\s+blocks\b/.test(normalized) ||
+    /\bblock\s+layout\b/.test(normalized) ||
+    /\bcontent\s+structure\b/.test(normalized);
+
+  if (wantsLayout) return 'composePortfolioLayout';
+
+  const wantsPublishCheck =
+    /ready to publish|publish ready|publish readiness|am i ready to publish|can i publish|check publish/.test(
+      normalized
+    ) || (normalized.includes('publish') && normalized.includes('ready'));
+
+  if (wantsPublishCheck) return 'checkPublishReady';
+
+  const wantsGenerate =
+    /\b(generate|draft|write)\b/.test(normalized) &&
+    !/\bregenerate\b/.test(normalized) &&
+    /(content|description|portfolio|page|story|write up|write-up)/.test(normalized);
+
+  if (wantsGenerate) return 'generatePortfolioContent';
+
+  return undefined;
+}
+
 /**
  * Mode determines whether ChatWizard is creating a new project or editing existing.
  *
@@ -216,10 +297,6 @@ interface ChatWizardProps {
    * @default 'create'
    */
   mode?: ChatWizardMode;
-  /** Called when wizard completes successfully */
-  onComplete?: (projectId: string) => void;
-  /** Called when user wants to cancel */
-  onCancel?: () => void;
   /** Optional additional className */
   className?: string;
   /** Optional form content for the side panel */
@@ -254,7 +331,6 @@ export function ChatWizard({
   projectId,
   onEnsureProject,
   mode = 'create',
-  onComplete,
   className,
   formContent,
   publicPreview,
@@ -270,6 +346,28 @@ export function ChatWizard({
   const [inputValue, setInputValue] = useState('');
   const [agentQuickActions, setAgentQuickActions] = useState<QuickActionItem[]>([]);
   const { currentMilestone, triggerMilestone, dismissMilestone, resetMilestones } = useMilestoneToasts();
+  const voiceChatEnabled = process.env.NEXT_PUBLIC_VOICE_VOICE_ENABLED === 'true';
+  const {
+    mode: voiceMode,
+    setMode: setVoiceMode,
+    permissionStatus: micPermissionStatus,
+    supportsVoice,
+    requestPermission: requestMicPermission,
+    isRequestingPermission: isRequestingMicPermission,
+    voiceChatAvailable,
+  } = useVoiceModeManager({
+    enableVoiceChat: voiceChatEnabled,
+    // Only monitor network quality when voice chat is enabled
+    enableNetworkQuality: voiceChatEnabled,
+  });
+
+  /**
+   * Talk mode for voice controls - local state with localStorage persistence.
+   * When switching to 'continuous', we need to reconnect the live session
+   * with automatic VAD enabled.
+   */
+  const [voiceTalkMode, setVoiceTalkMode] = useState<VoiceTalkMode>('tap');
+
   /**
    * When true, shows a retry button for recoverable errors (e.g., load failures).
    * Critical errors that can be retried should set this along with setError.
@@ -346,6 +444,11 @@ export function ChatWizard({
 
   // Session persistence state
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   /**
    * Auto-summarize session on end (tab close, inactivity).
@@ -372,12 +475,27 @@ export function ChatWizard({
     enabled: true,
   });
 
-  const [isLoadingSession, setIsLoadingSession] = useState(true);
+  // For create mode with no projectId, don't show loading state initially.
+  // This avoids SSR/hydration issues where useEffect may not run immediately.
+  const [isLoadingSession, setIsLoadingSession] = useState(() => {
+    // Create mode without projectId: skip loading
+    if (!projectId && mode === 'create') return false;
+    // Edit mode or has projectId: show loading until session loads
+    return true;
+  });
 
   // Track which messages have been saved to avoid duplicates
   const savedMessageIds = useRef<Set<string>>(new Set());
   const lastMessageCount = useRef<number>(0);
   const processedExtractToolCalls = useRef<Set<string>>(new Set());
+  const processedGeneratedToolCalls = useRef<Set<string>>(new Set());
+  /**
+   * Track side-effect tool calls that were loaded from session history.
+   * These should NOT fire their side-effects again (e.g., showPortfolioPreview
+   * would auto-open the preview overlay on every page load).
+   * @see ArtifactRenderer.tsx - uses this to skip firing side-effects
+   */
+  const processedSideEffectToolCalls = useRef<Set<string>>(new Set());
 
   const logPreviewEvent = useCallback((event: string, details?: Record<string, unknown>) => {
     if (process.env.NODE_ENV === 'production') return;
@@ -391,19 +509,17 @@ export function ChatWizard({
    * - Edit mode: Personalized edit greeting (updated after project loads)
    */
   const getWelcomeMessage = useCallback(
-    (projectTitle?: string | null): UIMessage => ({
+    (_projectTitle?: string | null): UIMessage => ({
       id: 'welcome',
       role: 'assistant',
       parts: [
         {
           type: 'text',
-          text: isEditMode
-            ? getEditOpeningMessage(projectTitle ?? undefined)
-            : getOpeningMessage(),
+          text: getOpeningMessage(),
         },
       ],
     }),
-    [isEditMode]
+    []
   );
 
   // AI SDK v6 chat hook
@@ -433,6 +549,143 @@ export function ChatWizard({
     }),
   });
 
+  const appendLiveMessage = useCallback(
+    (role: 'user' | 'assistant', text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      const id =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `live-${role}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id,
+          role,
+          parts: [{ type: 'text', text: trimmed }],
+        },
+      ]);
+    },
+    [setMessages]
+  );
+
+  const appendLiveToolResult = useCallback(
+    (
+      toolName: string,
+      toolCallId: string,
+      output?: unknown,
+      error?: { message?: string }
+    ) => {
+      if (typeof output === 'undefined' && !error) return;
+      const id =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `live-tool-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id,
+          role: 'assistant' as const,
+          parts: [
+            error
+              ? {
+                  type: `tool-${toolName}` as const,
+                  state: 'output-error' as const,
+                  toolCallId,
+                  input: undefined,
+                  errorText: error.message ?? 'Tool failed.',
+                }
+              : {
+                  type: `tool-${toolName}` as const,
+                  state: 'output-available' as const,
+                  toolCallId,
+                  input: undefined,
+                  output,
+                },
+          ],
+        },
+      ]);
+    },
+    [setMessages]
+  );
+
+  const ensureLiveSessionReady = useCallback(async () => {
+    let currentProjectId = projectId;
+
+    if (!currentProjectId && onEnsureProject && !isEditMode) {
+      currentProjectId = await onEnsureProject();
+    }
+
+    if (!currentProjectId) {
+      throw new Error('Missing project context.');
+    }
+
+    if (sessionIdRef.current) {
+      return { projectId: currentProjectId, sessionId: sessionIdRef.current };
+    }
+
+    return await new Promise<{ projectId: string; sessionId: string }>((resolve, reject) => {
+      const started = Date.now();
+      const interval = setInterval(() => {
+        if (sessionIdRef.current) {
+          clearInterval(interval);
+          resolve({ projectId: currentProjectId as string, sessionId: sessionIdRef.current });
+          return;
+        }
+        if (Date.now() - started > 5000) {
+          clearInterval(interval);
+          reject(new Error('Timed out waiting for session.'));
+        }
+      }, 100);
+    });
+  }, [projectId, onEnsureProject, isEditMode]);
+
+  const liveVoiceSession = useLiveVoiceSession({
+    enabled: voiceMode === 'voice_chat' && micPermissionStatus === 'granted',
+    continuousMode: voiceTalkMode === 'continuous',
+    ensureSessionReady: ensureLiveSessionReady,
+    onUserMessage: (text) => appendLiveMessage('user', text),
+    onAssistantMessage: (text) => appendLiveMessage('assistant', text),
+    onToolResult: appendLiveToolResult,
+    onFallback: () => setVoiceMode('text'),
+  });
+
+  // Keep startTalking ref in sync for use in timer callbacks (avoids stale closure)
+  const startTalkingRef = useRef(liveVoiceSession.startTalking);
+  useEffect(() => {
+    startTalkingRef.current = liveVoiceSession.startTalking;
+  }, [liveVoiceSession.startTalking]);
+
+  /**
+   * Handle talk mode changes from VoiceLiveControls.
+   * When switching to continuous mode, auto-connect and start listening.
+   * When switching away, disconnect so the session can reconnect with new VAD settings.
+   */
+  const handleTalkModeChange = useCallback((mode: VoiceTalkMode) => {
+    const wasConnected = liveVoiceSession.isConnected;
+    const wasContinuous = voiceTalkMode === 'continuous';
+    const willBeContinuous = mode === 'continuous';
+
+    setVoiceTalkMode(mode);
+
+    // If switching between continuous and non-continuous mode while connected,
+    // disconnect so the session can reconnect with new VAD settings
+    if (wasConnected && wasContinuous !== willBeContinuous) {
+      liveVoiceSession.disconnect();
+    }
+
+    // Auto-connect when switching TO continuous mode (hands-free experience)
+    // This starts the session immediately so user can just start talking
+    // Note: If we just disconnected above, we still want to auto-start
+    if (willBeContinuous && micPermissionStatus === 'granted') {
+      // Small delay to allow state update and disconnect to complete
+      // Uses ref to always get the latest startTalking with correct continuousMode
+      setTimeout(() => {
+        startTalkingRef.current();
+      }, wasConnected ? 150 : 100);
+    }
+  }, [voiceTalkMode, liveVoiceSession, micPermissionStatus]);
+
   /**
    * Load session and project data on mount.
    *
@@ -450,21 +703,41 @@ export function ChatWizard({
           // ===== EDIT MODE =====
           // Load existing project data + images, RESUME existing session
 
-          // Step 1: Load project data
-          const projectResponse = await fetch(`/api/projects/${projectId}`);
+          // Step 1: Load project + session in parallel
+          const [projectResponse, sessionResponse] = await Promise.all([
+            fetch(`/api/projects/${projectId}`),
+            fetch(`/api/chat/sessions/by-project/${projectId}`),
+          ]);
           if (!projectResponse.ok) {
             throw new Error('Failed to load project');
           }
-          const { project } = await projectResponse.json();
-
-          // Step 2: Load project images
-          const imagesResponse = await fetch(`/api/projects/${projectId}/images`);
-          if (!imagesResponse.ok) {
-            throw new Error('Failed to load project images');
+          if (!sessionResponse.ok) {
+            throw new Error('Failed to load session');
           }
-          const { images } = await imagesResponse.json();
 
-          // Step 3: Set loaded data
+          const { project } = await projectResponse.json();
+          const { session, isNew } = await sessionResponse.json();
+
+          const projectImages = Array.isArray(project.project_images)
+            ? [...(project.project_images as ProjectImage[])]
+            : [];
+          projectImages.sort(
+            (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
+          );
+          const images = projectImages
+            .filter((image) => typeof image.storage_path === 'string')
+            .map((image) => ({
+              id: image.id,
+              url: getPublicUrl('project-images', image.storage_path),
+              filename:
+                image.storage_path.split('/').pop() ?? 'project-image',
+              storage_path: image.storage_path,
+              image_type: image.image_type ?? undefined,
+              width: image.width ?? undefined,
+              height: image.height ?? undefined,
+            }));
+
+          // Step 2: Set loaded data
           setUploadedImages(images || []);
 
           // Convert project to extracted data format for preview
@@ -480,20 +753,14 @@ export function ChatWizard({
             location: locationLabel || undefined,
           });
 
-          // Step 4: RESUME existing session (same pattern as create mode)
+          // Step 3: RESUME existing session (same pattern as create mode)
           // Uses get-or-create pattern to maintain ONE session per project
-          const sessionResponse = await fetch(`/api/chat/sessions/by-project/${projectId}`);
-          if (!sessionResponse.ok) {
-            throw new Error('Failed to load session');
-          }
-
-          const { session, isNew } = await sessionResponse.json();
           setSessionId(session.id);
 
           if (!isNew) {
             // Load existing conversation context including tool parts
             const contextResponse = await fetch(
-              `/api/chat/sessions/${session.id}/context?projectId=${projectId}`
+              `/api/chat/sessions/${session.id}/context?projectId=${projectId}&mode=ui`
             );
 
             if (contextResponse.ok) {
@@ -510,6 +777,11 @@ export function ChatWizard({
                   );
                   messagesToLoad = [summaryMessage, ...context.messages];
                 }
+
+                // Pre-populate side-effect tool call IDs to prevent re-firing
+                // (e.g., showPortfolioPreview would auto-open preview overlay)
+                const sideEffectIds = extractSideEffectToolCallIds(messagesToLoad);
+                sideEffectIds.forEach((id) => processedSideEffectToolCalls.current.add(id));
 
                 // Set messages in chat (includes tool parts for visibility)
                 setMessages(messagesToLoad);
@@ -548,7 +820,7 @@ export function ChatWizard({
             // - Long conversations: Summary + recent messages
             // @see /src/lib/chat/context-loader.ts for loading strategy
             const contextResponse = await fetch(
-              `/api/chat/sessions/${session.id}/context?projectId=${projectId}`
+              `/api/chat/sessions/${session.id}/context?projectId=${projectId}&mode=ui`
             );
 
             if (contextResponse.ok) {
@@ -565,6 +837,11 @@ export function ChatWizard({
                   );
                   messagesToLoad = [summaryMessage, ...context.messages];
                 }
+
+                // Pre-populate side-effect tool call IDs to prevent re-firing
+                // (e.g., showPortfolioPreview would auto-open preview overlay)
+                const sideEffectIds = extractSideEffectToolCallIds(messagesToLoad);
+                sideEffectIds.forEach((id) => processedSideEffectToolCalls.current.add(id));
 
                 // Set messages in chat
                 setMessages(messagesToLoad);
@@ -753,6 +1030,51 @@ export function ChatWizard({
   }, [messages.length]);
 
   /**
+   * Transition to review when content generation completes.
+   * If generation fails, return to conversation so users can retry.
+   */
+  useEffect(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const message = messages[i];
+      if (!message || message.role !== 'assistant' || !message.parts) continue;
+
+      for (const part of message.parts) {
+        if (typeof part !== 'object' || part === null) continue;
+
+        const toolPart = part as {
+          type?: string;
+          state?: string;
+          output?: unknown;
+        };
+
+        if (toolPart.type === 'tool-generatePortfolioContent') {
+          if (toolPart.state === 'input-available' || toolPart.state === 'input-streaming') {
+            if (phase !== 'generating') {
+              setPhase('generating');
+            }
+            return;
+          }
+
+          if (toolPart.state === 'output-available') {
+            const output = toolPart.output as { success?: boolean } | undefined;
+            if (output && output.success === false) {
+              setPhase('conversation');
+            } else {
+              setPhase('review');
+            }
+            return;
+          }
+        }
+
+        if (toolPart.type === 'tool-showContentEditor' && toolPart.state === 'output-available') {
+          setPhase('review');
+          return;
+        }
+      }
+    }
+  }, [messages, phase]);
+
+  /**
    * Save extracted data to session when it changes.
    * Uses optimistic save queue with automatic retry.
    */
@@ -851,6 +1173,20 @@ export function ChatWizard({
   }, [projectId, extractedData, isEditMode]);
 
   const isLoading = status === 'streaming' || status === 'submitted';
+  // Voice-to-text mic button is always enabled when mic is available (in text mode)
+  const enableVoiceInput =
+    supportsVoice &&
+    micPermissionStatus !== 'denied' &&
+    micPermissionStatus !== 'unavailable';
+  // Show permission prompt when in voice_chat mode but permission is denied/unavailable
+  const showMicPermissionPrompt =
+    voiceMode === 'voice_chat' &&
+    (micPermissionStatus === 'denied' || micPermissionStatus === 'unavailable');
+  const canStartLiveVoice = micPermissionStatus === 'granted';
+  const inputPlaceholder =
+    phase === 'review'
+      ? 'Tell me what to change...'
+      : 'Tell me about this project...';
 
   // Can generate when completeness hook says we have enough data
   const canGenerate = completeness.canGenerate && messages.length > 2;
@@ -859,8 +1195,8 @@ export function ChatWizard({
     extractedData,
     completeness,
     imageCount: uploadedImages.length,
-    hasFormContent,
     allowGenerate: canGenerate,
+    phase,
   });
 
   const quickActions = useMemo(
@@ -940,99 +1276,47 @@ export function ChatWizard({
    *
    * @see /src/app/(contractor)/projects/new/page.tsx for ensureProject implementation
    */
+  const sendMessageWithContext = useCallback(
+    async (text: string, toolChoice?: DeepToolChoice) => {
+      // EAGER CREATION: Create project on first message if not exists
+      // This ensures session persistence is available from the start
+      if (!projectId && onEnsureProject && !isEditMode) {
+        await onEnsureProject();
+        // projectId prop will update via parent state change
+        // Session loading useEffect will trigger automatically
+      }
+
+      // Pass projectId and sessionId in the request body for API context
+      // @see /src/app/api/chat/route.ts expects these in the body
+      await sendMessage(
+        { text },
+        {
+          body: {
+            projectId: projectId || undefined,
+            sessionId: sessionId || undefined,
+            toolChoice,
+          },
+        }
+      );
+    },
+    [sendMessage, projectId, sessionId, onEnsureProject, isEditMode]
+  );
+
   const handleSendMessage = useCallback(
     async (text: string) => {
       setError(null);
       setAgentQuickActions([]);
-      try {
-        // EAGER CREATION: Create project on first message if not exists
-        // This ensures session persistence is available from the start
-        if (!projectId && onEnsureProject && !isEditMode) {
-          try {
-            await onEnsureProject();
-            // projectId prop will update via parent state change
-            // Session loading useEffect will trigger automatically
-          } catch (err) {
-            console.error('[ChatWizard] Failed to create project:', err);
-            setError('Failed to start project. Please try again.');
-            return;
-          }
-        }
 
-        // Pass projectId and sessionId in the request body for API context
-        // @see /src/app/api/chat/route.ts expects these in the body
-        await sendMessage(
-          { text },
-          {
-            body: {
-              projectId: projectId || undefined,
-              sessionId: sessionId || undefined,
-            },
-          }
-        );
+      const toolChoice = inferDeepToolChoice(text);
+
+      try {
+        await sendMessageWithContext(text, toolChoice);
       } catch (err) {
         console.error('[ChatWizard] Send error:', err);
         setError('Failed to send message. Please try again.');
       }
     },
-    [sendMessage, projectId, sessionId, onEnsureProject, isEditMode]
-  );
-
-  /**
-   * Handle voice recording (transcribe and send).
-   *
-   * EAGER CREATION: Like handleSendMessage, creates project on first voice message.
-   */
-  const handleVoiceRecording = useCallback(
-    async (blob: Blob) => {
-      setError(null);
-      setAgentQuickActions([]);
-
-      try {
-        // EAGER CREATION: Create project on first message if not exists
-        if (!projectId && onEnsureProject && !isEditMode) {
-          try {
-            await onEnsureProject();
-          } catch (err) {
-            console.error('[ChatWizard] Failed to create project:', err);
-            setError('Failed to start project. Please try again.');
-            return;
-          }
-        }
-
-        // Create form data for transcription API
-        const formData = new FormData();
-        formData.append('audio', blob, 'recording.webm');
-
-        const response = await fetch('/api/ai/transcribe', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error('Transcription failed');
-        }
-
-        const { text } = await response.json();
-
-        if (text) {
-          // Pass projectId and sessionId in the request body for API context
-          await sendMessage(
-            { text },
-            {
-              body: {
-                projectId: projectId || undefined,
-                sessionId: sessionId || undefined,
-              },
-            }
-          );
-        }
-      } catch (err) {
-        console.error('[ChatWizard] Transcription error:', err);
-        setError('Failed to transcribe voice. Please try typing instead.');
-      }
-    },
-    [sendMessage, projectId, sessionId, onEnsureProject, isEditMode]
+    [sendMessageWithContext]
   );
 
   /**
@@ -1111,39 +1395,56 @@ export function ChatWizard({
       };
 
       setExtractedData(combinedData);
-      setPhase('generating');
-
-      // Step 2: Generate content
-      const generateResponse = await fetch('/api/ai/generate-content?action=content', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: currentProjectId,
-          image_analysis: analysisResult.analysis,
-          extracted_data: combinedData,
-        }),
-      });
-
-      if (!generateResponse.ok) {
-        const message = await getResponseErrorMessage(
-          generateResponse,
-          'Content generation failed. Please try again.'
-        );
-        throw new Error(message);
+      // Ensure project has the latest extracted data before generation.
+      const projectUpdate: Record<string, unknown> = {};
+      if (combinedData.project_type) projectUpdate.project_type = combinedData.project_type;
+      if (combinedData.city) projectUpdate.city = combinedData.city;
+      if (combinedData.state) projectUpdate.state = combinedData.state;
+      if (combinedData.duration) projectUpdate.duration = combinedData.duration;
+      if (combinedData.materials_mentioned?.length) {
+        projectUpdate.materials = combinedData.materials_mentioned;
+      }
+      if (combinedData.techniques_mentioned?.length) {
+        projectUpdate.techniques = combinedData.techniques_mentioned;
+      }
+      if (combinedData.customer_problem) {
+        projectUpdate.challenge = combinedData.customer_problem;
+      }
+      if (combinedData.solution_approach) {
+        projectUpdate.solution = combinedData.solution_approach;
       }
 
-      setPhase('review');
+      if (Object.keys(projectUpdate).length > 0) {
+        const syncResponse = await fetch(`/api/projects/${currentProjectId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(projectUpdate),
+        });
 
-      // Redirect to edit page for review
-      if (onComplete && currentProjectId) {
-        onComplete(currentProjectId);
+        if (!syncResponse.ok) {
+          console.warn('[ChatWizard] Failed to sync project before generation.');
+        }
       }
+
+      setPhase('conversation');
+
+      // Step 2: Ask the chat agent to generate content (unified flow)
+      await sendMessage(
+        { text: 'Generate the portfolio content now.' },
+        {
+          body: {
+            projectId: currentProjectId,
+            sessionId: sessionId || undefined,
+            toolChoice: 'generatePortfolioContent',
+          },
+        }
+      );
     } catch (err) {
       console.error('[ChatWizard] Generation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate content. Please try again.');
       setPhase('conversation');
     }
-  }, [projectId, uploadedImages, extractedData, onComplete, onEnsureProject, isEditMode]);
+  }, [projectId, uploadedImages, extractedData, onEnsureProject, isEditMode, sendMessage, sessionId]);
 
   /**
    * Handle opening the photo sheet (used by both button and artifact actions).
@@ -1156,8 +1457,18 @@ export function ChatWizard({
     setInputValue(text);
   }, []);
 
+  const openFormPanel = useCallback(() => {
+    if (!hasFormContent) return;
+    if (canvasSize === 'collapsed') {
+      setCanvasSize('medium');
+    }
+    setCanvasTab('form');
+    setOverlayTab('form');
+    setShowPreviewOverlay(true);
+  }, [hasFormContent, canvasSize, setCanvasSize, setCanvasTab, setOverlayTab, setShowPreviewOverlay]);
+
   const handleQuickAction = useCallback(
-    (action: 'addPhotos' | 'generate' | 'openForm' | 'showPreview') => {
+    (action: Exclude<QuickActionType, 'insert'>) => {
       setAgentQuickActions([]);
       switch (action) {
         case 'addPhotos':
@@ -1167,13 +1478,33 @@ export function ChatWizard({
           handleGenerate();
           break;
         case 'openForm':
-          if (!hasFormContent) return;
-          if (canvasSize === 'collapsed') {
-            setCanvasSize('medium');
-          }
-          setCanvasTab('form');
-          setOverlayTab('form');
-          setShowPreviewOverlay(true);
+          openFormPanel();
+          break;
+        case 'composeLayout':
+          void (async () => {
+            try {
+              await sendMessageWithContext(
+                'Compose a layout for this project.',
+                'composePortfolioLayout'
+              );
+            } catch (err) {
+              console.error('[ChatWizard] Compose layout error:', err);
+              setError('Failed to compose layout. Please try again.');
+            }
+          })();
+          break;
+        case 'checkPublishReady':
+          void (async () => {
+            try {
+              await sendMessageWithContext(
+                'Check if this project is ready to publish.',
+                'checkPublishReady'
+              );
+            } catch (err) {
+              console.error('[ChatWizard] Publish readiness error:', err);
+              setError('Failed to check publish readiness. Please try again.');
+            }
+          })();
           break;
         case 'showPreview':
           if (canvasSize === 'collapsed') {
@@ -1190,13 +1521,80 @@ export function ChatWizard({
     [
       handleGenerate,
       handleOpenPhotoSheet,
-      hasFormContent,
+      openFormPanel,
       canvasSize,
       setCanvasSize,
       setCanvasTab,
       setOverlayTab,
       setShowPreviewOverlay,
+      sendMessageWithContext,
     ]
+  );
+
+  const saveGeneratedContent = useCallback(
+    async (content: GeneratePortfolioContentOutput) => {
+      if (!projectId || !content?.success) return;
+
+      setIsSavingContent(true);
+      setError(null);
+
+      try {
+        const payload: Record<string, unknown> = {
+          title: content.title,
+          description: content.description,
+          description_blocks: buildDescriptionBlocksFromContent({
+            description: content.description,
+            materials: extractedData.materials_mentioned,
+            techniques: extractedData.techniques_mentioned,
+            duration: extractedData.duration,
+            proudOf: extractedData.proud_of,
+          }),
+          seo_title: content.seoTitle || undefined,
+          seo_description: content.seoDescription || undefined,
+          tags: content.tags,
+        };
+
+        if (extractedData.materials_mentioned?.length) {
+          payload.materials = extractedData.materials_mentioned;
+        }
+
+        if (extractedData.techniques_mentioned?.length) {
+          payload.techniques = extractedData.techniques_mentioned;
+        }
+
+        const response = await fetch(`/api/projects/${projectId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          let message = 'Failed to save draft. Please try again.';
+          try {
+            const data = await response.json();
+            if (data?.error?.message) {
+              message = data.error.message;
+            } else if (data?.message) {
+              message = data.message;
+            }
+          } catch {
+            // Ignore JSON parse errors and keep fallback message.
+          }
+          throw new Error(message);
+        }
+
+        setPhase('review');
+        setSuccessMessage('Draft saved to your project.');
+        onProjectUpdate?.();
+        openFormPanel();
+      } catch (err) {
+        console.error('[ChatWizard] Failed to save draft:', err);
+        setError(err instanceof Error ? err.message : 'Failed to save draft. Please try again.');
+      } finally {
+        setIsSavingContent(false);
+      }
+    },
+    [projectId, extractedData, onProjectUpdate, openFormPanel]
   );
 
   /**
@@ -1254,6 +1652,97 @@ export function ChatWizard({
     [setMessages]
   );
 
+  const applyDescriptionBlocks = useCallback(
+    async (blocks: unknown): Promise<boolean> => {
+      if (!projectId) {
+        setError('Missing project context.');
+        return false;
+      }
+
+      const sanitizedBlocks = sanitizeDescriptionBlocks(blocks);
+      if (sanitizedBlocks.length === 0) {
+        setError('No valid description blocks to save.');
+        return false;
+      }
+
+      const descriptionHtml = blocksToHtml(sanitizedBlocks);
+
+      setIsSavingContent(true);
+      setError(null);
+
+      try {
+        const response = await fetch(`/api/projects/${projectId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: descriptionHtml,
+            description_blocks: sanitizedBlocks,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save description blocks');
+        }
+
+        setSuccessMessage('Description updated!');
+        onProjectUpdate?.();
+        return true;
+      } catch (err) {
+        console.error('[ChatWizard] Failed to save description blocks:', err);
+        setError('Failed to save description blocks. Please try again.');
+        return false;
+      } finally {
+        setIsSavingContent(false);
+      }
+    },
+    [projectId, onProjectUpdate]
+  );
+
+  const applyImageOrder = useCallback(
+    async (imageIds: string[]): Promise<boolean> => {
+      if (!projectId) {
+        setError('Missing project context.');
+        return false;
+      }
+
+      if (!imageIds || imageIds.length === 0) {
+        setError('Missing image order.');
+        return false;
+      }
+
+      setIsSavingContent(true);
+      setError(null);
+
+      try {
+        const response = await fetch(`/api/projects/${projectId}/images`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_ids: imageIds }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to reorder images');
+        }
+
+        const reorderedImages = imageIds
+          .map((id) => uploadedImages.find((img) => img.id === id))
+          .filter(Boolean) as typeof uploadedImages;
+        setUploadedImages(reorderedImages);
+
+        setSuccessMessage('Images reordered.');
+        onProjectUpdate?.();
+        return true;
+      } catch (err) {
+        console.error('[ChatWizard] Failed to reorder images:', err);
+        setError(err instanceof Error ? err.message : 'Failed to reorder images.');
+        return false;
+      } finally {
+        setIsSavingContent(false);
+      }
+    },
+    [projectId, uploadedImages, onProjectUpdate]
+  );
+
   /**
    * Handle artifact actions from ImageGalleryArtifact and other artifacts.
    * Routes actions to the appropriate handlers from useInlineImages.
@@ -1274,6 +1763,9 @@ export function ChatWizard({
           description: string;
           seo_title?: string;
           seo_description?: string;
+          tags?: string[];
+          materials?: string[];
+          techniques?: string[];
         };
 
         if (!payload?.title || !payload?.description) {
@@ -1292,9 +1784,18 @@ export function ChatWizard({
               body: JSON.stringify({
                 title: payload.title,
                 description: payload.description,
-                description_blocks: parseDescriptionBlocksFromHtml(payload.description),
+                description_blocks: buildDescriptionBlocksFromContent({
+                  description: payload.description,
+                  materials: extractedData.materials_mentioned,
+                  techniques: extractedData.techniques_mentioned,
+                  duration: extractedData.duration,
+                  proudOf: extractedData.proud_of,
+                }),
                 seo_title: payload.seo_title,
                 seo_description: payload.seo_description,
+                tags: payload.tags,
+                materials: payload.materials,
+                techniques: payload.techniques,
               }),
             });
 
@@ -1330,6 +1831,9 @@ export function ChatWizard({
           description: string;
           seo_title?: string;
           seo_description?: string;
+          tags?: string[];
+          materials?: string[];
+          techniques?: string[];
         };
 
         if (!payload?.title || !payload?.description) {
@@ -1349,9 +1853,18 @@ export function ChatWizard({
               body: JSON.stringify({
                 title: payload.title,
                 description: payload.description,
-                description_blocks: parseDescriptionBlocksFromHtml(payload.description),
+                description_blocks: buildDescriptionBlocksFromContent({
+                  description: payload.description,
+                  materials: extractedData.materials_mentioned,
+                  techniques: extractedData.techniques_mentioned,
+                  duration: extractedData.duration,
+                  proudOf: extractedData.proud_of,
+                }),
                 seo_title: payload.seo_title,
                 seo_description: payload.seo_description,
+                tags: payload.tags,
+                materials: payload.materials,
+                techniques: payload.techniques,
               }),
             });
 
@@ -1380,10 +1893,12 @@ export function ChatWizard({
               let message = 'Content saved, but publishing failed. You can publish from the dashboard.';
               try {
                 const data = await publishResponse.json();
-                if (data?.error?.message) {
-                  message = data.error.message;
-                } else if (data?.error?.missing) {
+                if (data?.error?.missing) {
                   message = `Cannot publish: ${(data.error.missing as string[]).join(', ')}`;
+                } else if (data?.error?.code === 'FORBIDDEN') {
+                  message = data.error.message ?? 'Publishing limit reached.';
+                } else if (data?.error?.message) {
+                  message = data.error.message;
                 }
               } catch {
                 // Ignore JSON parse errors
@@ -1423,7 +1938,7 @@ export function ChatWizard({
 
         const section = payload?.section;
         if (!section) {
-          setError('Missing section to regenerate.');
+          handleGenerate();
           return;
         }
 
@@ -1472,12 +1987,26 @@ export function ChatWizard({
 
         void (async () => {
           try {
+            const previousContent =
+              payload?.current?.title && payload?.current?.description
+                ? {
+                    title: payload.current.title,
+                    description: payload.current.description,
+                    seo_title: payload.current.seo_title,
+                    seo_description: payload.current.seo_description,
+                    tags: payload.current.tags,
+                    materials: payload.current.materials,
+                    techniques: payload.current.techniques,
+                  }
+                : undefined;
+
             const response = await fetch('/api/ai/generate-content?action=regenerate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 project_id: projectId,
                 feedback: feedbackParts.join(' '),
+                previous_content: previousContent,
               }),
               signal: abortController.signal, // Task A5: Enable cancellation
             });
@@ -1605,42 +2134,39 @@ export function ChatWizard({
           return;
         }
 
-        const sanitizedBlocks = sanitizeDescriptionBlocks(payload.blocks);
-        const descriptionHtml = blocksToHtml(sanitizedBlocks);
+        void applyDescriptionBlocks(payload.blocks);
+      } else if (action.type === 'composePortfolioLayout') {
+        const payload = action.payload as {
+          blocks?: unknown;
+          imageOrder?: string[];
+          confidence?: number;
+          missingContext?: string[];
+        } | undefined;
 
-        setIsSavingContent(true);
-        setError(null);
+        if (!payload) {
+          setError('Missing layout data to apply.');
+          return;
+        }
 
         void (async () => {
-          try {
-            const response = await fetch(`/api/projects/${projectId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                description: descriptionHtml,
-                description_blocks: sanitizedBlocks,
-              }),
-            });
+          if (payload.blocks) {
+            const sanitizedBlocks = sanitizeDescriptionBlocks(payload.blocks);
+            const confidence = payload.confidence ?? 1;
+            const missingCount = payload.missingContext?.length ?? 0;
+            const canApplyBlocks =
+              sanitizedBlocks.length > 0 && confidence >= 0.4 && missingCount <= 6;
 
-            if (!response.ok) {
-              throw new Error('Failed to save description blocks');
+            if (canApplyBlocks) {
+              await applyDescriptionBlocks(sanitizedBlocks);
             }
+          }
 
-            setSuccessMessage('Description updated!');
-            onProjectUpdate?.();
-          } catch (err) {
-            console.error('[ChatWizard] Failed to save description blocks:', err);
-            setError('Failed to save description blocks. Please try again.');
-          } finally {
-            setIsSavingContent(false);
+          if (payload.imageOrder && payload.imageOrder.length > 0) {
+            await applyImageOrder(payload.imageOrder);
           }
         })();
       } else if (action.type === 'openForm') {
-        if (!hasFormContent) return;
-        if (canvasSize === 'collapsed') {
-          setCanvasSize('medium');
-        }
-        setCanvasTab('form');
+        openFormPanel();
       } else if (action.type === 'updateProjectData') {
         // ===== EDIT MODE: Update multiple project data fields =====
         const payload = action.payload as {
@@ -1724,7 +2250,13 @@ export function ChatWizard({
             };
 
             if (payload.field === 'description' && typeof payload.value === 'string') {
-              updatePayload.description_blocks = parseDescriptionBlocksFromHtml(payload.value);
+              updatePayload.description_blocks = buildDescriptionBlocksFromContent({
+                description: payload.value,
+                materials: extractedData.materials_mentioned,
+                techniques: extractedData.techniques_mentioned,
+                duration: extractedData.duration,
+                proudOf: extractedData.proud_of,
+              });
             }
 
             const response = await fetch(`/api/projects/${projectId}`, {
@@ -1773,36 +2305,7 @@ export function ChatWizard({
           return;
         }
 
-        setIsSavingContent(true);
-        setError(null);
-
-        void (async () => {
-          try {
-            const response = await fetch(`/api/projects/${projectId}/images`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image_ids: payload.imageIds }),
-            });
-
-            if (!response.ok) {
-              throw new Error('Failed to reorder images');
-            }
-
-            // Update local state to reflect new order
-            const reorderedImages = payload.imageIds
-              .map((id) => uploadedImages.find((img) => img.id === id))
-              .filter(Boolean) as typeof uploadedImages;
-            setUploadedImages(reorderedImages);
-
-            setSuccessMessage('Images reordered.');
-            onProjectUpdate?.();
-          } catch (err) {
-            console.error('[ChatWizard] Failed to reorder images:', err);
-            setError(err instanceof Error ? err.message : 'Failed to reorder images.');
-          } finally {
-            setIsSavingContent(false);
-          }
-        })();
+        void applyImageOrder(payload.imageIds);
       } else if (action.type === 'validateForPublish') {
         // ===== EDIT MODE: Validate publish readiness =====
         // Issue #6: Use server-side validation via dry_run parameter
@@ -1835,21 +2338,61 @@ export function ChatWizard({
     },
     [
       canvasSize,
-      hasFormContent,
       categorizeImage,
       removeImage,
       handleOpenPhotoSheet,
+      handleGenerate,
+      openFormPanel,
       onProjectUpdate,
       projectId,
       setCanvasSize,
       setCanvasTab,
       updateContentEditorOutput,
+      applyDescriptionBlocks,
+      applyImageOrder,
       setShowPreviewOverlay,
-      uploadedImages,
+      extractedData,
       logPreviewEvent,
       triggerMilestone,
     ]
   );
+
+  useEffect(() => {
+    if (!projectId || messages.length === 0) return;
+
+    for (const message of messages) {
+      if (!message.parts || message.parts.length === 0) continue;
+
+      for (const part of message.parts) {
+        if (part.type !== 'tool-generatePortfolioContent') continue;
+        const toolPart = part as {
+          state?: string;
+          toolCallId?: string;
+          output?: unknown;
+        };
+
+        if (toolPart.state !== 'output-available' || !toolPart.output || !toolPart.toolCallId) {
+          continue;
+        }
+
+        if (processedGeneratedToolCalls.current.has(toolPart.toolCallId)) {
+          continue;
+        }
+
+        processedGeneratedToolCalls.current.add(toolPart.toolCallId);
+
+        const output = toolPart.output as GeneratePortfolioContentOutput;
+        if (!output.success) {
+          if (output.error) {
+            setError(output.error);
+          }
+          continue;
+        }
+
+        void saveGeneratedContent(output);
+      }
+    }
+  }, [messages, projectId, saveGeneratedContent]);
 
   // Clear error after 5 seconds (but not if canRetry - those are persistent)
   // Issue #4: Recoverable errors with retry capability should persist
@@ -1965,6 +2508,7 @@ export function ChatWizard({
             images={uploadedImages}
             className="flex-1 overflow-y-auto"
             isSaving={isSavingContent}
+            processedSideEffectToolCallIds={processedSideEffectToolCalls.current}
           />
 
           {/* Loading indicator for analysis/generation - centered overlay */}
@@ -2019,13 +2563,16 @@ export function ChatWizard({
           {(phase === 'conversation' || phase === 'review') && (
             <div className="sticky bottom-0 pb-4 pt-3 bg-gradient-to-t from-background via-background/95 to-transparent">
               <div className="max-w-[720px] mx-auto px-4">
-                <QuickActionChips
-                  actions={quickActions}
-                  onInsertPrompt={handleInsertPrompt}
-                  onAction={handleQuickAction}
-                  disabled={isLoading}
-                  className="mb-3"
-                />
+                {/* Quick actions - only show early in conversation */}
+                {messages.length <= 2 && quickActions.length > 0 && (
+                  <QuickActionChips
+                    actions={quickActions}
+                    onInsertPrompt={handleInsertPrompt}
+                    onAction={handleQuickAction}
+                    disabled={isLoading}
+                    className="mb-3"
+                  />
+                )}
 
                 {/* Generate button - above input when ready */}
                 {canGenerate && phase === 'conversation' && (
@@ -2043,23 +2590,50 @@ export function ChatWizard({
                   </Button>
                 )}
 
-                {/* Floating input with attachment button */}
-                <ChatInput
-                  onSend={handleSendMessage}
-                  onVoiceRecording={handleVoiceRecording}
-                  onAttachPhotos={handleOpenPhotoSheet}
-                  photoCount={uploadedImages.length}
-                  disabled={isLoading}
-                  isLoading={isLoading}
-                  value={inputValue}
-                  onChange={setInputValue}
-                  placeholder={
-                    phase === 'review'
-                      ? 'Tell me what to change...'
-                      : 'Type or tap mic to record...'
-                  }
-                  onImageDrop={addImages}
-                />
+                {showMicPermissionPrompt && (
+                  <MicPermissionPrompt
+                    status={micPermissionStatus}
+                    onRequestPermission={requestMicPermission}
+                    isRequesting={isRequestingMicPermission}
+                    compact
+                    className="mb-2"
+                  />
+                )}
+
+                {voiceMode === 'voice_chat' ? (
+                  <VoiceLiveControls
+                    status={liveVoiceSession.status}
+                    isConnected={liveVoiceSession.isConnected}
+                    isContinuousMode={liveVoiceSession.isContinuousMode}
+                    audioLevel={liveVoiceSession.audioLevel}
+                    liveUserTranscript={liveVoiceSession.liveUserTranscript}
+                    liveAssistantTranscript={liveVoiceSession.liveAssistantTranscript}
+                    error={liveVoiceSession.error}
+                    onPressStart={
+                      canStartLiveVoice ? liveVoiceSession.startTalking : requestMicPermission
+                    }
+                    onPressEnd={liveVoiceSession.stopTalking}
+                    onDisconnect={liveVoiceSession.disconnect}
+                    onTalkModeChange={handleTalkModeChange}
+                    onReturnToText={() => setVoiceMode('text')}
+                  />
+                ) : (
+                  <ChatInput
+                    onSend={handleSendMessage}
+                    onAttachPhotos={handleOpenPhotoSheet}
+                    photoCount={uploadedImages.length}
+                    disabled={isLoading}
+                    isLoading={isLoading}
+                    value={inputValue}
+                    onChange={setInputValue}
+                    placeholder={inputPlaceholder}
+                    enableVoice={enableVoiceInput}
+                    onImageDrop={addImages}
+                    voiceMode={voiceMode}
+                    onVoiceModeChange={voiceChatAvailable ? setVoiceMode : undefined}
+                    voiceChatEnabled={voiceChatAvailable}
+                  />
+                )}
               </div>
             </div>
           )}

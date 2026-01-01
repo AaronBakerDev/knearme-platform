@@ -49,12 +49,80 @@ const generateContentSchema = z.object({
 });
 
 /**
+ * Request schema for persisting interview responses.
+ */
+const persistResponsesSchema = z.object({
+  project_id: z.string().uuid(),
+  responses: z.array(
+    z.object({
+      question_id: z.string(),
+      question_text: z.string(),
+      answer: z.string(),
+    })
+  ).min(1),
+});
+
+/**
  * Request schema for regenerating with feedback.
  */
 const regenerateSchema = z.object({
   project_id: z.string().uuid(),
   feedback: z.string().min(10).max(500),
+  previous_content: z
+    .object({
+      title: z.string(),
+      description: z.string(),
+      seo_title: z.string().optional(),
+      seo_description: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+      materials: z.array(z.string()).optional(),
+      techniques: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
+
+type StoredQuestion = {
+  id: string;
+  text?: string;
+  purpose?: string;
+  answer?: string;
+  raw_transcription?: string;
+  duration?: number;
+};
+
+type ProvidedResponse = {
+  question_id: string;
+  question_text: string;
+  answer: string;
+};
+
+function mergeInterviewResponses(
+  existing: StoredQuestion[] = [],
+  provided: ProvidedResponse[] = []
+): StoredQuestion[] {
+  const responseMap = new Map(
+    provided.map((response) => [response.question_id, response])
+  );
+  const merged = existing.map((question) => {
+    const response = responseMap.get(question.id);
+    if (!response) return question;
+    return {
+      ...question,
+      id: question.id,
+      text: response.question_text,
+      answer: response.answer,
+    };
+  });
+  const missingResponses = provided
+    .filter((response) => !existing.some((question) => question.id === response.question_id))
+    .map((response) => ({
+      id: response.question_id,
+      text: response.question_text,
+      answer: response.answer,
+    }));
+
+  return [...merged, ...missingResponses];
+}
 
 /**
  * POST /api/ai/generate-content
@@ -62,6 +130,7 @@ const regenerateSchema = z.object({
  * Generate portfolio content based on interview responses.
  * The action query param determines what to generate:
  * - ?action=questions - Generate interview questions from image analysis
+ * - ?action=responses - Persist interview responses without generating content
  * - ?action=content - Generate full portfolio content
  * - ?action=regenerate - Regenerate with feedback
  */
@@ -114,12 +183,17 @@ export async function POST(request: NextRequest) {
         // Type assertion for session data
         type SessionData = {
           image_analysis?: ImageAnalysisResult;
-          questions?: Array<{ text: string; answer: string }>;
+          questions?: StoredQuestion[];
           generated_content?: Record<string, unknown>;
         };
         const sessionData = session as SessionData | null;
 
         const imageAnalysis = (sessionData?.image_analysis || {}) as ImageAnalysisResult;
+        const existingQuestions = (sessionData?.questions || []) as StoredQuestion[];
+
+        if (existingQuestions.length > 0) {
+          return apiSuccess({ questions: existingQuestions });
+        }
 
         const questions = await generateInterviewQuestions(imageAnalysis, {
           business_name: contractor.business_name || 'Masonry Contractor',
@@ -128,7 +202,75 @@ export async function POST(request: NextRequest) {
           services: contractor.services || [],
         });
 
+        // Persist questions so the interview steps stay consistent.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from('interview_sessions')
+          .upsert(
+            {
+              project_id,
+              image_analysis: sessionData?.image_analysis ?? null,
+              questions,
+              status: 'in_progress',
+            },
+            { onConflict: 'project_id' }
+          );
+
         return apiSuccess({ questions });
+      }
+
+      case 'responses': {
+        const parsed = persistResponsesSchema.safeParse(body);
+        if (!parsed.success) {
+          return apiError('VALIDATION_ERROR', 'Invalid request', {
+            errors: parsed.error.flatten().fieldErrors,
+          });
+        }
+
+        const { project_id, responses } = parsed.data;
+
+        // Verify project ownership first
+        const { data: project, error: projectError } = await supabase
+          .from('projects')
+          .select('id, contractor_id')
+          .eq('id', project_id)
+          .eq('contractor_id', contractor.id)
+          .single();
+
+        if (projectError || !project) {
+          return apiError('NOT_FOUND', 'Project not found');
+        }
+
+        // Get existing session to preserve metadata
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: session } = await (supabase as any)
+          .from('interview_sessions')
+          .select('*')
+          .eq('project_id', project_id)
+          .single();
+
+        type ResponseSessionData = {
+          image_analysis?: ImageAnalysisResult;
+          questions?: StoredQuestion[];
+        };
+        const sessionData = session as ResponseSessionData | null;
+        const existingQuestions = (sessionData?.questions || []) as StoredQuestion[];
+        const mergedQuestions = mergeInterviewResponses(existingQuestions, responses);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from('interview_sessions')
+          .upsert(
+            {
+              project_id,
+              image_analysis: sessionData?.image_analysis ?? null,
+              questions: mergedQuestions,
+              status: 'in_progress',
+            },
+            { onConflict: 'project_id' }
+          );
+
+        return apiSuccess({ questions: mergedQuestions });
       }
 
       case 'content': {
@@ -164,7 +306,7 @@ export async function POST(request: NextRequest) {
         // Type assertion for session data
         type ContentSessionData = {
           image_analysis?: ImageAnalysisResult;
-          questions?: Array<{ id: string; text: string; answer: string }>;
+          questions?: StoredQuestion[];
           generated_content?: Record<string, unknown>;
         };
         const sessionData = session as ContentSessionData | null;
@@ -182,18 +324,8 @@ export async function POST(request: NextRequest) {
           }));
 
           // Persist text responses into the interview session for consistency.
-          const existingQuestions = sessionData?.questions ?? [];
-          const filteredExisting = existingQuestions.filter(
-            (q) => !providedResponses.some((r) => r.question_id === q.id)
-          );
-          const mergedQuestions = [
-            ...filteredExisting,
-            ...providedResponses.map((r) => ({
-              id: r.question_id,
-              text: r.question_text,
-              answer: r.answer,
-            })),
-          ];
+          const existingQuestions = (sessionData?.questions ?? []) as StoredQuestion[];
+          const mergedQuestions = mergeInterviewResponses(existingQuestions, providedResponses);
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await (supabase as any)
@@ -213,10 +345,14 @@ export async function POST(request: NextRequest) {
           }
 
           const questions = sessionData.questions ?? [];
-          interviewResponses = questions.map((q) => ({
-            question: q.text,
-            answer: q.answer,
-          }));
+          interviewResponses = questions
+            .filter((q): q is typeof q & { text: string; answer: string } =>
+              typeof q.text === 'string' && typeof q.answer === 'string'
+            )
+            .map((q) => ({
+              question: q.text,
+              answer: q.answer,
+            }));
         }
 
         if (interviewResponses.length === 0) {
@@ -279,7 +415,7 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        const { project_id, feedback } = parsed.data;
+        const { project_id, feedback, previous_content } = parsed.data;
 
         // Verify project ownership first
         const { data: project, error: projectError } = await supabase
@@ -293,7 +429,7 @@ export async function POST(request: NextRequest) {
           return apiError('NOT_FOUND', 'Project not found');
         }
 
-        // Get existing session with generated content
+        // Get existing session with generated content (optional if previous_content provided)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: session, error: sessionError } = await (supabase as any)
           .from('interview_sessions')
@@ -315,11 +451,22 @@ export async function POST(request: NextRequest) {
         };
         const sessionData = session as RegenerateSessionData | null;
 
-        if (sessionError || !sessionData?.generated_content) {
+        const rawPreviousContent = previous_content ?? sessionData?.generated_content;
+
+        if (!rawPreviousContent) {
           return apiError('NOT_FOUND', 'No previous content to regenerate. Please generate content first.');
         }
 
-        const previousContent = sessionData.generated_content;
+        // Normalize to ensure all required fields have values
+        const previousContent = {
+          title: rawPreviousContent.title,
+          description: rawPreviousContent.description,
+          seo_title: rawPreviousContent.seo_title ?? rawPreviousContent.title,
+          seo_description: rawPreviousContent.seo_description ?? rawPreviousContent.description.slice(0, 160),
+          tags: rawPreviousContent.tags ?? [],
+          materials: rawPreviousContent.materials ?? [],
+          techniques: rawPreviousContent.techniques ?? [],
+        };
 
         const result = await regenerateWithFeedback(previousContent, feedback, {
           business_name: contractor.business_name || 'Masonry Contractor',
@@ -341,12 +488,14 @@ export async function POST(request: NextRequest) {
           feedbackProvided: feedback.length > 0,
         }).catch((err) => console.error('[KPI] trackContentRegenerated failed:', err));
 
-        // Update session and project with new content
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
-          .from('interview_sessions')
-          .update({ generated_content: result })
-          .eq('project_id', project_id);
+        // Update session with new content if it exists
+        if (!sessionError && sessionData) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any)
+            .from('interview_sessions')
+            .update({ generated_content: result })
+            .eq('project_id', project_id);
+        }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabase as any)

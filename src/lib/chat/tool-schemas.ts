@@ -92,11 +92,10 @@ export const extractProjectDataSchema = z.object({
     .describe(
       'ONLY set true when ALL conditions are met: ' +
         '(1) specific project type confirmed (not "brick work"), ' +
-        '(2) customer_problem is at least 15+ words, ' +
-        '(3) solution_approach is at least 15+ words, ' +
-        '(4) at least 2 specific materials mentioned, ' +
-        '(5) city AND state are both provided. ' +
-        'If any are vague, ask follow-up questions first.'
+        '(2) customer_problem is at least ~8+ words, ' +
+        '(3) solution_approach is at least ~8+ words, ' +
+        '(4) at least 1 specific material mentioned. ' +
+        'Location is helpful but not required. If any are vague, ask follow-up questions first.'
     ),
 });
 
@@ -207,7 +206,15 @@ export const suggestQuickActionsSchema = z.object({
     .array(
       z.object({
         label: z.string().describe('Short label for the chip'),
-        type: z.enum(['addPhotos', 'generate', 'openForm', 'showPreview', 'insert']),
+        type: z.enum([
+          'addPhotos',
+          'generate',
+          'openForm',
+          'showPreview',
+          'composeLayout',
+          'checkPublishReady',
+          'insert',
+        ]),
         value: z.string().optional().describe('Prefilled text for insert-type actions'),
       })
     )
@@ -257,6 +264,46 @@ export interface GeneratePortfolioContentOutput {
   seoDescription: string;
   tags: string[];
   error?: string;
+}
+
+/**
+ * Schema for composing a portfolio layout using a Layout Composer agent.
+ * Produces description blocks and optional image ordering guidance.
+ *
+ * @see /src/lib/content/description-blocks.ts
+ */
+export const composePortfolioLayoutSchema = z.object({
+  goal: z
+    .string()
+    .optional()
+    .describe('Optional guidance for layout focus (e.g., "before/after emphasis")'),
+  focusAreas: z
+    .array(z.string())
+    .optional()
+    .describe('Specific areas to emphasize (materials, process, results, timeline, craftsmanship)'),
+  includeImageOrder: z
+    .boolean()
+    .optional()
+    .describe('Whether to return a recommended image order for the gallery'),
+});
+
+/** Input type for composePortfolioLayout tool */
+export type ComposePortfolioLayoutInput = z.infer<typeof composePortfolioLayoutSchema>;
+
+/** Output type for composePortfolioLayout tool */
+export interface ComposePortfolioLayoutOutput {
+  /**
+   * Description blocks must match the BlockEditor-supported schema:
+   * paragraph, heading (level "2" | "3"), list, callout, stats, quote.
+   */
+  blocks: z.output<typeof descriptionBlocksSchema>;
+  /**
+   * Optional gallery ordering by image id. The first image is treated as hero.
+   */
+  imageOrder?: string[];
+  rationale?: string;
+  missingContext?: string[];
+  confidence?: number;
 }
 
 /**
@@ -435,6 +482,7 @@ export type ToolOutput =
   | RequestClarificationOutput
   | SuggestQuickActionsOutput
   | GeneratePortfolioContentOutput
+  | ComposePortfolioLayoutOutput
   | CheckPublishReadyOutput
   | UpdateFieldOutput
   | RegenerateSectionOutput
@@ -453,6 +501,7 @@ export interface ToolOutputMap {
   requestClarification: RequestClarificationOutput;
   suggestQuickActions: SuggestQuickActionsOutput;
   generatePortfolioContent: GeneratePortfolioContentOutput;
+  composePortfolioLayout: ComposePortfolioLayoutOutput;
   checkPublishReady: CheckPublishReadyOutput;
   updateField: UpdateFieldOutput;
   regenerateSection: RegenerateSectionOutput;

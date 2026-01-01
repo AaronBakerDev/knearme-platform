@@ -14,7 +14,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { BookOpen, Clock, ArrowRight, Tag } from "lucide-react";
-import { getAllArticles, getAllCategories } from "@/lib/content/mdx";
+import { getAllArticles, getAllCategories, getAllReviewArticles } from "@/lib/content/mdx";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
@@ -54,11 +54,28 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
   restoration: { label: "Restoration", color: "bg-purple-100 text-purple-800" },
   maintenance: { label: "Maintenance", color: "bg-green-100 text-green-800" },
   costs: { label: "Cost Guides", color: "bg-blue-100 text-blue-800" },
+  reviews: { label: "Contractor Reviews", color: "bg-indigo-100 text-indigo-800" },
 };
 
-export default function LearnIndexPage() {
-  const articles = getAllArticles();
-  const categories = getAllCategories();
+export default async function LearnIndexPage() {
+  // Get MDX articles
+  const mdxArticles = getAllArticles();
+  const mdxCategories = getAllCategories();
+
+  // Get database review articles
+  const reviewArticles = await getAllReviewArticles();
+
+  // Merge and sort by publishedAt date (newest first)
+  const allArticles = [...mdxArticles, ...reviewArticles].sort((a, b) => {
+    const dateA = new Date(a.frontmatter.publishedAt || 0).getTime();
+    const dateB = new Date(b.frontmatter.publishedAt || 0).getTime();
+    return dateB - dateA;
+  });
+
+  // Combine categories (add "reviews" if we have review articles)
+  const categories = reviewArticles.length > 0
+    ? [...new Set([...mdxCategories, "reviews"])]
+    : mdxCategories;
 
   // Breadcrumb items
   const breadcrumbItems = [
@@ -67,8 +84,8 @@ export default function LearnIndexPage() {
   ];
 
   // Group articles by category for display
-  const featuredArticles = articles.filter((a) => a.frontmatter.featured);
-  const recentArticles = articles.slice(0, 6);
+  const featuredArticles = allArticles.filter((a) => a.frontmatter.featured);
+  const recentArticles = allArticles.slice(0, 6);
 
   return (
     <div className="min-h-screen bg-background">
@@ -130,7 +147,7 @@ export default function LearnIndexPage() {
         )}
 
         {/* Empty State */}
-        {articles.length === 0 && (
+        {allArticles.length === 0 && (
           <div className="text-center py-16">
             <BookOpen className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Coming Soon</h2>

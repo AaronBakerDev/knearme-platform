@@ -1,20 +1,20 @@
-import { Type, Search, Layout } from "lucide-react";
+import { Mic, Search, Layout } from "lucide-react";
 
 const features = [
     {
-        icon: Type,
-        title: "Zero Typing Required",
-        description: "Hate writing case studies? Just talk. Our AI transcribes your voice and turns it into professional copy that sells your services.",
+        icon: Mic,
+        title: "Voice-First Creation",
+        description: "Describe your project like you're talking to a customer. We turn your words into polished case studies—no typing, no staring at a blank page.",
     },
     {
         icon: Search,
-        title: "SEO Built-in",
-        description: "Every project page is automatically optimized for local search terms like 'Brick Repair in [City]', helping you rank higher on Google.",
+        title: "Built for Local Search",
+        description: "Every project page is structured to help you show up when homeowners search for services in your area. Real visibility, not just a pretty portfolio.",
     },
     {
         icon: Layout,
-        title: "Premium Design",
-        description: "Your portfolio looks like it cost $10,000. Clean, modern, and mobile-friendly layouts that impress high-end homeowners.",
+        title: "Professional Without the Price Tag",
+        description: "Clean, modern layouts that make your work look as good as it deserves. Mobile-friendly and ready to impress potential customers.",
     },
 ];
 
@@ -24,8 +24,11 @@ export function FeatureGrid() {
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-2xl text-center mb-16">
                     <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                        Why Contractors Love KnearMe
+                        Built for Busy Contractors
                     </h2>
+                    <p className="mt-4 text-lg text-muted-foreground">
+                        Everything you need to turn finished projects into marketing that works.
+                    </p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">

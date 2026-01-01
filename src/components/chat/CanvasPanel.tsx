@@ -342,11 +342,7 @@ export function CanvasPanel({
               />
             ) : (
               <div className="h-full overflow-y-auto overscroll-contain">
-                {formContent || (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    <p className="text-sm">Edit form will appear here</p>
-                  </div>
-                )}
+                {formContent || null}
               </div>
             )}
           </div>

@@ -59,6 +59,8 @@ export const AI_MODELS = {
   generation: 'gemini-3-flash-preview',
   /** Chat model for conversational AI (Gemini 3.0 Flash) */
   chat: 'gemini-3-flash-preview',
+  /** Live audio model for Voice -> Voice sessions */
+  live: 'gemini-2.5-flash-native-audio-preview-12-2025',
   /** Stable fallback model for reliability-first flows */
   fallback: 'gemini-2.0-flash',
   /** Transcription model (OpenAI Whisper - AI SDK doesn't support Gemini transcription yet) */

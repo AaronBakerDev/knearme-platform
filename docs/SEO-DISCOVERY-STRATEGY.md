@@ -46,7 +46,7 @@ This document translates workspace-level strategy into **implementation specific
 | **City Hub** | `/{city}/masonry` | Aggregate all masonry services and projects in a specific city; primary landing page for "{city} masonry" queries | **P0** | ✅ Implemented |
 | **Service Type by City** | `/{city}/masonry/{type}` | Show all projects of a specific service type in a city (e.g., "chimney repair in Denver"); target long-tail "{service} in {city}" keywords | **P1** | 🔨 Next sprint |
 | **Project Detail** | `/{city}/masonry/{type}/{project-slug}` | Individual project showcase with rich media, descriptions, structured data; builds trust and demonstrates quality | **P0** | ✅ Implemented |
-| **Contractor Profile** | `/contractor/{username}` | Contractor's full portfolio, bio, contact info; conversion endpoint for homeowners | **P0** | ✅ Implemented |
+| **Contractor Profile** | `/contractors/{city-slug}/{contractor-id}` | Contractor's full portfolio, bio, contact info; conversion endpoint for homeowners | **P0** | ✅ Implemented |
 | **National Service Landing** | `/services/{type}` | National-level service landing page linking to all cities offering that service; "what is tuckpointing" education + city links | **P2** | 📋 Phase 2 |
 | **Educational Content** | `/learn/{slug}` | How-to guides, cost guides, contractor selection advice; builds domain authority and captures informational queries | **P2** | 📋 Phase 2 |
 
@@ -57,7 +57,7 @@ This document translates workspace-level strategy into **implementation specific
 | **City Hub** | `app/(public)/[city]/masonry/page.tsx` | `getProjectsByCity()` → Supabase `projects` table filtered by city | SSR (dynamic) |
 | **Service Type by City** | `app/(public)/[city]/masonry/[type]/page.tsx` | `getProjectsByCityAndType()` → Supabase `projects` filtered by city + `service_type` | SSR (dynamic) |
 | **Project Detail** | `app/(public)/[city]/masonry/[type]/[slug]/page.tsx` | `getProjectBySlug()` → Supabase `projects` joined with `contractors` | SSR (dynamic) |
-| **Contractor Profile** | `app/(public)/contractor/[username]/page.tsx` | `getContractorProfile()` → Supabase `contractors` + `projects` | SSR (dynamic) |
+| **Contractor Profile** | `app/(public)/contractors/[city]/[id]/page.tsx` | `getContractorProfile()` → Supabase `contractors` + `projects` | SSR (dynamic) |
 | **National Service Landing** | `app/(public)/services/[type]/page.tsx` | `getCitiesByServiceType()` → Distinct cities offering service type | SSR (dynamic) |
 | **Educational Content** | `app/(public)/learn/[slug]/page.tsx` | Markdown files or CMS integration (TBD) | SSG (static) |
 
@@ -455,7 +455,7 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
 - **Contractor Attribution:**
   - Profile card with CTA to full profile
   - Company name, rating, project count
-  - Link: `/contractors/{contractor-slug}`
+  - Link: `/contractors/{city-slug}/{contractor-id}`
 
 - **Related Projects:**
   - 3-4 similar projects (same service type or city)
@@ -685,7 +685,7 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
   - Public profile with portfolio
   - Contact information
   - JSON-LD LocalBusiness schema
-  - File: `app/(public)/contractors/[slug]/page.tsx`
+  - File: `app/(public)/contractors/[city]/[id]/page.tsx`
 
 - [x] **Dynamic sitemap**
   - Auto-generates from database
@@ -1129,7 +1129,7 @@ High-priority underserved queries with low competition:
 | **`app/sitemap.ts`** | Dynamic XML sitemap generation |
 | **`app/(public)/[city]/masonry/page.tsx`** | City hub page template |
 | **`app/(public)/[city]/masonry/[project]/page.tsx`** | Project detail page template |
-| **`app/(public)/contractors/[slug]/page.tsx`** | Contractor profile page template |
+| **`app/(public)/contractors/[city]/[id]/page.tsx`** | Contractor profile page template |
 
 ### 11.4 External Documentation
 

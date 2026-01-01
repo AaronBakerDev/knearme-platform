@@ -3,6 +3,9 @@
  *
  * GET /api/chat/sessions/[id]/context?projectId={projectId}
  *
+ * Optional query params:
+ * - mode=ui: loads a capped message window for faster UI restoration
+ *
  * Returns messages and project data using budget-based loading:
  * - Short conversations: Full message history
  * - Long conversations: Summary + recent messages
@@ -38,6 +41,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const { id: sessionId } = await params;
     const url = new URL(request.url);
     const projectId = url.searchParams.get('projectId');
+    const mode = url.searchParams.get('mode');
 
     if (!projectId) {
       return NextResponse.json(
@@ -47,7 +51,10 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     // 3. Load conversation context using smart loading
-    const context = await loadConversationContext(projectId, sessionId);
+    const context = await loadConversationContext(projectId, sessionId, {
+      maxMessages: mode === 'ui' ? 50 : undefined,
+      recentMessagesCount: mode === 'ui' ? 20 : undefined,
+    });
 
     // 4. Return context data
     return NextResponse.json({

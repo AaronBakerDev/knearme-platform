@@ -87,3 +87,39 @@ export function parseDescriptionBlocksFromHtml(html: string): DescriptionBlock[]
 
   return sanitizeDescriptionBlocks(blocks);
 }
+
+export function buildDescriptionBlocksFromContent({
+  description,
+  materials,
+  techniques,
+  duration,
+  proudOf,
+}: {
+  description: string;
+  materials?: string[];
+  techniques?: string[];
+  duration?: string;
+  proudOf?: string;
+}): DescriptionBlock[] {
+  const blocks = parseDescriptionBlocksFromHtml(description);
+
+  if (materials && materials.length > 0) {
+    blocks.push({ type: 'heading', level: '2', text: 'Materials Used' });
+    blocks.push({ type: 'list', style: 'bullet', items: materials });
+  }
+
+  if (techniques && techniques.length > 0) {
+    blocks.push({ type: 'heading', level: '2', text: 'Techniques' });
+    blocks.push({ type: 'list', style: 'bullet', items: techniques });
+  }
+
+  if (duration) {
+    blocks.push({ type: 'callout', variant: 'info', title: 'Timeline', text: duration });
+  }
+
+  if (proudOf) {
+    blocks.push({ type: 'callout', variant: 'tip', title: 'Proud Of', text: proudOf });
+  }
+
+  return sanitizeDescriptionBlocks(blocks);
+}

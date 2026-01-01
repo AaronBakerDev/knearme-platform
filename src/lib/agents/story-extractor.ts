@@ -30,13 +30,13 @@ import type { SharedProjectState, StoryExtractionResult } from './types';
 // ============================================================================
 
 /** Minimum word count for customerProblem to be considered complete */
-const MIN_PROBLEM_WORDS = 15;
+const MIN_PROBLEM_WORDS = 8;
 
 /** Minimum word count for solutionApproach to be considered complete */
-const MIN_SOLUTION_WORDS = 15;
+const MIN_SOLUTION_WORDS = 8;
 
 /** Minimum materials count before we're ready for images */
-const MIN_MATERIALS_FOR_IMAGES = 2;
+const MIN_MATERIALS_FOR_IMAGES = 1;
 
 /** Confidence threshold below which we mark fields for clarification */
 const CLARIFICATION_THRESHOLD = 0.7;
@@ -499,7 +499,7 @@ function extractWithoutAI(
  * - customerProblem has at least MIN_PROBLEM_WORDS
  * - solutionApproach has at least MIN_SOLUTION_WORDS
  * - At least MIN_MATERIALS_FOR_IMAGES materials
- * - City and state provided
+ * - Location is helpful but not required to proceed to images
  */
 export function checkReadyForImages(
   state: Partial<SharedProjectState>
@@ -524,12 +524,6 @@ export function checkReadyForImages(
   // Must have minimum materials
   const materialCount = state.materials?.length || 0;
   if (materialCount < MIN_MATERIALS_FOR_IMAGES) {
-    return false;
-  }
-
-  // Must have city + state
-  const locationParts = resolveLocationParts(state);
-  if (!locationParts.city || !locationParts.state) {
     return false;
   }
 
@@ -602,14 +596,6 @@ export function getMissingFields(
 
   if ((state.materials?.length || 0) < MIN_MATERIALS_FOR_IMAGES) {
     missing.push('materials');
-  }
-
-  const locationParts = resolveLocationParts(state);
-  if (!locationParts.city) {
-    missing.push('city');
-  }
-  if (!locationParts.state) {
-    missing.push('state');
   }
 
   return missing;

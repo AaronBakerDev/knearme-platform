@@ -22,6 +22,7 @@ export type Database = {
           auth_user_id: string;
           email: string;
           business_name: string | null;
+          profile_slug: string | null;
           city: string | null;
           state: string | null;
           city_slug: string | null;
@@ -29,6 +30,7 @@ export type Database = {
           service_areas: string[] | null;
           description: string | null;
           profile_photo_url: string | null;
+          plan_tier: 'free' | 'pro';
           created_at: string;
           updated_at: string;
         };
@@ -37,6 +39,7 @@ export type Database = {
           auth_user_id: string;
           email: string;
           business_name?: string | null;
+          profile_slug?: string | null;
           city?: string | null;
           state?: string | null;
           city_slug?: string | null;
@@ -44,6 +47,7 @@ export type Database = {
           service_areas?: string[] | null;
           description?: string | null;
           profile_photo_url?: string | null;
+          plan_tier?: 'free' | 'pro';
           created_at?: string;
           updated_at?: string;
         };
@@ -52,6 +56,7 @@ export type Database = {
           auth_user_id?: string;
           email?: string;
           business_name?: string | null;
+          profile_slug?: string | null;
           city?: string | null;
           state?: string | null;
           city_slug?: string | null;
@@ -59,6 +64,7 @@ export type Database = {
           service_areas?: string[] | null;
           description?: string | null;
           profile_photo_url?: string | null;
+          plan_tier?: 'free' | 'pro';
           created_at?: string;
           updated_at?: string;
         };
@@ -278,6 +284,44 @@ export type Database = {
           }
         ];
       };
+      voice_usage: {
+        Row: {
+          id: string;
+          user_id: string;
+          contractor_id: string | null;
+          session_id: string | null;
+          mode: 'voice_text' | 'voice_voice';
+          started_at: string;
+          ended_at: string | null;
+          duration_seconds: number | null;
+          token_count: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          contractor_id?: string | null;
+          session_id?: string | null;
+          mode: 'voice_text' | 'voice_voice';
+          started_at?: string;
+          ended_at?: string | null;
+          duration_seconds?: number | null;
+          token_count?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          contractor_id?: string | null;
+          session_id?: string | null;
+          mode?: 'voice_text' | 'voice_voice';
+          started_at?: string;
+          ended_at?: string | null;
+          duration_seconds?: number | null;
+          token_count?: number | null;
+          created_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -289,6 +333,7 @@ export type Database = {
       project_status: 'draft' | 'published' | 'archived';
       image_type: 'before' | 'after' | 'progress' | 'detail';
       interview_status: 'in_progress' | 'completed' | 'approved';
+      voice_mode: 'voice_text' | 'voice_voice';
     };
   };
 };
@@ -307,6 +352,10 @@ export type ProjectImageInsert = Database['public']['Tables']['project_images'][
 
 export type InterviewSession = Database['public']['Tables']['interview_sessions']['Row'];
 export type InterviewSessionInsert = Database['public']['Tables']['interview_sessions']['Insert'];
+
+export type VoiceUsage = Database['public']['Tables']['voice_usage']['Row'];
+export type VoiceUsageInsert = Database['public']['Tables']['voice_usage']['Insert'];
+export type VoiceUsageUpdate = Database['public']['Tables']['voice_usage']['Update'];
 
 // Extended types with relations
 export type ProjectWithImages = Project & {

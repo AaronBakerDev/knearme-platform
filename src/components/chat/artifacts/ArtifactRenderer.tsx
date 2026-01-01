@@ -20,14 +20,13 @@
 import { useEffect, useRef } from 'react';
 import { ProjectDataCard } from './ProjectDataCard';
 import { ImageGalleryArtifact } from './ImageGalleryArtifact';
-import { ContentEditor } from './ContentEditor';
 import { ProgressTracker } from './ProgressTracker';
 import { ClarificationCard } from './ClarificationCard';
 import { PublishReadinessCard } from './PublishReadinessCard';
 import { GeneratedContentCard } from './GeneratedContentCard';
 import { ArtifactSkeleton } from './shared/ArtifactSkeleton';
 import { ArtifactError } from './shared/ArtifactError';
-import { extractToolName, type ArtifactType, type ContentEditorData } from '@/types/artifacts';
+import { extractToolName, type ArtifactType } from '@/types/artifacts';
 
 /**
  * Image item for artifacts that display images.
@@ -63,6 +62,13 @@ interface ArtifactRendererProps {
    * Prevents duplicate submissions when user clicks publish rapidly.
    */
   isSaving?: boolean;
+  /**
+   * Set of tool call IDs that have already been processed.
+   * Used to skip firing side-effects for restored session messages.
+   * Without this, showPortfolioPreview would auto-open the preview
+   * overlay when session is restored with existing tool results.
+   */
+  processedToolCallIds?: Set<string>;
 }
 
 /**
@@ -86,7 +92,6 @@ type ArtifactComponentType = React.ComponentType<{
 const ARTIFACT_COMPONENTS: Partial<Record<ArtifactType, ArtifactComponentType>> = {
   extractProjectData: ProjectDataCard as ArtifactComponentType,
   promptForImages: ImageGalleryArtifact as ArtifactComponentType,
-  showContentEditor: ContentEditor as ArtifactComponentType,
   showProgressTracker: ProgressTracker as ArtifactComponentType,
   requestClarification: ClarificationCard as ArtifactComponentType,
   checkPublishReady: PublishReadinessCard as ArtifactComponentType,
@@ -98,10 +103,12 @@ const ARTIFACT_COMPONENTS: Partial<Record<ArtifactType, ArtifactComponentType>> 
  * These call onAction when their output is available, then render nothing.
  */
 const SIDE_EFFECT_TOOLS: Set<ArtifactType> = new Set([
+  'showContentEditor',
   'showPortfolioPreview',
   'updateField',
   'updateDescriptionBlocks',
   'suggestQuickActions',
+  'composePortfolioLayout',
   'reorderImages',
   'regenerateSection',
   'validateForPublish',
@@ -126,35 +133,6 @@ function isErrorState(state: string): boolean {
   return state === 'output-error' || state === 'output-denied';
 }
 
-function hashString(value: string): string {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(i);
-    hash |= 0;
-  }
-  return hash.toString(36);
-}
-
-function buildContentEditorSignature(output: unknown): string {
-  if (!output || typeof output !== 'object') return 'empty';
-  const data = output as Partial<ContentEditorData>;
-  const tags = Array.isArray(data.tags) ? data.tags.join(',') : '';
-  const materials = Array.isArray(data.materials) ? data.materials.join(',') : '';
-  const techniques = Array.isArray(data.techniques) ? data.techniques.join(',') : '';
-  const editable = typeof data.editable === 'boolean' ? String(data.editable) : '';
-  const fields = [
-    data.title ?? '',
-    data.description ?? '',
-    data.seo_title ?? '',
-    data.seo_description ?? '',
-    tags,
-    materials,
-    techniques,
-    editable,
-  ];
-  return fields.map(hashString).join('.');
-}
-
 /**
  * Renders a tool part as an artifact based on its type and state.
  */
@@ -164,26 +142,26 @@ export function ArtifactRenderer({
   images,
   className,
   isSaving,
+  processedToolCallIds,
 }: ArtifactRendererProps) {
   const toolName = extractToolName(part.type) as ArtifactType;
   const Component = ARTIFACT_COMPONENTS[toolName];
   const isSideEffect = SIDE_EFFECT_TOOLS.has(toolName);
-  const contentEditorKey =
-    toolName === 'showContentEditor'
-      ? `${part.toolCallId}:${buildContentEditorSignature(part.output)}`
-      : part.toolCallId;
+  const contentEditorKey = part.toolCallId;
 
   // Track if we've already fired the side-effect for this tool call
   const sideEffectFiredRef = useRef<string | null>(null);
 
   // Handle side-effect tools: fire action when output available, render nothing
+  // Skip if toolCallId is in processedToolCallIds (restored from session history)
   useEffect(() => {
     if (
       isSideEffect &&
       part.state === 'output-available' &&
       part.output !== undefined &&
       onAction &&
-      sideEffectFiredRef.current !== part.toolCallId
+      sideEffectFiredRef.current !== part.toolCallId &&
+      !processedToolCallIds?.has(part.toolCallId)
     ) {
       sideEffectFiredRef.current = part.toolCallId;
       if (toolName === 'showPortfolioPreview') {
@@ -194,6 +172,8 @@ export function ArtifactRenderer({
         onAction({ type: 'updateDescriptionBlocks', payload: part.output });
       } else if (toolName === 'suggestQuickActions') {
         onAction({ type: 'suggestQuickActions', payload: part.output });
+      } else if (toolName === 'composePortfolioLayout') {
+        onAction({ type: 'composePortfolioLayout', payload: part.output });
       } else if (toolName === 'reorderImages') {
         onAction({ type: 'reorderImages', payload: part.output });
       } else if (toolName === 'regenerateSection') {
@@ -202,7 +182,7 @@ export function ArtifactRenderer({
         onAction({ type: 'validateForPublish', payload: part.output });
       }
     }
-  }, [isSideEffect, part.state, part.output, part.toolCallId, onAction, toolName]);
+  }, [isSideEffect, part.state, part.output, part.toolCallId, onAction, toolName, processedToolCallIds]);
 
   // Side-effect tools don't render anything
   if (isSideEffect) {

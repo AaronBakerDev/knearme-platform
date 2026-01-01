@@ -42,12 +42,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { REGIONS, MASONRY_SERVICES } from '@/lib/constants/services';
+import { slugify } from '@/lib/utils/slugify';
 import type { Contractor } from '@/types/database';
 
 
 
 const profileSchema = z.object({
   business_name: z.string().min(2, 'Business name must be at least 2 characters').max(100),
+  profile_slug: z.string().min(2, 'Profile link must be at least 2 characters').max(100),
   city: z.string().min(2, 'City must be at least 2 characters').max(100),
   state: z.string().length(2, 'Please select a state'),
   description: z.string().max(1000).optional(),
@@ -69,6 +71,7 @@ export default function ProfileEditPage() {
     shouldFocusError: true,
     defaultValues: {
       business_name: '',
+      profile_slug: '',
       city: '',
       state: '',
       description: '',
@@ -88,6 +91,7 @@ export default function ProfileEditPage() {
           const contractor = data.contractor as Contractor;
           form.reset({
             business_name: contractor.business_name || '',
+            profile_slug: contractor.profile_slug || slugify(contractor.business_name || ''),
             city: contractor.city || '',
             state: contractor.state || '',
             description: contractor.description || '',
@@ -109,10 +113,16 @@ export default function ProfileEditPage() {
   async function onSubmit(data: ProfileFormData) {
     setIsSaving(true);
     try {
+      // Only include profile_slug if it was modified
+      const { profile_slug: _profile_slug, ...rest } = data;
+      const payload = form.formState.dirtyFields.profile_slug
+        ? data
+        : rest;
+
       const res = await fetch('/api/contractors/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
@@ -192,6 +202,23 @@ export default function ProfileEditPage() {
                     <FormControl>
                       <Input placeholder="Mike's Masonry" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="profile_slug"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Public Profile Link</FormLabel>
+                    <FormControl>
+                      <Input placeholder="mikes-masonry" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      This is the last part of your public link.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

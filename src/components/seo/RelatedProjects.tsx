@@ -65,7 +65,7 @@ export function RelatedProjects({
 
   return (
     <section className={`mt-12 ${className}`}>
-      <h2 className="text-xl font-semibold mb-6">{title}</h2>
+      <h2 className="text-xl font-display tracking-tight mb-6">{title}</h2>
       <div className={`grid ${columnClasses[columns]} gap-4 md:gap-6`}>
         {projects.map((project) => (
           <Link
@@ -73,7 +73,7 @@ export function RelatedProjects({
             href={`/${project.city_slug}/masonry/${project.project_type_slug}/${project.slug}`}
             className="group"
           >
-            <Card className="overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 h-full border-0 bg-card">
+            <Card className="overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 h-full border-0 bg-card py-0">
               {/* Project Image */}
               <div className="relative aspect-video bg-muted overflow-hidden">
                 {project.cover_image ? (
@@ -124,5 +124,4 @@ export function RelatedProjects({
     </section>
   );
 }
-
 

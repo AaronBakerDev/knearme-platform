@@ -30,7 +30,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ChatWizard } from '@/components/chat';
-import { toast } from 'sonner';
+import { ProjectEditFormPanel } from '@/components/chat/ProjectEditFormPanel';
 
 /**
  * CreateProjectPage - Full-screen chat-based project creation wizard.
@@ -43,6 +43,7 @@ export default function CreateProjectPage() {
   // Start with null - project created eagerly on first user message
   const [projectId, setProjectId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [formRefreshKey, setFormRefreshKey] = useState(0);
 
   // Prevent duplicate project creation (e.g., rapid double-upload)
   const isCreatingRef = useRef(false);
@@ -146,28 +147,9 @@ export default function CreateProjectPage() {
     }
   }, []);
 
-  /**
-   * Handle wizard completion.
-   */
-  const handleComplete = (id: string) => {
-    toast.success('Project created successfully!');
-    router.push(`/projects/${id}/edit`);
-  };
-
-  /**
-   * Handle wizard cancellation.
-   * Only deletes project if one was created (lazy creation means it might not exist).
-   */
-  const handleCancel = () => {
-    // Only delete if we actually created a project
-    const idToDelete = createdProjectIdRef.current;
-    if (idToDelete) {
-      fetch(`/api/projects/${idToDelete}`, { method: 'DELETE' }).catch(() => {
-        // Ignore deletion errors
-      });
-    }
-    router.push('/projects');
-  };
+  const handleProjectUpdate = useCallback(() => {
+    setFormRefreshKey((prev) => prev + 1);
+  }, []);
 
   // Error state - centered with back button
   if (error) {
@@ -181,14 +163,18 @@ export default function CreateProjectPage() {
     );
   }
 
+  const formContent = projectId ? (
+    <ProjectEditFormPanel key={formRefreshKey} projectId={projectId} />
+  ) : undefined;
+
   return (
     <div className="relative h-full min-h-0 flex flex-col">
       {/* Full-screen chat - projectId may be null initially (lazy creation) */}
       <ChatWizard
         projectId={projectId}
         onEnsureProject={ensureProject}
-        onComplete={handleComplete}
-        onCancel={handleCancel}
+        onProjectUpdate={handleProjectUpdate}
+        formContent={formContent}
         className="flex-1"
       />
     </div>

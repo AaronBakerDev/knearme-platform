@@ -40,6 +40,7 @@ export type ArtifactType =
   | 'updateDescriptionBlocks'
   | 'suggestQuickActions'
   | 'generatePortfolioContent'
+  | 'composePortfolioLayout'
   | 'checkPublishReady'
   | 'reorderImages'
   | 'regenerateSection'
@@ -218,6 +219,17 @@ export interface GeneratedContentData {
   error?: string;
 }
 
+/**
+ * Layout composition data from Layout Composer agent.
+ */
+export interface ComposePortfolioLayoutData {
+  blocks: DescriptionBlock[];
+  imageOrder?: string[];
+  rationale?: string;
+  missingContext?: string[];
+  confidence?: number;
+}
+
 // =============================================================================
 // Typed Artifact Parts
 // =============================================================================
@@ -236,6 +248,7 @@ export type ArtifactPart =
   | ToolPart<UpdateFieldData, UpdateFieldData> & { type: 'tool-updateField' }
   | ToolPart<UpdateDescriptionBlocksData, UpdateDescriptionBlocksData> & { type: 'tool-updateDescriptionBlocks' }
   | ToolPart<GeneratedContentData, GeneratedContentData> & { type: 'tool-generatePortfolioContent' }
+  | ToolPart<ComposePortfolioLayoutData, ComposePortfolioLayoutData> & { type: 'tool-composePortfolioLayout' }
   | ToolPart<PublishReadinessData, PublishReadinessData> & { type: 'tool-checkPublishReady' };
 
 // =============================================================================

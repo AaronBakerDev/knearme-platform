@@ -1,7 +1,7 @@
 # C4 Model: Container Diagram
 
-> **Version:** 1.2
-> **Last Updated:** December 26, 2025
+> **Version:** 1.3
+> **Last Updated:** December 31, 2025
 > **Level:** 2 - Container
 
 ---
@@ -21,15 +21,15 @@ C4Container
     Person(contractor, "Contractor", "Uses mobile PWA")
 
     Container_Boundary(knearme, "KnearMe Platform") {
-        Container(pwa, "PWA Client", "Next.js, React", "Voice-first interview flow, photo upload, portfolio viewing")
-        Container(api, "API Routes", "Next.js API", "RESTful endpoints for data operations and AI orchestration")
-        Container(ai_pipeline, "AI Pipeline", "TypeScript", "Orchestrates AI SDK calls to Gemini + Whisper for vision, transcription, generation")
+    Container(pwa, "PWA Client", "Next.js, React", "Chat-first project intake, photo upload, portfolio viewing")
+    Container(api, "API Routes", "Next.js API", "REST + streaming chat endpoints for data operations and AI tools")
+    Container(ai_pipeline, "AI Pipeline", "TypeScript", "AI SDK runtime for chat agent, vision, transcription, generation, summarization")
     }
 
     ContainerDb(postgres, "PostgreSQL", "Supabase", "Stores contractors, projects, interviews, images metadata")
     ContainerDb(storage, "Object Storage", "Supabase Storage", "Stores project images with CDN delivery")
 
-    System_Ext(gemini, "Google Gemini API", "Gemini 3 Flash (preview) (vision + generation + chat)")
+    System_Ext(gemini, "Google Gemini API", "Gemini 3.0 Flash (vision + generation + chat)")
     System_Ext(openai, "OpenAI API", "Whisper (transcription only)")
     System_Ext(auth, "Supabase Auth", "Email/password authentication")
 
@@ -58,12 +58,12 @@ C4Container
 │  │                     PWA Client (Next.js)                            │   │
 │  │                                                                     │   │
 │  │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │   │
-│  │   │   Auth UI    │  │  Interview   │  │  Portfolio   │            │   │
-│  │   │              │  │    Flow      │  │    Pages     │            │   │
+│  │   │   Auth UI    │  │   Chat       │  │  Portfolio   │            │   │
+│  │   │              │  │   Wizard     │  │    Pages     │            │   │
 │  │   │  • Login     │  │              │  │              │            │   │
-│  │   │  • Signup    │  │  • Upload    │  │  • Profile   │            │   │
-│  │   │  • Profile   │  │  • Voice     │  │  • Projects  │            │   │
-│  │   │              │  │  • Approve   │  │  • Detail    │            │   │
+│  │   │  • Signup    │  │  • Chat      │  │  • Profile   │            │   │
+│  │   │  • Profile   │  │  • Photos    │  │  • Projects  │            │   │
+│  │   │              │  │  • Generate  │  │  • Detail    │            │   │
 │  │   └──────────────┘  └──────────────┘  └──────────────┘            │   │
 │  └────────────────────────────┬────────────────────────────────────────┘   │
 │                               │                                             │
@@ -72,8 +72,8 @@ C4Container
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                     API Routes (Next.js)                            │   │
 │  │                                                                     │   │
-│  │   /api/auth/*       /api/projects/*     /api/ai/*                  │   │
-│  │   /api/contractors/* /api/upload/*                                  │   │
+│  │   /api/auth/*       /api/projects/*     /api/chat/*                │   │
+│  │   /api/contractors/* /api/ai/*          /api/upload/*              │   │
 │  │                                                                     │   │
 │  └───────┬─────────────────────┬───────────────────────┬───────────────┘   │
 │          │                     │                       │                    │
@@ -81,15 +81,15 @@ C4Container
 │  ┌──────────────┐     ┌──────────────┐        ┌──────────────┐            │
 │  │ AI Pipeline  │     │  PostgreSQL  │        │   Storage    │            │
 │  │              │     │  (Supabase)  │        │  (Supabase)  │            │
-│  │  • Vision    │     │              │        │              │            │
-│  │  • Whisper   │     │  contractors │        │  /images/*   │            │
-│  │  • Generate  │     │  projects    │        │              │            │
-│  └──────┬───────┘     │  images      │        └──────────────┘            │
-│         │             │  interviews  │                                     │
+│  │  • Chat agent │     │              │        │              │            │
+│  │  • Vision     │     │  contractors │        │  /images/*   │            │
+│  │  • Transcribe │     │  projects    │        │              │            │
+│  └──────┬───────┘     │  project_images │     └──────────────┘            │
+│         │             │  chat_sessions  │                                  │
 │         ▼             └──────────────┘                                     │
 │  ┌──────────────┐  ┌──────────────┐                                        │
 │  │  Gemini API  │  │  OpenAI API  │                                        │
-│  │ (Vision/Gen) │  │  (Whisper)   │                                        │
+│  │ (Chat/Gen)  │  │  (Whisper)   │                                        │
 │  └──────────────┘  └──────────────┘                                                          │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -105,11 +105,11 @@ C4Container
 |-----------|-------|
 | **Technology** | Next.js 14, React 18, TypeScript |
 | **Purpose** | User interface for contractors and public visitors |
-| **Key Features** | Voice recording, photo capture, offline indicator |
+| **Key Features** | Chat wizard, voice recording, photo capture |
 | **Deployment** | Vercel Edge Network |
 
 **Responsibilities:**
-- Render contractor dashboard and interview flow
+- Render contractor dashboard and chat wizard
 - Capture photos via device camera
 - Record voice via MediaRecorder API
 - Display AI-generated content for approval
@@ -127,6 +127,8 @@ C4Container
 **Responsibilities:**
 - Handle authentication callbacks
 - CRUD operations for projects and contractors
+- Stream chat responses and tool execution (`/api/chat`)
+- Persist chat sessions, messages, and context loading
 - Orchestrate AI pipeline calls
 - Generate signed upload URLs for storage
 - Generate SEO metadata
@@ -141,10 +143,11 @@ C4Container
 | **Location** | Internal module, called by API routes |
 
 **Responsibilities:**
-- Send images to Gemini 3 Flash (preview) for analysis
+- Send images to Gemini 3.0 Flash for analysis
 - Send audio to Whisper for transcription
-- Send prompts to Gemini 3 Flash (preview) for content generation
-- Stream chat responses with tool calling
+- Stream chat responses with tool calling (Account Manager persona + tools)
+- Send prompts to Gemini 3.0 Flash for content generation
+- Summarize conversations for context compaction
 - Handle retries and error cases
 - Validate and parse AI responses with Zod schemas
 
@@ -161,6 +164,8 @@ C4Container
 - `contractors` - User profiles and business info
 - `projects` - Project records with status
 - `project_images` - Image metadata and paths
+- `chat_sessions` - Per-project chat session state
+- `chat_messages` - Persisted chat messages + tool parts
 - `interview_sessions` - AI interview state and transcripts
 - `categories` - Project type taxonomy
 
@@ -179,7 +184,7 @@ C4Container
 
 ---
 
-## Data Flow: Project Creation
+## Data Flow: Chat-First Project Creation
 
 ```mermaid
 sequenceDiagram
@@ -191,6 +196,27 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant S3 as Storage
 
+    C->>API: POST /api/projects (draft)
+    API->>DB: Insert project record
+    DB-->>API: Project ID
+    API-->>C: Project ID
+
+    C->>API: GET /api/chat/sessions/by-project/:id
+    API->>DB: select/create chat_sessions
+    DB-->>API: session
+    API-->>C: session metadata
+
+    C->>API: POST /api/chat (stream)
+    API->>AI: streamText + tools
+    AI->>GEM: Chat + extraction
+    GEM-->>AI: Tool calls + text
+    AI-->>API: Streamed response
+    API-->>C: Tokens + tool parts
+
+    C->>API: POST /api/chat/sessions/:id/messages
+    API->>DB: Insert chat_messages
+    DB-->>API: OK
+
     C->>API: POST /api/upload (request signed URL)
     API->>S3: Generate signed upload URL
     S3-->>API: Signed URL
@@ -199,9 +225,9 @@ sequenceDiagram
     C->>S3: Upload images directly
     S3-->>C: Success + paths
 
-    C->>API: POST /api/ai/analyze
+    C->>API: POST /api/ai/analyze-images
     API->>AI: analyzeProjectImages(paths)
-    AI->>GEM: Gemini 3 Flash (preview) vision request
+    AI->>GEM: Gemini 3.0 Flash vision request
     GEM-->>AI: Project type, materials
     AI-->>API: Analysis result
     API-->>C: Display confirmation
@@ -213,16 +239,16 @@ sequenceDiagram
     AI-->>API: Text response
     API-->>C: Show transcript
 
-    C->>API: POST /api/ai/generate
-    API->>AI: generateContent(analysis, transcripts)
-    AI->>GEM: Gemini 3 Flash (preview) request
+    C->>API: POST /api/chat ("Generate the portfolio content now.")
+    API->>AI: generatePortfolioContent tool
+    AI->>GEM: Gemini 3.0 Flash request
     GEM-->>AI: Generated content
-    AI-->>API: Title, description, tags
+    AI-->>API: Tool result
     API-->>C: Preview for approval
 
-    C->>API: POST /api/projects
-    API->>DB: Insert project record
-    DB-->>API: Project ID
+    C->>API: POST /api/projects/:id/publish
+    API->>DB: Update project status
+    DB-->>API: Published
     API-->>C: Published! Redirect to project page
 ```
 
@@ -239,7 +265,7 @@ sequenceDiagram
 | **Database** | Supabase PostgreSQL | Relational data |
 | **Storage** | Supabase Storage | Images with CDN |
 | **Auth** | Supabase Auth | Email/password |
-| **AI** | Gemini 3 Flash (preview) + Whisper | Vision, generation, chat + transcription |
+| **AI** | Gemini 3.0 Flash + Whisper | Vision, generation, chat + transcription |
 | **Hosting** | Vercel | Deployment, CDN, edge |
 
 ---
@@ -261,7 +287,7 @@ sequenceDiagram
 │                                                                 │
 │    • Dashboard                                                  │
 │    • Create/edit projects                                       │
-│    • AI interview flow                                          │
+│    • AI chat flow                                               │
 │    • Profile management                                         │
 │    • Upload signed URLs                                         │
 └─────────────────────────────────────────────────────────────────┘

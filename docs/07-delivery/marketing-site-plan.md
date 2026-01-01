@@ -6,7 +6,7 @@
 
 The "Marketing Part" of KnearMe serves two distinct audiences effectively:
 1.  **Contractors (Primary for MVP):** The **Landing Page** (`/`) must convert visitors into signups by promising effortless portfolio building.
-2.  **Homeowners (Secondary/SEO):** The **Project Pages** (`/[city]/masonry/...`) and **Contractor Profiles** (`/contractors/[slug]`) act as landing pages for organic search traffic.
+2.  **Homeowners (Secondary/SEO):** The **Project Pages** (`/[city]/masonry/...`) and **Contractor Profiles** (`/contractors/[city]/[id]`) act as landing pages for organic search traffic.
 
 This plan focuses on implementing the **Contractor Acquisition Landing Page** and the **SEO Infrastructure** required to make the platform discoverable.
 
@@ -69,7 +69,7 @@ Implement Next.js Metadata API in `layout.tsx` and dynamic pages.
 
 -   **Dynamic Metadata**:
     -   **Project Page**: `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx`
-    -   **Profile Page**: `src/app/(public)/contractors/[slug]/page.tsx`
+    -   **Profile Page**: `src/app/(public)/contractors/[city]/[id]/page.tsx`
     -   *Action*: Implement `generateMetadata()` fetching real data from Supabase.
 
 ### 2.2 Structured Data (JSON-LD)

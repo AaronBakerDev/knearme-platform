@@ -21,6 +21,7 @@ export {
 
 // Agents
 export { generateContent, type ContentGenerationError } from './content-generator';
+export { composePortfolioLayout } from './layout-composer';
 
 export {
   extractStory,

@@ -80,15 +80,16 @@ export function VoiceRecorder({
    * Stop recording audio.
    */
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && state === 'recording') {
-      mediaRecorderRef.current.stop();
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state === 'recording') {
+      recorder.stop();
 
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
     }
-  }, [state]);
+  }, []);
 
   /**
    * Start recording audio.
@@ -269,7 +270,7 @@ export function VoiceRecorder({
 
       {/* Error message */}
       {error && (
-        <div className="text-sm text-red-500 text-center p-2 bg-red-50 rounded">
+        <div className="text-sm text-destructive text-center p-2 bg-destructive/10 rounded">
           {error}
         </div>
       )}
@@ -287,10 +288,11 @@ export function VoiceRecorder({
             onTouchEnd={stopRecording}
             disabled={disabled || isProcessing}
             className={cn(
-              'w-20 h-20 rounded-full flex items-center justify-center transition-all',
-              'bg-primary text-primary-foreground',
+              'w-24 h-24 rounded-full flex items-center justify-center transition-all',
+              'bg-primary text-primary-foreground shadow-lg',
               'hover:bg-primary/90 active:scale-95',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
+              'touch-none select-none',
               disabled && 'opacity-50 cursor-not-allowed'
             )}
             aria-label="Hold to record"
@@ -307,9 +309,9 @@ export function VoiceRecorder({
             onMouseLeave={stopRecording}
             onTouchEnd={stopRecording}
             className={cn(
-              'w-20 h-20 rounded-full flex items-center justify-center',
-              'bg-red-500 text-white animate-pulse',
-              'focus:outline-none'
+              'w-24 h-24 rounded-full flex items-center justify-center',
+              'bg-destructive text-white animate-pulse shadow-lg',
+              'focus:outline-none touch-none select-none'
             )}
             aria-label="Recording - release to stop"
           >
@@ -341,7 +343,7 @@ export function VoiceRecorder({
               size="icon"
               onClick={discardRecording}
               disabled={disabled || isProcessing}
-              className="h-10 w-10"
+              className="h-11 w-11"
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -352,7 +354,7 @@ export function VoiceRecorder({
               size="icon"
               onClick={discardRecording}
               disabled={disabled || isProcessing}
-              className="h-10 w-10 text-red-500"
+              className="h-11 w-11 text-destructive"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -370,9 +372,12 @@ export function VoiceRecorder({
         )}
 
         {/* Instructions */}
-        <p className="text-sm text-muted-foreground text-center">
+        <p className={cn(
+          'text-sm text-center',
+          state === 'recording' ? 'text-destructive font-medium animate-pulse' : 'text-muted-foreground'
+        )}>
           {state === 'idle' && 'Hold to record your answer'}
-          {state === 'recording' && 'Release to stop recording'}
+          {state === 'recording' && 'Recording... Release to stop'}
           {state === 'recorded' && 'Listen to your response or re-record'}
           {state === 'playing' && 'Playing...'}
         </p>

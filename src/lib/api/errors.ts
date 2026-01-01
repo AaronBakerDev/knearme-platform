@@ -15,6 +15,7 @@ export type ApiErrorCode =
   | 'VALIDATION_ERROR'
   | 'CONFLICT'
   | 'RATE_LIMITED'
+  | 'QUOTA_EXCEEDED'
   | 'RLS_VIOLATION'
   | 'TIMEOUT'
   | 'SERVICE_UNAVAILABLE'
@@ -42,6 +43,7 @@ const STATUS_CODES: Record<ApiErrorCode, number> = {
   VALIDATION_ERROR: 400,
   CONFLICT: 409,
   RATE_LIMITED: 429,
+  QUOTA_EXCEEDED: 429, // Same as rate limited - usage quota exceeded
   TIMEOUT: 504,
   SERVICE_UNAVAILABLE: 503,
   INTERNAL_ERROR: 500,

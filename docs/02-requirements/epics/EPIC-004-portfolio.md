@@ -163,7 +163,7 @@ const publishProject = async (projectId: string) => {
 
   if (data) {
     // Invalidate caches
-    await revalidatePath(`/contractors/${data.contractor_slug}`);
+    await revalidatePath(`/contractors/${data.city_slug}/${data.contractor_id}`);
     await revalidatePath(`/${data.city_slug}/masonry/${data.project_type_slug}/${data.slug}`);
   }
 
@@ -293,7 +293,7 @@ const publishProject = async (projectId: string) => {
 
 #### Technical Notes
 
-- **Route**: `/contractors/[slug]`
+- **Route**: `/contractors/[city]/[id]`
 - **Slug Format**: `{business-name-slug}-{city-slug}`
 - **Rendering**: SSG with ISR (revalidate: 3600)
 - **Schema.org**: LocalBusiness markup

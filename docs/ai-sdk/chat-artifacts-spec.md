@@ -1209,11 +1209,11 @@ const createModeConfig: ChatModeConfig = {
 };
 ```
 
-#### Edit Mode (Fresh Start)
+#### Edit Mode (Shared Session Resume)
 - Existing project loaded from database
-- Initial artifacts pre-populated with current data
 - AI assists with improvements and changes
-- Each session starts clean (no conversation history)
+- Resumes the shared session for continuity
+- UI loads a capped message window + summary when needed
 
 ```typescript
 const editModeConfig: ChatModeConfig = {
@@ -1419,42 +1419,47 @@ Available natural language commands:
 
 ### Session Management
 
-#### Fresh Start Pattern
+#### Shared Session Resume Pattern
 
-Each edit session starts clean without conversation history:
+Edit mode restores the shared session (with a UI cap for performance):
 
 ```typescript
-// In ChatWizard
 useEffect(() => {
-  if (mode === 'edit') {
-    // Load project data
-    const project = await fetchProject(projectId);
-    const images = await fetchImages(projectId);
+  async function loadSession() {
+    const sessionResponse = await fetch(`/api/chat/sessions/by-project/${projectId}`);
+    const { session, isNew } = await sessionResponse.json();
+    setSessionId(session.id);
 
-    // Create initial artifacts (not messages)
-    const initialArtifacts = buildInitialArtifacts(project, images);
+    if (!isNew) {
+      const contextResponse = await fetch(
+        `/api/chat/sessions/${session.id}/context?projectId=${projectId}&mode=ui`
+      );
+      const context = await contextResponse.json();
 
-    // Set welcome message only
-    setMessages([{
-      id: 'welcome',
-      role: 'assistant',
-      parts: [
-        { type: 'text', text: welcomeMessage },
-        ...initialArtifacts.map(toArtifactPart),
-      ],
-    }]);
+      let messagesToLoad = context.messages;
+      if (!context.loadedFully && context.summary) {
+        messagesToLoad = [
+          createSummarySystemMessage(context.summary, context.projectData),
+          ...context.messages,
+        ];
+      }
+      setMessages(messagesToLoad);
+      return;
+    }
 
-    // No history loaded - fresh start
+    setMessages([getWelcomeMessage(project.title)]);
   }
-}, [mode, projectId]);
+
+  loadSession();
+}, [projectId]);
 ```
 
-#### Why Fresh Start?
+#### Why Resume Session?
 
-1. **Clarity** - User sees current project state, not old conversations
-2. **Performance** - No loading/parsing of potentially long history
-3. **Relevance** - Old creation conversations may not apply to current edits
-4. **Simplicity** - Easier to implement and maintain
+1. **Continuity** - Keeps prior interview answers and tool outputs in view
+2. **Efficiency** - Avoids re-asking questions when data already exists
+3. **Accuracy** - Tool parts render artifacts exactly as before
+4. **Performance** - `mode=ui` caps the payload to keep resume fast
 
 ### Data Flow: Edit Mode
 
@@ -1469,13 +1474,13 @@ useEffect(() => {
 2. ChatWizard initializes in edit mode
    │
    ├─► Fetch project: GET /api/projects/[id]
-   ├─► Fetch images: GET /api/projects/[id]/images
+   ├─► Fetch session: GET /api/chat/sessions/by-project/[projectId]
    │
    ▼
-3. Build initial artifacts from fetched data
+3. Load context: GET /api/chat/sessions/[id]/context?projectId=...&mode=ui
    │
    ▼
-4. Display welcome message + all artifacts
+4. Display restored messages + artifacts (summary injected if compacted)
    │
    ▼
 5. User interacts:
@@ -1527,8 +1532,8 @@ export default function ProjectChatPage({ params, searchParams }) {
 |--------|-------------|-----------|
 | Initial state | Empty project | Loaded project + images |
 | Welcome message | "What project are you adding?" | "Here's your project. What to change?" |
-| Initial artifacts | None | All populated |
-| Conversation history | Accumulates | Fresh start each session |
+| Initial artifacts | None until tool outputs | Restored from tool history when available |
+| Conversation history | Accumulates | Resumes shared session (summary + recent for UI) |
 | Primary AI role | Extract information | Assist with improvements |
 | Artifact mode | Becomes editable | Starts editable |
 | Save pattern | Gradual extraction | Immediate on change |

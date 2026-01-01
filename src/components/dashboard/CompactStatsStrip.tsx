@@ -21,56 +21,50 @@ interface CompactStatsStripProps {
  * @see dashboard/page.tsx - Main dashboard that uses this component
  */
 export function CompactStatsStrip({ stats }: CompactStatsStripProps) {
-  const colorConfig: Record<StatColor, { dot: string; icon: LucideIcon; iconColor: string }> = {
+  const colorConfig: Record<StatColor, { bg: string; icon: LucideIcon; iconColor: string; border: string }> = {
     green: {
-      dot: 'bg-green-500',
+      bg: 'bg-emerald-500/10',
       icon: CheckCircle2,
-      iconColor: 'text-green-500',
+      iconColor: 'text-emerald-600 dark:text-emerald-400',
+      border: 'border-emerald-200 dark:border-emerald-800',
     },
     orange: {
-      dot: 'bg-orange-500',
+      bg: 'bg-amber-500/10',
       icon: Clock,
-      iconColor: 'text-orange-500',
+      iconColor: 'text-amber-600 dark:text-amber-400',
+      border: 'border-amber-200 dark:border-amber-800',
     },
     blue: {
-      dot: 'bg-blue-500',
+      bg: 'bg-blue-500/10',
       icon: FolderOpen,
-      iconColor: 'text-blue-500',
+      iconColor: 'text-blue-600 dark:text-blue-400',
+      border: 'border-blue-200 dark:border-blue-800',
     },
   };
 
   return (
-    <div className="flex gap-3 md:gap-6 py-3 px-3 md:px-4 bg-muted/30 rounded-xl overflow-x-auto">
-      {stats.map((stat, index) => {
+    <div className="grid grid-cols-3 gap-2 md:gap-4">
+      {stats.map((stat) => {
         const config = colorConfig[stat.color];
         const Icon = config.icon;
 
         return (
           <div
             key={stat.label}
-            className="flex items-center gap-2 md:gap-3 flex-1 min-w-0"
+            className={`flex flex-col items-center justify-center p-2 md:p-3 rounded-lg border ${config.border} ${config.bg} backdrop-blur-sm transition-all hover:scale-[1.02]`}
           >
-            {/* Color indicator - dot on mobile, icon on desktop */}
-            <span
-              className={`w-2 h-2 md:w-8 md:h-8 rounded-full ${config.dot} md:bg-opacity-20 flex-shrink-0 flex items-center justify-center`}
-            >
-              <Icon className={`hidden md:block w-4 h-4 ${config.iconColor}`} />
-            </span>
+            <div className={`p-1.5 rounded-full bg-white/50 dark:bg-black/20 ${config.iconColor} mb-1`}>
+              <Icon className="w-4 h-4" />
+            </div>
 
-            {/* Stat content */}
-            <div className="min-w-0">
-              <p className="text-xl md:text-2xl font-bold tabular-nums">
+            <div className="text-center">
+              <p className="text-xl md:text-2xl font-bold tracking-tight leading-none">
                 {stat.value}
               </p>
-              <p className="text-[10px] md:text-xs text-muted-foreground truncate">
+              <p className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wide mt-0.5">
                 {stat.label}
               </p>
             </div>
-
-            {/* Separator between stats (not after last) */}
-            {index < stats.length - 1 && (
-              <div className="w-px h-8 bg-border ml-auto hidden md:block" />
-            )}
           </div>
         );
       })}

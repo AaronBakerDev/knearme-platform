@@ -97,7 +97,7 @@ export function InterviewFlow({
   }, [initialQuestions, fetchQuestions]);
 
   const currentQuestion = questions[currentIndex];
-  const progress = questions.length > 0 ? ((currentIndex) / questions.length) * 100 : 0;
+  const progress = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
   const isLastQuestion = currentIndex === questions.length - 1;
 
   /**
@@ -165,6 +165,7 @@ export function InterviewFlow({
     if (!currentQuestion) return;
 
     setIsProcessing(true);
+    setError(null);
 
     try {
       // Store response directly (no transcription needed)
@@ -177,10 +178,30 @@ export function InterviewFlow({
       const newResponses = [...responses, response];
       setResponses(newResponses);
 
-      // Update interview session in DB
-      // (This happens automatically via transcribe endpoint for voice,
-      // but for text we need to do it manually)
-      // For now, just proceed - the generate-content endpoint will handle it
+      // Persist text response to keep interview progress consistent.
+      try {
+        const res = await fetch('/api/ai/generate-content?action=responses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: projectId,
+            responses: [
+              {
+                question_id: response.question_id,
+                question_text: response.question_text,
+                answer: response.answer,
+              },
+            ],
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error?.message || 'Failed to save response');
+        }
+      } catch (persistError) {
+        setError(persistError instanceof Error ? persistError.message : 'Failed to save response');
+      }
 
       // Move to next question or complete
       if (isLastQuestion) {
@@ -222,7 +243,7 @@ export function InterviewFlow({
     return (
       <Card className={cn('text-center py-12', className)}>
         <CardContent>
-          <p className="text-red-500 mb-4">{error}</p>
+          <p className="text-destructive mb-4">{error}</p>
           <Button onClick={fetchQuestions}>Try Again</Button>
         </CardContent>
       </Card>
@@ -261,14 +282,14 @@ export function InterviewFlow({
       {/* Completed questions summary */}
       {responses.length > 0 && (
         <div className="space-y-2">
-          {responses.map((resp, idx) => (
+          {responses.map((resp) => (
             <div
               key={resp.question_id}
               className="flex items-start gap-2 text-sm p-2 bg-muted/50 rounded"
             >
               <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
               <div className="min-w-0">
-                <p className="font-medium truncate">{questions[idx]?.text}</p>
+                <p className="font-medium truncate">{resp.question_text}</p>
                 <p className="text-muted-foreground line-clamp-1">{resp.answer}</p>
               </div>
             </div>
@@ -278,14 +299,14 @@ export function InterviewFlow({
 
       {/* Current question */}
       {currentQuestion && (
-        <Card>
+        <Card className="rounded-2xl border-2 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg">{currentQuestion.text}</CardTitle>
+            <CardTitle className="text-lg font-display tracking-tight">{currentQuestion.text}</CardTitle>
             <CardDescription>{currentQuestion.purpose}</CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
-              <p className="text-red-500 text-sm mb-4">{error}</p>
+              <p className="text-destructive text-sm mb-4">{error}</p>
             )}
 
             <VoiceRecorder

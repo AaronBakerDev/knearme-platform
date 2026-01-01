@@ -158,6 +158,165 @@
 }
 
 /* ==========================================================================
+   Craftsman Dashboard Styles
+   Warm, professional aesthetic for masonry contractors
+   ========================================================================== */
+
+@layer components {
+  /* Display font for dashboard headings */
+  .font-craftsman {
+    font-family: var(--font-display), Georgia, serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* Terracotta accent color for warmth */
+  .text-terracotta {
+    color: oklch(0.62 0.16 45);
+  }
+
+  .bg-terracotta {
+    background-color: oklch(0.62 0.16 45);
+  }
+
+  .bg-terracotta-subtle {
+    background-color: oklch(0.62 0.16 45 / 0.1);
+  }
+
+  .border-terracotta {
+    border-color: oklch(0.62 0.16 45 / 0.3);
+  }
+
+  /* Sage green for success states */
+  .text-sage {
+    color: oklch(0.55 0.08 145);
+  }
+
+  .bg-sage {
+    background-color: oklch(0.55 0.08 145);
+  }
+
+  .bg-sage-subtle {
+    background-color: oklch(0.55 0.08 145 / 0.15);
+  }
+
+  /* Warm slate for text */
+  .text-warm-slate {
+    color: oklch(0.45 0.02 260);
+  }
+
+  /* Dashboard card with warm shadow */
+  .dashboard-card {
+    background: linear-gradient(
+      135deg,
+      oklch(0.18 0.01 260) 0%,
+      oklch(0.16 0.012 260) 100%
+    );
+    border: 1px solid oklch(0.30 0.015 260);
+    border-radius: 1rem;
+    box-shadow:
+      0 4px 12px oklch(0 0 0 / 0.2),
+      0 0 0 1px oklch(1 0 0 / 0.02),
+      inset 0 1px 0 oklch(1 0 0 / 0.03);
+    transition: all 0.3s ease;
+  }
+
+  .dashboard-card:hover {
+    box-shadow:
+      0 8px 24px oklch(0 0 0 / 0.3),
+      0 0 0 1px oklch(1 0 0 / 0.04),
+      inset 0 1px 0 oklch(1 0 0 / 0.05);
+    transform: translateY(-2px);
+  }
+
+  /* Primary action card with terracotta accent */
+  .dashboard-card-primary {
+    background: linear-gradient(
+      135deg,
+      oklch(0.25 0.06 45) 0%,
+      oklch(0.20 0.04 45) 100%
+    );
+    border: 1px solid oklch(0.62 0.16 45 / 0.3);
+    border-radius: 1rem;
+    box-shadow:
+      0 4px 16px oklch(0.62 0.16 45 / 0.15),
+      0 0 0 1px oklch(1 0 0 / 0.02),
+      inset 0 1px 0 oklch(1 0 0 / 0.05);
+    transition: all 0.3s ease;
+  }
+
+  .dashboard-card-primary:hover {
+    box-shadow:
+      0 8px 32px oklch(0.62 0.16 45 / 0.25),
+      0 0 0 1px oklch(1 0 0 / 0.04);
+    transform: translateY(-2px);
+  }
+
+  /* Project thumbnail with hover effect */
+  .project-thumb {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    background: oklch(0.20 0.01 260);
+    border: 1px solid oklch(0.30 0.015 260);
+    transition: all 0.3s ease;
+  }
+
+  .project-thumb::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      transparent 50%,
+      oklch(0 0 0 / 0.4) 100%
+    );
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .project-thumb:hover::after {
+    opacity: 1;
+  }
+
+  /* Subtle grain texture */
+  .grain-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+
+  /* Stats indicator dot */
+  .stat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .stat-dot-published {
+    background: oklch(0.55 0.08 145);
+    box-shadow: 0 0 8px oklch(0.55 0.08 145 / 0.5);
+  }
+
+  .stat-dot-draft {
+    background: oklch(0.70 0.12 80);
+    box-shadow: 0 0 8px oklch(0.70 0.12 80 / 0.5);
+  }
+
+  /* Empty state illustration */
+  .empty-state-bg {
+    background:
+      radial-gradient(circle at 30% 70%, oklch(0.62 0.16 45 / 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 70% 30%, oklch(0.55 0.08 145 / 0.05) 0%, transparent 50%);
+  }
+}
+
+/* ==========================================================================
    Custom Utilities
    ========================================================================== */
 

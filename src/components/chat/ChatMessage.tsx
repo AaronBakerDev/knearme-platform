@@ -17,6 +17,8 @@
 
 import { useState, useCallback } from 'react';
 import { Copy, Check, ThumbsUp, ThumbsDown } from 'lucide-react';
+import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -24,6 +26,84 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+
+const markdownComponents: Components = {
+  p: ({ children }) => (
+    <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed mb-2 last:mb-0">
+      {children}
+    </p>
+  ),
+  a: ({ children, href }) => (
+    <a
+      href={href ?? '#'}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="text-primary underline underline-offset-2 hover:text-primary/80"
+    >
+      {children}
+    </a>
+  ),
+  ul: ({ children }) => (
+    <ul className="list-disc pl-5 space-y-1">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="list-decimal pl-5 space-y-1">{children}</ol>
+  ),
+  li: ({ children }) => <li className="break-words">{children}</li>,
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 border-muted-foreground/40 pl-4 text-muted-foreground italic">
+      {children}
+    </blockquote>
+  ),
+  h1: ({ children }) => (
+    <h1 className="text-base font-semibold mt-3 mb-1">{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="text-sm font-semibold mt-3 mb-1">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-sm font-semibold mt-2 mb-1">{children}</h3>
+  ),
+  code: ({ className, children, ...props }) => {
+    // In react-markdown v9+, inline code doesn't have a language class
+    // Code blocks have className like "language-js"
+    const isCodeBlock = Boolean(className?.startsWith('language-'));
+    if (!isCodeBlock) {
+      return (
+        <code
+          className="rounded bg-muted/80 px-1.5 py-0.5 font-mono text-[13px]"
+          {...props}
+        >
+          {children}
+        </code>
+      );
+    }
+    return (
+      <code className={cn('font-mono text-[13px]', className)} {...props}>
+        {children}
+      </code>
+    );
+  },
+  pre: ({ children }) => (
+    <pre className="mt-3 mb-3 overflow-x-auto rounded-lg bg-muted/70 p-3 text-[13px] leading-relaxed">
+      {children}
+    </pre>
+  ),
+  hr: () => <hr className="my-3 border-muted/70" />,
+  table: ({ children }) => (
+    <div className="mt-3 overflow-x-auto">
+      <table className="w-full border-collapse text-sm">{children}</table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th className="border border-muted/60 bg-muted/40 px-2 py-1 text-left font-semibold">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border border-muted/60 px-2 py-1">{children}</td>
+  ),
+};
 
 interface ChatMessageProps {
   /** Message role determines alignment and styling */
@@ -108,7 +188,9 @@ export function ChatMessage({
               isStreaming && 'opacity-70'
             )}
           >
-            <p className="whitespace-pre-wrap break-words">{content}</p>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              {content}
+            </ReactMarkdown>
           </div>
 
           {/* Action buttons - visible on hover, below message */}

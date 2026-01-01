@@ -7,13 +7,15 @@
  * the generate button.
  *
  * Weight distribution (totals 100):
- * - Images: 25 (at least 1 photo required)
+ * - Images: 20 (at least 1 photo required)
  * - Project type: 15 (core categorization)
- * - Materials: 15 (visual/SEO content)
- * - Customer problem: 15 (story context)
- * - Solution approach: 15 (story resolution)
- * - Duration: 10 (project scope)
- * - Proud of: 5 (bonus highlight)
+ * - City: 10 (SEO URL)
+ * - State: 5 (SEO URL)
+ * - Materials: 12 (visual/SEO content)
+ * - Customer problem: 12 (story context)
+ * - Solution approach: 12 (story resolution)
+ * - Duration: 8 (project scope)
+ * - Proud of: 6 (bonus highlight)
  *
  * @see chat-ux-patterns.md#progress-visualization
  */
@@ -25,7 +27,7 @@ import type { ExtractedProjectData, UploadedImage } from '@/lib/chat/chat-types'
  * Completeness weights for each field.
  * Total weight = 100
  *
- * IMPORTANT: These must align with server-side publish requirements.
+ * NOTE: canPublish aligns with server-side publish requirements.
  * Server requires: title, project_type, city, state, images, hero_image_id
  * @see /src/app/api/projects/[id]/publish/route.ts
  */
@@ -44,14 +46,12 @@ const WEIGHTS = {
 /**
  * Minimum threshold for generation.
  *
- * 55% requires: images (25%) + at least two of: project_type (15%),
- * materials (15%), customer_problem (15%), solution_approach (15%).
- *
- * This ensures we have enough substantive data for quality content generation.
+ * 45% generally means photos plus at least two core story signals.
+ * This acts as a soft gate alongside quality checks.
  *
  * @see Plan file for rationale on threshold value
  */
-const GENERATION_THRESHOLD = 55;
+const GENERATION_THRESHOLD = 45;
 
 /**
  * Quality thresholds for content validation.
@@ -61,14 +61,12 @@ const GENERATION_THRESHOLD = 55;
  * and non-English speakers.
  */
 const QUALITY_THRESHOLDS = {
-  /** Minimum chars for customer problem (~5-6 words) */
-  customer_problem_min: 30,
-  /** Minimum chars for solution approach (~5-6 words) */
-  solution_approach_min: 30,
+  /** Minimum chars for customer problem (~4-5 words) */
+  customer_problem_min: 20,
+  /** Minimum chars for solution approach (~4-5 words) */
+  solution_approach_min: 20,
   /** Combined minimum for problem + solution (ensures enough story) */
-  combined_context_min: 80,
-  /** Minimum number of materials for specificity */
-  materials_min_count: 2,
+  combined_context_min: 50,
 } as const;
 
 /**
@@ -104,8 +102,6 @@ export function checkContentQuality(data: ExtractedProjectData): ContentQualityR
   const problemLength = (data.customer_problem || '').length;
   const solutionLength = (data.solution_approach || '').length;
   const combinedLength = problemLength + solutionLength;
-  const materialsCount = data.materials_mentioned?.length || 0;
-
   // Check individual field lengths (only if field exists but is too short)
   if (data.customer_problem && problemLength < QUALITY_THRESHOLDS.customer_problem_min) {
     issues.push('customer_problem needs more detail');
@@ -118,11 +114,6 @@ export function checkContentQuality(data: ExtractedProjectData): ContentQualityR
   // Check combined context (the story needs enough substance)
   if (combinedLength < QUALITY_THRESHOLDS.combined_context_min) {
     issues.push('overall context too brief for quality content');
-  }
-
-  // Check materials count
-  if (materialsCount < QUALITY_THRESHOLDS.materials_min_count) {
-    issues.push('need at least 2 specific materials');
   }
 
   return {
@@ -143,6 +134,8 @@ export interface CompletenessState {
   missingFields: string[];
   /** Whether we have minimum requirements to generate */
   canGenerate: boolean;
+  /** Whether we meet minimum requirements to publish */
+  canPublish: boolean;
   /** Human-readable status message */
   statusMessage: string;
   /** Current visual state for the canvas */
@@ -252,7 +245,14 @@ export function calculateCompleteness(
 
   // Server-required fields for publishing
   // @see /src/app/api/projects/[id]/publish/route.ts
-  const hasRequiredFields =
+  const hasGenerationInputs =
+    imageCount > 0 &&
+    (!!data.project_type ||
+      !!data.customer_problem ||
+      !!data.solution_approach ||
+      (data.materials_mentioned?.length ?? 0) > 0);
+
+  const hasPublishRequirements =
     imageCount > 0 &&
     !!data.project_type &&
     !!data.city &&
@@ -263,26 +263,26 @@ export function calculateCompleteness(
   // 2. Meets percentage threshold (55%) for content quality
   // 3. Passes quality gate (enough context for good description)
   const canGenerate =
-    hasRequiredFields && percentage >= GENERATION_THRESHOLD && qualityCheck.meetsQuality;
+    hasGenerationInputs && percentage >= GENERATION_THRESHOLD && qualityCheck.meetsQuality;
+
+  const canPublish = hasPublishRequirements;
 
   // Generate status message based on state
   let statusMessage: string;
-  if (visualState === 'empty') {
+  if (canGenerate) {
+    statusMessage = 'Ready to generate your portfolio!';
+  } else if (imageCount === 0) {
+    statusMessage = 'Add some photos to continue';
+  } else if (!qualityCheck.meetsQuality) {
+    statusMessage = 'Add a bit more detail to enable generation';
+  } else if (visualState === 'empty') {
     statusMessage = 'Tell me about your project to get started';
   } else if (visualState === 'starting') {
     statusMessage = 'Looking good! Keep telling me more...';
   } else if (visualState === 'partial') {
     statusMessage = "We're making progress!";
-  } else if (visualState === 'almost') {
-    if (imageCount === 0) {
-      statusMessage = 'Add some photos to continue';
-    } else if (!qualityCheck.meetsQuality) {
-      statusMessage = 'Add a bit more detail to enable generation';
-    } else {
-      statusMessage = 'Almost there!';
-    }
   } else {
-    statusMessage = 'Ready to generate your portfolio!';
+    statusMessage = 'Almost there!';
   }
 
   return {
@@ -290,6 +290,7 @@ export function calculateCompleteness(
     completedFields,
     missingFields,
     canGenerate,
+    canPublish,
     statusMessage,
     visualState,
     qualityIssues: qualityCheck.issues,

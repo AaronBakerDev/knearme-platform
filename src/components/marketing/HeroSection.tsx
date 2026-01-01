@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CTAButton } from "@/components/ui/cta-button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Camera, Mic, ImageIcon, ArrowRight } from "lucide-react";
 
 export function HeroSection() {
     return (
@@ -16,15 +16,15 @@ export function HeroSection() {
                     {/* Text Content */}
                     <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
                         <Badge variant="secondary" className="mb-6 px-4 py-1.5 text-sm font-medium">
-                            ✨ The AI Portfolio Builder for Masons
+                            📸 Turn Every Job Into Proof
                         </Badge>
 
                         <h1 className="mb-6 text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl xl:text-7xl">
-                            Build Your Portfolio in <span className="text-primary">30 Seconds</span>
+                            Showcase Your Best Work in <span className="text-primary">Under 3 Minutes</span>
                         </h1>
 
                         <p className="mb-8 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-                            Upload photos, answer a few questions by voice, and let our AI write the case study and optimize it for SEO. No typing required.
+                            Snap photos, describe what you did by voice, and get a professional project page ready to share. Build your portfolio from the job site—no computer required.
                         </p>
 
                         <div className="flex flex-col gap-4 sm:flex-row">
@@ -47,54 +47,138 @@ export function HeroSection() {
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                <span>Free forever plan</span>
+                                <span>Free plan includes 5 projects</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Visual Content (Mockup) */}
+                    {/* Visual Content - Two Phone Mockups */}
                     <div className="relative mx-auto w-full max-w-lg lg:max-w-none">
-                        <div className="relative rounded-2xl bg-zinc-900/5 p-2 ring-1 ring-inset ring-zinc-900/10 dark:bg-white/5 dark:ring-white/10 lg:-m-4 lg:rounded-3xl lg:p-4">
-                            <div className="relative overflow-hidden rounded-xl bg-background shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
-                                {/* Mock UI Header */}
-                                <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
-                                    <div className="h-3 w-3 rounded-full bg-red-400" />
-                                    <div className="h-3 w-3 rounded-full bg-amber-400" />
-                                    <div className="h-3 w-3 rounded-full bg-green-400" />
-                                    <div className="ml-2 h-4 w-32 rounded-full bg-muted-foreground/10" />
-                                </div>
+                        <div className="flex items-center justify-center gap-4 lg:gap-8">
+                            {/* Phone 1 - Recording Voice */}
+                            <div className="relative">
+                                {/* Phone Frame */}
+                                <div className="relative w-[160px] sm:w-[180px] lg:w-[200px] rounded-[2rem] bg-zinc-900 p-2 shadow-2xl ring-1 ring-white/10">
+                                    {/* Phone Notch */}
+                                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-zinc-900 rounded-b-xl z-10" />
 
-                                {/* Mock UI Content - Before/After */}
-                                <div className="grid grid-cols-2 h-[400px]">
-                                    <div className="relative flex flex-col items-center justify-center border-r bg-muted/10 p-6 text-center">
-                                        <div className="mb-4 h-24 w-24 rounded-lg bg-zinc-200 dark:bg-zinc-800 animate-pulse" />
-                                        <p className="font-semibold text-muted-foreground">Raw Photos</p>
-                                        <p className="text-xs text-muted-foreground mt-2">IMG_001.jpg</p>
-                                    </div>
-                                    <div className="relative flex flex-col p-6">
-                                        <Badge className="w-fit mb-4 bg-green-500 hover:bg-green-600">Generated Portfolio</Badge>
-                                        <div className="space-y-3">
-                                            <div className="h-6 w-3/4 rounded bg-primary/10" />
-                                            <div className="h-4 w-full rounded bg-muted-foreground/10" />
-                                            <div className="h-4 w-full rounded bg-muted-foreground/10" />
-                                            <div className="h-4 w-2/3 rounded bg-muted-foreground/10" />
-                                            <div className="mt-4 aspect-video w-full rounded-lg bg-primary/5" />
+                                    {/* Phone Screen */}
+                                    <div className="relative overflow-hidden rounded-[1.5rem] bg-zinc-800 aspect-[9/19]">
+                                        {/* Status Bar */}
+                                        <div className="flex items-center justify-between px-4 pt-2 text-[8px] text-zinc-400">
+                                            <span>9:41</span>
+                                            <div className="flex gap-1">
+                                                <div className="w-3 h-1.5 bg-zinc-400 rounded-sm" />
+                                                <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full" />
+                                            </div>
+                                        </div>
+
+                                        {/* App Content - Voice Recording */}
+                                        <div className="flex flex-col items-center justify-center h-full px-4 pb-8 -mt-4">
+                                            {/* Photo thumbnails */}
+                                            <div className="flex gap-1 mb-4">
+                                                <div className="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center">
+                                                    <ImageIcon className="w-4 h-4 text-zinc-500" />
+                                                </div>
+                                                <div className="w-10 h-10 rounded bg-zinc-700 flex items-center justify-center">
+                                                    <ImageIcon className="w-4 h-4 text-zinc-500" />
+                                                </div>
+                                                <div className="w-10 h-10 rounded bg-primary/20 flex items-center justify-center text-[10px] text-primary">
+                                                    +3
+                                                </div>
+                                            </div>
+
+                                            <p className="text-[10px] text-zinc-400 mb-4 text-center">
+                                                Describe your work
+                                            </p>
+
+                                            {/* Mic Button */}
+                                            <div className="relative">
+                                                <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
+                                                    <Mic className="w-7 h-7 text-white" />
+                                                </div>
+                                                {/* Pulse animation */}
+                                                <div className="absolute inset-0 rounded-full bg-primary/50 animate-ping" />
+                                            </div>
+
+                                            <p className="text-[9px] text-zinc-500 mt-3">Hold to record</p>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Floating "AI Processing" Badge */}
-                                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
-                                    <div className="flex items-center gap-2 rounded-full bg-black/90 px-4 py-2 text-white shadow-xl backdrop-blur-sm dark:bg-white/90 dark:text-black">
-                                        <span className="relative flex h-3 w-3">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                                        </span>
-                                        <span className="text-sm font-medium">AI Generating...</span>
+                                {/* Label */}
+                                <p className="text-center text-xs text-muted-foreground mt-3 font-medium">
+                                    1. Record from job site
+                                </p>
+                            </div>
+
+                            {/* Arrow */}
+                            <div className="flex-shrink-0">
+                                <ArrowRight className="w-6 h-6 lg:w-8 lg:h-8 text-primary" />
+                            </div>
+
+                            {/* Phone 2 - Published Project */}
+                            <div className="relative">
+                                {/* Phone Frame */}
+                                <div className="relative w-[160px] sm:w-[180px] lg:w-[200px] rounded-[2rem] bg-zinc-900 p-2 shadow-2xl ring-1 ring-white/10">
+                                    {/* Phone Notch */}
+                                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-zinc-900 rounded-b-xl z-10" />
+
+                                    {/* Phone Screen */}
+                                    <div className="relative overflow-hidden rounded-[1.5rem] bg-white dark:bg-zinc-800 aspect-[9/19]">
+                                        {/* Status Bar */}
+                                        <div className="flex items-center justify-between px-4 pt-2 text-[8px] text-zinc-600 dark:text-zinc-400">
+                                            <span>9:42</span>
+                                            <div className="flex gap-1">
+                                                <div className="w-3 h-1.5 bg-zinc-400 rounded-sm" />
+                                                <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full" />
+                                            </div>
+                                        </div>
+
+                                        {/* App Content - Published Project */}
+                                        <div className="px-3 pt-2">
+                                            {/* Project Image */}
+                                            <div className="aspect-video rounded-lg bg-gradient-to-br from-amber-900/30 to-orange-900/30 mb-2 flex items-center justify-center">
+                                                <Camera className="w-6 h-6 text-amber-600/50" />
+                                            </div>
+
+                                            {/* Badge */}
+                                            <div className="inline-flex items-center rounded-full bg-green-500/10 px-2 py-0.5 text-[8px] text-green-600 dark:text-green-400 mb-1">
+                                                ✓ Published
+                                            </div>
+
+                                            {/* Title */}
+                                            <div className="h-3 w-4/5 rounded bg-zinc-200 dark:bg-zinc-700 mb-2" />
+
+                                            {/* Description lines */}
+                                            <div className="space-y-1">
+                                                <div className="h-2 w-full rounded bg-zinc-100 dark:bg-zinc-700/50" />
+                                                <div className="h-2 w-full rounded bg-zinc-100 dark:bg-zinc-700/50" />
+                                                <div className="h-2 w-3/4 rounded bg-zinc-100 dark:bg-zinc-700/50" />
+                                            </div>
+
+                                            {/* Share Button */}
+                                            <div className="mt-3 flex justify-center">
+                                                <div className="rounded-full bg-primary px-4 py-1.5 text-[8px] text-white font-medium">
+                                                    Share with Customer
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
+                                {/* Label */}
+                                <p className="text-center text-xs text-muted-foreground mt-3 font-medium">
+                                    2. Share instantly
+                                </p>
                             </div>
+                        </div>
+
+                        {/* Floating badge */}
+                        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2">
+                            <Badge variant="secondary" className="shadow-lg">
+                                Works on any phone
+                            </Badge>
                         </div>
                     </div>
 

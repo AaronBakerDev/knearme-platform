@@ -1,16 +1,31 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
-import { CheckCircle2, ChevronRight, Clock, FolderOpen, Plus, User } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Camera,
+  ChevronRight,
+  Clock,
+  Eye,
+  FolderOpen,
+  MapPin,
+  Pencil,
+  Plus,
+  Sparkles,
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getPublicUrl } from '@/lib/storage/upload';
-import { CompactStatsStrip, StickyMobileCTA } from '@/components/dashboard';
 
 /**
- * Contractor dashboard showing project overview and quick actions.
+ * Contractor dashboard - Craftsman Workshop aesthetic.
+ *
+ * Design principles:
+ * - The contractor's work is the star
+ * - Warm, professional, trustworthy
+ * - Clear hierarchy: primary action prominently placed
+ * - Minimal chrome, maximum showcase
  *
  * @see EPIC-004-portfolio.md US-004-09
  */
@@ -36,8 +51,10 @@ export default async function DashboardPage() {
   // Type assertion for the contractor data
   const contractor = contractorData as {
     id: string;
+    profile_slug: string | null;
     business_name: string | null;
     city: string | null;
+    city_slug: string | null;
     state: string | null;
     services: string[] | null;
     email: string;
@@ -48,7 +65,7 @@ export default async function DashboardPage() {
     redirect('/profile/setup');
   }
 
-  // Get accurate published/draft counts (not limited to recent list)
+  // Get accurate published/draft counts
   const [publishedCountRes, draftCountRes] = await Promise.all([
     supabase
       .from('projects')
@@ -65,22 +82,19 @@ export default async function DashboardPage() {
   const publishedCount = publishedCountRes.count ?? 0;
   const draftCount = draftCountRes.count ?? 0;
 
-  // Get projects with counts and images
-  // Use explicit FK hint to avoid ambiguity with hero_image_id FK
+  // Get projects with images
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: projectsData, error: projectsError, count: totalCount } = await (supabase as any)
     .from('projects')
     .select('*, project_images!project_images_project_id_fkey(id, storage_path, image_type, display_order)', { count: 'exact' })
     .eq('contractor_id', contractor.id)
     .order('created_at', { ascending: false })
-    .limit(5);
+    .limit(6);
 
-  // Log errors for debugging (RLS issues can cause silent failures)
   if (projectsError) {
     console.error('[Dashboard] Projects query error:', JSON.stringify(projectsError, null, 2));
   }
 
-  // Type the projects array
   type ProjectImage = {
     id: string;
     storage_path: string;
@@ -96,165 +110,244 @@ export default async function DashboardPage() {
     project_images: ProjectImage[];
   };
   const projects = (projectsData ?? []) as ProjectRow[];
+  const hasProjects = projects.length > 0;
 
   return (
-    <div className="space-y-4 md:space-y-8 pb-24 md:pb-0">
-      {/* Welcome section - compact on mobile */}
-      <div className="bg-gradient-to-br from-muted/40 to-muted/20 rounded-xl p-4 md:p-6">
-        <h1 className="text-xl md:text-3xl font-bold tracking-tight">
-          Welcome back, {contractor.business_name}
-        </h1>
-        <p className="text-muted-foreground text-sm md:text-base mt-1 flex items-center gap-1.5">
-          <span className="inline-flex items-center justify-center w-4 h-4 md:w-5 md:h-5 rounded-full bg-primary/10">
-            <User className="w-2.5 h-2.5 md:w-3 md:h-3 text-primary" />
-          </span>
-          {contractor.city}, {contractor.state}
-        </p>
-      </div>
-
-      {/* Stats strip - compact horizontal layout */}
-      <CompactStatsStrip
-        stats={[
-          { label: 'Published', value: publishedCount, color: 'green' },
-          { label: 'Drafts', value: draftCount, color: 'orange' },
-          { label: 'Total', value: totalCount ?? 0, color: 'blue' },
-        ]}
-      />
-
-      {/* Recent projects or empty state */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between">
+    <div className="min-h-[calc(100vh-4rem)] pb-24 md:pb-8">
+      {/* Header Strip - Minimal, functional */}
+      <header className="flex items-center justify-between py-4 md:py-6 border-b border-border/50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-terracotta-subtle flex items-center justify-center">
+            <span className="text-terracotta font-craftsman text-lg md:text-xl">
+              {contractor.business_name?.charAt(0) || 'K'}
+            </span>
+          </div>
           <div>
-            <CardTitle>Recent Projects</CardTitle>
-            <CardDescription>Your latest portfolio additions</CardDescription>
+            <h1 className="font-craftsman text-lg md:text-xl text-foreground">
+              {contractor.business_name}
+            </h1>
+            <p className="text-xs md:text-sm text-muted-foreground flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              {contractor.city}, {contractor.state}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-9 w-9" asChild title="Edit Profile">
+            <Link href="/profile/edit">
+              <Pencil className="w-4 h-4" />
+            </Link>
+          </Button>
+          <Button variant="ghost" size="icon" className="h-9 w-9" asChild title="View Public Profile">
+            <Link
+              href={`/contractors/${contractor.city_slug}/${contractor.profile_slug || contractor.id}`}
+              target="_blank"
+            >
+              <Eye className="w-4 h-4" />
+            </Link>
+          </Button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="py-6 md:py-10 space-y-8 md:space-y-12">
+        {/* Primary Action - Add New Project */}
+        <Link href="/projects/new" className="block group">
+          <div className="dashboard-card-primary p-6 md:p-8 relative overflow-hidden grain-overlay">
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Camera className="w-5 h-5 text-terracotta" />
+                  <span className="text-xs font-medium uppercase tracking-wider text-terracotta/80">
+                    Add to your portfolio
+                  </span>
+                </div>
+                <h2 className="font-craftsman text-2xl md:text-3xl text-foreground mb-2">
+                  Document Your Next Project
+                </h2>
+                <p className="text-sm md:text-base text-muted-foreground max-w-md">
+                  Upload photos of your finished work. We&apos;ll help you create a professional showcase that wins more jobs.
+                </p>
+              </div>
+              <div className="hidden md:flex items-center justify-center w-16 h-16 rounded-full bg-terracotta text-white group-hover:scale-110 transition-transform duration-300">
+                <Plus className="w-8 h-8" />
+              </div>
+            </div>
+
+            {/* Decorative element */}
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-terracotta/10 blur-2xl" />
+          </div>
+        </Link>
+
+        {/* Stats Strip - Understated */}
+        <div className="flex items-center gap-6 md:gap-10 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="stat-dot stat-dot-published" />
+            <span className="text-muted-foreground">
+              <span className="font-semibold text-foreground">{publishedCount}</span> live
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="stat-dot stat-dot-draft" />
+            <span className="text-muted-foreground">
+              <span className="font-semibold text-foreground">{draftCount}</span> draft{draftCount !== 1 ? 's' : ''}
+            </span>
           </div>
           {(totalCount ?? 0) > 0 && (
-            <Button variant="outline" asChild>
-              <Link href="/projects">View All</Link>
-            </Button>
+            <Link
+              href="/projects"
+              className="ml-auto text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 group"
+            >
+              View all
+              <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            </Link>
           )}
-        </CardHeader>
-        <CardContent>
-          {!projects || projects.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-                <FolderOpen className="w-8 h-8 text-muted-foreground" />
+        </div>
+
+        {/* Projects Section */}
+        {!hasProjects ? (
+          /* Empty State */
+          <div className="empty-state-bg rounded-2xl p-8 md:p-12 text-center">
+            <div className="max-w-md mx-auto">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-muted/50 flex items-center justify-center">
+                <Sparkles className="w-10 h-10 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
-              <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                Start building your portfolio by adding photos of your best masonry work.
-                Our AI will help you create professional descriptions.
+              <h3 className="font-craftsman text-xl md:text-2xl mb-3">
+                Your work deserves to be seen
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                Every job you complete is proof of your skill. Start building your portfolio
+                and let your craftsmanship speak for itself.
               </p>
-              <Button asChild>
+              <Button asChild size="lg" className="bg-terracotta hover:bg-terracotta/90 text-white">
                 <Link href="/projects/new">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Project
+                  <Camera className="w-4 h-4 mr-2" />
+                  Add Your First Project
                 </Link>
               </Button>
             </div>
-          ) : (
-            <div className="space-y-1 md:space-y-2">
+          </div>
+        ) : (
+          /* Project Gallery */
+          <div className="space-y-4">
+            <h2 className="font-craftsman text-lg md:text-xl">Your Work</h2>
+
+            {/* Project Grid - Visual showcase */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
               {projects.map((project, index) => {
                 const coverImage = project.project_images?.find(img => img.image_type === 'after')
                   || project.project_images?.[0];
                 const imageUrl = coverImage ? getPublicUrl('project-images', coverImage.storage_path) : null;
-                const isLast = index === projects.length - 1;
+                const isPublished = project.status === 'published';
 
                 return (
                   <Link
                     key={project.id}
                     href={`/projects/${project.id}/edit`}
-                    className={`group flex items-center justify-between p-2.5 md:p-3 md:border md:rounded-xl hover:bg-muted/50 transition-all duration-200 ${!isLast ? 'border-b md:border-b-0' : ''}`}
+                    className="group block animate-fade-up"
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <div className="flex items-center gap-2.5 md:gap-3 min-w-0 flex-1">
-                      {/* Thumbnail - smaller on mobile */}
-                      <div className="relative w-10 h-10 md:w-14 md:h-14 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                        {imageUrl ? (
-                          <Image
-                            src={imageUrl}
-                            alt={project.title || 'Project'}
-                            fill
-                            className="object-cover transition-transform duration-200 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <FolderOpen className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
-                          </div>
-                        )}
+                    <div className="project-thumb aspect-[4/3] relative">
+                      {imageUrl ? (
+                        <Image
+                          src={imageUrl}
+                          alt={project.title || 'Project'}
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <FolderOpen className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                      )}
+
+                      {/* Status indicator */}
+                      <div className="absolute top-2 left-2 z-10">
+                        <Badge
+                          variant="secondary"
+                          className={`text-[10px] px-1.5 py-0.5 ${
+                            isPublished
+                              ? 'bg-sage-subtle text-sage border-0'
+                              : 'bg-background/80 backdrop-blur-sm'
+                          }`}
+                        >
+                          {isPublished ? 'Live' : <><Clock className="w-2.5 h-2.5 mr-0.5" /> Draft</>}
+                        </Badge>
                       </div>
-                      {/* Project info - truncate on mobile */}
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-medium text-sm md:text-base group-hover:text-primary transition-colors truncate">
-                          {project.title || 'Untitled Project'}
-                        </h4>
-                        <p className="text-xs md:text-sm text-muted-foreground truncate">
-                          {project.project_type || 'Masonry Project'} • {project.city || contractor.city}
-                        </p>
+
+                      {/* Hover overlay with title */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                        <div className="w-full">
+                          <p className="text-white text-sm font-medium truncate">
+                            {project.title || 'Untitled'}
+                          </p>
+                          <p className="text-white/70 text-xs truncate">
+                            {project.project_type || 'Masonry'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    {/* Status badge + chevron */}
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                      <Badge
-                        variant={project.status === 'published' ? 'default' : 'secondary'}
-                        className={project.status === 'published' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0' : ''}
-                      >
-                        {project.status === 'published' && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                        {project.status === 'draft' && <Clock className="w-3 h-3 mr-1" />}
-                        {project.status}
-                      </Badge>
-                      {/* Chevron for mobile tap affordance */}
-                      <ChevronRight className="w-4 h-4 text-muted-foreground md:hidden" aria-hidden="true" />
                     </div>
                   </Link>
                 );
               })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Quick actions - hidden on mobile, use sticky CTA instead */}
-      <div className="hidden md:grid gap-6 md:grid-cols-2">
-        <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary/50 hover:shadow-md transition-all duration-200">
-          <CardHeader>
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-              <Plus className="w-6 h-6 text-primary" />
-            </div>
-            <CardTitle className="text-lg">Add New Project</CardTitle>
-            <CardDescription>
-              Upload photos and let AI create your project description
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full" size="lg">
-              <Link href="/projects/new">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Project
+              {/* Add More Card */}
+              <Link href="/projects/new" className="group block">
+                <div className="aspect-[4/3] rounded-xl border-2 border-dashed border-border hover:border-terracotta/50 transition-colors flex flex-col items-center justify-center gap-2 text-muted-foreground group-hover:text-terracotta">
+                  <Plus className="w-6 h-6" />
+                  <span className="text-xs font-medium">Add Project</span>
+                </div>
               </Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-dashed hover:border-muted-foreground/30 hover:shadow-md transition-all duration-200">
-          <CardHeader>
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-2">
-              <User className="w-6 h-6 text-muted-foreground" />
             </div>
-            <CardTitle className="text-lg">Edit Profile</CardTitle>
-            <CardDescription>
-              Keep your business details and services up to date
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" asChild className="w-full" size="lg">
-              <Link href="/profile/edit">Update Profile</Link>
-            </Button>
-          </CardContent>
-        </Card>
+          </div>
+        )}
+
+        {/* Quick Links - Secondary actions */}
+        {hasProjects && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Link href="/projects" className="group">
+              <div className="dashboard-card p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                    <FolderOpen className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Manage Projects</p>
+                    <p className="text-xs text-muted-foreground">Edit, publish, or archive</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+
+            <Link href="/profile/edit" className="group">
+              <div className="dashboard-card p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                    <Pencil className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Update Profile</p>
+                    <p className="text-xs text-muted-foreground">Business info & services</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+          </div>
+        )}
       </div>
 
-      {/* Sticky CTA for mobile */}
-      <StickyMobileCTA />
+      {/* Mobile Sticky CTA */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border md:hidden z-40">
+        <Button asChild className="w-full bg-terracotta hover:bg-terracotta/90 text-white h-12">
+          <Link href="/projects/new">
+            <Plus className="w-5 h-5 mr-2" />
+            Add New Project
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }

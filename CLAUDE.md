@@ -8,6 +8,32 @@ KnearMe is an AI-powered portfolio platform for masonry contractors. Contractors
 
 **Status:** ✅ MVP Feature Complete (December 2024)
 
+## Brand Voice & Messaging
+
+### Core Value Proposition
+> "Turn your finished work into your best salesperson."
+
+KnearMe helps contractors document and share their work so they win more jobs. The AI is invisible infrastructure—the contractor's craftsmanship is the star.
+
+### Messaging Principles
+1. **Outcome over feature**: "Win more jobs" not "Save time"
+2. **Work over AI**: Never lead with AI or automation
+3. **Trust over speed**: Address the trust gap, not just convenience
+4. **Specific over generic**: We serve masonry contractors (for now)
+5. **Referral amplifier**: We extend word-of-mouth, not replace it
+
+### Language Guide
+| Say | Don't Say |
+|-----|-----------|
+| Your work, your projects | AI-generated content |
+| Proof that wins jobs | Case studies |
+| When homeowners Google you | SEO optimization |
+| Document your work | Build a portfolio |
+| Share with potential customers | Publish to your portfolio |
+
+### The Trust Gap (Core Insight)
+92% of homeowners trust referrals. When they can't get one, they Google. The contractor with visible proof of quality work gets the call. KnearMe makes every job visible, shareable proof.
+
 ## Essential Commands
 
 ```bash

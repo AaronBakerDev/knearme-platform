@@ -18,7 +18,7 @@ export default async function SettingsPage() {
 
   const { data: contractorData } = await supabase
     .from('contractors')
-    .select('id, email, business_name, city, state, services, service_areas, city_slug, created_at')
+    .select('id, email, business_name, profile_slug, city, state, services, service_areas, city_slug, created_at')
     .eq('auth_user_id', user.id)
     .single();
 
@@ -30,6 +30,7 @@ export default async function SettingsPage() {
     id: string;
     email: string;
     business_name: string | null;
+    profile_slug: string | null;
     city: string | null;
     state: string | null;
     services: string[] | null;
@@ -43,7 +44,7 @@ export default async function SettingsPage() {
   );
 
   const publicProfileUrl = contractor.city_slug
-    ? `/contractors/${contractor.city_slug}/${contractor.id}`
+    ? `/contractors/${contractor.city_slug}/${contractor.profile_slug || contractor.id}`
     : null;
 
   const servicesCount = contractor.services?.length ?? 0;

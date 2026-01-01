@@ -238,6 +238,13 @@ export async function generateContent(
       prompt: buildContentPrompt(state),
       maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
       temperature: 0.7, // Some creativity for engaging content
+      providerOptions: {
+        google: {
+          thinkingConfig: {
+            thinkingLevel: 'medium',
+          },
+        },
+      },
     });
 
     // Post-process to ensure constraints are met

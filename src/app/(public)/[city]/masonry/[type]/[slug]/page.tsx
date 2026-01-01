@@ -35,6 +35,8 @@ import {
 import { getPublicUrl } from '@/lib/storage/upload';
 import { sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
 import { formatProjectLocation } from '@/lib/utils/location';
+import { slugify } from '@/lib/utils/slugify';
+import { isDemoSlug, getDemoProject, getAllDemoProjects, type DemoProject } from '@/lib/data/demo-projects';
 import type { Project, Contractor, ProjectImage } from '@/types/database';
 
 type PageParams = {
@@ -47,14 +49,22 @@ type PageParams = {
 
 /**
  * Generate static params for pre-rendering published projects.
- * Returns empty array if admin client unavailable (falls back to ISR).
+ * Includes demo projects for the Examples page.
+ * Returns empty array for DB projects if admin client unavailable (falls back to ISR).
  */
 export async function generateStaticParams() {
-  // Skip static generation if service role key is missing
+  // Always include demo projects for static generation
+  const demoParams = getAllDemoProjects().map((p) => ({
+    city: p.city_slug,
+    type: p.project_type_slug,
+    slug: p.slug,
+  }));
+
+  // Skip DB static generation if service role key is missing
   // Next.js will use ISR/dynamic rendering instead
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.log('[generateStaticParams] Skipping: SUPABASE_SERVICE_ROLE_KEY not configured');
-    return [];
+    console.log('[generateStaticParams] Skipping DB projects: SUPABASE_SERVICE_ROLE_KEY not configured');
+    return demoParams;
   }
 
   try {
@@ -69,16 +79,18 @@ export async function generateStaticParams() {
       .not('slug', 'is', null)
       .limit(100) as { data: Array<{ city_slug: string; project_type_slug: string; slug: string }> | null };
 
-    if (!projects) return [];
+    if (!projects) return demoParams;
 
-    return projects.map((p) => ({
+    const dbParams = projects.map((p) => ({
       city: p.city_slug,
       type: p.project_type_slug,
       slug: p.slug,
     }));
+
+    return [...demoParams, ...dbParams];
   } catch (error) {
     console.error('[generateStaticParams] Error fetching projects:', error);
-    return [];
+    return demoParams;
   }
 }
 
@@ -94,10 +106,14 @@ function hasHtmlTags(text: string): boolean {
   return /<\/?[a-z][\s\S]*>/i.test(text);
 }
 
-function renderDescription(description: string, blocks: unknown) {
+function renderDescription(description: string | null | undefined, blocks: unknown) {
   const parsedBlocks = sanitizeDescriptionBlocks(blocks);
   if (parsedBlocks.length > 0) {
     return <DescriptionBlocks blocks={parsedBlocks} />;
+  }
+
+  if (!description) {
+    return null;
   }
 
   if (hasHtmlTags(description)) {
@@ -109,14 +125,14 @@ function renderDescription(description: string, blocks: unknown) {
 
     return (
       <article
-        className="prose prose-lg max-w-none mb-8"
+        className="prose prose-lg prose-earth max-w-none mb-8"
         dangerouslySetInnerHTML={{ __html: safeHtml }}
       />
     );
   }
 
   return (
-    <article className="prose prose-lg max-w-none mb-8">
+    <article className="prose prose-lg prose-earth max-w-none mb-8">
       {description.split(/\n\s*\n/).map((paragraph, idx) => (
         <p key={idx}>{paragraph}</p>
       ))}
@@ -124,17 +140,89 @@ function renderDescription(description: string, blocks: unknown) {
   );
 }
 
+function buildDemoProjectSchema(demoProject: DemoProject): Record<string, unknown> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
+  const projectUrl = `${siteUrl}/${demoProject.city_slug}/masonry/${demoProject.project_type_slug}/${demoProject.slug}`;
+  const primaryImage = demoProject.images[0];
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'CreativeWork',
+    '@id': projectUrl,
+    name: demoProject.title,
+    description: demoProject.description,
+    datePublished: demoProject.published_at,
+    dateModified: demoProject.published_at,
+    creator: {
+      '@type': 'LocalBusiness',
+      name: demoProject.contractor.business_name,
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: demoProject.contractor.city,
+        addressRegion: demoProject.contractor.state,
+      },
+    },
+    image: demoProject.images.map((img) => ({
+      '@type': 'ImageObject',
+      url: img.url,
+      caption: img.alt_text,
+    })),
+    thumbnailUrl: primaryImage ? primaryImage.url : undefined,
+    keywords: demoProject.tags.join(', '),
+    about: {
+      '@type': 'Thing',
+      name: demoProject.project_type,
+    },
+    material: demoProject.materials,
+    locationCreated: {
+      '@type': 'Place',
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: demoProject.city,
+        addressRegion: demoProject.state,
+      },
+    },
+  };
+}
+
 /**
  * Generate metadata for SEO including OG/Twitter images.
  *
- * Fetches project data with cover image for social sharing previews.
+ * Handles both demo projects (static data) and real projects (from DB).
  * OG images significantly improve click-through rates on social media.
  */
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const { slug } = await params;
-  const supabase = createAdminClient();
+  const { city, type, slug } = await params;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
-  // Include project_images to get cover image for OG/Twitter
+  // Check for demo project first
+  if (isDemoSlug(slug)) {
+    const demoProject = getDemoProject(city, type, slug);
+    if (demoProject) {
+      const coverImage = demoProject.images[0];
+      return {
+        title: `${demoProject.seo_title} | Example Project`,
+        description: demoProject.seo_description,
+        keywords: demoProject.tags?.join(', '),
+        openGraph: {
+          title: `${demoProject.title} | Example Project`,
+          description: demoProject.seo_description,
+          type: 'article',
+          url: `${siteUrl}/${city}/masonry/${type}/${slug}`,
+          images: coverImage ? [{ url: coverImage.url, alt: coverImage.alt_text }] : [],
+        },
+        twitter: {
+          card: 'summary_large_image',
+          title: `${demoProject.title} | Example Project`,
+          description: demoProject.seo_description,
+          images: coverImage ? [coverImage.url] : [],
+        },
+      };
+    }
+  }
+
+  // Fetch real project from database
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from('projects')
     .select(`
@@ -160,7 +248,6 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   }
 
   const contractor = project.contractor;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
   // Get cover image URL for OG/Twitter (first image by display_order)
   const sortedImages = [...(project.project_images || [])].sort(
@@ -198,66 +285,171 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 
 /**
  * Public Project Page Component.
+ *
+ * Handles both demo projects (static data) and real projects (from DB).
+ * Demo projects show a banner linking back to Examples page.
  */
 export default async function ProjectPage({ params }: PageParams) {
   const { city, type, slug } = await params;
-  const supabase = createAdminClient();
 
-  // Fetch project with contractor and images
-  const { data, error } = await supabase
-    .from('projects')
-    .select(`
-      *,
-      contractor:contractors(*),
-      project_images!project_images_project_id_fkey(*)
-    `)
-    .eq('slug', slug)
-    .eq('city_slug', city)
-    .eq('project_type_slug', type)
-    .eq('status', 'published')
-    .single();
+  // Check for demo project first
+  const isDemo = isDemoSlug(slug);
+  const demoProject = isDemo ? getDemoProject(city, type, slug) : null;
 
-  // Type assertion for query result
-  const project = data as ProjectWithRelations | null;
+  // Variables we'll populate from either demo or DB
+  let projectData: {
+    id: string;
+    title: string;
+    description: string;
+    description_blocks: unknown;
+    city: string;
+    neighborhood?: string;
+    state: string;
+    project_type: string;
+    tags: string[];
+    materials: string[];
+    techniques: string[];
+    duration?: string;
+    published_at: string | null;
+  };
+  let contractorData: {
+    id: string;
+    profile_slug: string;
+    business_name: string;
+    city: string;
+    city_slug: string;
+    state: string;
+    services: string[];
+    profile_photo_url?: string;
+  };
+  let imagesData: Array<{
+    id: string;
+    src: string;
+    alt: string;
+    width?: number;
+    height?: number;
+  }>;
+  let relatedProjects: Awaited<ReturnType<typeof fetchRelatedProjects>> = [];
+  let projectSchema: Record<string, unknown> | null = null;
 
-  if (error || !project) {
-    notFound();
+  if (demoProject) {
+    // Use demo data
+    projectData = {
+      id: demoProject.id,
+      title: demoProject.title,
+      description: demoProject.description,
+      description_blocks: demoProject.description_blocks,
+      city: demoProject.city,
+      neighborhood: demoProject.neighborhood,
+      state: demoProject.state,
+      project_type: demoProject.project_type,
+      tags: demoProject.tags,
+      materials: demoProject.materials,
+      techniques: demoProject.techniques,
+      duration: demoProject.duration,
+      published_at: demoProject.published_at,
+    };
+    contractorData = {
+      ...demoProject.contractor,
+      profile_slug: slugify(demoProject.contractor.business_name),
+    };
+    imagesData = demoProject.images.map((img) => ({
+      id: img.id,
+      src: img.url,
+      alt: img.alt_text,
+    }));
+    projectSchema = buildDemoProjectSchema(demoProject);
+    // No related projects for demos
+  } else {
+    // Fetch from database
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        contractor:contractors(*),
+        project_images!project_images_project_id_fkey(*)
+      `)
+      .eq('slug', slug)
+      .eq('city_slug', city)
+      .eq('project_type_slug', type)
+      .eq('status', 'published')
+      .single();
+
+    const project = data as ProjectWithRelations | null;
+
+    if (error || !project) {
+      notFound();
+    }
+
+    const contractor = project.contractor;
+    const images = project.project_images.sort(
+      (a, b) => a.display_order - b.display_order
+    );
+
+    projectData = {
+      id: project.id,
+      title: project.title || '',
+      description: project.description || '',
+      description_blocks: project.description_blocks,
+      city: project.city || '',
+      neighborhood: project.neighborhood ?? undefined,
+      state: project.state ?? contractor.state ?? '',
+      project_type: project.project_type || '',
+      tags: project.tags || [],
+      materials: project.materials || [],
+      techniques: project.techniques || [],
+      duration: project.duration ?? undefined,
+      published_at: project.published_at,
+    };
+    contractorData = {
+      id: contractor.id,
+      profile_slug: contractor.profile_slug || contractor.id,
+      business_name: contractor.business_name || '',
+      city: contractor.city || '',
+      city_slug: contractor.city_slug || '',
+      state: contractor.state || '',
+      services: contractor.services || [],
+      profile_photo_url: contractor.profile_photo_url ?? undefined,
+    };
+    imagesData = images.map((img) => ({
+      id: img.id,
+      src: getPublicUrl('project-images', img.storage_path),
+      alt: img.alt_text || project.title || 'Project image',
+      width: img.width || undefined,
+      height: img.height || undefined,
+    }));
+
+    projectSchema = generateProjectSchema(project, contractor, images);
+
+    // Fetch related projects
+    relatedProjects = await fetchRelatedProjects(supabase, {
+      id: project.id,
+      contractor_id: project.contractor_id,
+      city_slug: city,
+      project_type_slug: type,
+    }, 6);
   }
 
-  const contractor = project.contractor;
-  const images = project.project_images.sort(
-    (a, b) => a.display_order - b.display_order
-  );
+  // Common variables
   const locationLabel = formatProjectLocation({
-    neighborhood: project.neighborhood,
-    city: project.city,
-    state: project.state ?? contractor.state,
+    neighborhood: projectData.neighborhood,
+    city: projectData.city,
+    state: projectData.state,
   });
-
-  // Generate structured data
-  const projectSchema = generateProjectSchema(project as Project, contractor, images);
-
-  // Fetch related projects using the enhanced algorithm
-  // Shows: same contractor, same type in different cities, different types in same city
-  const relatedProjects = await fetchRelatedProjects(supabase, {
-    id: project.id,
-    contractor_id: project.contractor_id,
-    city_slug: city,
-    project_type_slug: type,
-  }, 6);
 
   // Breadcrumb items for navigation and schema
   const breadcrumbItems = [
     { name: 'Home', url: '/' },
-    { name: project.city || 'Projects', url: `/${city}` },
+    { name: projectData.city || 'Projects', url: `/${city}` },
     { name: 'Masonry', url: `/${city}/masonry` },
-    { name: project.project_type || 'Project', url: `/${city}/masonry/${type}` },
-    { name: project.title || 'Project', url: `/${city}/masonry/${type}/${slug}` },
+    { name: projectData.project_type || 'Project', url: `/${city}/masonry/${type}` },
+    { name: projectData.title || 'Project', url: `/${city}/masonry/${type}/${slug}` },
   ];
 
   // Format date
-  const publishedDate = project.published_at
-    ? new Date(project.published_at).toLocaleDateString('en-US', {
+  const publishedDate = projectData.published_at
+    ? new Date(projectData.published_at).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -266,13 +458,31 @@ export default async function ProjectPage({ params }: PageParams) {
 
   return (
     <>
-      {/* JSON-LD Structured Data (project only - Breadcrumbs handles its own schema) */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: schemaToString(projectSchema) }}
-      />
+      {projectSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: schemaToString(projectSchema) }}
+        />
+      )}
 
       <div className="min-h-screen bg-background">
+        {/* Demo Banner */}
+        {isDemo && (
+          <div className="bg-primary text-primary-foreground">
+            <div className="container mx-auto px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-2">
+              <p className="text-sm font-medium text-center sm:text-left">
+                This is a demo project. Your work will appear at shareable URLs like this one.
+              </p>
+              <Link
+                href="/examples"
+                className="text-sm font-semibold underline underline-offset-2 hover:no-underline whitespace-nowrap"
+              >
+                View All Examples
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Header with Breadcrumbs */}
         <header className="border-b">
           <div className="container mx-auto px-4 py-4">
@@ -282,18 +492,28 @@ export default async function ProjectPage({ params }: PageParams) {
 
         <main className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto">
-            {/* Back link */}
-            <Link
-              href={`/contractors/${contractor.city_slug}/${contractor.id}`}
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              More projects by {contractor.business_name}
-            </Link>
+            {/* Back link - different for demo vs real */}
+            {isDemo ? (
+              <Link
+                href="/examples"
+                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Back to Examples
+              </Link>
+            ) : (
+              <Link
+                href={`/contractors/${contractorData.city_slug}/${contractorData.profile_slug}`}
+                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                More projects by {contractorData.business_name}
+              </Link>
+            )}
 
             {/* Title & Meta */}
             <div className="mb-8">
-              <h1 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">{project.title}</h1>
+              <h1 className="text-3xl md:text-4xl font-display mb-4 tracking-tight">{projectData.title}</h1>
 
               <div className="flex flex-wrap gap-3">
                 {locationLabel && (
@@ -308,35 +528,29 @@ export default async function ProjectPage({ params }: PageParams) {
                     <span>{publishedDate}</span>
                   </div>
                 )}
-                {project.duration && (
+                {projectData.duration && (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 text-sm">
                     <Wrench className="h-4 w-4 text-primary" />
-                    <span>{project.duration}</span>
+                    <span>{projectData.duration}</span>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Image Gallery with Lightbox */}
-            {images.length > 0 && (
+            {imagesData.length > 0 && (
               <PhotoGallery
-                images={images.map((img) => ({
-                  id: img.id,
-                  src: getPublicUrl('project-images', img.storage_path),
-                  alt: img.alt_text || project.title || 'Project image',
-                  width: img.width || undefined,
-                  height: img.height || undefined,
-                }))}
-                title={project.title || 'Project Gallery'}
+                images={imagesData}
+                title={projectData.title || 'Project Gallery'}
                 className="mb-8"
               />
             )}
 
             {/* Tags */}
-            {project.tags && project.tags.length > 0 && (
+            {projectData.tags && projectData.tags.length > 0 && (
               <div className="bg-muted/30 rounded-lg p-4 mb-8">
                 <div className="flex flex-wrap gap-2">
-                  {project.tags.map((tag) => (
+                  {projectData.tags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="bg-background hover:bg-background/80">
                       {tag}
                     </Badge>
@@ -346,20 +560,19 @@ export default async function ProjectPage({ params }: PageParams) {
             )}
 
             {/* Description */}
-            {project.description &&
-              renderDescription(project.description, project.description_blocks)}
+            {renderDescription(projectData.description, projectData.description_blocks)}
 
             {/* Materials & Techniques */}
             <div className="grid md:grid-cols-2 gap-6 mb-8">
-              {project.materials && project.materials.length > 0 && (
+              {projectData.materials && projectData.materials.length > 0 && (
                 <Card className="border-0 bg-gradient-to-br from-muted/50 to-muted/30 shadow-sm">
                   <CardContent className="pt-6">
-                    <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <h3 className="font-display mb-4 flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                       Materials Used
                     </h3>
                     <ul className="space-y-2">
-                      {project.materials.map((material) => (
+                      {projectData.materials.map((material) => (
                         <li key={material} className="text-sm text-muted-foreground flex items-start gap-2">
                           <span className="text-primary mt-1">•</span>
                           <span>{material}</span>
@@ -370,15 +583,15 @@ export default async function ProjectPage({ params }: PageParams) {
                 </Card>
               )}
 
-              {project.techniques && project.techniques.length > 0 && (
+              {projectData.techniques && projectData.techniques.length > 0 && (
                 <Card className="border-0 bg-gradient-to-br from-muted/50 to-muted/30 shadow-sm">
                   <CardContent className="pt-6">
-                    <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <h3 className="font-display mb-4 flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                       Techniques
                     </h3>
                     <ul className="space-y-2">
-                      {project.techniques.map((technique) => (
+                      {projectData.techniques.map((technique) => (
                         <li key={technique} className="text-sm text-muted-foreground flex items-start gap-2">
                           <span className="text-primary mt-1">•</span>
                           <span>{technique}</span>
@@ -391,51 +604,79 @@ export default async function ProjectPage({ params }: PageParams) {
             </div>
 
             {/* Contractor CTA */}
-            <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 shadow-md">
-              <CardContent className="pt-6">
+            <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 shadow-md py-0">
+              <CardContent className="py-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div className="flex items-center gap-4">
                     {/* Contractor Avatar */}
                     <div className="relative w-14 h-14 rounded-full overflow-hidden flex-shrink-0 bg-muted ring-2 ring-primary/20">
-                      {contractor.profile_photo_url ? (
+                      {contractorData.profile_photo_url ? (
                         <Image
-                          src={contractor.profile_photo_url}
-                          alt={contractor.business_name || 'Contractor'}
+                          src={contractorData.profile_photo_url}
+                          alt={contractorData.business_name || 'Contractor'}
                           fill
                           className="object-cover"
                           sizes="56px"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-primary font-semibold text-lg">
-                          {contractor.business_name?.charAt(0) || 'C'}
+                          {contractorData.business_name?.charAt(0) || 'C'}
                         </div>
                       )}
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg">{contractor.business_name}</h3>
+                      <h3 className="font-display text-lg">{contractorData.business_name}</h3>
                       <p className="text-sm text-muted-foreground">
-                        {contractor.city}, {contractor.state} •{' '}
-                        {contractor.services?.slice(0, 3).join(', ')}
+                        {contractorData.city}, {contractorData.state} •{' '}
+                        {contractorData.services?.slice(0, 3).join(', ')}
                       </p>
                     </div>
                   </div>
-                  <Button asChild size="lg" className="shadow-sm">
-                    <Link href={`/contractors/${contractor.city_slug}/${contractor.id}`}>
-                      View All Projects
-                    </Link>
-                  </Button>
+                  {isDemo ? (
+                    <Button asChild size="lg" className="shadow-sm">
+                      <Link href="/signup">
+                        Create Your Portfolio
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button asChild size="lg" className="shadow-sm">
+                      <Link href={`/contractors/${contractorData.city_slug}/${contractorData.profile_slug}`}>
+                        View All Projects
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Related Projects - improves SEO via internal linking and keeps visitors engaged */}
-            <RelatedProjects
-              projects={relatedProjects}
-              title="Related Projects"
-              columns={3}
-              showType={true}
-              showCity={true}
-            />
+            {/* Related Projects - only for real projects */}
+            {!isDemo && relatedProjects.length > 0 && (
+              <RelatedProjects
+                projects={relatedProjects}
+                title="Related Projects"
+                columns={3}
+                showType={true}
+                showCity={true}
+              />
+            )}
+
+            {/* CTA for demo projects */}
+            {isDemo && (
+              <div className="mt-12 text-center py-12 bg-muted/30 rounded-2xl">
+                <h2 className="text-2xl font-display mb-3">Want Your Work to Look Like This?</h2>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  Create your first project in minutes. Upload photos, describe the job, and get a professional page like this one.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Button asChild size="lg">
+                    <Link href="/signup">Get Started Free</Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline">
+                    <Link href="/examples">View More Examples</Link>
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>

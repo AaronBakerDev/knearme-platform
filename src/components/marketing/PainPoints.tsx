@@ -4,10 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 /**
  * Pain Points Section
  *
- * Connects with contractor frustrations identified in personas.md:
- * - "Too busy to write" - Mike's primary frustration
- * - "Website is embarrassing" - Outdated online presence
- * - "Invisible on Google" - Missing local SEO visibility
+ * Connects with contractor frustrations:
+ * - "Too busy to write" - Primary frustration across all trades
+ * - "Great work, no proof" - Work gets done but never documented
+ * - "Invisible online" - Missing visibility for local customers
  *
  * Design: Dashed border cards with destructive-tinted icons
  * to visually communicate "problems" before showing solutions.
@@ -16,21 +16,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const painPoints = [
   {
     icon: Clock,
-    title: '"Too busy to write"',
+    title: '"I do great work—but who knows?"',
     description:
-      "After 10 hours on a job site, the last thing you want to do is sit down and write about it. Marketing falls to the bottom of the list.",
+      "You finish amazing projects every week, but by the time you get home, documenting them is the last thing on your mind. That work never gets shown off.",
   },
   {
     icon: Camera,
-    title: '"Website is embarrassing"',
+    title: '"My phone is full of project photos"',
     description:
-      "That 5-year-old site with 3 outdated photos doesn't show your best work. You know it. Your customers know it.",
+      "Hundreds of before-and-afters sitting in your camera roll. You know they could win you jobs—if only you had time to do something with them.",
   },
   {
     icon: Search,
-    title: '"Invisible on Google"',
+    title: '"Customers can\'t find my best work"',
     description:
-      'Homeowners searching for "chimney repair near me" can\'t find you. Meanwhile, competitors with worse work show up first.',
+      "Homeowners searching for contractors in your area find competitors instead. Your portfolio is outdated or doesn't exist at all.",
   },
 ];
 
@@ -43,8 +43,7 @@ export function PainPoints() {
             Sound familiar?
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Most masonry contractors do amazing work but struggle to show it
-            online.
+            Contractors do amazing work every day—but rarely have time to document it.
           </p>
         </div>
 

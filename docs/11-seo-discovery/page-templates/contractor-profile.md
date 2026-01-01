@@ -8,7 +8,7 @@
 
 Contractor Profile pages are **public-facing portfolio showcases** for individual contractors. These pages serve as the primary conversion endpoint where homeowners can view a contractor's full body of work and decide to contact them.
 
-**Implementation:** `app/(public)/contractors/[city]/[id]/page.tsx` (510 lines)
+**Implementation:** `app/(public)/contractors/[city]/[slug]/page.tsx` (510 lines)
 
 **Business Purpose:**
 - Showcase contractor expertise and project diversity
@@ -20,30 +20,37 @@ Contractor Profile pages are **public-facing portfolio showcases** for individua
 
 ### File Location
 ```
-app/(public)/contractors/[city]/[id]/page.tsx
+app/(public)/contractors/[city]/[slug]/page.tsx
 ```
 
 ### URL Pattern
 ```
-/contractors/{city-slug}/{contractor-id}
+/contractors/{city-slug}/{contractor-slug}
 ```
 
 ### Example URLs
-- `/contractors/denver-co/abc123-def456-ghi789`
-- `/contractors/lakewood-co/contractor-uuid-here`
-- `/contractors/aurora-co/xyz789-abc123-def456`
+- `/contractors/denver-co/denver-masonry-pro`
+- `/contractors/lakewood-co/brickwise-masonry`
+- `/contractors/aurora-co/highlands-masonry-3`
 
 ### Dynamic Route Parameters
 
 | Parameter | Type | Source | Example |
 |-----------|------|--------|---------|
 | `city` | string | URL segment | `denver-co` |
-| `id` | string | URL segment (UUID) | `abc123-def456-ghi789` |
+| `slug` | string | URL segment (unique business slug) | `denver-masonry-pro` |
 
 **Validation:**
-- Route returns 404 if contractor ID not found
+- Route returns 404 if contractor slug not found
 - Route returns 404 if contractor has zero published projects
 - City slug must match contractor's `city_slug` field
+- Contractor slug must be unique (stored as `profile_slug`)
+
+**Slug Rules:**
+- Default `profile_slug` = `slugify(business_name)`
+- If slug collision, append a short suffix (e.g., `-2`, `-3`) to keep it unique
+- Contractors can edit the slug; uniqueness is enforced on save
+- Recommended: preserve old slugs and 301 redirect to the new URL
 
 ## Implemented Features
 
@@ -60,7 +67,7 @@ const { data, error } = await supabase
       project_images(*)
     )
   `)
-  .eq('id', id)
+  .eq('profile_slug', slug)
   .eq('city_slug', city)
   .single();
 ```
@@ -86,19 +93,20 @@ export async function generateStaticParams() {
   const { data: contractors } = await supabase
     .from('contractors')
     .select(`
-      id,
+      profile_slug,
       city_slug,
       projects!inner(status)
     `)
     .eq('projects.status', 'published')
+    .not('profile_slug', 'is', null)
     .not('city_slug', 'is', null)
     .limit(100);
 
   // Deduplicate (join may return multiples)
   const unique = new Map();
   contractors.forEach((c) => {
-    if (!unique.has(c.id)) {
-      unique.set(c.id, { city: c.city_slug, id: c.id });
+    if (!unique.has(c.profile_slug)) {
+      unique.set(c.profile_slug, { city: c.city_slug, slug: c.profile_slug });
     }
   });
 
@@ -181,7 +189,7 @@ export async function generateStaticParams() {
 ```tsx
 <nav className="flex items-center justify-center gap-2 mt-8">
   <Button disabled={page === 1} asChild={page > 1}>
-    <Link href={`/contractors/${city}/${id}?page=${page - 1}`}>
+    <Link href={`/contractors/${city}/${slug}?page=${page - 1}`}>
       <ChevronLeft /> Previous
     </Link>
   </Button>
@@ -191,7 +199,7 @@ export async function generateStaticParams() {
   </span>
 
   <Button disabled={page >= totalPages} asChild={page < totalPages}>
-    <Link href={`/contractors/${city}/${id}?page=${page + 1}`}>
+    <Link href={`/contractors/${city}/${slug}?page=${page + 1}`}>
       Next <ChevronRight />
     </Link>
   </Button>
@@ -211,7 +219,7 @@ export async function generateStaticParams() {
 **generateMetadata():**
 ```typescript
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const { city, id } = await params;
+  const { city, slug } = await params;
   const supabase = createAdminClient();
 
   const { data } = await supabase
@@ -220,7 +228,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
       business_name, city, state, description, services, profile_photo_url,
       projects(project_images(storage_path, alt_text))
     `)
-    .eq('id', id)
+    .eq('profile_slug', slug)
     .eq('projects.status', 'published')
     .limit(1, { foreignTable: 'projects' })
     .single();
@@ -242,9 +250,9 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     title,
     description,
     keywords: contractor.services?.join(', '),
-    openGraph: { title: contractor.business_name, description, type: 'profile', url: `${siteUrl}/contractors/${city}/${id}`, images: imageUrl ? [{ url: imageUrl }] : [] },
+    openGraph: { title: contractor.business_name, description, type: 'profile', url: `${siteUrl}/contractors/${city}/${slug}`, images: imageUrl ? [{ url: imageUrl }] : [] },
     twitter: { card: 'summary_large_image', title: contractor.business_name, description, images: imageUrl ? [imageUrl] : [] },
-    alternates: { canonical: `${siteUrl}/contractors/${city}/${id}` },
+    alternates: { canonical: `${siteUrl}/contractors/${city}/${slug}` },
   };
 }
 ```
@@ -274,7 +282,7 @@ const contractorSchema = generateContractorSchema(contractor);
     "addressRegion": "CO",
     "addressCountry": "US"
   },
-  "url": "https://knearme.com/contractors/denver-co/abc123",
+  "url": "https://knearme.com/contractors/denver-co/denver-masonry-pro",
   "telephone": "+1-303-555-0100",
   "email": "contact@denvermasonrypro.com",
   "priceRange": "$$",
@@ -323,7 +331,7 @@ const projectListSchema = generateProjectListSchema(
 
 ### Complete Features ✅
 
-- Dynamic route with city and contractor ID parameters
+- Dynamic route with city and contractor slug parameters
 - Static generation for top 100 contractors with published projects
 - Profile header (photo, name, location, services, bio)
 - Service areas section with links to city hubs
@@ -354,6 +362,7 @@ const projectListSchema = generateProjectListSchema(
 **contractors:**
 - `id` (uuid, PK)
 - `business_name` (string, required) - Company or individual name
+- `profile_slug` (string, required, unique) - Slugified business name for URLs (editable by contractor)
 - `city` (string, required) - Display city name
 - `state` (string, required) - 2-letter state code
 - `city_slug` (string, required) - SEO-friendly city identifier
@@ -374,12 +383,12 @@ const projectListSchema = generateProjectListSchema(
 **project_images:**
 - Used to get cover images for project cards
 
-### Contractor ID Format
+### Contractor ID (Internal)
 
-**Type:** UUID v4
-**Example:** `abc123de-f456-7890-ghij-klmnopqrstuv`
-
-**Generation:** Supabase auto-generates on contractor creation
+**Type:** UUID v4  
+**Example:** `abc123de-f456-7890-ghij-klmnopqrstuv`  
+**Generation:** Supabase auto-generates on contractor creation  
+**Public URL:** Uses `profile_slug` instead of ID
 
 ## Performance Metrics
 
@@ -409,8 +418,8 @@ const projectListSchema = generateProjectListSchema(
 
 ### Manual Testing (Completed)
 
-- ✅ URL resolution for valid contractor IDs
-- ✅ 404 for invalid IDs
+- ✅ URL resolution for valid contractor slugs
+- ✅ 404 for invalid slugs
 - ✅ 404 for contractors with zero published projects
 - ✅ Profile header displays correctly
 - ✅ Service areas link to city hubs
@@ -463,7 +472,7 @@ const projectListSchema = generateProjectListSchema(
 
 ### Implementation Files
 
-- **Route:** `app/(public)/contractors/[city]/[id]/page.tsx`
+- **Route:** `app/(public)/contractors/[city]/[slug]/page.tsx`
 - **Components:** `src/components/seo/Breadcrumbs.tsx`, `src/components/ui/badge.tsx`, `src/components/ui/card.tsx`
 - **Utilities:** `src/lib/seo/structured-data.ts`, `src/lib/utils/slugify.ts`
 - **Types:** `src/types/database.ts`
@@ -479,8 +488,8 @@ const projectListSchema = generateProjectListSchema(
 
 ### Functional Requirements ✅
 
-- [x] URL `/contractors/{city}/{id}` resolves to profile page
-- [x] Invalid ID shows 404
+- [x] URL `/contractors/{city}/{slug}` resolves to profile page
+- [x] Invalid slug shows 404
 - [x] Contractors with zero published projects show 404
 - [x] Profile header displays name, photo, location, services, bio
 - [x] Service areas link to city hub pages

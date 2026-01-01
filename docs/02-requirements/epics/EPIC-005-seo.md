@@ -228,7 +228,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     })),
     ...contractors.map((c) => ({
-      url: `https://knearme.com/contractors/${c.slug}`,
+      url: `https://knearme.com/contractors/${c.city_slug}/${c.id}`,
       lastModified: c.updated_at,
       changeFrequency: 'weekly' as const,
       priority: 0.7,
@@ -530,14 +530,14 @@ const useOnlineStatus = () => {
 
 - Given a contractor profile URL
 - When structured
-- Then format is: `/contractors/[business-slug]`
-- Example: `/contractors/heritage-masonry-denver`
+- Then format is: `/contractors/[city-slug]/[contractor-id]`
+- Example: `/contractors/denver-co/abc123-def456`
 
 **URL Patterns:**
 | Page Type | Pattern | Example |
 |-----------|---------|---------|
 | Project | `/[city]/masonry/[type]/[slug]` | `/denver-co/masonry/chimney-rebuild/abc123` |
-| Contractor | `/contractors/[slug]` | `/contractors/heritage-masonry-denver` |
+| Contractor | `/contractors/[city]/[id]` | `/contractors/denver-co/abc123-def456` |
 | City Hub | `/[city]/masonry/` | `/denver-co/masonry/` |
 
 #### Technical Notes

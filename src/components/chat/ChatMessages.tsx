@@ -19,6 +19,8 @@ import { ChatMessage } from './ChatMessage';
 import { ChatTypingIndicator } from './ChatTypingIndicator';
 import { ArtifactRenderer, isArtifactPart } from './artifacts';
 import { ToolCallBlock } from './ToolCallBlock';
+import { ThinkingBlock } from './ThinkingBlock';
+import { parseThinking, type TextSegment } from './utils/parseThinking';
 import { cn } from '@/lib/utils';
 
 /**
@@ -53,6 +55,12 @@ export interface ChatMessagesProps {
    * Use when loading existing chat history to show latest messages.
    */
   scrollOnLoad?: boolean;
+  /**
+   * Set of tool call IDs that have already been processed.
+   * Passed to ArtifactRenderer to skip firing side-effects for
+   * restored session messages (prevents auto-opening preview overlay).
+   */
+  processedSideEffectToolCallIds?: Set<string>;
 }
 
 /**
@@ -178,6 +186,7 @@ export function ChatMessages({
   className,
   isSaving,
   scrollOnLoad = false,
+  processedSideEffectToolCallIds,
 }: ChatMessagesProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isInitialMount = useRef(true);
@@ -311,15 +320,43 @@ export function ChatMessages({
               role="article"
               aria-label={`${message.role === 'user' ? 'You' : 'Assistant'}: ${text.slice(0, 50)}${text.length > 50 ? '...' : ''}`}
             >
-              {/* Text content */}
-              {text && (
-                <ChatMessage
-                  role={message.role as 'user' | 'assistant'}
-                  content={text}
-                  messageId={message.id}
-                  onFeedback={onMessageFeedback}
-                />
-              )}
+              {/* Text content - parse thinking blocks for assistant messages */}
+              {text && (() => {
+                // Only parse thinking for assistant messages
+                if (message.role === 'assistant') {
+                  const segments = parseThinking(text);
+                  return segments.map((segment, segIndex) => {
+                    if (segment.type === 'thinking') {
+                      return (
+                        <ThinkingBlock
+                          key={`${message.id}-thinking-${segIndex}`}
+                          header={segment.header}
+                          content={segment.content}
+                        />
+                      );
+                    }
+                    // Regular text segment
+                    return (
+                      <ChatMessage
+                        key={`${message.id}-text-${segIndex}`}
+                        role="assistant"
+                        content={segment.content}
+                        messageId={message.id}
+                        onFeedback={onMessageFeedback}
+                      />
+                    );
+                  });
+                }
+                // User messages render as-is
+                return (
+                  <ChatMessage
+                    role="user"
+                    content={text}
+                    messageId={message.id}
+                    onFeedback={onMessageFeedback}
+                  />
+                );
+              })()}
 
               {/* Artifact parts (specialized tool rendering) */}
               {artifactParts.map((part, index) => (
@@ -329,6 +366,7 @@ export function ChatMessages({
                   onAction={onArtifactAction}
                   images={images}
                   isSaving={isSaving}
+                  processedToolCallIds={processedSideEffectToolCallIds}
                 />
               ))}
 

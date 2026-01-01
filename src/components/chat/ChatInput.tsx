@@ -31,6 +31,9 @@ import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 import { CHAT_VOICE_CONSTRAINTS } from '@/types/voice';
 import { useDropZone } from './hooks/useDropZone';
 
+import type { VoiceInteractionMode } from '@/types/voice';
+import { VoiceChatButton } from './VoiceModeButton';
+
 interface ChatInputProps {
   /** Called when user sends a message */
   onSend: (text: string) => void;
@@ -60,6 +63,12 @@ interface ChatInputProps {
   onChange?: (text: string) => void;
   /** Called when images are dropped onto the input */
   onImageDrop?: (files: File[]) => void;
+  /** Current voice mode ('text' or 'voice_chat') */
+  voiceMode?: VoiceInteractionMode;
+  /** Called when voice mode changes */
+  onVoiceModeChange?: (mode: VoiceInteractionMode) => void;
+  /** Whether Voice Chat feature is available */
+  voiceChatEnabled?: boolean;
 }
 
 /**
@@ -76,11 +85,14 @@ export function ChatInput({
   photoCount = 0,
   disabled = false,
   isLoading = false,
-  placeholder = 'Type or tap mic to record...',
+  placeholder = 'Tell me what to change...',
   className,
   value: controlledValue,
   onChange: controlledOnChange,
   onImageDrop,
+  voiceMode = 'text',
+  onVoiceModeChange,
+  voiceChatEnabled = false,
 }: ChatInputProps) {
   // Determine voice handling mode
   const useExternalVoice = !!onVoiceRecording;
@@ -108,7 +120,7 @@ export function ChatInput({
     },
   });
 
-  const { state: internalState, submitRecording } = internalVoice;
+  const { state: internalState, submitRecording, reset: resetInternalVoice } = internalVoice;
 
   // Drag-and-drop support for images
   const { isDragging, handlers: dropHandlers } = useDropZone({
@@ -300,6 +312,10 @@ export function ChatInput({
       } else if (internalState === 'recorded') {
         pendingInternalSubmitRef.current = false;
         internalVoice.submitRecording();
+      } else if (internalState === 'success') {
+        pendingInternalSubmitRef.current = true;
+        internalVoice.reset();
+        internalVoice.startRecording();
       } else if (internalState === 'idle') {
         pendingInternalSubmitRef.current = true;
         internalVoice.startRecording();
@@ -327,6 +343,13 @@ export function ChatInput({
     pendingInternalSubmitRef.current = false;
     submitRecording();
   }, [useExternalVoice, internalState, submitRecording]);
+
+  // Reset internal voice state after successful transcription so re-record works.
+  useEffect(() => {
+    if (useExternalVoice) return;
+    if (internalState !== 'success') return;
+    resetInternalVoice();
+  }, [useExternalVoice, internalState, resetInternalVoice]);
 
   /**
    * Format duration as M:SS.
@@ -413,6 +436,16 @@ export function ChatInput({
               </span>
             )}
           </Button>
+        )}
+
+        {/* Voice Chat toggle button - shows 🎧 to enter voice chat mode */}
+        {voiceChatEnabled && onVoiceModeChange && (
+          <VoiceChatButton
+            mode={voiceMode}
+            onModeChange={onVoiceModeChange}
+            disabled={isDisabled}
+            title="Start Voice Chat"
+          />
         )}
 
         {/* Text input - auto-resizing textarea for multi-line support */}

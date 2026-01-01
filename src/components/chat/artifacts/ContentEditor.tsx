@@ -152,6 +152,9 @@ export function ContentEditor({ data, onAction, className, isSaving }: ContentEd
         description: sanitizeHtml(description),
         seo_title: seoTitle.trim() || undefined,
         seo_description: seoDescription.trim() || undefined,
+        tags: data.tags,
+        materials: data.materials,
+        techniques: data.techniques,
       },
     });
   };
@@ -165,6 +168,9 @@ export function ContentEditor({ data, onAction, className, isSaving }: ContentEd
         description: sanitizeHtml(description),
         seo_title: seoTitle.trim() || undefined,
         seo_description: seoDescription.trim() || undefined,
+        tags: data.tags,
+        materials: data.materials,
+        techniques: data.techniques,
       },
     });
   };

@@ -121,7 +121,8 @@ app/
 │   │       └── [type]/
 │   │           └── [slug]/  # Project detail
 │   └── contractors/
-│       └── [slug]/          # Profile page
+│       └── [city]/
+│           └── [id]/        # Profile page
 ├── api/                 # API routes
 │   ├── ai/
 │   ├── projects/
@@ -134,7 +135,7 @@ app/
 | Route Pattern | Rendering | Reason |
 |---------------|-----------|--------|
 | `/[city]/masonry/[type]/[slug]` | SSG with ISR | SEO-critical, cacheable |
-| `/contractors/[slug]` | SSG with ISR | SEO-critical, cacheable |
+| `/contractors/[city]/[id]` | SSG with ISR | SEO-critical, cacheable |
 | `/dashboard/*` | CSR | Authenticated, dynamic |
 | `/projects/new` | CSR | Highly interactive |
 | `/login`, `/signup` | CSR | Auth forms, no SEO value |

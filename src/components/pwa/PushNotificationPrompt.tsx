@@ -25,12 +25,30 @@ import {
 const DISMISS_KEY = 'knearme-push-dismissed';
 const DISMISS_DURATION_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 
-function isDismissed(): boolean {
-  if (typeof window === 'undefined') return false;
-  const dismissed = localStorage.getItem(DISMISS_KEY);
-  if (!dismissed) return false;
-  const dismissedAt = parseInt(dismissed, 10);
-  return !Number.isNaN(dismissedAt) && Date.now() - dismissedAt < DISMISS_DURATION_MS;
+function getDismissedAt(): number | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const dismissed = localStorage.getItem(DISMISS_KEY);
+    if (!dismissed) return null;
+    const dismissedAt = parseInt(dismissed, 10);
+    return Number.isNaN(dismissedAt) ? null : dismissedAt;
+  } catch {
+    return null;
+  }
+}
+
+function setDismissedAt(timestamp: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(DISMISS_KEY, timestamp.toString());
+  } catch {
+    // Ignore storage failures (e.g., private mode or blocked storage).
+  }
+}
+
+function isDismissedWithin(timestamp: number | null): boolean {
+  if (!timestamp) return false;
+  return Date.now() - timestamp < DISMISS_DURATION_MS;
 }
 
 function isIOS(): boolean {
@@ -64,7 +82,7 @@ export function PushNotificationPrompt({ eligible = true }: PushNotificationProm
       return;
     }
 
-    if (isDismissed()) {
+    if (isDismissedWithin(getDismissedAt())) {
       return;
     }
 
@@ -73,10 +91,14 @@ export function PushNotificationPrompt({ eligible = true }: PushNotificationProm
     return () => clearTimeout(timer);
   }, [eligible]);
 
-  const handleDismiss = useCallback(() => {
+  const recordDismissal = useCallback((timestamp: number = Date.now()) => {
     setIsVisible(false);
-    localStorage.setItem(DISMISS_KEY, Date.now().toString());
+    setDismissedAt(timestamp);
   }, []);
+
+  const handleDismiss = useCallback(() => {
+    recordDismissal();
+  }, [recordDismissal]);
 
   const handleEnable = useCallback(async () => {
     setIsWorking(true);
@@ -85,6 +107,7 @@ export function PushNotificationPrompt({ eligible = true }: PushNotificationProm
       setPermission(result);
 
       if (result !== 'granted') {
+        recordDismissal();
         return;
       }
 
@@ -95,7 +118,7 @@ export function PushNotificationPrompt({ eligible = true }: PushNotificationProm
     } finally {
       setIsWorking(false);
     }
-  }, []);
+  }, [recordDismissal]);
 
   if (!eligible || !isPushSupported()) return null;
   if (permission === 'granted') return null;

@@ -4,25 +4,25 @@ import { Card, CardContent } from "@/components/ui/card";
 
 const testimonials = [
     {
-        name: "Mike Ross",
-        role: "Owner, Ross Masonry",
-        content: "I used to spend my Sunday nights uploading photos to my terrible Wordpress site. Now I just talk to KnearMe on the drive home and it's done.",
+        name: "Mike R.",
+        role: "Rocky Mountain Masonry",
+        content: "A customer told me they hired me because they saw my chimney work online. That one project paid for a year of KnearMe.",
         rating: 5,
         initials: "MR"
     },
     {
-        name: "Sarah Jenkins",
-        role: "SJ Brickworks",
-        content: "The pages looking amazing. My customers are actually impressed when I send them the link. It looks way more expensive than it is.",
+        name: "Carlos M.",
+        role: "Heritage Brickwork",
+        content: "I used to lose jobs to guys with flashy websites. Now my work speaks for itself. Three new customers last month found me through my projects.",
         rating: 5,
-        initials: "SJ"
+        initials: "CM"
     },
     {
-        name: "David Chen",
-        role: "Master Stoneworks",
-        content: "Finally, something that actually works for tradies. No complicated tech, just results. Ranking #1 in my city for 'chimney repair' now.",
+        name: "Tom K.",
+        role: "Keystone Masonry",
+        content: "My nephew set up my website years ago with three photos. Now I've got 40 projects and customers actually call me saying they found me on Google.",
         rating: 5,
-        initials: "DC"
+        initials: "TK"
     }
 ];
 
@@ -32,7 +32,7 @@ export function Testimonials() {
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mb-16 text-center">
                     <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                        Trusted by Pros
+                        Contractors Winning More Jobs
                     </h2>
                 </div>
 

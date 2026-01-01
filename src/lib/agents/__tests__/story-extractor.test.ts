@@ -40,7 +40,7 @@ describe('StoryExtractor', () => {
   });
 
   describe('checkReadyForImages', () => {
-    it('requires city and state to be ready', () => {
+    it('does not require location to be ready', () => {
       const state: Partial<SharedProjectState> = {
         projectType: 'chimney-rebuild',
         customerProblem:
@@ -48,29 +48,25 @@ describe('StoryExtractor', () => {
         solutionApproach:
           'We rebuilt the entire chimney from the roofline up using reclaimed brick and lime mortar.',
         materials: ['reclaimed brick', 'lime mortar'],
-      };
-
-      expect(checkReadyForImages(state)).toBe(false);
-    });
-
-    it('returns true when all requirements are met', () => {
-      const state: Partial<SharedProjectState> = {
-        projectType: 'chimney-rebuild',
-        customerProblem:
-          'The customer had a chimney that was leaking water into their home due to damaged flashing.',
-        solutionApproach:
-          'We rebuilt the entire chimney from the roofline up using reclaimed brick and lime mortar.',
-        materials: ['reclaimed brick', 'lime mortar'],
-        city: 'Denver',
-        state: 'CO',
       };
 
       expect(checkReadyForImages(state)).toBe(true);
     });
+
+    it('returns false when story is too short', () => {
+      const state: Partial<SharedProjectState> = {
+        projectType: 'chimney-rebuild',
+        customerProblem: 'Chimney leak.',
+        solutionApproach: 'Repaired it.',
+        materials: ['reclaimed brick'],
+      };
+
+      expect(checkReadyForImages(state)).toBe(false);
+    });
   });
 
   describe('getMissingFields', () => {
-    it('includes city and state when missing', () => {
+    it('does not require city and state for readiness', () => {
       const missing = getMissingFields({
         projectType: 'chimney-rebuild',
         customerProblem:
@@ -80,8 +76,8 @@ describe('StoryExtractor', () => {
         materials: ['reclaimed brick', 'lime mortar'],
       });
 
-      expect(missing).toContain('city');
-      expect(missing).toContain('state');
+      expect(missing).not.toContain('city');
+      expect(missing).not.toContain('state');
     });
   });
 

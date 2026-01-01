@@ -17,7 +17,6 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Plus, MoreVertical, Pencil, Eye, Trash2, Globe, FileEdit, CheckCircle2, Clock, FolderOpen, Archive, RotateCcw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -51,7 +50,7 @@ export default function ProjectsPage() {
   const [error, setError] = useState<string | null>(null);
   const [deleteProject, setDeleteProject] = useState<ProjectWithImages | null>(null);
 
-  function formatProjectDate(project: ProjectWithImages): string | null {
+  function _formatProjectDate(project: ProjectWithImages): string | null {
     const dateValue = project.published_at || project.updated_at || project.created_at;
     if (!dateValue) return null;
     return new Date(dateValue).toLocaleDateString('en-US', {
@@ -174,43 +173,45 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex justify-between items-start mb-8 bg-gradient-to-br from-muted/40 to-muted/20 rounded-2xl p-6">
+    <div className="min-h-[calc(100vh-4rem)] pb-8">
+      {/* Header - Craftsman styled */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 md:py-6 mb-6 border-b border-border/50">
         <div>
-          <h1 className="text-2xl font-bold">Projects</h1>
-          <p className="text-muted-foreground">
-            Manage your portfolio projects
+          <h1 className="font-craftsman text-xl md:text-2xl text-foreground">Your Work</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage and showcase your portfolio
           </p>
         </div>
-        <Button asChild size="lg">
+        <Button asChild className="bg-terracotta hover:bg-terracotta/90 text-white w-full sm:w-auto">
           <Link href="/projects/new">
             <Plus className="h-4 w-4 mr-2" />
-            New Project
+            Add Project
           </Link>
         </Button>
-      </div>
+      </header>
 
-      {/* Status filter */}
+      {/* Status filter - Horizontal scroll on mobile */}
       <Tabs value={status} onValueChange={(v) => setStatus(v as ProjectStatus)} className="mb-6">
-        <TabsList className="bg-muted/50 p-1 h-auto">
-          <TabsTrigger value="all" className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 py-2">
-            <FolderOpen className="h-4 w-4 mr-2" />
-            All
-          </TabsTrigger>
-          <TabsTrigger value="draft" className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 py-2">
-            <Clock className="h-4 w-4 mr-2" />
-            Drafts
-          </TabsTrigger>
-          <TabsTrigger value="published" className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 py-2">
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            Published
-          </TabsTrigger>
-          <TabsTrigger value="archived" className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 py-2">
-            <Archive className="h-4 w-4 mr-2" />
-            Archived
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+          <TabsList className="bg-muted/30 p-1 h-auto inline-flex w-auto min-w-full md:min-w-0">
+            <TabsTrigger value="all" className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 md:px-4 py-2 text-xs md:text-sm whitespace-nowrap">
+              <FolderOpen className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
+              All
+            </TabsTrigger>
+            <TabsTrigger value="draft" className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 md:px-4 py-2 text-xs md:text-sm whitespace-nowrap">
+              <Clock className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
+              Drafts
+            </TabsTrigger>
+            <TabsTrigger value="published" className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 md:px-4 py-2 text-xs md:text-sm whitespace-nowrap">
+              <CheckCircle2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
+              Published
+            </TabsTrigger>
+            <TabsTrigger value="archived" className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 md:px-4 py-2 text-xs md:text-sm whitespace-nowrap">
+              <Archive className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
+              Archived
+            </TabsTrigger>
+          </TabsList>
+        </div>
       </Tabs>
 
       {/* Error display */}
@@ -223,111 +224,98 @@ export default function ProjectsPage() {
 
       {/* Projects grid */}
       {isLoading ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse overflow-hidden border-0 shadow-sm">
-              <div className="h-48 bg-muted rounded-t-lg" />
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <div className="h-5 bg-muted rounded w-3/4" />
-                  <div className="h-8 w-8 bg-muted rounded" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-3 bg-muted rounded w-full mb-2" />
-                <div className="h-3 bg-muted rounded w-2/3 mb-4" />
-                <div className="flex gap-2">
-                  <div className="h-6 bg-muted rounded-full w-20" />
-                  <div className="h-6 bg-muted rounded-full w-16" />
-                </div>
-              </CardContent>
-            </Card>
+            <div key={i} className="dashboard-card animate-pulse overflow-hidden">
+              <div className="aspect-[4/3] bg-muted/50" />
+              <div className="p-3 md:p-4 space-y-2">
+                <div className="h-4 bg-muted/50 rounded w-3/4" />
+                <div className="h-3 bg-muted/50 rounded w-1/2" />
+              </div>
+            </div>
           ))}
         </div>
       ) : projects.length === 0 ? (
-        <Card className="text-center py-16 border-0 shadow-sm">
-          <CardContent>
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-              <FolderOpen className="w-8 h-8 text-muted-foreground" />
+        /* Empty state - Craftsman styled */
+        <div className="empty-state-bg rounded-2xl p-8 md:p-12 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-muted/50 flex items-center justify-center">
+              <FolderOpen className="w-10 h-10 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">
-              {status === 'all' ? 'No projects yet' : `No ${status} projects`}
+            <h3 className="font-craftsman text-xl md:text-2xl mb-3">
+              {status === 'all' ? 'Your work awaits' : `No ${status} projects`}
             </h3>
-            <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+            <p className="text-muted-foreground mb-6">
               {status === 'all'
-                ? "Start building your portfolio by creating your first project."
+                ? "Every job you complete is proof of your skill. Start documenting your craftsmanship."
                 : `You don't have any ${status} projects at the moment.`}
             </p>
-            <Button asChild size="lg">
+            <Button asChild size="lg" className="bg-terracotta hover:bg-terracotta/90 text-white">
               <Link href="/projects/new">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Your First Project
+                Add Your First Project
               </Link>
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => {
+        <div className="grid gap-4 md:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
+          {projects.map((project, index) => {
             const thumbnail = getThumbnail(project);
             const isPublished = project.status === 'published';
             const isDraft = project.status === 'draft';
+            const isArchived = project.status === 'archived';
 
             return (
-              <Card
+              <div
                 key={project.id}
-                className="overflow-hidden group border-0 shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer"
+                className="group block animate-fade-up cursor-pointer"
+                style={{ animationDelay: `${index * 50}ms` }}
                 onClick={() => router.push(`/projects/${project.id}/edit`)}
               >
-                {/* Thumbnail */}
-                <div className="relative h-48 bg-muted overflow-hidden">
+                {/* Thumbnail - project-thumb style from dashboard */}
+                <div className="project-thumb aspect-[4/3] relative mb-2 md:mb-3">
                   {thumbnail ? (
                     <Image
                       src={thumbnail}
                       alt={project.title || 'Project'}
                       fill
-                      className="object-cover transition-transform duration-300 group-hover:scale-105"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                     />
                   ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
-                      <FolderOpen className="w-8 h-8" />
-                      <span className="text-sm">No images</span>
+                    <div className="w-full h-full flex items-center justify-center">
+                      <FolderOpen className="w-8 h-8 text-muted-foreground" />
                     </div>
                   )}
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
-                  {/* Status badge */}
-                  <Badge
-                    variant={isPublished ? 'default' : 'secondary'}
-                    className={`absolute top-3 right-3 ${
-                      isPublished
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/80 dark:text-green-400 border-0'
-                        : isDraft
-                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/80 dark:text-orange-400 border-0'
-                          : ''
-                    }`}
-                  >
-                    {isPublished && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                    {isDraft && <Clock className="w-3 h-3 mr-1" />}
-                    {project.status}
-                  </Badge>
-                </div>
 
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg line-clamp-1 group-hover:text-primary transition-colors">
-                      {project.title || 'Untitled Project'}
-                    </CardTitle>
+                  {/* Status indicator - matching dashboard style */}
+                  <div className="absolute top-2 left-2 z-10">
+                    <Badge
+                      variant="secondary"
+                      className={`text-[10px] px-1.5 py-0.5 ${
+                        isPublished
+                          ? 'bg-sage-subtle text-sage border-0'
+                          : isDraft
+                            ? 'bg-background/80 backdrop-blur-sm'
+                            : 'bg-muted/80 backdrop-blur-sm text-muted-foreground'
+                      }`}
+                    >
+                      {isPublished ? 'Live' : isDraft ? <><Clock className="w-2.5 h-2.5 mr-0.5" /> Draft</> : 'Archived'}
+                    </Badge>
+                  </div>
+
+                  {/* Actions menu */}
+                  <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                         <Button
-                          variant="ghost"
+                          variant="secondary"
                           size="icon"
-                          className="h-8 w-8 opacity-70 hover:opacity-100"
+                          className="h-7 w-7 bg-background/80 backdrop-blur-sm hover:bg-background"
                           aria-label="Project actions"
                         >
-                          <MoreVertical className="h-4 w-4" />
+                          <MoreVertical className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
@@ -349,7 +337,7 @@ export default function ProjectsPage() {
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
-                        {project.status !== 'archived' ? (
+                        {!isArchived ? (
                           <>
                             <DropdownMenuItem onClick={() => handleTogglePublish(project)}>
                               {isPublished ? (
@@ -386,27 +374,30 @@ export default function ProjectsPage() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                </CardHeader>
 
-                <CardContent>
-                  {formatProjectDate(project) && (
-                    <p className="text-xs text-muted-foreground mb-1">
-                      {formatProjectDate(project)}
-                    </p>
-                  )}
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                    {project.description || 'No description'}
-                  </p>
-                  <div className="flex gap-2 flex-wrap">
-                    {project.project_type && (
-                      <Badge variant="outline" className="bg-muted/50">{project.project_type}</Badge>
-                    )}
-                    {project.city && (
-                      <Badge variant="outline" className="bg-muted/50">{project.city}</Badge>
-                    )}
+                  {/* Hover overlay with title */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                    <div className="w-full">
+                      <p className="text-white text-sm font-medium truncate">
+                        {project.title || 'Untitled'}
+                      </p>
+                      <p className="text-white/70 text-xs truncate">
+                        {project.project_type || 'Masonry'}
+                      </p>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+
+                {/* Card content - minimal on mobile */}
+                <div className="px-1">
+                  <p className="text-sm font-medium line-clamp-1 group-hover:text-terracotta transition-colors">
+                    {project.title || 'Untitled Project'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {project.city || project.project_type || 'Project'}
+                  </p>
+                </div>
+              </div>
             );
           })}
         </div>

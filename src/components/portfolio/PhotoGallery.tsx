@@ -15,10 +15,10 @@
  * @see Sprint 4 tasks for lightbox implementation
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import Image from 'next/image';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { X, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SafeImage } from '@/components/ui/safe-image';
 
 /**
  * Minimum swipe distance in pixels to trigger navigation.
@@ -74,6 +74,18 @@ export function PhotoGallery({
 }: PhotoGalleryProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
+
+  // Filter out failed images for display
+  const validImages = useMemo(
+    () => images.filter((img) => !failedImageIds.has(img.id)),
+    [images, failedImageIds]
+  );
+
+  // Handler to mark an image as failed
+  const handleImageError = useCallback((imageId: string) => {
+    setFailedImageIds((prev) => new Set([...prev, imageId]));
+  }, []);
 
   // Touch swipe state
   const touchStartX = useRef<number | null>(null);
@@ -89,10 +101,10 @@ export function PhotoGallery({
           setLightboxOpen(false);
           break;
         case 'ArrowLeft':
-          setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+          setCurrentIndex((prev) => (prev > 0 ? prev - 1 : validImages.length - 1));
           break;
         case 'ArrowRight':
-          setCurrentIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+          setCurrentIndex((prev) => (prev < validImages.length - 1 ? prev + 1 : 0));
           break;
       }
     };
@@ -105,7 +117,7 @@ export function PhotoGallery({
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [lightboxOpen, images.length]);
+  }, [lightboxOpen, validImages.length]);
 
   const openLightbox = useCallback((index: number) => {
     setCurrentIndex(index);
@@ -117,12 +129,12 @@ export function PhotoGallery({
   }, []);
 
   const goToPrevious = useCallback(() => {
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
-  }, [images.length]);
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : validImages.length - 1));
+  }, [validImages.length]);
 
   const goToNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
-  }, [images.length]);
+    setCurrentIndex((prev) => (prev < validImages.length - 1 ? prev + 1 : 0));
+  }, [validImages.length]);
 
   /**
    * Touch event handlers for swipe navigation on mobile.
@@ -158,14 +170,14 @@ export function PhotoGallery({
     touchEndX.current = null;
   }, [goToNext, goToPrevious]);
 
-  if (images.length === 0) {
+  if (validImages.length === 0) {
     return null;
   }
 
   // Safe to access after length check - TypeScript assertion
-  const heroImage = images[0]!;
-  const thumbnails = images.slice(1, maxThumbnails + 1);
-  const remainingCount = images.length - maxThumbnails - 1;
+  const heroImage = validImages[0]!;
+  const thumbnails = validImages.slice(1, maxThumbnails + 1);
+  const remainingCount = validImages.length - maxThumbnails - 1;
 
   return (
     <>
@@ -177,7 +189,7 @@ export function PhotoGallery({
           className="relative aspect-video w-full rounded-xl overflow-hidden group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-lg"
           aria-label={`View ${heroImage.alt ?? title} in fullscreen`}
         >
-          <Image
+          <SafeImage
             src={heroImage.src}
             alt={heroImage.alt ?? title}
             fill
@@ -186,6 +198,7 @@ export function PhotoGallery({
             sizes="(max-width: 768px) 100vw, 896px"
             placeholder="blur"
             blurDataURL={heroImage.blurDataURL || SHIMMER_PLACEHOLDER}
+            onImageError={() => handleImageError(heroImage.id)}
           />
           {/* Subtle gradient overlay at bottom for depth */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-60" />
@@ -198,7 +211,7 @@ export function PhotoGallery({
         </button>
 
         {/* Thumbnail Grid */}
-        {images.length > 1 && (
+        {validImages.length > 1 && (
           <div className="grid grid-cols-4 gap-3">
             {thumbnails.map((img, idx) => (
               <button
@@ -208,7 +221,7 @@ export function PhotoGallery({
                 className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-sm hover:shadow-md transition-shadow"
                 aria-label={`View ${img.alt || `image ${idx + 2}`} in fullscreen`}
               >
-                <Image
+                <SafeImage
                   src={img.src}
                   alt={img.alt || `${title} - Image ${idx + 2}`}
                   fill
@@ -216,6 +229,7 @@ export function PhotoGallery({
                   sizes="(max-width: 768px) 25vw, 224px"
                   placeholder="blur"
                   blurDataURL={img.blurDataURL || SHIMMER_PLACEHOLDER}
+                  onImageError={() => handleImageError(img.id)}
                 />
                 {/* Hover ring effect */}
                 <div className="absolute inset-0 ring-0 ring-inset ring-white/0 group-hover:ring-2 group-hover:ring-white/50 transition-all duration-200" />
@@ -248,6 +262,11 @@ export function PhotoGallery({
           role="dialog"
           aria-modal="true"
           aria-label="Image lightbox"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeLightbox();
+            }
+          }}
         >
           {/* Close button */}
           <button
@@ -261,11 +280,11 @@ export function PhotoGallery({
 
           {/* Image counter */}
           <div className="absolute top-4 left-4 text-white/70 text-sm">
-            {currentIndex + 1} / {images.length}
+            {currentIndex + 1} / {validImages.length}
           </div>
 
           {/* Previous button */}
-          {images.length > 1 && (
+          {validImages.length > 1 && (
             <button
               type="button"
               onClick={goToPrevious}
@@ -283,23 +302,28 @@ export function PhotoGallery({
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            {images[currentIndex] && (
-              <Image
-                src={images[currentIndex].src}
-                alt={images[currentIndex].alt || `${title} - Image ${currentIndex + 1}`}
-                fill
-                className="object-contain pointer-events-none select-none"
-                sizes="100vw"
-                priority
-                placeholder="blur"
-                blurDataURL={images[currentIndex].blurDataURL || SHIMMER_PLACEHOLDER}
-                draggable={false}
-              />
-            )}
+            {(() => {
+              const currentImage = validImages[currentIndex];
+              if (!currentImage) return null;
+              return (
+                <SafeImage
+                  src={currentImage.src}
+                  alt={currentImage.alt || `${title} - Image ${currentIndex + 1}`}
+                  fill
+                  className="object-contain pointer-events-none select-none"
+                  sizes="100vw"
+                  priority
+                  placeholder="blur"
+                  blurDataURL={currentImage.blurDataURL || SHIMMER_PLACEHOLDER}
+                  draggable={false}
+                  onImageError={() => handleImageError(currentImage.id)}
+                />
+              );
+            })()}
           </div>
 
           {/* Next button */}
-          {images.length > 1 && (
+          {validImages.length > 1 && (
             <button
               type="button"
               onClick={goToNext}
@@ -311,21 +335,21 @@ export function PhotoGallery({
           )}
 
           {/* Caption */}
-          {images[currentIndex]?.alt && (
+          {validImages[currentIndex]?.alt && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/90 text-center max-w-lg px-4">
-              {images[currentIndex].alt}
+              {validImages[currentIndex].alt}
             </div>
           )}
 
           {/* Thumbnail strip at bottom (for more than 2 images) */}
-          {images.length > 2 && (
+          {validImages.length > 2 && (
             <div className="absolute bottom-16 left-1/2 -translate-x-1/2 max-w-[80%] px-4">
               {/* Scroll fade indicators */}
               <div className="relative">
                 <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black/80 to-transparent pointer-events-none z-10" />
                 <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black/80 to-transparent pointer-events-none z-10" />
                 <div className="flex gap-2 overflow-x-auto py-2 px-2 scrollbar-hide">
-                  {images.map((img, idx) => (
+                  {validImages.map((img, idx) => (
                     <button
                       key={img.id}
                       type="button"
@@ -339,12 +363,14 @@ export function PhotoGallery({
                       aria-label={`View image ${idx + 1}`}
                       aria-current={currentIndex === idx ? 'true' : undefined}
                     >
-                      <Image
+                      <SafeImage
                         src={img.src}
                         alt=""
                         fill
                         className="object-cover"
                         sizes="64px"
+                        hideOnError
+                        onImageError={() => handleImageError(img.id)}
                       />
                     </button>
                   ))}
@@ -353,12 +379,6 @@ export function PhotoGallery({
             </div>
           )}
 
-          {/* Click backdrop to close */}
-          <div
-            className="absolute inset-0 -z-10"
-            onClick={closeLightbox}
-            aria-hidden="true"
-          />
         </div>
       )}
     </>

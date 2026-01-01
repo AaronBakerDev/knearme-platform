@@ -61,6 +61,13 @@ export const SUMMARY_TOKENS = 1000;
  */
 export const RECENT_MESSAGES_COUNT = 10;
 
+export interface ContextLoadOptions {
+  /** Hard cap on message count for UI loading. */
+  maxMessages?: number;
+  /** Override for the number of recent messages to include when compacting. */
+  recentMessagesCount?: number;
+}
+
 // Types are now defined in ./context-shared.ts and re-exported above
 import type { ProjectContextData, ContextLoadResult } from './context-shared';
 
@@ -96,10 +103,15 @@ interface DbMessage {
  * @param messageCount - Number of messages in the session
  * @returns True if compaction is needed
  */
-export function shouldCompact(messageCount: number): boolean {
-  const estimatedTokens =
-    messageCount * TOKENS_PER_MESSAGE + PROJECT_DATA_TOKENS;
-  return estimatedTokens > MAX_CONTEXT_TOKENS;
+export function shouldCompact(
+  messageCount: number,
+  estimatedTokens?: number
+): boolean {
+  const tokenEstimate =
+    typeof estimatedTokens === 'number'
+      ? estimatedTokens
+      : messageCount * TOKENS_PER_MESSAGE + PROJECT_DATA_TOKENS;
+  return tokenEstimate > MAX_CONTEXT_TOKENS;
 }
 
 /**
@@ -122,6 +134,26 @@ export function estimateTokens(
 }
 
 /**
+ * Estimate token count for a single message payload.
+ * Uses JSON size of parts when available to account for tool outputs.
+ */
+export function estimateMessageTokens(
+  content: string,
+  parts?: UIMessagePart[]
+): number {
+  if (Array.isArray(parts) && parts.length > 0) {
+    try {
+      return Math.max(1, Math.ceil(JSON.stringify(parts).length / 4));
+    } catch (error) {
+      console.warn('[ContextLoader] Failed to stringify message parts:', error);
+    }
+  }
+
+  const text = typeof content === 'string' ? content : '';
+  return Math.max(1, Math.ceil(text.length / 4));
+}
+
+/**
  * Load conversation context for a project/session.
  *
  * Strategy:
@@ -136,7 +168,8 @@ export function estimateTokens(
  */
 export async function loadConversationContext(
   projectId: string,
-  sessionId: string
+  sessionId: string,
+  options: ContextLoadOptions = {}
 ): Promise<ContextLoadResult> {
   const supabase = await createClient();
 
@@ -147,7 +180,7 @@ export async function loadConversationContext(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: session, error: sessionError } = await (supabase as any)
     .from('chat_sessions')
-    .select('message_count, session_summary')
+    .select('message_count, session_summary, estimated_tokens')
     .eq('id', sessionId)
     .single();
 
@@ -166,9 +199,15 @@ export async function loadConversationContext(
 
   const messageCount = session?.message_count || 0;
   const sessionSummary = session?.session_summary || null;
+  const sessionEstimatedTokens =
+    typeof session?.estimated_tokens === 'number'
+      ? session.estimated_tokens
+      : estimateTokens(messageCount, true, false);
+  const maxMessages = options.maxMessages ?? Number.POSITIVE_INFINITY;
+  const recentMessagesCount = options.recentMessagesCount ?? RECENT_MESSAGES_COUNT;
 
   // 3. Determine loading strategy
-  if (!shouldCompact(messageCount)) {
+  if (!shouldCompact(messageCount, sessionEstimatedTokens) && messageCount <= maxMessages) {
     // Full conversation fits - load all messages
     const messages = await loadAllMessages(supabase, sessionId);
     return {
@@ -184,10 +223,13 @@ export async function loadConversationContext(
   // 4. Need compaction - load summary + recent messages
   const summary =
     projectData.conversationSummary || sessionSummary || null;
+  const recentLimit = Number.isFinite(maxMessages)
+    ? Math.min(recentMessagesCount, maxMessages)
+    : recentMessagesCount;
   const recentMessages = await loadRecentMessages(
     supabase,
     sessionId,
-    RECENT_MESSAGES_COUNT
+    recentLimit
   );
 
   return {
@@ -366,7 +408,8 @@ function dbMessageToUIMessage(dbMsg: DbMessage): UIMessage {
  */
 export async function updateSessionMessageCount(
   sessionId: string,
-  newCount: number
+  newCount: number,
+  estimatedTokens?: number
 ): Promise<void> {
   const supabase = await createClient();
 
@@ -375,7 +418,10 @@ export async function updateSessionMessageCount(
     .from('chat_sessions')
     .update({
       message_count: newCount,
-      estimated_tokens: estimateTokens(newCount, true, false),
+      estimated_tokens:
+        typeof estimatedTokens === 'number'
+          ? estimatedTokens
+          : estimateTokens(newCount, true, false),
       updated_at: new Date().toISOString(),
     })
     .eq('id', sessionId);

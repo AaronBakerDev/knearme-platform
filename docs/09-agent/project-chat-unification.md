@@ -65,8 +65,9 @@ The result is one consistent UI, one persistence model, and one tool-call histor
 Key behaviors:
 - Eager project creation on first message (`ensureProject`).
 - Phased wizard: conversation -> images -> generate -> review -> publish.
+- Generate action uses the unified chat tools and stays in the same workspace (no redirect on generate).
 - Uses `useSaveQueue` and `useAutoSummarize` for persistence and memory.
-- Loads history via `/api/chat/sessions/[id]/context` (includes tool parts).
+- Loads history via `/api/chat/sessions/[id]/context?projectId=...&mode=ui` (includes tool parts, capped for UI).
 - Renders `LivePortfolioCanvas` directly and a mobile overlay.
 
 ### Edit flow (chat-first edit)
@@ -77,7 +78,7 @@ Key behaviors:
 
 Key behaviors:
 - Uses `/api/chat/sessions/by-project/:id` to find the shared session.
-- Loads messages via `/api/chat/sessions/[id]/context` (tool parts included).
+- Loads messages via `/api/chat/sessions/[id]/context?projectId=...&mode=ui` (tool parts included, capped for UI).
 - Unified message persistence via `/api/chat/sessions/:id/messages`.
 - Optional form integration via `formContent`.
 - Auto-summarize runs when the context length exceeds the budget (no UI impact).
@@ -96,6 +97,7 @@ Key behaviors:
 - Context loader (`src/lib/chat/context-loader.ts`) reconstructs parts.
 - Create + edit modes use context loader.
 - `GET /api/chat/sessions/[id]` does not include message parts in a form the UI can render.
+- `/api/chat/sessions/by-project/:id` is metadata-only by default; use `/context` for messages (or `includeMessages=true` if needed for admin tools).
 
 ### UI parity notes
 
@@ -133,7 +135,7 @@ Session bootstrap and persistence live in `ChatWizard` (no separate
 `useProjectChatSession` hook):
 
 - Fetch session via `/api/chat/sessions/by-project/:id`
-- Load messages via `/api/chat/sessions/[id]/context?projectId=...`
+- Load messages via `/api/chat/sessions/[id]/context?projectId=...&mode=ui`
 - Use a stable `useChat` id (one per mount).
 - Rehydrate `message.parts` from `metadata.parts` for tool history.
 - Use `/api/chat/sessions/:id/messages` for all messages; use `useSaveQueue`

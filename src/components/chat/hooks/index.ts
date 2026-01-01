@@ -23,6 +23,8 @@ export { useAutoSummarize, useSessionActivity } from './useAutoSummarize';
 export { useSaveQueue } from './useSaveQueue';
 export { useQuickActions } from './useQuickActions';
 export type { QuickActionItem, QuickActionType } from './useQuickActions';
+export { useVoiceModeManager } from './useVoiceModeManager';
+export { useLiveVoiceSession } from './useLiveVoiceSession';
 
 // UX polish hooks (co-located with their components)
 export { useMilestoneToasts, MilestoneToast } from '../MilestoneToast';

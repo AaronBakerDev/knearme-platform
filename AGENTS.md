@@ -35,3 +35,22 @@
 - Write concise, imperative commit messages (for example, `Add contractor onboarding form`, `Fix auth redirect in layout`).
 - For pull requests, include: a short summary, any linked issues, screenshots or GIFs for UI changes, and notes on testing performed.
 - Keep PRs focused on a single feature or fix; update relevant docs under `docs/` when behavior or architecture changes.
+
+## Messaging Guidelines
+
+When writing user-facing copy, marketing content, or UI text:
+
+### Core Message
+KnearMe turns finished projects into shareable proof that wins more jobs. AI handles the writing—the contractor's work is the hero.
+
+### Voice Checklist
+- [ ] Does it focus on the contractor's work, not our technology?
+- [ ] Does it promise outcomes (more jobs) not features (fast/easy)?
+- [ ] Would a busy contractor understand it in 3 seconds?
+- [ ] Does it avoid jargon like "case study", "SEO", "AI-powered"?
+
+### Quick Reference
+- **Hero**: The contractor and their craftsmanship
+- **Villain**: Competitors with better online presence stealing jobs
+- **Solution**: Make every project visible proof that builds trust
+- **Tone**: Direct, practical, tradesperson-friendly

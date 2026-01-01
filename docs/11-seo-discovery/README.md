@@ -10,6 +10,8 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 
 **Scope:** All public-facing SEO pages that drive homeowner discovery and contractor showcasing.
 
+**Note:** City Hub pages are roundup hubs built from contractor-generated projects and profiles. "Best {service} in {city}" review-analysis hubs are a separate editorial pipeline and are not covered by these templates yet.
+
 ## Documentation Structure
 
 ### Page Template Specifications
@@ -19,7 +21,7 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 | [Service Type by City](./page-templates/service-type-city.md) | `/{city}/masonry/{type}` | **P1** | Next sprint |
 | [City Hub](./page-templates/city-hub.md) | `/{city}/masonry` | **P0** | ✅ Implemented |
 | [Project Detail](./page-templates/project-detail.md) | `/{city}/masonry/{type}/{slug}` | **P0** | ✅ Implemented |
-| [Contractor Profile](./page-templates/contractor-profile.md) | `/contractors/{city}/{id}` | **P0** | ✅ Implemented |
+| [Contractor Profile](./page-templates/contractor-profile.md) | `/contractors/{city}/{slug}` | **P0** | ✅ Implemented |
 | [National Service Landing](./page-templates/national-service.md) | `/services/{type}` | **P2** | Phase 3 |
 | [Educational Content](./page-templates/educational-content.md) | `/learn/{slug}` or `/resources/{slug}` | **P2** | Phase 3 |
 
@@ -35,7 +37,7 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 |---------|-------|---------------|--------|
 | City Hub Pages | `app/(public)/[city]/masonry/page.tsx` | 441 | ✅ Complete |
 | Project Detail Pages | `app/(public)/[city]/masonry/[type]/[slug]/page.tsx` | 474 | ✅ Complete |
-| Contractor Profiles | `app/(public)/contractors/[city]/[id]/page.tsx` | 510 | ✅ Complete |
+| Contractor Profiles | `app/(public)/contractors/[city]/[slug]/page.tsx` | 510 | ✅ Complete |
 | Dynamic Sitemap | `app/sitemap.ts` | ~150 | ✅ Complete |
 | JSON-LD Utilities | `src/lib/seo/structured-data.ts` | ~300 | ✅ Complete |
 

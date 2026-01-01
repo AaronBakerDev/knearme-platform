@@ -15,10 +15,13 @@ import { streamText, tool, convertToModelMessages, stepCountIs, type UIMessage }
 import { after } from 'next/server';
 import { getChatModel, isGoogleAIEnabled } from '@/lib/ai/providers';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
-import { UNIFIED_PROJECT_SYSTEM_PROMPT } from '@/lib/chat/chat-prompts';
+import {
+  buildSystemPromptWithContext,
+  UNIFIED_PROJECT_SYSTEM_PROMPT,
+} from '@/lib/chat/chat-prompts';
+import { loadPromptContext } from '@/lib/chat/prompt-context';
 import { chatTelemetry, flushLangfuse } from '@/lib/observability/traced-ai';
-import type { ExtractedProjectData, ToolContext } from '@/lib/chat/chat-types';
-import { formatProjectLocation } from '@/lib/utils/location';
+import type { ToolContext } from '@/lib/chat/chat-types';
 import {
   extractProjectDataSchema,
   promptForImagesSchema,
@@ -27,36 +30,20 @@ import {
   requestClarificationSchema,
   suggestQuickActionsSchema,
   generatePortfolioContentSchema,
+  composePortfolioLayoutSchema,
   checkPublishReadySchema,
   updateFieldSchema,
   regenerateSectionSchema,
   reorderImagesSchema,
   validateForPublishSchema,
   updateDescriptionBlocksSchema,
-  type ExtractProjectDataOutput,
-  type PromptForImagesOutput,
-  type ShowPortfolioPreviewOutput,
-  type ShowContentEditorOutput,
-  type RequestClarificationOutput,
-  type SuggestQuickActionsOutput,
-  type GeneratePortfolioContentOutput,
-  type CheckPublishReadyOutput,
-  type UpdateFieldOutput,
-  type RegenerateSectionOutput,
-  type ReorderImagesOutput,
-  type ValidateForPublishOutput,
-  type UpdateDescriptionBlocksOutput,
 } from '@/lib/chat/tool-schemas';
 import {
-  orchestrate,
-  mergeProjectState,
-  checkQuality,
-  formatQualityCheckSummary,
-  getTopPriority,
-  createEmptyProjectState,
-  type SharedProjectState,
-} from '@/lib/agents';
-import { createClient } from '@/lib/supabase/server';
+  createChatToolExecutors,
+  FAST_TURN_TOOLS,
+  DEEP_CONTEXT_TOOLS,
+  type AllowedToolName,
+} from '@/lib/chat/tools-runtime';
 
 // Allow streaming responses up to 60 seconds
 export const maxDuration = 60;
@@ -71,128 +58,21 @@ export const maxDuration = 60;
  * @param projectId - Project ID to load
  * @returns SharedProjectState or null if not found
  */
-async function loadProjectState(projectId?: string): Promise<SharedProjectState | null> {
-  if (!projectId) return null;
-
-  const supabase = await createClient();
-
-  // Load project with images
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: project, error } = await (supabase as any)
-    .from('projects')
-    .select(`
-      id,
-      title,
-      description,
-      project_type,
-      project_type_slug,
-      city,
-      state,
-      materials,
-      techniques,
-      challenge,
-      solution,
-      duration,
-      status,
-      ai_context,
-      seo_title,
-      seo_description,
-      hero_image_id,
-      project_images (
-        id,
-        storage_path,
-        image_type,
-        alt_text,
-        display_order
-      )
-    `)
-    .eq('id', projectId)
-    .single();
-
-  if (error || !project) {
-    console.error('[loadProjectState] Failed to load project:', error);
-    return null;
+function hasSummaryContext(messages: UIMessage[]): boolean {
+  for (const message of messages) {
+    if (!message) continue;
+    if (message.role !== 'system') continue;
+    const id = (message as { id?: string }).id;
+    if (id === 'context-summary') return true;
+    if (Array.isArray(message.parts)) {
+      const text = message.parts
+        .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+        .map((part) => part.text)
+        .join('');
+      if (text.includes('Previous Conversation Summary')) return true;
+    }
   }
-
-  // Extract AI context (extracted data from conversation)
-  const aiContext = project.ai_context as Record<string, unknown> | null;
-
-  // Find hero image
-  const images = project.project_images || [];
-  const heroImageId =
-    (project as { hero_image_id?: string | null }).hero_image_id ?? images[0]?.id;
-
-  // Build SharedProjectState from project data
-  const state: SharedProjectState = {
-    ...createEmptyProjectState(),
-
-    // From project table
-    projectType: project.project_type || undefined,
-    projectTypeSlug: project.project_type_slug || undefined,
-    city: project.city || undefined,
-    state: project.state || undefined,
-    location: formatProjectLocation({ city: project.city, state: project.state }) || undefined,
-    title: project.title || undefined,
-    description: project.description || undefined,
-    seoTitle: project.seo_title || undefined,
-    seoDescription: project.seo_description || undefined,
-    materials: project.materials || [],
-    techniques: project.techniques || [],
-    tags: [], // Not stored directly on project
-
-    // From AI context (extracted during conversation)
-    customerProblem:
-      (aiContext?.customer_problem as string) ||
-      (project.challenge as string | null) ||
-      undefined,
-    solutionApproach:
-      (aiContext?.solution_approach as string) ||
-      (project.solution as string | null) ||
-      undefined,
-    duration:
-      (aiContext?.duration as string) ||
-      (project.duration as string | null) ||
-      undefined,
-    proudOf: (aiContext?.proud_of as string) || undefined,
-
-    // Images
-    images: images.map((img: {
-      id: string;
-      storage_path: string;
-      image_type?: string;
-      alt_text?: string;
-      display_order?: number;
-    }) => ({
-      id: img.id,
-      url: img.storage_path,
-      imageType: img.image_type as 'before' | 'after' | 'progress' | 'detail' | undefined,
-      altText: img.alt_text,
-      displayOrder: img.display_order || 0,
-    })),
-    heroImageId: heroImageId,
-
-    // State flags - calculate based on data
-    readyForImages: Boolean(
-      project.project_type &&
-      project.city &&
-      project.state &&
-      (aiContext?.customer_problem || project.challenge) &&
-      (aiContext?.solution_approach || project.solution) &&
-      (project.materials?.length || 0) >= 2
-    ),
-    readyForContent: Boolean(
-      project.project_type &&
-      images.length > 0 &&
-      heroImageId
-    ),
-    readyToPublish: project.status === 'published',
-
-    // Clarification tracking (not persisted)
-    needsClarification: [],
-    clarifiedFields: [],
-  };
-
-  return state;
+  return false;
 }
 
 function getLatestUserMessage(messages: UIMessage[]): string {
@@ -211,106 +91,6 @@ function getLatestUserMessage(messages: UIMessage[]): string {
     if (fallback && fallback.trim()) return fallback;
   }
   return '';
-}
-
-async function loadSessionExtractedData(
-  sessionId?: string
-): Promise<ExtractedProjectData | null> {
-  if (!sessionId) return null;
-  const supabase = await createClient();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: session, error } = await (supabase as any)
-    .from('chat_sessions')
-    .select('extracted_data')
-    .eq('id', sessionId)
-    .single();
-
-  if (error || !session) {
-    console.warn('[loadSessionExtractedData] Failed to load session:', error);
-    return null;
-  }
-
-  return (session.extracted_data as ExtractedProjectData) || null;
-}
-
-function mapExtractedDataToState(data?: ExtractedProjectData): Partial<SharedProjectState> {
-  if (!data) return {};
-
-  const locationLabel =
-    data.location ||
-    formatProjectLocation({ city: data.city, state: data.state }) ||
-    undefined;
-
-  return {
-    projectType: data.project_type || undefined,
-    customerProblem: data.customer_problem || undefined,
-    solutionApproach: data.solution_approach || undefined,
-    materials: data.materials_mentioned || [],
-    techniques: data.techniques_mentioned || [],
-    duration: data.duration || undefined,
-    proudOf: data.proud_of || undefined,
-    city: data.city || undefined,
-    state: data.state || undefined,
-    location: locationLabel,
-  };
-}
-
-function mapStateToExtractedData(state: SharedProjectState): ExtractedProjectData {
-  const locationLabel =
-    state.location ||
-    formatProjectLocation({ city: state.city, state: state.state }) ||
-    undefined;
-
-  return cleanExtractedData({
-    project_type: state.projectType,
-    customer_problem: state.customerProblem,
-    solution_approach: state.solutionApproach,
-    materials_mentioned: state.materials,
-    techniques_mentioned: state.techniques,
-    duration: state.duration,
-    city: state.city,
-    state: state.state,
-    location: locationLabel,
-    proud_of: state.proudOf,
-    ready_for_images: state.readyForImages || undefined,
-  });
-}
-
-function cleanExtractedData(data: ExtractedProjectData): ExtractedProjectData {
-  const cleaned: ExtractedProjectData = {};
-  const addString = (key: keyof ExtractedProjectData, value?: string) => {
-    if (!value) return;
-    const trimmed = value.trim();
-    if (trimmed.length > 0) {
-      cleaned[key] = trimmed as never;
-    }
-  };
-  const addArray = (key: keyof ExtractedProjectData, value?: string[]) => {
-    if (!value || value.length === 0) return;
-    const filtered = value.map((item) => item.trim()).filter(Boolean);
-    if (filtered.length > 0) {
-      cleaned[key] = filtered as never;
-    }
-  };
-
-  addString('project_type', data.project_type);
-  addString('customer_problem', data.customer_problem);
-  addString('solution_approach', data.solution_approach);
-  addArray('materials_mentioned', data.materials_mentioned);
-  addArray('techniques_mentioned', data.techniques_mentioned);
-  addString('duration', data.duration);
-  addString('city', data.city);
-  addString('state', data.state);
-  addString('location', data.location);
-  addString('challenges', data.challenges);
-  addString('proud_of', data.proud_of);
-
-  if (data.ready_for_images) {
-    cleaned.ready_for_images = true;
-  }
-
-  return cleaned;
 }
 
 /**
@@ -339,12 +119,27 @@ export async function POST(request: Request) {
 
     // Parse request body with optional context fields
     const body = await request.json();
-    const { messages, projectId, sessionId } = body as {
+    const { messages, projectId, sessionId, toolChoice } = body as {
       messages: UIMessage[];
       projectId?: string;
       sessionId?: string;
+      toolChoice?: string;
     };
     const latestUserMessage = getLatestUserMessage(messages);
+    const includeSummary = !hasSummaryContext(messages);
+
+    const requestedDeepTool =
+      typeof toolChoice === 'string' && (DEEP_CONTEXT_TOOLS as readonly string[]).includes(toolChoice)
+        ? (toolChoice as (typeof DEEP_CONTEXT_TOOLS)[number])
+        : undefined;
+
+    const activeTools: AllowedToolName[] = requestedDeepTool
+      ? [...FAST_TURN_TOOLS, requestedDeepTool]
+      : [...FAST_TURN_TOOLS];
+
+    const enforcedToolChoice = requestedDeepTool
+      ? ({ type: 'tool', toolName: requestedDeepTool } as const)
+      : 'auto';
 
     // Build tool context from auth + request
     // Tools receive this via closure for security (model can't manipulate)
@@ -356,11 +151,43 @@ export async function POST(request: Request) {
       sessionId,
     };
 
+    const toolExecutors = createChatToolExecutors({
+      toolContext,
+      latestUserMessage,
+    });
+
+    let systemPrompt = UNIFIED_PROJECT_SYSTEM_PROMPT;
+    try {
+      const promptContext = await loadPromptContext({
+        projectId,
+        sessionId,
+        contractorId: auth.contractor.id,
+        includeSummary,
+      });
+      systemPrompt = buildSystemPromptWithContext({
+        basePrompt: UNIFIED_PROJECT_SYSTEM_PROMPT,
+        summary: promptContext.summary,
+        projectData: promptContext.projectData,
+        businessProfile: promptContext.businessProfile,
+      });
+    } catch (err) {
+      console.warn('[ChatAPI] Failed to load prompt context:', err);
+    }
+
     // Stream response with tool calling using Gemini 3.0 Flash
     const result = streamText({
       model: getChatModel(),
-      system: UNIFIED_PROJECT_SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: await convertToModelMessages(messages),
+      activeTools,
+      toolChoice: enforcedToolChoice,
+      providerOptions: {
+        google: {
+          thinkingConfig: {
+            thinkingLevel: 'low',
+          },
+        },
+      },
       // Enable Langfuse telemetry for observability
       // @see /src/lib/observability/traced-ai.ts
       experimental_telemetry: chatTelemetry({
@@ -384,38 +211,19 @@ export async function POST(request: Request) {
 - What type of project it was (chimney, tuckpointing, etc.)
 - What problem the customer had
 - How they fixed it
-- What materials they used
-- Any challenges or things they're proud of
+- Any scope details, constraints, outcomes, or proud moments
 
-IMPORTANT: Only set ready_for_images to true when you have QUALITY data for ALL of:
-1. Specific project type (not generic like "brick work" - need "chimney rebuild", "tuckpointing", etc.)
-2. Customer's problem (at least a full sentence, 15+ words describing the issue)
-3. How it was solved (at least a full sentence, 15+ words explaining the work done)
-4. At least 2 specific materials (e.g., "Type S mortar and red clay brick", not just "brick")
+IMPORTANT: Only set ready_for_images to true when you have enough story to draft:
+1. Specific project type
+2. Customer problem (clear sentence)
+3. Solution approach (clear sentence)
+4. One differentiator (scope detail, constraint, or outcome)
 
-If any field is too vague, ask a follow-up question instead of setting ready_for_images.
-The goal is a compelling portfolio story, not just checkboxes.
-
-After extracting data with ready_for_images: true, call the promptForImages tool.`,
+Materials are optional. Location is a priority but not required to suggest photos.
+If anything is too vague, ask a follow-up question instead of setting ready_for_images.
+After extracting data with ready_for_images: true, you may call promptForImages.`,
           inputSchema: extractProjectDataSchema,
-          execute: async (args): Promise<ExtractProjectDataOutput> => {
-            const sessionData = await loadSessionExtractedData(toolContext.sessionId);
-            let mergedState = createEmptyProjectState();
-            mergedState = mergeProjectState(mergedState, mapExtractedDataToState(sessionData || undefined));
-            mergedState = mergeProjectState(mergedState, mapExtractedDataToState(args));
-
-            if (!latestUserMessage.trim()) {
-              return mapStateToExtractedData(mergedState);
-            }
-
-            const result = await orchestrate({
-              state: mergedState,
-              message: latestUserMessage,
-              phase: 'gathering',
-            });
-
-            return mapStateToExtractedData(result.state);
-          },
+          execute: toolExecutors.extractProjectData,
         }),
 
         /**
@@ -434,7 +242,7 @@ This renders an inline image gallery artifact where the user can:
 - Upload photos via drag-drop or tap
 - Categorize photos as before/after/progress/detail`,
           inputSchema: promptForImagesSchema,
-          execute: async (args): Promise<PromptForImagesOutput> => args,
+          execute: toolExecutors.promptForImages,
         }),
 
         /**
@@ -453,7 +261,7 @@ Call this tool when:
 This refreshes the side preview canvas (on desktop) or can prompt the user
 to check their preview (on mobile).`,
           inputSchema: showPortfolioPreviewSchema,
-          execute: async (args): Promise<ShowPortfolioPreviewOutput> => args,
+          execute: toolExecutors.showPortfolioPreview,
         }),
 
         /**
@@ -462,13 +270,10 @@ to check their preview (on mobile).`,
          * @see /src/lib/chat/tool-schemas.ts for schema definition
          */
         showContentEditor: tool({
-          description: `Display the generated content in an inline editor.
-Call this tool after generating the portfolio content so the user can:
-- Edit the title and description
-- Adjust SEO title and description
-- Accept or reject the generated content`,
+          description: `Deprecated: inline editor is no longer shown in chat.
+Do not call this tool. Instead, summarize the draft in chat and offer to open the editor panel (use suggestQuickActions with openForm).`,
           inputSchema: showContentEditorSchema,
-          execute: async (args): Promise<ShowContentEditorOutput> => args,
+          execute: toolExecutors.showContentEditor,
         }),
 
         /**
@@ -493,7 +298,7 @@ This displays an interactive card where the user can:
 
 Use this instead of asking plain text questions when you have specific alternatives to suggest.`,
           inputSchema: requestClarificationSchema,
-          execute: async (args): Promise<RequestClarificationOutput> => args,
+          execute: toolExecutors.requestClarification,
         }),
 
         /**
@@ -505,13 +310,12 @@ Use this instead of asking plain text questions when you have specific alternati
 Use this to offer 2-4 next-step actions like:
 - Add photos
 - Generate content
-- Open the edit form
 - Show the preview
 - Insert a short suggested reply
 
 Keep labels short and helpful. If type is "insert", include a value.`,
           inputSchema: suggestQuickActionsSchema,
-          execute: async (args): Promise<SuggestQuickActionsOutput> => args,
+          execute: toolExecutors.suggestQuickActions,
         }),
 
         /**
@@ -523,8 +327,7 @@ Keep labels short and helpful. If type is "insert", include a value.`,
         generatePortfolioContent: tool({
           description: `Generate polished portfolio content from the extracted project data.
 Call this tool when:
-- The user has provided enough project details (project type, problem, solution, materials)
-- Photos have been uploaded
+- The user has provided enough project details (project type, problem, solution, and one differentiator)
 - The user asks to "generate content" or is ready to see their portfolio
 
 This uses the ContentGenerator agent to create:
@@ -532,63 +335,24 @@ This uses the ContentGenerator agent to create:
 - Professional description (300-500 words)
 - SEO title and meta description
 - Relevant tags for categorization
-
-After generating, call showContentEditor to display the results for review.`,
+After generating, share the draft in the chat response and offer to open the editor panel for edits.`,
           inputSchema: generatePortfolioContentSchema,
-          execute: async (_args): Promise<GeneratePortfolioContentOutput> => {
-            // Load project data to build SharedProjectState
-            const projectState = await loadProjectState(toolContext.projectId);
-            if (!projectState) {
-              return {
-                success: false,
-                title: '',
-                description: '',
-                seoTitle: '',
-                seoDescription: '',
-                tags: [],
-                error: 'No project found. Please start by telling me about your project.',
-              };
-            }
+          execute: toolExecutors.generatePortfolioContent,
+        }),
 
-            const result = await orchestrate({
-              state: projectState,
-              message: '',
-              phase: 'generating',
-            });
-
-            if (result.error) {
-              return {
-                success: false,
-                title: '',
-                description: '',
-                seoTitle: '',
-                seoDescription: '',
-                tags: [],
-                error: result.error.message,
-              };
-            }
-
-            if (!result.state.title || !result.state.description) {
-              return {
-                success: false,
-                title: '',
-                description: '',
-                seoTitle: '',
-                seoDescription: '',
-                tags: [],
-                error: result.message || 'Content generation failed. Please try again.',
-              };
-            }
-
-            return {
-              success: true,
-              title: result.state.title,
-              description: result.state.description,
-              seoTitle: result.state.seoTitle || '',
-              seoDescription: result.state.seoDescription || '',
-              tags: result.state.tags || [],
-            };
-          },
+        /**
+         * Tool for composing structured description blocks and optional image order.
+         * This is a deep-context tool; call only when explicitly requested.
+         */
+        composePortfolioLayout: tool({
+          description: `Compose structured description blocks and optional image ordering.
+Call this tool only when explicitly asked to refine layout or block structure.
+Returns:
+- blocks (DescriptionBlocks schema)
+- optional imageOrder (image IDs)
+- rationale, missingContext, confidence`,
+          inputSchema: composePortfolioLayoutSchema,
+          execute: toolExecutors.composePortfolioLayout,
         }),
 
         /**
@@ -612,40 +376,7 @@ This validates:
 
 Returns actionable feedback on what's missing or could be improved.`,
           inputSchema: checkPublishReadySchema,
-          execute: async (args): Promise<CheckPublishReadyOutput> => {
-            // Load project data to build SharedProjectState
-            const projectState = await loadProjectState(toolContext.projectId);
-            if (!projectState) {
-              return {
-                ready: false,
-                missing: ['project'],
-                warnings: [],
-                suggestions: ['Start by telling me about your project.'],
-                topPriority: 'project',
-                summary: 'No project found. Please create a project first.',
-              };
-            }
-
-            const orchestration = await orchestrate({
-              state: projectState,
-              message: '',
-              phase: 'ready',
-            });
-
-            // Check quality using QualityChecker agent
-            const result = checkQuality(orchestration.state);
-            const summary = formatQualityCheckSummary(result);
-            const priority = getTopPriority(result);
-
-            return {
-              ready: result.ready,
-              missing: result.missing,
-              warnings: args.showWarnings ? result.warnings : [],
-              suggestions: result.suggestions,
-              topPriority: priority,
-              summary,
-            };
-          },
+          execute: toolExecutors.checkPublishReady,
         }),
 
         /**
@@ -656,12 +387,7 @@ Returns actionable feedback on what's missing or could be improved.`,
           description: `Update a specific field on the project.
 Call this tool when the user wants to change the title, description, SEO, tags, materials, or techniques.`,
           inputSchema: updateFieldSchema,
-          execute: async (args): Promise<UpdateFieldOutput> => ({
-            success: true,
-            field: args.field,
-            value: args.value,
-            reason: args.reason,
-          }),
+          execute: toolExecutors.updateField,
         }),
 
         /**
@@ -671,12 +397,7 @@ Call this tool when the user wants to change the title, description, SEO, tags, 
         regenerateSection: tool({
           description: `Regenerate a specific section (title, description, or SEO) with guidance.`,
           inputSchema: regenerateSectionSchema,
-          execute: async (args): Promise<RegenerateSectionOutput> => ({
-            action: 'regenerate',
-            section: args.section,
-            guidance: args.guidance,
-            preserveElements: args.preserveElements,
-          }),
+          execute: toolExecutors.regenerateSection,
         }),
 
         /**
@@ -686,11 +407,7 @@ Call this tool when the user wants to change the title, description, SEO, tags, 
         reorderImages: tool({
           description: `Reorder project images. Use when the user wants to set a new hero or rearrange photos.`,
           inputSchema: reorderImagesSchema,
-          execute: async (args): Promise<ReorderImagesOutput> => ({
-            action: 'reorder',
-            imageIds: args.imageIds,
-            reason: args.reason,
-          }),
+          execute: toolExecutors.reorderImages,
         }),
 
         /**
@@ -701,10 +418,7 @@ Call this tool when the user wants to change the title, description, SEO, tags, 
           description: `Validate publish readiness using server rules.
 Call this when the user asks if they can publish or wants to see what's missing.`,
           inputSchema: validateForPublishSchema,
-          execute: async (args): Promise<ValidateForPublishOutput> => ({
-            action: 'validate',
-            checkFields: args.checkFields,
-          }),
+          execute: toolExecutors.validateForPublish,
         }),
 
         /**
@@ -712,9 +426,18 @@ Call this when the user asks if they can publish or wants to see what's missing.
          * ChatWizard applies block updates on the project.
          */
         updateDescriptionBlocks: tool({
-          description: `Update structured description blocks for rich content.`,
+          description: `Update structured description blocks for rich content.
+Block types:
+- paragraph {type:"paragraph", text}
+- heading {type:"heading", level:"2"|"3", text}
+- list {type:"list", style:"bullet"|"number", items:[...]}
+- callout {type:"callout", variant:"info"|"tip"|"warning", title?, text}
+- stats {type:"stats", items:[{label,value}]}
+- quote {type:"quote", text, cite?}
+
+Return the full blocks array with the intended layout.`,
           inputSchema: updateDescriptionBlocksSchema,
-          execute: async (args): Promise<UpdateDescriptionBlocksOutput> => args,
+          execute: toolExecutors.updateDescriptionBlocks,
         }),
       },
       // Allow up to 10 tool steps for complex multi-tool responses

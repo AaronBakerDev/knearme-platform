@@ -96,3 +96,25 @@ export {
   flushKpiEvents,
   type KpiEventName,
 } from './kpi-events';
+
+// Voice session telemetry (client-side)
+// Note: These are re-exported from @/lib/voice/voice-telemetry for convenience
+// Import directly from '@/lib/voice/voice-telemetry' in client components
+export {
+  VOICE_EVENTS,
+  trackSessionStart,
+  trackSessionConnected,
+  trackSessionEnd,
+  trackUserTranscript,
+  trackAssistantTranscript,
+  trackToolStart,
+  trackToolEnd,
+  trackFallback,
+  trackError,
+  getCurrentMetrics,
+  isSessionActive,
+  getSessionContext,
+  type VoiceEventName,
+  type VoiceSessionContext,
+  type VoiceSessionMetrics,
+} from '../voice/voice-telemetry';

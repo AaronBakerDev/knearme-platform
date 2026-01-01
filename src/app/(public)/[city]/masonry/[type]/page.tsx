@@ -404,7 +404,7 @@ export default async function ServiceTypePage({ params }: PageParams) {
       contractorCount: contractors.length,
       providers: contractors.slice(0, 5).map((c) => ({
         name: c.business_name || 'Contractor',
-        id: c.id,
+        slug: c.profile_slug || c.id,
         citySlug: c.city_slug || city,
       })),
     }
@@ -486,7 +486,7 @@ export default async function ServiceTypePage({ params }: PageParams) {
                 {contractors.slice(0, 4).map((contractor) => (
                   <Link
                     key={contractor.id}
-                    href={`/contractors/${contractor.city_slug}/${contractor.id}`}
+                    href={`/contractors/${contractor.city_slug}/${contractor.profile_slug || contractor.id}`}
                     className="group"
                   >
                     <Card className="shadow-sm hover:shadow-md transition-all duration-200 border-0 bg-card">

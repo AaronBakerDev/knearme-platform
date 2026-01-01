@@ -4,6 +4,9 @@
  * Server-side utilities for loading and parsing MDX files from the
  * content/learn directory. Used by /learn pages for static generation.
  *
+ * Also includes functions for loading review articles from the database
+ * (review_articles table in Supabase).
+ *
  * @see /content/learn/ for MDX article files
  * @see /src/app/(public)/learn/ for learn routes
  */
@@ -12,6 +15,7 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import readingTime from "reading-time";
+import { createAdminClient } from "@/lib/supabase/server";
 
 /**
  * Article frontmatter schema.
@@ -268,4 +272,182 @@ export function getAllTags(): string[] {
   });
 
   return Array.from(tags).sort();
+}
+
+// =============================================================================
+// Review Articles (Database)
+// =============================================================================
+
+/**
+ * Database row type for review_articles table.
+ *
+ * @see Supabase table: review_articles
+ */
+interface ReviewArticleRow {
+  id: string;
+  contractor_id: string;
+  title: string;
+  slug: string;
+  content_markdown: string;
+  metadata_json: {
+    seo?: {
+      title?: string;
+      description?: string;
+      keywords?: string[];
+    };
+    generated_with?: {
+      model?: string;
+      timestamp?: string;
+      review_count?: number;
+    };
+    structured_data?: {
+      name?: string;
+      type?: string;
+      aggregateRating?: {
+        ratingValue?: number;
+        reviewCount?: number;
+      };
+    };
+  } | null;
+  status: string;
+  generated_at: string;
+}
+
+/**
+ * Transform a database review article row to the Article format.
+ *
+ * Maps database fields to the ArticleFrontmatter interface for
+ * consistent rendering with MDX articles.
+ */
+function transformReviewArticleToArticle(row: ReviewArticleRow): Article {
+  const stats = readingTime(row.content_markdown);
+  const metadata = row.metadata_json || {};
+
+  return {
+    slug: row.slug,
+    frontmatter: {
+      title: row.title,
+      description: metadata.seo?.description || `Review article about ${row.title}`,
+      category: "reviews",
+      author: "KnearMe Editorial",
+      publishedAt: row.generated_at,
+      tags: metadata.seo?.keywords || [],
+      // Reviews don't have these optional fields
+      featured: false,
+    },
+    content: row.content_markdown,
+    readingTime: stats,
+  };
+}
+
+/**
+ * Transform a database review article row to ArticleMeta format.
+ *
+ * Used for list views where full content is not needed.
+ */
+function transformReviewArticleToMeta(row: ReviewArticleRow): ArticleMeta {
+  const stats = readingTime(row.content_markdown);
+  const metadata = row.metadata_json || {};
+
+  return {
+    slug: row.slug,
+    frontmatter: {
+      title: row.title,
+      description: metadata.seo?.description || `Review article about ${row.title}`,
+      category: "reviews",
+      author: "KnearMe Editorial",
+      publishedAt: row.generated_at,
+      tags: metadata.seo?.keywords || [],
+      featured: false,
+    },
+    readingTime: {
+      text: stats.text,
+      minutes: Math.ceil(stats.minutes),
+    },
+  };
+}
+
+/**
+ * Get a review article by slug from the database.
+ *
+ * @param slug - Article slug
+ * @returns Article with frontmatter and content, or null if not found
+ */
+export async function getReviewArticleBySlug(slug: string): Promise<Article | null> {
+  try {
+    const supabase = createAdminClient();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("review_articles")
+      .select("*")
+      .eq("slug", slug)
+      .eq("status", "published")
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return transformReviewArticleToArticle(data as ReviewArticleRow);
+  } catch (error) {
+    console.error(`[getReviewArticleBySlug] Error loading article ${slug}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get all published review articles from the database.
+ *
+ * Returns articles sorted by generated_at date (newest first).
+ */
+export async function getAllReviewArticles(): Promise<ArticleMeta[]> {
+  try {
+    const supabase = createAdminClient();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("review_articles")
+      .select("*")
+      .eq("status", "published")
+      .order("generated_at", { ascending: false });
+
+    if (error) {
+      console.error("[getAllReviewArticles] Database error:", error);
+      return [];
+    }
+
+    const rows = (data || []) as ReviewArticleRow[];
+    return rows.map(transformReviewArticleToMeta);
+  } catch (error) {
+    console.error("[getAllReviewArticles] Error loading articles:", error);
+    return [];
+  }
+}
+
+/**
+ * Get all review article slugs for static generation.
+ *
+ * @returns Array of slugs for generateStaticParams
+ */
+export async function getAllReviewArticleSlugs(): Promise<string[]> {
+  try {
+    const supabase = createAdminClient();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("review_articles")
+      .select("slug")
+      .eq("status", "published");
+
+    if (error) {
+      console.error("[getAllReviewArticleSlugs] Database error:", error);
+      return [];
+    }
+
+    return (data || []).map((row: { slug: string }) => row.slug);
+  } catch (error) {
+    console.error("[getAllReviewArticleSlugs] Error loading slugs:", error);
+    return [];
+  }
 }

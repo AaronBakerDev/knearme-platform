@@ -923,10 +923,22 @@ useEffect(() => {
 
     setSessionId(session.id);
 
-    if (!isNew && session.messages?.length > 0) {
-      // Restore messages
-      const uiMessages = session.messages.map(dbMessageToUIMessage);
-      setMessages(uiMessages);
+    if (!isNew) {
+      const contextResponse = await fetch(
+        `/api/chat/sessions/${session.id}/context?projectId=${projectId}&mode=ui`
+      );
+      const context = await contextResponse.json();
+
+      if (context.messages?.length) {
+        let messagesToLoad = context.messages;
+        if (!context.loadedFully && context.summary) {
+          messagesToLoad = [
+            createSummarySystemMessage(context.summary, context.projectData),
+            ...context.messages,
+          ];
+        }
+        setMessages(messagesToLoad);
+      }
     }
   }
   loadSession();
@@ -942,6 +954,10 @@ useEffect(() => {
   lastMessageCount.current = messages.length;
 }, [sessionId, status, messages]);
 ```
+
+Notes:
+- `/api/chat/sessions/by-project/:id` returns session metadata only; load messages via `/context`.
+- Use `mode=ui` to cap message payloads for faster resume.
 
 ---
 
@@ -971,7 +987,8 @@ POST /api/chat/sessions             # Create session
 GET /api/chat/sessions/[id]         # Get session
 PATCH /api/chat/sessions/[id]       # Update session
 POST /api/chat/sessions/[id]/messages  # Add message
-GET /api/chat/sessions/by-project/[projectId]  # Get or create by project
+GET /api/chat/sessions/by-project/[projectId]  # Get or create by project (metadata only)
+GET /api/chat/sessions/by-project/[projectId]?includeMessages=true  # Optional full messages
 ```
 
 ---

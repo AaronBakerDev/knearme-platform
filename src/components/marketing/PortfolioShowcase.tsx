@@ -5,9 +5,9 @@ import { Badge } from "@/components/ui/badge";
 /**
  * Portfolio Showcase Section
  *
- * Displays sample project cards demonstrating the quality of AI-generated
- * content. Uses realistic fake data based on masonry project types from
- * vision.md (chimney, tuckpointing, stone work).
+ * Displays sample project cards showing how contractor work is presented.
+ * Uses realistic examples based on masonry project types (chimney,
+ * tuckpointing, stone work).
  *
  * Placeholder images show where contractor photos would appear.
  * In production, these would be real before/after images.
@@ -49,10 +49,10 @@ export function PortfolioShowcase() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center mb-16">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            See What You&apos;ll Get
+            Your Work, Ready to Share
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Real project showcases created by contractors like you.
+            Every project you document is proof that wins your next job.
           </p>
         </div>
 

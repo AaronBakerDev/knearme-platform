@@ -6,6 +6,9 @@
  * Returns existing session for the project or creates a new one.
  * This ensures each project has a single active chat session
  * shared across all chat entry points.
+ *
+ * Optional query params:
+ * - includeMessages=true: include full message history (default: false)
  */
 
 import { NextResponse } from 'next/server';
@@ -20,11 +23,13 @@ interface RouteParams {
  * GET /api/chat/sessions/by-project/[projectId]
  *
  * Get the chat session for a project, creating one if it doesn't exist.
- * Also returns all messages for the session.
+ * Messages are excluded by default to keep payloads small.
  */
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { projectId } = await params;
+    const url = new URL(request.url);
+    const includeMessages = url.searchParams.get('includeMessages') === 'true';
 
     const auth = await requireAuth();
     if (isAuthError(auth)) {
@@ -73,23 +78,26 @@ export async function GET(request: Request, { params }: RouteParams) {
       session = newSession;
     }
 
-    // Get messages for the session
     const typedSession = session as Record<string, unknown>;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: messages, error: messagesError } = await (supabase as any)
-      .from('chat_messages')
-      .select('id, role, content, metadata, created_at')
-      .eq('session_id', typedSession.id as string)
-      .order('created_at', { ascending: true });
+    let messages: unknown[] | null = null;
+    if (includeMessages) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: sessionMessages, error: messagesError } = await (supabase as any)
+        .from('chat_messages')
+        .select('id, role, content, metadata, created_at')
+        .eq('session_id', typedSession.id as string)
+        .order('created_at', { ascending: true });
 
-    if (messagesError) {
-      throw messagesError;
+      if (messagesError) {
+        throw messagesError;
+      }
+      messages = sessionMessages || [];
     }
 
     return NextResponse.json({
       session: {
         ...typedSession,
-        messages: messages || [],
+        ...(includeMessages ? { messages } : {}),
       },
       isNew: !existingSession,
     });

@@ -1,8 +1,15 @@
 import { useMemo } from 'react';
-import type { ExtractedProjectData } from '@/lib/chat/chat-types';
+import type { ExtractedProjectData, ChatPhase } from '@/lib/chat/chat-types';
 import type { CompletenessState } from './useCompleteness';
 
-export type QuickActionType = 'addPhotos' | 'generate' | 'openForm' | 'showPreview' | 'insert';
+export type QuickActionType =
+  | 'addPhotos'
+  | 'generate'
+  | 'openForm'
+  | 'showPreview'
+  | 'composeLayout'
+  | 'checkPublishReady'
+  | 'insert';
 
 export interface QuickActionItem {
   id: string;
@@ -15,8 +22,8 @@ interface UseQuickActionsInput {
   extractedData: ExtractedProjectData;
   completeness: CompletenessState;
   imageCount: number;
-  hasFormContent: boolean;
   allowGenerate: boolean;
+  phase?: ChatPhase;
 }
 
 /**
@@ -29,8 +36,8 @@ export function useQuickActions({
   extractedData,
   completeness,
   imageCount,
-  hasFormContent,
   allowGenerate,
+  phase,
 }: UseQuickActionsInput): QuickActionItem[] {
   return useMemo(() => {
     const actions: QuickActionItem[] = [];
@@ -51,11 +58,16 @@ export function useQuickActions({
       });
     }
 
-    if (hasFormContent) {
+    if (phase === 'review') {
       actions.push({
-        id: 'open-form',
-        label: 'Open edit form',
-        type: 'openForm',
+        id: 'compose-layout',
+        label: 'Compose layout',
+        type: 'composeLayout',
+      });
+      actions.push({
+        id: 'check-publish',
+        label: 'Check publish readiness',
+        type: 'checkPublishReady',
       });
     }
 
@@ -139,7 +151,7 @@ export function useQuickActions({
     extractedData.proud_of,
     extractedData.solution_approach,
     extractedData.state,
-    hasFormContent,
     imageCount,
+    phase,
   ]);
 }

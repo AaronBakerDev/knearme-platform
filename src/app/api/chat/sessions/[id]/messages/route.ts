@@ -9,7 +9,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
-import { estimateTokens } from '@/lib/chat/context-loader';
+import { estimateTokens, estimateMessageTokens } from '@/lib/chat/context-loader';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -57,7 +57,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: session, error: sessionError } = await (supabase as any)
       .from('chat_sessions')
-      .select('id, message_count')
+      .select('id, message_count, estimated_tokens')
       .eq('id', sessionId)
       .single();
 
@@ -93,12 +93,19 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     // Update session message count + estimated tokens for context loading
     const newCount = (session.message_count ?? 0) + 1;
+    const messageTokens = estimateMessageTokens(
+      contentValue,
+      hasParts ? (parts as typeof parts) : undefined
+    );
+    const newEstimatedTokens =
+      (session.estimated_tokens ?? estimateTokens(session.message_count ?? 0, true, false)) +
+      messageTokens;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: updateError } = await (supabase as any)
       .from('chat_sessions')
       .update({
         message_count: newCount,
-        estimated_tokens: estimateTokens(newCount, true, false),
+        estimated_tokens: newEstimatedTokens,
         updated_at: new Date().toISOString(),
       })
       .eq('id', sessionId);

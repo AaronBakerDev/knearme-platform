@@ -76,7 +76,7 @@ This document breaks down the SEO implementation into four phases over 12 months
 - Contact information and business details
 - JSON-LD LocalBusiness schema
 
-**File:** `app/(public)/contractor/[username]/page.tsx`
+**File:** `app/(public)/contractors/[city]/[id]/page.tsx`
 
 **Validation:**
 - [ ] Profile loads from database

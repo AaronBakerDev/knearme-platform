@@ -19,8 +19,8 @@ function Callout({
 }) {
   const styles = {
     info: 'border-primary/20 bg-primary/5',
-    tip: 'border-emerald-500/20 bg-emerald-500/10',
-    warning: 'border-amber-500/30 bg-amber-500/10',
+    tip: 'border-accent/30 bg-accent/10',
+    warning: 'border-destructive/30 bg-destructive/10',
   } as const;
 
   return (
@@ -52,7 +52,7 @@ export function DescriptionBlocksClient({ blocks, className }: DescriptionBlocks
   if (!blocks || blocks.length === 0) return null;
 
   return (
-    <article className={cn('prose prose-lg max-w-none mb-8', className)}>
+    <article className={cn('prose prose-lg prose-earth max-w-none mb-8', className)}>
       {blocks.map((block, index) => {
         switch (block.type) {
           case 'paragraph':

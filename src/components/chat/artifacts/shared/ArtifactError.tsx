@@ -43,6 +43,7 @@ const DEFAULT_ERRORS: Record<ArtifactType, string> = {
   reorderImages: 'Could not reorder images.',
   validateForPublish: 'Could not validate publish readiness.',
   generatePortfolioContent: 'Could not generate portfolio content.',
+  composePortfolioLayout: 'Could not compose portfolio layout.',
   checkPublishReady: 'Could not check publish readiness.',
 };
 

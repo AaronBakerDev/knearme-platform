@@ -242,7 +242,7 @@ export function ProjectPublicPreview({
         <div className="max-w-4xl mx-auto">
           {showBackLink && (
             <Link
-              href={`/contractors/${contractor.city_slug || ''}/${contractor.id}`}
+              href={`/contractors/${contractor.city_slug || ''}/${contractor.profile_slug || contractor.id}`}
               className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
@@ -367,7 +367,7 @@ export function ProjectPublicPreview({
                   </div>
                 </div>
                 <Button asChild size="lg" className="shadow-sm">
-                  <Link href={`/contractors/${contractor.city_slug || ''}/${contractor.id}`}>
+                  <Link href={`/contractors/${contractor.city_slug || ''}/${contractor.profile_slug || contractor.id}`}>
                     View All Projects
                   </Link>
                 </Button>

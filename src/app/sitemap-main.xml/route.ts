@@ -63,7 +63,7 @@ export async function GET() {
       );
     });
 
-    // Learning center
+    // Learning center - MDX articles
     const articles = getAllArticles();
     urls.push(
       generateUrlEntry(`${SITE_URL}/learn`, new Date(), 'weekly', 0.7)
@@ -91,6 +91,27 @@ export async function GET() {
     // Dynamic content from database (if service role key is available)
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createAdminClient();
+
+      // Review articles from database (Learning center)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: reviewArticles } = await (supabase as any)
+        .from('review_articles')
+        .select('slug, generated_at')
+        .eq('status', 'published');
+
+      type ReviewArticle = { slug: string; generated_at: string };
+      const reviewList = (reviewArticles || []) as ReviewArticle[];
+
+      reviewList.forEach((article) => {
+        urls.push(
+          generateUrlEntry(
+            `${SITE_URL}/learn/${article.slug}`,
+            new Date(article.generated_at),
+            'monthly',
+            0.6
+          )
+        );
+      });
 
       // Published projects
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,15 +150,18 @@ export async function GET() {
         .from('contractors')
         .select(`
           id,
+          profile_slug,
           city_slug,
           updated_at,
           projects!inner(status)
         `)
         .eq('projects.status', 'published')
-        .not('city_slug', 'is', null);
+        .not('city_slug', 'is', null)
+        .not('profile_slug', 'is', null);
 
       type SitemapContractor = {
         id: string;
+        profile_slug: string;
         city_slug: string;
         updated_at: string;
       };
@@ -154,7 +178,7 @@ export async function GET() {
       Array.from(uniqueContractors.values()).forEach((contractor) => {
         urls.push(
           generateUrlEntry(
-            `${SITE_URL}/contractors/${contractor.city_slug}/${contractor.id}`,
+            `${SITE_URL}/contractors/${contractor.city_slug}/${contractor.profile_slug}`,
             new Date(contractor.updated_at),
             'weekly',
             0.6

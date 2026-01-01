@@ -34,6 +34,20 @@ export interface ProjectContextData {
 }
 
 /**
+ * Business profile context for prompt injection.
+ */
+export interface BusinessProfileContext {
+  businessName?: string | null;
+  trade?: string | null;
+  services?: string[] | null;
+  serviceAreas?: string[] | null;
+  city?: string | null;
+  state?: string | null;
+  differentiators?: string[] | null;
+  voice?: string | null;
+}
+
+/**
  * Result of loading conversation context.
  */
 export interface ContextLoadResult {
@@ -141,6 +155,55 @@ export function formatProjectDataForPrompt(
     if (extracted.challenges) {
       parts.push(`Challenges: ${extracted.challenges}`);
     }
+  }
+
+  return parts.length > 0 ? parts.join('\n') : '';
+}
+
+/**
+ * Format business profile data for inclusion in AI prompt.
+ *
+ * @param profile - Business profile context data
+ * @returns Formatted string for prompt injection
+ */
+export function formatBusinessProfileForPrompt(
+  profile: BusinessProfileContext
+): string {
+  const parts: string[] = [];
+
+  if (profile.businessName) {
+    parts.push(`Company: ${profile.businessName}`);
+  }
+
+  if (profile.trade) {
+    parts.push(`Trade: ${profile.trade}`);
+  }
+
+  const services = Array.isArray(profile.services)
+    ? profile.services.filter((item) => item && item.trim())
+    : [];
+  if (services.length > 0) {
+    parts.push(`Services: ${services.join(', ')}`);
+  }
+
+  const serviceAreas = Array.isArray(profile.serviceAreas)
+    ? profile.serviceAreas.filter((item) => item && item.trim())
+    : [];
+  if (serviceAreas.length > 0) {
+    parts.push(`Service area: ${serviceAreas.join(', ')}`);
+  } else if (profile.city && profile.state) {
+    parts.push(`Service area: ${profile.city}, ${profile.state}`);
+  }
+
+  const differentiators = Array.isArray(profile.differentiators)
+    ? profile.differentiators.filter((item) => item && item.trim())
+    : [];
+  if (differentiators.length > 0) {
+    parts.push(`Differentiators: ${differentiators.join('; ')}`);
+  }
+
+  if (profile.voice) {
+    parts.push(`Voice: ${profile.voice}`);
   }
 
   return parts.length > 0 ? parts.join('\n') : '';

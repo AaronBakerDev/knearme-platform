@@ -30,7 +30,7 @@ The contractor always communicates with **one persona** - their dedicated Accoun
 | Agent | Purpose | When Called | Current Implementation |
 |-------|---------|-------------|------------------------|
 | **Account Manager** | Single persona contractors talk to. Orchestrates tool usage. | Every message | Implemented via system prompt + tool calling in `/src/app/api/chat/route.ts` and `/src/lib/chat/chat-prompts.ts`. |
-| **Story Extractor** | Extracts structured data from natural conversation | After contractor messages with project info | Server-side story extraction runs during `extractProjectData` tool execution for consistent readiness rules. |
+| **Story Extractor** | Extracts structured data from natural conversation | When `extractProjectData` runs | Server-side Gemini extraction during tool execution; merges `chat_sessions.extracted_data` + tool args + latest user message. Falls back to heuristic extraction when AI is disabled. |
 | **Content Generator** | Creates title, description, SEO metadata | When ready to generate content | Used via `generatePortfolioContent` tool (server-side agent). |
 | **Quality Checker** | Validates publish requirements are met | Before publishing (coaching) | Used via `checkPublishReady` tool (server-side agent). Final publish gating uses `validateForPublish` (dry_run on `/api/projects/[id]/publish`). |
 
@@ -57,18 +57,34 @@ interface SharedProjectState {
 
   // Generated content
   title?: string;
+  suggestedTitle?: string;
   description?: string;
   seoTitle?: string;
   seoDescription?: string;
+  tags: string[];
 
   // Images
-  images: ProjectImage[];
+  images: ProjectImageState[];
   heroImageId?: string;
 
   // State flags
   readyForImages: boolean;
   readyForContent: boolean;
   readyToPublish: boolean;
+
+  // Clarification tracking
+  needsClarification: string[];
+  clarifiedFields: string[];
+}
+```
+
+```typescript
+interface ProjectImageState {
+  id: string;
+  url: string;
+  imageType?: 'before' | 'after' | 'progress' | 'detail';
+  altText?: string;
+  displayOrder: number;
 }
 ```
 
@@ -83,6 +99,13 @@ interface SharedProjectState {
 | `/src/lib/agents/orchestrator.ts` | Account Manager orchestration (wired via chat tools) |
 | `/src/app/api/chat/route.ts` | Tool-driven chat runtime (Account Manager persona + tool calls) |
 | `/src/lib/chat/tool-schemas.ts` | Tool input/output schemas for extraction, generation, quality checks |
+
+## Tool Wiring Notes
+
+- `extractProjectData` builds state by merging session extracted data + tool args, then runs Story Extractor on the latest user message.
+- `generatePortfolioContent` loads project data (including images + AI context) to build `SharedProjectState` before running Content Generator.
+- `checkPublishReady` loads project data, runs Quality Checker, and returns optional warnings; final gating remains `validateForPublish`.
+- Orchestrator actions (`prompt_images`, `request_clarification`) are not surfaced to the model; the prompt decides when to call `promptForImages` or `requestClarification`.
 
 ## Image Handling
 
@@ -103,7 +126,7 @@ The chat system persists the **full message history** including tool parts (tool
 
 Key files:
 - `/src/app/api/chat/sessions/[id]/messages/route.ts` stores `parts` in `chat_messages.metadata.parts`
-- `/src/lib/chat/context-loader.ts` loads full messages + summary for long sessions
+- `/src/lib/chat/context-loader.ts` loads full messages or summary + recent, with a UI cap when `mode=ui`
 - `/src/components/chat/ChatWizard.tsx` restores tool parts into the UI
 
 ## Testing Strategy

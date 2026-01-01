@@ -689,26 +689,23 @@ export default function EditProjectPage({ params }: { params: { id: string } }) 
 }
 ```
 
-#### 6.7 Fresh Start Session Management
+#### 6.7 Shared Session Resume Management
 
-Each edit session starts clean:
+Edit mode resumes the shared project session using the context loader:
 
 ```typescript
-// No session restoration in edit mode
-// Each visit shows current project state
-// Conversation doesn't persist between edit sessions
+// Load session metadata (no messages)
+const sessionResponse = await fetch(`/api/chat/sessions/by-project/${projectId}`);
+const { session, isNew } = await sessionResponse.json();
 
-const getWelcomeMessage = (project: Project) => ({
-  id: 'welcome',
-  role: 'assistant',
-  parts: [
-    {
-      type: 'text',
-      text: `Here's your "${project.title}" project. What would you like to change?`
-    },
-    // ... initial artifacts
-  ],
-});
+// Load capped context for UI restore
+if (!isNew) {
+  const contextResponse = await fetch(
+    `/api/chat/sessions/${session.id}/context?projectId=${projectId}&mode=ui`
+  );
+  const context = await contextResponse.json();
+  // Inject summary as system message when compacted
+}
 ```
 
 ### Deliverables
@@ -717,7 +714,7 @@ const getWelcomeMessage = (project: Project) => ({
 - [ ] Edit mode loads existing project into artifacts
 - [ ] All artifacts support inline editing
 - [ ] Edit-specific tools (updateField, regenerateSection, etc.)
-- [ ] Fresh start per edit session
+- [ ] Resume shared session via context loader (mode=ui)
 - [ ] Deprecate old tab-based edit page
 
 ### Verification
@@ -726,13 +723,14 @@ const getWelcomeMessage = (project: Project) => ({
 # Test edit mode
 # 1. Create and publish a project
 # 2. Navigate to /projects/[id]/edit
-# 3. See current project in artifacts
+# 3. See current project + prior artifacts restored
 # 4. Type "make title more catchy"
 # 5. Verify AI regenerates title
 # 6. Click title to edit directly
 # 7. Drag images to reorder
 # 8. Ask "what's missing for publish?"
-# 9. Verify all changes saved
+# 9. Refresh and confirm prior messages/artifacts restore quickly
+# 10. Verify all changes saved
 ```
 
 ### E2E Test for Edit Mode
@@ -1619,7 +1617,7 @@ Track these metrics before and after implementation:
 - [ ] `regenerateSection` tool
 - [ ] `reorderImages` tool
 - [ ] `validateForPublish` tool
-- [ ] Fresh start session management
+- [ ] Shared session resume management (context loader + UI cap)
 - [ ] Update routing to use ChatWizard
 - [ ] Deprecate tab-based edit page
 

@@ -40,6 +40,35 @@ export type VoiceRecordingState =
   | 'error';
 
 /**
+ * Voice interaction mode for the chat experience.
+ *
+ * Two modes:
+ * - 'text': User can type OR speak (voice-to-text), AI responds with text
+ * - 'voice_chat': Full two-way voice conversation with AI
+ *
+ * Note: The old 'voice_text' mode was merged into 'text' mode since
+ * users can always use the mic button for voice-to-text in text mode.
+ */
+export type VoiceInteractionMode = 'text' | 'voice_chat';
+
+/**
+ * High-level I/O status for voice interactions.
+ */
+export type VoiceModeStatus = 'idle' | 'listening' | 'processing' | 'speaking' | 'error';
+
+/**
+ * Network quality signal for voice sessions.
+ *
+ * @see /src/lib/voice/network-quality.ts for detection implementation
+ *
+ * Quality levels:
+ * - 'good': RTT < 300ms, variance < 100ms - suitable for voice_voice mode
+ * - 'degraded': RTT 300-500ms or variance 100-200ms - recommend voice_text mode
+ * - 'poor': RTT > 500ms or variance > 200ms - recommend text mode only
+ */
+export type VoiceNetworkQuality = 'good' | 'degraded' | 'poor';
+
+/**
  * Permission status for microphone access.
  */
 export type MicPermissionStatus = 'prompt' | 'granted' | 'denied' | 'unavailable';

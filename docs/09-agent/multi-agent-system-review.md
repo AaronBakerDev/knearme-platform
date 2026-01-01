@@ -1,8 +1,12 @@
 # Multi-Agent System Review
 
 > Status: Updated  
-> Date: December 28, 2025  
+> Date: December 31, 2025  
 > Owner: Engineering
+
+Update (Dec 31, 2025):
+- Documented that `extractProjectData` merges session extracted data + tool args, then re-extracts from the latest user message.
+- Clarified that orchestrator actions are not surfaced; `promptForImages` / `requestClarification` remain prompt-driven.
 
 Update (Dec 28, 2025):
 - Story Extractor + Orchestrator are wired into `/api/chat` tool execution.
@@ -16,16 +20,18 @@ via the Story Extractor + Orchestrator during `extractProjectData`, and content
 generation / publish validation flow through the Orchestrator in the
 `generatePortfolioContent` and `checkPublishReady` tools. Shared state now
 includes `city`, `state`, and `projectTypeSlug`, aligning publish readiness with
-the real publish endpoint.
+the real publish endpoint. Orchestrator actions are still prompt-driven in the
+chat runtime (no automatic `promptForImages` / `requestClarification` calls).
 
 ## What’s Actually Wired In
 
 Runtime use today:
-- `extractProjectData` tool → `StoryExtractor` (via Orchestrator gather phase)
+- `extractProjectData` tool → `StoryExtractor` (via Orchestrator gather phase, seeded by session extracted data + tool args)
 - `generatePortfolioContent` tool → `ContentGenerator` (via Orchestrator generate phase)
 - `checkPublishReady` tool → `QualityChecker` (via Orchestrator ready phase)
 - `validateForPublish` tool → publish validation endpoint (`/api/projects/[id]/publish?dry_run=true`)
-- `Orchestrator` coordinates state + readiness
+- `promptForImages` / `requestClarification` → model-driven tool calls (prompt guidance)
+- `Orchestrator` coordinates state + readiness (actions not surfaced)
 
 Relevant files:
 - `src/app/api/chat/route.ts` (tool wiring)
@@ -53,6 +59,11 @@ Tool outputs are now grounded in server‑side extraction + state alignment,
 reducing the gap between conversation guidance and publish validation. Final
 publish gating still routes through `validateForPublish` for server rules.
 
+### 4) Orchestrator actions not surfaced
+
+The orchestrator currently returns actions internally, but those are not wired
+into the chat runtime. Image prompts and clarifications remain prompt-driven.
+
 ## Evaluation: Structure & Extensibility
 
 Strengths:
@@ -63,6 +74,8 @@ Strengths:
 Weaknesses:
 - Orchestration still relies on tool calls; deeper multi‑agent planning could
   be added if needed.
+- Orchestrator actions are not surfaced to tools, so clarifications and photo
+  prompts depend entirely on the model following the prompt.
 
 Overall: **Wired and aligned.** The architecture is now end‑to‑end functional,
 with state aligned to publish requirements and orchestration integrated.

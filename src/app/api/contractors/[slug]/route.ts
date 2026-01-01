@@ -21,6 +21,7 @@ import type { Contractor, Project, ProjectImage } from '@/types/database';
 interface PublicContractor {
   id: string;
   business_name: string;
+  profile_slug: string;
   city: string;
   state: string;
   city_slug: string;
@@ -51,7 +52,7 @@ interface RouteContext {
 /**
  * GET /api/contractors/[slug]
  *
- * Get a public contractor profile by their city_slug.
+ * Get a public contractor profile by their profile_slug.
  * Only returns contractors with complete profiles.
  * Includes their published projects with thumbnails.
  */
@@ -68,13 +69,13 @@ export async function GET(
 
     const supabase = await createClient();
 
-    // Fetch contractor by city_slug
-    // Note: We query by city_slug which is the URL-friendly identifier
+    // Fetch contractor by profile_slug
+    // Note: profile_slug is the URL-friendly business slug (unique)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: contractor, error: contractorError } = await (supabase as any)
       .from('contractors')
       .select('*')
-      .eq('city_slug', slug)
+      .eq('profile_slug', slug)
       .not('business_name', 'is', null)  // Only complete profiles
       .single();
 
@@ -118,6 +119,7 @@ export async function GET(
     const publicContractor: PublicContractor = {
       id: typedContractor.id,
       business_name: typedContractor.business_name!,
+      profile_slug: typedContractor.profile_slug!,
       city: typedContractor.city!,
       state: typedContractor.state!,
       city_slug: typedContractor.city_slug!,

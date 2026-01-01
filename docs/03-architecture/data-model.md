@@ -109,6 +109,7 @@ Primary table for contractor business profiles.
 | `auth_user_id` | `uuid` | NO | - | FK to `auth.users.id` |
 | `email` | `text` | NO | - | Unique, from Supabase Auth |
 | `business_name` | `text` | NO | - | Display name for portfolio |
+| `profile_slug` | `text` | YES | `NULL` | Public profile slug (unique, editable) |
 | `city` | `text` | NO | - | City for filtering |
 | `state` | `text` | NO | - | Two-letter state code |
 | `city_slug` | `text` | NO | - | URL-friendly city (e.g., "denver-co") |
@@ -116,6 +117,7 @@ Primary table for contractor business profiles.
 | `service_areas` | `text[]` | NO | `'{}'` | Cities/neighborhoods served (SEO critical) |
 | `profile_image_path` | `text` | YES | `NULL` | Storage path for logo/photo |
 | `business_description` | `text` | YES | `NULL` | About the business |
+| `plan_tier` | `text` | NO | `'free'` | Billing tier (`free` or `pro`) |
 | `created_at` | `timestamptz` | NO | `now()` | Record creation |
 | `updated_at` | `timestamptz` | NO | `now()` | Last update |
 
@@ -123,6 +125,7 @@ Primary table for contractor business profiles.
 - `PRIMARY KEY (id)`
 - `UNIQUE (auth_user_id)`
 - `UNIQUE (email)`
+- `UNIQUE (profile_slug)`
 - `INDEX (city_slug)`
 - `INDEX (services)` (GIN)
 
@@ -134,6 +137,7 @@ CREATE TABLE contractors (
     auth_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL UNIQUE,
     business_name TEXT NOT NULL,
+    profile_slug TEXT,
     city TEXT NOT NULL,
     state TEXT NOT NULL CHECK (length(state) = 2),
     city_slug TEXT NOT NULL,
@@ -141,11 +145,13 @@ CREATE TABLE contractors (
     service_areas TEXT[] NOT NULL DEFAULT '{}', -- Critical for local SEO
     profile_image_path TEXT,
     business_description TEXT,
+    plan_tier TEXT NOT NULL DEFAULT 'free' CHECK (plan_tier IN ('free', 'pro')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_contractors_city_slug ON contractors(city_slug);
+CREATE UNIQUE INDEX idx_contractors_profile_slug ON contractors(profile_slug);
 CREATE INDEX idx_contractors_services ON contractors USING GIN(services);
 CREATE INDEX idx_contractors_service_areas ON contractors USING GIN(service_areas); -- Enables: "Find contractors serving Lakewood"
 

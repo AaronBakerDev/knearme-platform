@@ -25,10 +25,11 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
  * Generate LocalBusiness schema for a contractor.
  */
 export function generateContractorSchema(contractor: Contractor) {
+  const contractorSlug = contractor.profile_slug || contractor.id;
   return {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    '@id': `${SITE_URL}/contractors/${contractor.city_slug}/${contractor.id}`,
+    '@id': `${SITE_URL}/contractors/${contractor.city_slug}/${contractorSlug}`,
     name: contractor.business_name,
     description: contractor.description,
     address: {
@@ -267,7 +268,7 @@ export function generateServiceSchema(
   stats: {
     projectCount: number;
     contractorCount: number;
-    providers?: Array<{ name: string; id: string; citySlug: string }>;
+    providers?: Array<{ name: string; slug: string; citySlug: string }>;
   }
 ) {
   const serviceUrl = `${SITE_URL}/${location.citySlug}/masonry/${serviceType.slug}`;
@@ -293,7 +294,7 @@ export function generateServiceSchema(
     provider: stats.providers?.slice(0, 5).map((provider) => ({
       '@type': 'LocalBusiness',
       name: provider.name,
-      url: `${SITE_URL}/contractors/${provider.citySlug}/${provider.id}`,
+      url: `${SITE_URL}/contractors/${provider.citySlug}/${provider.slug}`,
     })) || [],
     // Aggregate offer showing availability
     offers: {

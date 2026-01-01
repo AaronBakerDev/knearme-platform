@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { MASONRY_SERVICES, REGIONS } from '@/lib/constants/services';
-import { generateCitySlug } from '@/lib/utils/slugify';
 import { Building2, Wrench, MapPin, CheckCircle2, X, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FormError } from '@/components/ui/form-error';
@@ -174,33 +173,22 @@ export default function ProfileSetupPage() {
     setError(null);
 
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
-      const citySlug = generateCitySlug(profileData.city, profileData.state);
-
-      // Type assertion needed until Supabase project is connected
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: updateError } = await (supabase as any)
-        .from('contractors')
-        .update({
+      const res = await fetch('/api/contractors/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           business_name: profileData.businessName,
           city: profileData.city,
           state: profileData.state,
-          city_slug: citySlug,
           description: profileData.description || null,
           services: profileData.services,
           service_areas: profileData.serviceAreas,
-        })
-        .eq('auth_user_id', user.id);
+        }),
+      });
 
-      if (updateError) {
-        setError(updateError.message);
+      if (!res.ok) {
+        const payload = await res.json();
+        setError(payload?.message || 'Failed to complete setup.');
         return;
       }
 

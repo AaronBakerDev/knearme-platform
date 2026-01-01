@@ -1,18 +1,25 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Libre_Baskerville } from "next/font/google";
 import { AppleSplashScreens } from "@/components/pwa/AppleSplashScreens";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import "./globals.css";
 
 /**
- * Typography system - Clean, modern sans-serif.
+ * Typography system - Clean, modern sans-serif with classic display font.
  *
+ * Libre Baskerville: Display font - architectural weight, trustworthy
  * Geist: Primary font - geometric, readable, professional
  * Geist Mono: Code and technical text
  *
  * @see https://vercel.com/font
  */
+const libreBaskerville = Libre_Baskerville({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+});
+
 const geistSans = Geist({
   variable: "--font-sans",
   subsets: ["latin"],
@@ -28,7 +35,7 @@ export const metadata: Metadata = {
     default: "KnearMe | Masonry Portfolio Platform",
     template: "%s | KnearMe",
   },
-  description: "Build a professional masonry portfolio in seconds. AI-powered case studies, SEO optimization, and lead generation for contractors.",
+  description: "Turn your finished masonry work into shareable proof that wins more jobs. Upload photos, describe the job, done.",
   metadataBase: new URL("https://knearme.com"),
   openGraph: {
     type: "website",
@@ -81,7 +88,7 @@ export default function RootLayout({
         ></script>
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${libreBaskerville.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
         <ThemeProvider>

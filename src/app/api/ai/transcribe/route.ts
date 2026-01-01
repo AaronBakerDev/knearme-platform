@@ -162,23 +162,42 @@ export async function POST(request: NextRequest) {
 
       // Type assertion for session data
       type TranscribeSessionData = {
-        questions?: Record<string, unknown>[];
+        questions?: Array<{
+          id: string;
+          text?: string;
+          purpose?: string;
+          answer?: string;
+          raw_transcription?: string;
+          duration?: number;
+        }>;
         raw_transcripts?: string[];
       };
       const sessionData = existingSession as TranscribeSessionData | null;
 
-      // Build questions array with this response
-      const existingQuestions = (sessionData?.questions || []) as Record<string, unknown>[];
-      const updatedQuestions = [
-        ...existingQuestions.filter((q: Record<string, unknown>) => q.id !== question_id),
-        {
+      // Build questions array with this response (preserve order and metadata)
+      const existingQuestions = (sessionData?.questions || []) as TranscribeSessionData['questions'];
+      const hasExisting = existingQuestions?.some((q) => q.id === question_id) ?? false;
+      const updatedQuestions = (existingQuestions || []).map((question) => {
+        if (question.id !== question_id) return question;
+        return {
+          ...question,
           id: question_id,
           text: question_text,
           answer: cleanedText,
           raw_transcription: result.text,
           duration: result.duration,
-        },
-      ];
+        };
+      });
+
+      if (!hasExisting) {
+        updatedQuestions.push({
+          id: question_id,
+          text: question_text,
+          answer: cleanedText,
+          raw_transcription: result.text,
+          duration: result.duration,
+        });
+      }
 
       // Update raw transcripts array
       const existingTranscripts = sessionData?.raw_transcripts || [];

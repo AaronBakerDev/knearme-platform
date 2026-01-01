@@ -22,7 +22,6 @@ import {
   ChevronUp,
   Pencil,
   RefreshCw,
-  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -268,29 +267,12 @@ export function GeneratedContentCard({
       <div className="flex items-center gap-2 pt-3 border-t border-border/50">
         <Button
           size="sm"
-          className="gap-1.5"
-          onClick={() => onAction?.({ type: 'accept', payload: data })}
-        >
-          <Check className="h-4 w-4" />
-          Accept
-        </Button>
-        <Button
-          size="sm"
           variant="outline"
           className="gap-1.5"
-          onClick={() => onAction?.({ type: 'edit', payload: data })}
+          onClick={() => onAction?.({ type: 'openForm' })}
         >
           <Pencil className="h-4 w-4" />
-          Edit
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="gap-1.5"
-          onClick={() => onAction?.({ type: 'regenerate' })}
-        >
-          <RefreshCw className="h-4 w-4" />
-          Regenerate
+          Open editor
         </Button>
       </div>
 

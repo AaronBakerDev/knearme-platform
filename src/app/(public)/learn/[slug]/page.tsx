@@ -38,7 +38,10 @@ import {
   getArticleBySlug,
   getAllArticleSlugs,
   getArticlesByCategory,
+  getReviewArticleBySlug,
+  getAllReviewArticleSlugs,
   type ArticleMeta,
+  type Article,
 } from "@/lib/content/mdx";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -67,6 +70,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   restoration: "Restoration",
   maintenance: "Maintenance",
   costs: "Cost Guides",
+  reviews: "Reviews",
 };
 
 const DEFAULT_EXTERNAL_SOURCE = {
@@ -82,11 +86,34 @@ type PageParams = {
 };
 
 /**
- * Generate static params for all articles.
+ * Generate static params for all articles (MDX + database review articles).
  */
 export async function generateStaticParams() {
-  const slugs = getAllArticleSlugs();
-  return slugs.map((slug) => ({ slug }));
+  // Get MDX article slugs
+  const mdxSlugs = getAllArticleSlugs();
+
+  // Get review article slugs from database
+  const reviewSlugs = await getAllReviewArticleSlugs();
+
+  // Combine and deduplicate (MDX takes priority if slug collision)
+  const allSlugs = [...new Set([...mdxSlugs, ...reviewSlugs])];
+
+  return allSlugs.map((slug) => ({ slug }));
+}
+
+/**
+ * Helper to get article from MDX or database.
+ * Checks MDX first (local files take priority), then falls back to database.
+ */
+async function getArticle(slug: string): Promise<Article | null> {
+  // Check MDX first (local files take priority)
+  const mdxArticle = getArticleBySlug(slug);
+  if (mdxArticle) {
+    return mdxArticle;
+  }
+
+  // Fall back to database review articles
+  return await getReviewArticleBySlug(slug);
 }
 
 /**
@@ -96,7 +123,7 @@ export async function generateMetadata({
   params,
 }: PageParams): Promise<Metadata> {
   const { slug } = await params;
-  const article = getArticleBySlug(slug);
+  const article = await getArticle(slug);
 
   if (!article) {
     return { title: "Article Not Found" };
@@ -180,7 +207,7 @@ function generateArticleSchema(
  */
 export default async function ArticlePage({ params }: PageParams) {
   const { slug } = await params;
-  const article = getArticleBySlug(slug);
+  const article = await getArticle(slug);
 
   if (!article) {
     notFound();

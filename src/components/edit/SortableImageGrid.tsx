@@ -15,8 +15,8 @@
  * @see src/app/(contractor)/projects/[id]/edit/page.tsx - Integration point
  */
 
-import { useCallback } from 'react'
-import Image from 'next/image'
+import { useCallback, useState } from 'react'
+import { SafeImage } from '@/components/ui/safe-image'
 import {
   DndContext,
   closestCenter,
@@ -37,7 +37,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { GripVertical, Trash2, Star } from 'lucide-react'
+import { GripVertical, Trash2, Star, AlertTriangle } from 'lucide-react'
 import type { ProjectImage } from '@/types/database'
 
 interface ImageWithUrl extends ProjectImage {
@@ -71,6 +71,7 @@ function SortableImage({
   onDelete: () => void
   disabled?: boolean
 }) {
+  const [hasError, setHasError] = useState(false)
   const {
     attributes,
     listeners,
@@ -92,17 +93,40 @@ function SortableImage({
       style={style}
       className={cn(
         'relative group rounded-lg overflow-hidden border bg-background',
-        isDragging && 'shadow-xl ring-2 ring-primary opacity-90'
+        isDragging && 'shadow-xl ring-2 ring-primary opacity-90',
+        hasError && 'border-destructive/50'
       )}
     >
       {/* Image */}
       <div className="relative aspect-square">
-        <Image
+        <SafeImage
           src={image.url}
           alt={image.alt_text || 'Project image'}
           fill
           className="object-cover"
           sizes="(max-width: 768px) 50vw, 33vw"
+          onImageError={() => setHasError(true)}
+          fallback={
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted gap-2">
+              <AlertTriangle className="h-8 w-8 text-destructive" />
+              <span className="text-xs text-muted-foreground text-center px-2">
+                Image not found
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete()
+                }}
+                className="mt-1"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Remove
+              </Button>
+            </div>
+          }
         />
       </div>
 

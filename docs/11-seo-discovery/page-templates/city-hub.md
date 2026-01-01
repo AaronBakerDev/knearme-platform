@@ -6,7 +6,9 @@
 
 ## Overview
 
-City Hub pages are **city-specific landing pages** that aggregate all masonry projects and contractors in a geographic area. These pages target broad local keywords like "Denver masonry" and serve as the primary entry point for homeowners browsing by location.
+City Hub pages are **city-specific roundup pages** that aggregate all masonry projects and contractors in a geographic area. These pages target broad local keywords like "Denver masonry" and serve as the primary entry point for homeowners browsing by location.
+
+**Note:** City Hubs are roundup hubs built from contractor-generated content. Review-analysis pages (e.g., "best {service} in {city}") are a separate editorial pipeline.
 
 **Implementation:** `app/(public)/[city]/masonry/page.tsx` (441 lines)
 

@@ -329,7 +329,7 @@ export default function ProjectEditPage({ params }: PageParams) {
                     <Button
                       size="sm"
                       onClick={handlePublish}
-                      disabled={isPublishing || !completeness.canGenerate}
+                      disabled={isPublishing || !completeness.canPublish}
                       className="h-8"
                     >
                       {isPublishing ? (
@@ -341,7 +341,7 @@ export default function ProjectEditPage({ params }: PageParams) {
                     </Button>
                   </span>
                 </TooltipTrigger>
-                {!completeness.canGenerate && (
+                {!completeness.canPublish && (
                   <TooltipContent side="bottom" className="max-w-xs">
                     <p className="font-medium mb-1">Complete these to publish:</p>
                     <ul className="text-xs space-y-0.5">
