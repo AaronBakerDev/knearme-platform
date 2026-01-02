@@ -151,6 +151,7 @@ All page types query from these tables:
 - [`../SEO-DISCOVERY-STRATEGY.md`](../SEO-DISCOVERY-STRATEGY.md) - Complete SEO strategy
 - [`../../CLAUDE.md`](../../CLAUDE.md) - Project overview and architecture
 - [`../02-requirements/epics/EPIC-005-seo.md`](../02-requirements/epics/EPIC-005-seo.md) - SEO requirements epic
+- [`./directory-decommission.md`](./directory-decommission.md) - Directory feature inventory and removal notes
 
 ### Implementation Guides
 - [`../03-architecture/data-model.md`](../03-architecture/data-model.md) - Database schema
