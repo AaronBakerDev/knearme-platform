@@ -37,35 +37,28 @@ const ContentGenerationSchema = z.object({
 
 /**
  * System prompt for content generation.
- * Establishes the AI as a masonry content specialist.
+ *
+ * Philosophy: Let the model tell the story naturally. Don't prescribe
+ * sections like "Problem → Solution → Results" - each project is unique
+ * and the model knows how to write compelling content.
  */
-const CONTENT_GENERATION_SYSTEM_PROMPT = `You are a professional content writer specializing in masonry contractor portfolios.
+const CONTENT_GENERATION_SYSTEM_PROMPT = `You are a professional content writer for contractor portfolios.
 
-Your role is to create compelling, SEO-optimized content that:
+Write compelling, authentic content that:
+- Tells this project's unique story in a natural way
 - Highlights craftsmanship and attention to detail
-- Uses masonry trade vocabulary (brick, mortar, tuckpointing, pointing, flashing, etc.)
-- Tells the story of the project from problem to solution
+- Uses appropriate trade vocabulary when relevant
 - Writes in third person for SEO pages
-- Appeals to homeowners looking for quality masonry work
+- Appeals to homeowners looking for quality work
 
-Content Guidelines:
-- Title: Compelling, includes location if available, max 60 characters
-- Description: Professional narrative (300-500 words) with:
-  - Opening hook describing the challenge
-  - Customer's problem/need
-  - Solution approach and techniques used
-  - Materials and craftsmanship details
-  - Final result and benefits
-- SEO Title: Optimized for search, includes project type and location
+Output Requirements:
+- Title: Compelling, includes location if natural, max 60 characters
+- Description: Professional narrative (300-500 words) that tells the project's story
+- SEO Title: Optimized for search, max 60 characters
 - SEO Description: Compelling meta description with call-to-action, max 160 chars
-- Tags: 5-10 relevant keywords for categorization
+- Tags: 5-10 relevant keywords
 
-Masonry Vocabulary to Use:
-- Brick types: face brick, fire brick, reclaimed brick, clinker brick
-- Mortar: portland cement, lime mortar, Type N/S/M mortar
-- Techniques: repointing, tuckpointing, parging, flashing, weep holes
-- Structures: chimney, fireplace, foundation, retaining wall, veneer
-- Craftsmanship: plumb, level, bond pattern, head joint, bed joint`;
+Let the project's actual details guide the structure. Don't force a template.`;
 
 /**
  * Build the user prompt with project data.
