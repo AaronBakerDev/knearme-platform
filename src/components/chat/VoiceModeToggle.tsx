@@ -5,7 +5,7 @@
  * Shows "Talk" / "Type" (and optional Voice -> Voice when enabled).
  */
 
-import { Mic, Keyboard, Headphones } from 'lucide-react';
+import { Mic, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { VoiceInteractionMode } from '@/types/voice';
@@ -23,8 +23,7 @@ const MODE_OPTIONS: Array<{
   label: string;
   icon: typeof Mic;
 }> = [
-  { mode: 'voice_text', label: 'Talk', icon: Mic },
-  { mode: 'voice_voice', label: 'Talk, hear me', icon: Headphones },
+  { mode: 'voice_chat', label: 'Talk', icon: Mic },
   { mode: 'text', label: 'Type', icon: Keyboard },
 ];
 
@@ -32,12 +31,11 @@ export function VoiceModeToggle({
   mode,
   onModeChange,
   disabledModes = [],
-  showVoiceVoice = false,
+  showVoiceVoice: _showVoiceVoice = false,
   className,
 }: VoiceModeToggleProps) {
-  const options = showVoiceVoice
-    ? MODE_OPTIONS
-    : MODE_OPTIONS.filter((option) => option.mode !== 'voice_voice');
+  // showVoiceVoice is deprecated - voice_chat is now the only voice mode
+  const options = MODE_OPTIONS;
 
   return (
     <div

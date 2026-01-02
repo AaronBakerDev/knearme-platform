@@ -250,7 +250,6 @@ export function useLiveVoiceSession({
 
   const enqueueAudioChunk = useCallback((base64: string, mimeType?: string) => {
     if (!base64) return;
-    console.log('[LiveVoice] Enqueuing audio chunk, mimeType:', mimeType, 'base64 length:', base64.length);
 
     const sampleRate = parseSampleRate(mimeType);
     const pcm16 = decodeBase64ToInt16(base64);
@@ -567,11 +566,9 @@ export function useLiveVoiceSession({
         }
       }
       if (part.inlineData?.data && part.inlineData.mimeType?.startsWith('audio/')) {
-        console.log('[LiveVoice] Received audio chunk, isTalking:', isTalkingRef.current, 'continuous:', continuousModeRef.current, 'size:', part.inlineData.data.length);
         // In push-to-talk mode, skip audio while user is talking
         // In continuous mode, Gemini's VAD handles this - we rely on serverContent.interrupted for barge-in
         if (!continuousModeRef.current && isTalkingRef.current) {
-          console.log('[LiveVoice] Skipping audio - user still talking (push-to-talk mode)');
           continue;
         }
         enqueueAudioChunk(part.inlineData.data, part.inlineData.mimeType);
@@ -796,7 +793,6 @@ export function useLiveVoiceSession({
   }, []);
 
   const startTalking = useCallback(async () => {
-    console.log('[LiveVoice] startTalking called, continuousMode:', continuousModeRef.current);
     try {
       const session = await connectSession();
       await initAudioInput();
@@ -805,11 +801,7 @@ export function useLiveVoiceSession({
       // In continuous mode, Gemini's VAD handles activity detection automatically
       if (!continuousModeRef.current) {
         isTalkingRef.current = true;
-        console.log('[LiveVoice] isTalkingRef set to TRUE (push-to-talk)');
-        console.log('[LiveVoice] Sending activityStart signal');
         session.sendRealtimeInput({ activityStart: {} });
-      } else {
-        console.log('[LiveVoice] Continuous mode - Gemini VAD handles activity detection');
       }
       pcmBufferRef.current = [];
       setStatus('listening');
@@ -828,16 +820,13 @@ export function useLiveVoiceSession({
   }, [connectSession, flushPlayback, initAudioInput, onFallback]);
 
   const stopTalking = useCallback(() => {
-    console.log('[LiveVoice] stopTalking called, hasSession:', !!sessionRef.current, 'isTalking:', isTalkingRef.current);
     if (!sessionRef.current) return;
     if (!isTalkingRef.current) return;
 
     isTalkingRef.current = false;
-    console.log('[LiveVoice] isTalkingRef set to FALSE');
     // In push-to-talk mode, send activityEnd signal.
     // In continuous mode, Gemini's automatic VAD handles activity detection.
     if (!continuousModeRef.current) {
-      console.log('[LiveVoice] Sending activityEnd signal');
       sessionRef.current.sendRealtimeInput({ activityEnd: {} });
     }
     setTimeout(() => {

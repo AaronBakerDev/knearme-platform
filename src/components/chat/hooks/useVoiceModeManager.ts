@@ -265,19 +265,18 @@ export function useVoiceModeManager(
     return recommended === 'text' ? 'text' : 'voice_chat';
   }, [networkQuality, voiceChatAvailable]);
 
-  // Auto-switch from voice_chat to text when network quality degrades
+  // Auto-switch between voice_chat and text based on network quality
   useEffect(() => {
     if (!autoSwitchOnDegradedNetwork) return;
     if (!enableNetworkQuality) return;
-    if (mode !== 'voice_chat') return;
 
-    // Store original mode for potential restoration
-    if (userRequestedModeRef.current === null) {
+    // Store original mode for potential restoration (only when in voice_chat)
+    if (mode === 'voice_chat' && userRequestedModeRef.current === null) {
       userRequestedModeRef.current = mode;
     }
 
     // Downgrade voice_chat to text on degraded/poor network
-    if (networkQuality === 'poor' || networkQuality === 'degraded') {
+    if (mode === 'voice_chat' && (networkQuality === 'poor' || networkQuality === 'degraded')) {
       previousModeRef.current = mode;
       setModeState('text');
 
@@ -290,8 +289,8 @@ export function useVoiceModeManager(
       );
     }
 
-    // Restore voice_chat when network improves
-    if (networkQuality === 'good' && userRequestedModeRef.current === 'voice_chat' && mode === 'text') {
+    // Restore voice_chat when network improves (if user originally wanted voice_chat)
+    if (mode === 'text' && networkQuality === 'good' && userRequestedModeRef.current === 'voice_chat') {
       if (voiceChatAvailable) {
         setModeState('voice_chat');
 

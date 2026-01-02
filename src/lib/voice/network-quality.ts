@@ -23,7 +23,7 @@
  * @see /src/components/chat/hooks/useVoiceModeManager.ts for integration
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { VoiceNetworkQuality } from '@/types/voice';
 
 /**
@@ -184,11 +184,14 @@ export function useNetworkQuality(
     poorThresholdMs = DEFAULT_CONFIG.poorThresholdMs,
   } = config;
 
-  const mergedConfig: Required<NetworkQualityConfig> = {
-    enabled,
-    degradedThresholdMs,
-    poorThresholdMs,
-  };
+  const mergedConfig = useMemo<Required<NetworkQualityConfig>>(
+    () => ({
+      enabled,
+      degradedThresholdMs,
+      poorThresholdMs,
+    }),
+    [enabled, degradedThresholdMs, poorThresholdMs]
+  );
 
   const [quality, setQuality] = useState<VoiceNetworkQuality>('good');
   const [latency, setLatency] = useState(0);
@@ -197,7 +200,7 @@ export function useNetworkQuality(
 
   // Update quality from connection
   const updateQuality = useCallback(() => {
-    if (!isMountedRef.current) return;
+    if (!isMountedRef.current || !mergedConfig.enabled) return;
 
     const connection = getConnection();
     const result = determineQualityFromConnection(connection, mergedConfig);
@@ -217,15 +220,10 @@ export function useNetworkQuality(
     isMountedRef.current = true;
 
     if (!enabled) {
-      // Not enabled - return good quality, no monitoring
-      setQuality('good');
-      setLatency(0);
-      setError(null);
-      return;
+      return () => {
+        isMountedRef.current = false;
+      };
     }
-
-    // Initial quality check
-    updateQuality();
 
     // Listen for connection changes (when supported)
     const connection = getConnection();
@@ -233,14 +231,20 @@ export function useNetworkQuality(
       const handleChange = () => updateQuality();
       connection.addEventListener('change', handleChange);
 
+      const timeoutId = setTimeout(handleChange, 0);
+
       return () => {
         isMountedRef.current = false;
         connection.removeEventListener('change', handleChange);
+        clearTimeout(timeoutId);
       };
     }
 
+    const timeoutId = setTimeout(updateQuality, 0);
+
     return () => {
       isMountedRef.current = false;
+      clearTimeout(timeoutId);
     };
   }, [enabled, updateQuality]);
 
@@ -257,14 +261,18 @@ export function useNetworkQuality(
     // No-op - Connection API is event-based, not polling
   }, []);
 
+  const resolvedQuality = enabled ? quality : 'good';
+  const resolvedLatency = enabled ? latency : 0;
+  const resolvedError = enabled ? error : null;
+
   return {
-    quality,
-    latency,
-    averageLatency: latency,
+    quality: resolvedQuality,
+    latency: resolvedLatency,
+    averageLatency: resolvedLatency,
     variance: 0,
     isMonitoring: enabled,
     sampleCount: enabled ? 1 : 0,
-    error,
+    error: resolvedError,
     measureNow,
     startMonitoring,
     stopMonitoring,

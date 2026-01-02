@@ -13,7 +13,7 @@
  * @see /docs/ai-sdk/chat-artifacts-spec.md
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { UIMessage } from 'ai';
 import { ChatMessage } from './ChatMessage';
 import { ChatTypingIndicator } from './ChatTypingIndicator';
@@ -194,6 +194,7 @@ export function ChatMessages({
   const previousMessageCount = useRef(messages.length);
   const isAtBottomRef = useRef(true);
   const prefersReducedMotion = useRef(false);
+  const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
 
@@ -277,7 +278,14 @@ export function ChatMessages({
     // Only scroll if new messages were added (not on initial load)
     const hasNewMessage = messages.length > previousMessageCount.current;
     if ((hasNewMessage || isLoading) && isAtBottomRef.current) {
-      scrollToBottom('smooth');
+      // Debounce rapid scroll events to prevent janky scrolling during message bursts
+      if (scrollDebounceRef.current) {
+        clearTimeout(scrollDebounceRef.current);
+      }
+      scrollDebounceRef.current = setTimeout(() => {
+        scrollToBottom('smooth');
+        scrollDebounceRef.current = null;
+      }, 50); // 50ms debounce window
     } else if ((hasNewMessage || isLoading) && !isAtBottomRef.current) {
       notifyTimer = window.setTimeout(() => setHasNewMessages(true), 0);
     }
@@ -287,8 +295,36 @@ export function ChatMessages({
       if (notifyTimer !== undefined) {
         window.clearTimeout(notifyTimer);
       }
+      if (scrollDebounceRef.current) {
+        clearTimeout(scrollDebounceRef.current);
+      }
     };
   }, [messages, isLoading, scrollToBottom]);
+
+  // Cleanup scroll debounce timer on component unmount (defensive, prevents memory leak)
+  useEffect(() => {
+    return () => {
+      if (scrollDebounceRef.current) {
+        clearTimeout(scrollDebounceRef.current);
+        scrollDebounceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Memoize parseThinking results to prevent expensive re-computation on every render
+  // Key by message ID + text content for cache invalidation when content changes
+  const parsedThinkingMap = useMemo(() => {
+    const map = new Map<string, TextSegment[]>();
+    for (const message of messages) {
+      if (message.role === 'assistant') {
+        const text = getMessageText(message);
+        if (text) {
+          map.set(message.id, parseThinking(text));
+        }
+      }
+    }
+    return map;
+  }, [messages]);
 
   return (
     <div
@@ -324,7 +360,8 @@ export function ChatMessages({
               {text && (() => {
                 // Only parse thinking for assistant messages
                 if (message.role === 'assistant') {
-                  const segments = parseThinking(text);
+                  // Use memoized parsed segments to avoid re-computation
+                  const segments = parsedThinkingMap.get(message.id) || [];
                   return segments.map((segment, segIndex) => {
                     if (segment.type === 'thinking') {
                       return (

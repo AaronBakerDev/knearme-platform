@@ -21,6 +21,8 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useParams } from 'next/navigation';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage } from 'ai';
 import { Loader2, AlertCircle, Sparkles, X, CheckCircle2, RefreshCw } from 'lucide-react';
@@ -35,11 +37,17 @@ import { CollectedDataPeekBar } from './CollectedDataPeekBar';
 import { QuickActionChips } from './QuickActionChips';
 import { Button } from '@/components/ui/button';
 import { MicPermissionPrompt } from '@/components/voice';
-import { getOpeningMessage } from '@/lib/chat/chat-prompts';
+import { getOpeningMessage, getAdaptiveOpeningMessage } from '@/lib/chat/chat-prompts';
 import {
   createSummarySystemMessage,
   type ContextLoadResult,
 } from '@/lib/chat/context-shared';
+import {
+  deriveProjectState,
+  getInitialPhase,
+  getInitialCanvasSize,
+  type ProjectState,
+} from '@/lib/chat/project-state';
 import {
   useInlineImages,
   useProjectData,
@@ -173,6 +181,8 @@ function extractSideEffectToolCallIds(messages: UIMessage[]): Set<string> {
 
 function coerceQuickActionSuggestions(payload: unknown): QuickActionItem[] {
   if (!payload || typeof payload !== 'object') return [];
+  // Safely check if 'actions' property exists before casting
+  if (!('actions' in payload)) return [];
   const actions = (payload as SuggestQuickActionsOutput).actions;
   if (!Array.isArray(actions)) return [];
 
@@ -269,6 +279,11 @@ function inferDeepToolChoice(text: string): DeepToolChoice | undefined {
 /**
  * Mode determines whether ChatWizard is creating a new project or editing existing.
  *
+ * @deprecated Use the unified interface without mode prop. ChatWizard now derives
+ * its behavior from project state (empty, has content, published) rather than
+ * an explicit mode. The mode prop is kept for backward compatibility but will
+ * be removed in a future version.
+ *
  * - 'create': Gathering project info from scratch, uses conversation prompts
  * - 'edit': Refining existing project content, loads project data on mount
  */
@@ -277,24 +292,33 @@ export type ChatWizardMode = 'create' | 'edit';
 interface ChatWizardProps {
   /**
    * Project ID to associate with this wizard session.
-   * In create mode, this is null initially and set after first message
-   * triggers project creation via onEnsureProject.
+   *
+   * In the new unified interface, projectId should always be provided (not null).
+   * Projects are created before entering the chat workspace.
+   *
+   * Legacy behavior: In create mode, this can be null initially and set after
+   * first message triggers project creation via onEnsureProject.
    */
   projectId: string | null;
   /**
    * Eager creation callback - creates project on first user message.
-   * Only used in create mode. Returns the new project ID.
-   * Called before sending the first message to enable immediate persistence.
    *
-   * Fallback: Also called by useInlineImages if user uploads before typing.
+   * @deprecated In the unified interface, projects are created before entering
+   * the chat workspace. This prop is kept for backward compatibility with the
+   * legacy /projects/new page.
+   *
+   * Only used when projectId is null. Returns the new project ID.
+   * Called before sending the first message to enable immediate persistence.
    *
    * @see /src/app/(contractor)/projects/new/page.tsx for implementation
    */
   onEnsureProject?: () => Promise<string>;
   /**
    * Operation mode - 'create' for new projects, 'edit' for existing.
-   * Edit mode loads existing project data and uses edit-focused prompts.
-   * @default 'create'
+   *
+   * @deprecated ChatWizard now derives its behavior from project state.
+   * When mode is not provided, behavior is determined by whether the project
+   * has content, images, etc. This prop is kept for backward compatibility.
    */
   mode?: ChatWizardMode;
   /** Optional additional className */
@@ -308,7 +332,7 @@ interface ChatWizardProps {
     images: (ProjectImage & { url?: string })[];
     relatedProjects?: RelatedProject[];
   };
-  /** Callback when project data changes (edit mode) */
+  /** Callback when project data changes */
   onProjectUpdate?: () => void;
 }
 
@@ -330,15 +354,62 @@ interface ChatWizardProps {
 export function ChatWizard({
   projectId,
   onEnsureProject,
-  mode = 'create',
+  mode,
   className,
   formContent,
   publicPreview,
   onProjectUpdate,
 }: ChatWizardProps) {
-  const isEditMode = mode === 'edit';
-  // In edit mode, start in 'review' phase; in create mode, start in 'conversation'
-  const [phase, setPhase] = useState<ChatPhase>(isEditMode ? 'review' : 'conversation');
+  // ==========================================================================
+  // PROJECT STATE DERIVATION (Unified Interface)
+  // ==========================================================================
+  // Instead of explicit mode, derive behavior from project state after loading.
+  // This enables a single chat interface that adapts to any project.
+  //
+  // Legacy: mode prop is still respected for backward compatibility.
+  // When mode is provided, it takes precedence. When not provided, behavior
+  // is derived from projectState after loading.
+  // ==========================================================================
+
+  // Derived project state - updated after loading project data
+  const [projectState, setProjectState] = useState<ProjectState>({
+    isEmpty: true,
+    hasContent: false,
+    hasImages: false,
+    isPublished: false,
+    isArchived: false,
+    hasTitle: false,
+    hasSeo: false,
+  });
+
+  // Backward compatibility: if mode is explicitly provided, use it
+  // Otherwise, derive from project state (hasContent = edit-like behavior)
+  const isEditMode = mode !== undefined
+    ? mode === 'edit'
+    : projectState.hasContent;
+
+  const params = useParams();
+  const routeProjectId = useMemo(() => {
+    const param =
+      (params as Record<string, string | string[] | undefined>)?.id ??
+      (params as Record<string, string | string[] | undefined>)?.projectId;
+
+    if (Array.isArray(param)) return param[0];
+    return typeof param === 'string' ? param : undefined;
+  }, [params]);
+
+  const resolvedProjectId = projectId ?? routeProjectId ?? null;
+  const projectIdRef = useRef<string | null>(resolvedProjectId);
+
+  useEffect(() => {
+    projectIdRef.current = resolvedProjectId;
+  }, [resolvedProjectId]);
+
+  // Initial phase/canvas based on mode or derived state
+  // These will be updated after loading when we have full project data
+  const [phase, setPhase] = useState<ChatPhase>(
+    mode === 'edit' ? 'review' : 'conversation'
+  );
   const [extractedData, setExtractedData] = useState<ExtractedProjectData>({});
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -383,6 +454,7 @@ export function ChatWizard({
 
   // Preview overlay state for tablet/mobile
   const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
+  const isMobile = useIsMobile();
   const [overlayTab, setOverlayTab] = useState<'preview' | 'form'>('preview');
   const [previewHints, setPreviewHints] = useState<{
     title: string | null;
@@ -404,8 +476,9 @@ export function ChatWizard({
   const prevPhaseRef = useRef<ChatPhase>(phase);
 
   // Canvas state for desktop (matches edit page behavior)
+  // Initial state based on mode, will be updated after loading based on projectState
   const [canvasSize, setCanvasSize] = useState<CanvasPanelSize>(
-    isEditMode ? 'medium' : 'collapsed'
+    mode === 'edit' ? 'medium' : 'collapsed'
   );
   const [canvasTab, setCanvasTab] = useState<CanvasTab>('preview');
   const hasFormContent = Boolean(formContent);
@@ -423,7 +496,7 @@ export function ChatWizard({
     error: imageError,
     clearError: clearImageError,
   } = useInlineImages({
-    projectId: projectId || '',
+    projectId: resolvedProjectId || '',
     initialImages: uploadedImages,
     onImagesChange: setUploadedImages,
     onEnsureProject, // Fallback: create project if user uploads before sending a message
@@ -610,10 +683,11 @@ export function ChatWizard({
   );
 
   const ensureLiveSessionReady = useCallback(async () => {
-    let currentProjectId = projectId;
+    let currentProjectId = projectIdRef.current ?? resolvedProjectId;
 
     if (!currentProjectId && onEnsureProject && !isEditMode) {
       currentProjectId = await onEnsureProject();
+      projectIdRef.current = currentProjectId;
     }
 
     if (!currentProjectId) {
@@ -638,7 +712,7 @@ export function ChatWizard({
         }
       }, 100);
     });
-  }, [projectId, onEnsureProject, isEditMode]);
+  }, [resolvedProjectId, onEnsureProject, isEditMode]);
 
   const liveVoiceSession = useLiveVoiceSession({
     enabled: voiceMode === 'voice_chat' && micPermissionStatus === 'granted',
@@ -740,6 +814,20 @@ export function ChatWizard({
           // Step 2: Set loaded data
           setUploadedImages(images || []);
 
+          // Derive project state for unified interface
+          // This enables behavior adaptation based on project content
+          const derivedState = deriveProjectState(project, images);
+          setProjectState(derivedState);
+
+          // If mode was not explicitly provided, update phase and canvas
+          // based on derived state (unified interface behavior)
+          if (mode === undefined) {
+            const initialPhase = getInitialPhase(derivedState);
+            const initialCanvas = getInitialCanvasSize(derivedState);
+            setPhase(initialPhase);
+            setCanvasSize(initialCanvas);
+          }
+
           // Convert project to extracted data format for preview
           const locationLabel = formatProjectLocation({
             neighborhood: project.neighborhood,
@@ -799,8 +887,17 @@ export function ChatWizard({
               }
             }
           } else {
-            // New session - show welcome message with project title
-            setMessages([getWelcomeMessage(project.title)]);
+            // New session - show adaptive welcome message based on project state
+            const greeting = getAdaptiveOpeningMessage({
+              projectState: derivedState,
+              title: project.title,
+              hasExistingSession: false,
+            });
+            setMessages([{
+              id: 'welcome',
+              role: 'assistant',
+              parts: [{ type: 'text', text: greeting }],
+            }]);
           }
         } else {
           // ===== CREATE MODE =====
@@ -863,6 +960,27 @@ export function ChatWizard({
                   Object.keys(context.projectData.extractedData).length > 0) {
                 setExtractedData(context.projectData.extractedData);
               }
+
+              // Derive project state for unified interface (create mode)
+              // Note: In create mode, we may not have full project data,
+              // so we derive from what's available in context
+              const derivedState = deriveProjectState(
+                {
+                  title: context.projectData.title,
+                  description: context.projectData.description,
+                  status: 'draft', // Create mode is always draft
+                },
+                uploadedImages
+              );
+              setProjectState(derivedState);
+
+              // If mode was not explicitly provided, update phase/canvas
+              if (mode === undefined) {
+                const initialPhase = getInitialPhase(derivedState);
+                const initialCanvas = getInitialCanvasSize(derivedState);
+                setPhase(initialPhase);
+                setCanvasSize(initialCanvas);
+              }
             }
           }
           // New session keeps the welcome message already set by useChat
@@ -890,7 +1008,10 @@ export function ChatWizard({
     }
 
     loadSession();
-  }, [projectId, isEditMode, setMessages, getWelcomeMessage]);
+  // Note: We intentionally don't include uploadedImages in deps to avoid re-running
+  // the effect when images change. The derivation uses current state at load time.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, isEditMode, mode, setMessages, getWelcomeMessage]);
 
   /**
    * Retry handler for recoverable errors (e.g., load failures).
@@ -1278,10 +1399,13 @@ export function ChatWizard({
    */
   const sendMessageWithContext = useCallback(
     async (text: string, toolChoice?: DeepToolChoice) => {
+      let currentProjectId = projectIdRef.current ?? resolvedProjectId;
+
       // EAGER CREATION: Create project on first message if not exists
       // This ensures session persistence is available from the start
-      if (!projectId && onEnsureProject && !isEditMode) {
-        await onEnsureProject();
+      if (!currentProjectId && onEnsureProject && !isEditMode) {
+        currentProjectId = await onEnsureProject();
+        projectIdRef.current = currentProjectId;
         // projectId prop will update via parent state change
         // Session loading useEffect will trigger automatically
       }
@@ -1292,14 +1416,14 @@ export function ChatWizard({
         { text },
         {
           body: {
-            projectId: projectId || undefined,
+            projectId: currentProjectId || undefined,
             sessionId: sessionId || undefined,
             toolChoice,
           },
         }
       );
     },
-    [sendMessage, projectId, sessionId, onEnsureProject, isEditMode]
+    [sendMessage, resolvedProjectId, sessionId, onEnsureProject, isEditMode]
   );
 
   const handleSendMessage = useCallback(
@@ -1340,11 +1464,12 @@ export function ChatWizard({
     setError(null);
 
     try {
-      let currentProjectId = projectId;
+      let currentProjectId = projectIdRef.current ?? resolvedProjectId;
 
       if (!currentProjectId && onEnsureProject && !isEditMode) {
         try {
           currentProjectId = await onEnsureProject();
+          projectIdRef.current = currentProjectId;
         } catch (err) {
           console.error('[ChatWizard] Failed to create project:', err);
           setError('Failed to start project. Please try again.');
@@ -1444,7 +1569,7 @@ export function ChatWizard({
       setError(err instanceof Error ? err.message : 'Failed to generate content. Please try again.');
       setPhase('conversation');
     }
-  }, [projectId, uploadedImages, extractedData, onEnsureProject, isEditMode, sendMessage, sessionId]);
+  }, [resolvedProjectId, uploadedImages, extractedData, onEnsureProject, isEditMode, sendMessage, sessionId]);
 
   /**
    * Handle opening the photo sheet (used by both button and artifact actions).
@@ -1464,8 +1589,11 @@ export function ChatWizard({
     }
     setCanvasTab('form');
     setOverlayTab('form');
-    setShowPreviewOverlay(true);
-  }, [hasFormContent, canvasSize, setCanvasSize, setCanvasTab, setOverlayTab, setShowPreviewOverlay]);
+    // Only open overlay on mobile - desktop uses the canvas panel
+    if (isMobile) {
+      setShowPreviewOverlay(true);
+    }
+  }, [hasFormContent, canvasSize, setCanvasSize, setCanvasTab, setOverlayTab, setShowPreviewOverlay, isMobile]);
 
   const handleQuickAction = useCallback(
     (action: Exclude<QuickActionType, 'insert'>) => {
@@ -1512,7 +1640,10 @@ export function ChatWizard({
           }
           setCanvasTab('preview');
           setOverlayTab('preview');
-          setShowPreviewOverlay(true);
+          // Only open overlay on mobile - desktop uses the canvas panel
+          if (isMobile) {
+            setShowPreviewOverlay(true);
+          }
           break;
         default:
           break;
@@ -1527,6 +1658,7 @@ export function ChatWizard({
       setCanvasTab,
       setOverlayTab,
       setShowPreviewOverlay,
+      isMobile,
       sendMessageWithContext,
     ]
   );
@@ -2125,7 +2257,10 @@ export function ChatWizard({
         }
         setCanvasTab('preview');
         setOverlayTab('preview');
-        setShowPreviewOverlay(true);
+        // Only open overlay on mobile - desktop has the sidebar preview visible
+        if (isMobile) {
+          setShowPreviewOverlay(true);
+        }
       } else if (action.type === 'updateDescriptionBlocks') {
         const payload = action.payload as { blocks?: unknown };
 
@@ -2354,6 +2489,7 @@ export function ChatWizard({
       extractedData,
       logPreviewEvent,
       triggerMilestone,
+      isMobile,
     ]
   );
 
@@ -2641,7 +2777,7 @@ export function ChatWizard({
 
         {/* ===== CANVAS COLUMN (Desktop only) ===== */}
         <CanvasPanel
-          projectId={projectId ?? 'new'}
+          projectId={resolvedProjectId ?? 'new'}
           data={projectData}
           completeness={completeness}
           highlightFields={previewHints.highlightFields}
@@ -2688,7 +2824,7 @@ export function ChatWizard({
       <ChatPhotoSheet
         open={showPhotoSheet}
         onOpenChange={setShowPhotoSheet}
-        projectId={projectId}
+        projectId={resolvedProjectId}
         images={uploadedImages}
         onImagesChange={handleImagesChange}
         disabled={isLoading}

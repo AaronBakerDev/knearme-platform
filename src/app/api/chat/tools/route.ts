@@ -58,12 +58,9 @@ function inferDeepToolChoice(text: string): DeepToolName | null {
 
   if (wantsLayout) return 'composePortfolioLayout';
 
-  const wantsPublishCheck =
-    /ready to publish|publish ready|publish readiness|am i ready to publish|can i publish|check publish/.test(
-      normalized
-    ) || (normalized.includes('publish') && normalized.includes('ready'));
-
-  if (wantsPublishCheck) return 'checkPublishReady';
+  // Note: checkPublishReady was moved to FAST_TURN_TOOLS (2025-01-01)
+  // It's now auto-allowed and doesn't need explicit inference here.
+  // The model can call it directly without special deep-context handling.
 
   const wantsGenerate =
     /\b(generate|draft|write)\b/.test(normalized) &&

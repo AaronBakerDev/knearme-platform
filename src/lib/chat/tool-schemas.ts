@@ -348,16 +348,20 @@ export interface CheckPublishReadyOutput {
  * Editable field names for the updateField tool.
  * Includes location fields (city, state) for address updates.
  */
-export const editableFields = [
+const updateFieldStringFields = [
   'title',
   'description',
   'seo_title',
   'seo_description',
-  'tags',
-  'materials',
-  'techniques',
   'city',
   'state',
+] as const;
+
+const updateFieldArrayFields = ['tags', 'materials', 'techniques'] as const;
+
+export const editableFields = [
+  ...updateFieldStringFields,
+  ...updateFieldArrayFields,
 ] as const;
 
 export type EditableField = (typeof editableFields)[number];
@@ -366,18 +370,37 @@ export type EditableField = (typeof editableFields)[number];
  * Schema for updating a project field.
  * Called when user wants to change title, description, SEO, location, etc.
  */
-export const updateFieldSchema = z.object({
-  field: z
-    .enum(['title', 'description', 'seo_title', 'seo_description', 'tags', 'materials', 'techniques', 'city', 'state'])
-    .describe('The field to update (use city/state for location changes)'),
-  value: z
-    .union([z.string(), z.array(z.string())])
-    .describe('The new value for the field (string for text fields, array for tags/materials/techniques)'),
-  reason: z
-    .string()
-    .optional()
-    .describe('Brief explanation of why this change was made'),
-});
+// Use a discriminated union to enforce correct value types per field.
+export const updateFieldSchema = z.discriminatedUnion('field', [
+  z.object({
+    field: z
+      .enum(updateFieldStringFields)
+      .describe('The field to update (use city/state for location changes)'),
+    value: z
+      .string()
+      .max(5000)
+      .describe('The new value for the field (string for text fields)'),
+    reason: z
+      .string()
+      .max(500)
+      .optional()
+      .describe('Brief explanation of why this change was made'),
+  }),
+  z.object({
+    field: z
+      .enum(updateFieldArrayFields)
+      .describe('The field to update (use arrays for tags/materials/techniques)'),
+    value: z
+      .array(z.string().max(100))
+      .max(50)
+      .describe('The new value for the field (array for tags/materials/techniques)'),
+    reason: z
+      .string()
+      .max(500)
+      .optional()
+      .describe('Brief explanation of why this change was made'),
+  }),
+]);
 
 /** Input type for updateField tool */
 export type UpdateFieldInput = z.infer<typeof updateFieldSchema>;
@@ -485,16 +508,21 @@ export interface ValidateForPublishOutput {
  * Editable contractor profile field names.
  * These map to columns in the contractors table.
  */
-export const contractorProfileFields = [
+const contractorProfileStringFields = [
   'business_name',
   'city',
   'state',
-  'services',
-  'service_areas',
   'description',
   'phone',
   'email',
   'website',
+] as const;
+
+const contractorProfileArrayFields = ['services', 'service_areas'] as const;
+
+export const contractorProfileFields = [
+  ...contractorProfileStringFields,
+  ...contractorProfileArrayFields,
 ] as const;
 
 export type ContractorProfileField = (typeof contractorProfileFields)[number];
@@ -505,28 +533,37 @@ export type ContractorProfileField = (typeof contractorProfileFields)[number];
  *
  * @see /src/app/api/contractors/me/route.ts
  */
-export const updateContractorProfileSchema = z.object({
-  field: z
-    .enum([
-      'business_name',
-      'city',
-      'state',
-      'services',
-      'service_areas',
-      'description',
-      'phone',
-      'email',
-      'website',
-    ])
-    .describe('The contractor profile field to update'),
-  value: z
-    .union([z.string(), z.array(z.string())])
-    .describe('The new value (string for text fields, array for services/service_areas)'),
-  reason: z
-    .string()
-    .optional()
-    .describe('Brief explanation of why this update was made'),
-});
+// Use a discriminated union to keep field/value types aligned and bounded.
+export const updateContractorProfileSchema = z.discriminatedUnion('field', [
+  z.object({
+    field: z
+      .enum(contractorProfileStringFields)
+      .describe('The contractor profile field to update'),
+    value: z
+      .string()
+      .max(2000)
+      .describe('The new value (string for text fields)'),
+    reason: z
+      .string()
+      .max(500)
+      .optional()
+      .describe('Brief explanation of why this update was made'),
+  }),
+  z.object({
+    field: z
+      .enum(contractorProfileArrayFields)
+      .describe('The contractor profile field to update'),
+    value: z
+      .array(z.string().max(100))
+      .max(50)
+      .describe('The new value (array for services/service_areas)'),
+    reason: z
+      .string()
+      .max(500)
+      .optional()
+      .describe('Brief explanation of why this update was made'),
+  }),
+]);
 
 /** Input type for updateContractorProfile tool */
 export type UpdateContractorProfileInput = z.infer<typeof updateContractorProfileSchema>;

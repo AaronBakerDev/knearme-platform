@@ -48,6 +48,16 @@ const THINKING_KEYWORDS = [
 ];
 
 /**
+ * Remove raw tool call markers from text.
+ * These appear when tool calls are stringified into text content
+ * (e.g., "[Tool: checkPublishReady]" or "[Tool: updateField, args...]").
+ */
+function stripToolMarkers(text: string): string {
+  // Pattern: [Tool: toolName] or [Tool: toolName, args...]
+  return text.replace(/\[Tool:\s*[^\]]+\]/g, '').trim();
+}
+
+/**
  * Check if a header looks like a thinking header.
  * Must start with a thinking keyword and be a reasonable title.
  */
@@ -107,7 +117,7 @@ export function parseThinking(text: string): TextSegment[] {
     if (isThinkingHeader(header)) {
       // Add any text before this match as regular text
       if (matchStart > lastIndex) {
-        const beforeText = text.slice(lastIndex, matchStart).trim();
+        const beforeText = stripToolMarkers(text.slice(lastIndex, matchStart));
         if (beforeText) {
           segments.push({ type: 'text', content: beforeText });
         }
@@ -124,7 +134,7 @@ export function parseThinking(text: string): TextSegment[] {
 
   // Add any remaining text after the last match
   if (lastIndex < text.length) {
-    const remainingText = text.slice(lastIndex).trim();
+    const remainingText = stripToolMarkers(text.slice(lastIndex));
     if (remainingText) {
       segments.push({ type: 'text', content: remainingText });
     }
@@ -132,7 +142,11 @@ export function parseThinking(text: string): TextSegment[] {
 
   // If no thinking blocks found, return the whole text as a single segment
   if (segments.length === 0 && text.trim()) {
-    segments.push({ type: 'text', content: text.trim() });
+    const cleanedText = stripToolMarkers(text);
+    // Fallback: if stripToolMarkers returns empty but original had content,
+    // return the original text to avoid rendering nothing
+    const contentToUse = cleanedText || text.trim();
+    segments.push({ type: 'text', content: contentToUse });
   }
 
   return segments;
