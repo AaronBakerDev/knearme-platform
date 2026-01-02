@@ -1,182 +1,97 @@
 'use client';
 
 /**
- * Create Project Page - Full-screen chat-based AI-powered project creation.
+ * New Project Page - Eager Creation + Redirect.
  *
- * Immersive ChatGPT-style interface for gathering project info
- * and generating portfolio content.
+ * Creates a draft project immediately and redirects to the unified
+ * project workspace at /projects/[id].
  *
- * Design: "Void Interface" - minimal chrome, floating elements,
- * conversation suspended in deep dark space.
+ * This is the "project-first" pattern: user picks to create a new project,
+ * we create it, then they enter the same workspace as editing an existing project.
  *
- * EAGER CREATION PATTERN:
- * Project is created when user sends their first message. This enables
- * immediate session persistence and context continuity. The conversation
- * is saved to the database from the start.
- *
- * Flow:
- * 1. First message - TRIGGERS PROJECT CREATION + session persistence
- * 2. Chat conversation - Gather project details (persisted to DB)
- * 3. Image upload - Images attached to existing project
- * 4. AI Analysis - Analyze images with conversation context
- * 5. Content Generation - Generate portfolio content
- * 6. Review & Publish - Approve and publish
- *
- * @see /src/components/chat/ChatWizard.tsx for the main component
- * @see /docs/02-requirements/user-journeys.md J2
+ * @see /src/app/(contractor)/projects/[id]/page.tsx for unified workspace
+ * @see /src/lib/chat/project-state.ts for state derivation
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ChatWizard } from '@/components/chat';
-import { ProjectEditFormPanel } from '@/components/chat/ProjectEditFormPanel';
 
-/**
- * CreateProjectPage - Full-screen chat-based project creation wizard.
- *
- * Uses EAGER CREATION: project is created when user sends first message.
- * This enables immediate session persistence for context continuity.
- */
-export default function CreateProjectPage() {
+export default function NewProjectPage() {
   const router = useRouter();
-  // Start with null - project created eagerly on first user message
-  const [projectId, setProjectId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [formRefreshKey, setFormRefreshKey] = useState(0);
+  const [isCreating, setIsCreating] = useState(true);
+  const hasStartedRef = useRef(false);
 
-  // Prevent duplicate project creation (e.g., rapid double-upload)
-  const isCreatingRef = useRef(false);
-  const createdProjectIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    // Prevent double-creation in React StrictMode
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
 
-  /**
-   * Ensure a project exists, creating one if necessary.
-   * Called by ChatWizard before operations that require a projectId.
-   *
-   * Uses refs to prevent duplicate creation on rapid calls.
-   * Returns the projectId (existing or newly created).
-   */
-  const ensureProject = useCallback(async (): Promise<string> => {
-    // If we already have a project ID, return it immediately
-    if (createdProjectIdRef.current) {
-      return createdProjectIdRef.current;
-    }
+    async function createAndRedirect() {
+      try {
+        const response = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'draft' }),
+        });
 
-    // If already creating, wait for it to complete
-    if (isCreatingRef.current) {
-      // Poll until creation completes (simple approach)
-      return new Promise((resolve, reject) => {
-        const checkInterval = setInterval(() => {
-          if (createdProjectIdRef.current) {
-            clearInterval(checkInterval);
-            resolve(createdProjectIdRef.current);
-          }
-        }, 100);
-        // Timeout after 10 seconds
-        setTimeout(() => {
-          clearInterval(checkInterval);
-          reject(new Error('Project creation timed out'));
-        }, 10000);
-      });
-    }
-
-    isCreatingRef.current = true;
-
-    try {
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'draft' }),
-      });
-
-      const rawBody = await response.text();
-      let data: unknown = null;
-      if (rawBody) {
-        try {
-          data = JSON.parse(rawBody);
-        } catch {
-          data = rawBody;
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error?.message || data.message || 'Failed to create project');
         }
-      }
 
-      if (!response.ok) {
-        let message = 'Failed to create project';
-        const errorPayload = (data as { error?: unknown })?.error;
-        if (typeof errorPayload === 'string') {
-          message = errorPayload;
-        } else if (errorPayload && typeof errorPayload === 'object') {
-          const errorObject = errorPayload as { message?: string; requestId?: string };
-          if (errorObject.message) {
-            message = errorObject.message;
-          } else {
-            try {
-              message = JSON.stringify(errorPayload);
-            } catch {
-              message = 'Failed to create project';
-            }
-          }
-          if (errorObject.requestId) {
-            message = `${message} (ref: ${errorObject.requestId})`;
-          }
-        } else if (typeof data === 'string' && data.trim().length > 0) {
-          message = data;
-        } else if ((data as { message?: string })?.message) {
-          message = (data as { message?: string }).message ?? message;
+        const data = await response.json();
+        const projectId = data.project?.id;
+
+        if (!projectId) {
+          throw new Error('Project created but no ID returned');
         }
-        throw new Error(message);
+
+        // Redirect to unified workspace
+        router.replace(`/projects/${projectId}`);
+      } catch (err) {
+        console.error('[NewProjectPage] Failed to create project:', err);
+        setError(err instanceof Error ? err.message : 'Failed to create project');
+        setIsCreating(false);
       }
-
-      const dataObj = data as { project?: { id?: string } } | null;
-      const newProjectId = dataObj?.project?.id;
-
-      if (!newProjectId) {
-        throw new Error('Project created but no ID returned');
-      }
-
-      // Store in both ref (for sync access) and state (for React updates)
-      createdProjectIdRef.current = newProjectId;
-      setProjectId(newProjectId);
-
-      return newProjectId;
-    } catch (err) {
-      console.error('[CreateProjectPage] Failed to create project:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create project');
-      throw err;
-    } finally {
-      isCreatingRef.current = false;
     }
-  }, []);
 
-  const handleProjectUpdate = useCallback(() => {
-    setFormRefreshKey((prev) => prev + 1);
-  }, []);
+    createAndRedirect();
+  }, [router]);
 
-  // Error state - centered with back button
+  // Error state
   if (error) {
     return (
-      <div className="h-full flex flex-col items-center justify-center gap-4">
-        <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => router.push('/projects')}>
-          Back to Projects
-        </Button>
+      <div className="h-full flex flex-col items-center justify-center gap-4 p-4">
+        <p className="text-destructive text-center">{error}</p>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setError(null);
+              setIsCreating(true);
+              hasStartedRef.current = false;
+            }}
+          >
+            Try Again
+          </Button>
+          <Button variant="ghost" onClick={() => router.push('/projects')}>
+            Back to Projects
+          </Button>
+        </div>
       </div>
     );
   }
 
-  const formContent = projectId ? (
-    <ProjectEditFormPanel key={formRefreshKey} projectId={projectId} />
-  ) : undefined;
-
+  // Loading state
   return (
-    <div className="relative h-full min-h-0 flex flex-col">
-      {/* Full-screen chat - projectId may be null initially (lazy creation) */}
-      <ChatWizard
-        projectId={projectId}
-        onEnsureProject={ensureProject}
-        onProjectUpdate={handleProjectUpdate}
-        formContent={formContent}
-        className="flex-1"
-      />
+    <div className="h-full flex flex-col items-center justify-center gap-3">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <p className="text-sm text-muted-foreground">
+        {isCreating ? 'Creating project...' : 'Setting up workspace...'}
+      </p>
     </div>
   );
 }

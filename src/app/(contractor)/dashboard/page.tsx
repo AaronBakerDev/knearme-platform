@@ -244,7 +244,7 @@ export default async function DashboardPage() {
                 return (
                   <Link
                     key={project.id}
-                    href={`/projects/${project.id}/edit`}
+                    href={`/projects/${project.id}`}
                     className="group block animate-fade-up"
                     style={{ animationDelay: `${index * 50}ms` }}
                   >

@@ -271,7 +271,7 @@ export default function ProjectsPage() {
                 key={project.id}
                 className="group block animate-fade-up cursor-pointer"
                 style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => router.push(`/projects/${project.id}/edit`)}
+                onClick={() => router.push(`/projects/${project.id}`)}
               >
                 {/* Thumbnail - project-thumb style from dashboard */}
                 <div className="project-thumb aspect-[4/3] relative mb-2 md:mb-3">
@@ -320,7 +320,7 @@ export default function ProjectsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenuItem asChild>
-                          <Link href={`/projects/${project.id}/edit`}>
+                          <Link href={`/projects/${project.id}`}>
                             <Pencil className="h-4 w-4 mr-2" />
                             Edit
                           </Link>
