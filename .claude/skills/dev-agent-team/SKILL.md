@@ -364,9 +364,13 @@ codex ... 2>&1 | tee /tmp/agent-output.log &
 Run BEFORE committing any agent changes:
 
 ```bash
-./scripts/verify-changes.sh
+# Check only staged files (recommended after agent runs)
+git add <agent-created-files>
+./scripts/verify-changes.sh --staged
 
 # Output:
+# Mode: STAGED CHANGES ONLY
+# Files changed: 1
 # 🔍 Running linter... ✓ Lint passed
 # 🔨 Running build... ✓ Build passed
 # 🧪 Running tests... ✓ Tests passed
@@ -374,9 +378,16 @@ Run BEFORE committing any agent changes:
 #
 # APPROVED: All checks passed
 
-# With strict mode (warnings = failures):
-./scripts/verify-changes.sh --strict
+# Check all changes (staged + unstaged):
+./scripts/verify-changes.sh
+
+# Strict mode (warnings = failures):
+./scripts/verify-changes.sh --staged --strict
 ```
+
+**Flags:**
+- `--staged` - Only check staged changes (ignores pre-existing unstaged files)
+- `--strict` - Treat warnings as failures (exit 1)
 
 ### Verification Checks
 
