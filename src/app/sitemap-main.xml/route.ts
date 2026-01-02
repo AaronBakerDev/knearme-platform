@@ -1,7 +1,7 @@
 /**
  * Main Sitemap Route - /sitemap-main.xml
  *
- * Contains all static and dynamic pages except directory listings.
+ * Contains all static and dynamic pages.
  * Includes:
  * - Static pages (home, contractors, etc.)
  * - National service landing pages
@@ -12,8 +12,6 @@
  * - City landing pages
  * - City masonry hub pages
  * - Service type by city pages
- *
- * Directory pages are in separate sitemaps for better scalability.
  *
  * @see /src/app/sitemap.ts (old implementation - being replaced)
  */

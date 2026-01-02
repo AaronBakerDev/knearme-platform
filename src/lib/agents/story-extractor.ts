@@ -256,7 +256,7 @@ ${message}`;
     schema: ExtractionSchema,
     system: EXTRACTION_SYSTEM_PROMPT,
     prompt: contextPrompt,
-    maxOutputTokens: 1000,
+    maxOutputTokens: 2048, // Increased from 1000 - structured response needs room for all fields
     temperature: 0.2, // Low temperature for consistent extraction
   });
 

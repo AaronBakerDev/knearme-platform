@@ -6,15 +6,11 @@
  *
  * Segmentation strategy:
  * - /sitemap-main.xml: Static pages, portfolios, contractors, learning center
- * - /sitemap-directory-index.xml: State pages, city pages, category pages
- * - /sitemap-directory-[state].xml: Individual business listings per state
  *
  * @see https://www.sitemaps.org/protocol.html#index
  */
 
 import { NextResponse } from 'next/server';
-import { getStateStats } from '@/lib/data/directory';
-
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
 export const dynamic = 'force-dynamic';
@@ -22,9 +18,6 @@ export const revalidate = 86400; // 24 hours
 
 export async function GET() {
   try {
-    // Get all states to generate per-state business sitemaps
-    const states = await getStateStats();
-
     // Generate sitemap index XML
     const sitemapUrls = [
       // Main sitemap (static pages, portfolios, contractors, etc.)
@@ -32,16 +25,6 @@ export async function GET() {
         loc: `${SITE_URL}/sitemap-main.xml`,
         lastmod: new Date().toISOString(),
       },
-      // Directory index (state/city/category pages)
-      {
-        loc: `${SITE_URL}/sitemap-directory-index.xml`,
-        lastmod: new Date().toISOString(),
-      },
-      // Per-state business listings
-      ...states.map((state) => ({
-        loc: `${SITE_URL}/sitemap-directory-${state.state_slug}.xml`,
-        lastmod: new Date().toISOString(),
-      })),
     ];
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
