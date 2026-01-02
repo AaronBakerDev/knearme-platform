@@ -26,7 +26,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage } from 'ai';
 import { Loader2, AlertCircle, Sparkles, X, CheckCircle2, RefreshCw } from 'lucide-react';
-import { ChatMessages } from './ChatMessages';
+import { ChatSurface } from './ChatSurface';
 import { ChatInput } from './ChatInput';
 import { ChatPhotoSheet } from './ChatPhotoSheet';
 import { CanvasPanel, type CanvasPanelSize, type CanvasTab } from './CanvasPanel';
@@ -71,12 +71,12 @@ import type {
 } from '@/lib/chat/tool-schemas';
 import { cn } from '@/lib/utils';
 import { formatProjectLocation } from '@/lib/utils/location';
-import { getPublicUrl } from '@/lib/storage/upload';
+import { resolveProjectImageUrl } from '@/lib/storage/project-images';
 import {
   buildDescriptionBlocksFromContent,
 } from '@/lib/content/description-blocks.client';
 import { blocksToHtml, sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
-import type { Contractor, Project, ProjectImage } from '@/types/database';
+import type { Business, Contractor, Project, ProjectImage } from '@/types/database';
 import type { RelatedProject } from '@/lib/data/projects';
 
 /**
@@ -310,7 +310,7 @@ interface ChatWizardProps {
    * Only used when projectId is null. Returns the new project ID.
    * Called before sending the first message to enable immediate persistence.
    *
-   * @see /src/app/(contractor)/projects/new/page.tsx for implementation
+   * @see /src/app/(dashboard)/projects/new/page.tsx for implementation
    */
   onEnsureProject?: () => Promise<string>;
   /**
@@ -328,9 +328,12 @@ interface ChatWizardProps {
   /** Optional public preview data for full parity rendering */
   publicPreview?: {
     project: Project;
-    contractor: Contractor;
+    /** Business data for the preview */
+    business: Business | Contractor;
     images: (ProjectImage & { url?: string })[];
     relatedProjects?: RelatedProject[];
+    /** @deprecated Use business instead */
+    contractor?: Contractor;
   };
   /** Callback when project data changes */
   onProjectUpdate?: () => void;
@@ -481,6 +484,11 @@ export function ChatWizard({
     mode === 'edit' ? 'medium' : 'collapsed'
   );
   const [canvasTab, setCanvasTab] = useState<CanvasTab>('preview');
+  const [portfolioLayout, setPortfolioLayout] = useState<{
+    tokens: import('@/lib/design/tokens').DesignTokens;
+    blocks: import('@/lib/design/semantic-blocks').SemanticBlock[];
+    rationale?: string;
+  } | null>(null);
   const hasFormContent = Boolean(formContent);
 
   const previewHighlightTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -795,6 +803,7 @@ export function ChatWizard({
           const projectImages = Array.isArray(project.project_images)
             ? [...(project.project_images as ProjectImage[])]
             : [];
+          const isPublished = project.status === 'published';
           projectImages.sort(
             (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
           );
@@ -802,7 +811,12 @@ export function ChatWizard({
             .filter((image) => typeof image.storage_path === 'string')
             .map((image) => ({
               id: image.id,
-              url: getPublicUrl('project-images', image.storage_path),
+              url: resolveProjectImageUrl({
+                projectId: projectId!, // Edit mode guarantees projectId exists
+                imageId: image.id,
+                storagePath: image.storage_path,
+                isPublished,
+              }),
               filename:
                 image.storage_path.split('/').pop() ?? 'project-image',
               storage_path: image.storage_path,
@@ -1395,7 +1409,7 @@ export function ChatWizard({
    * NOTE: All useCallback hooks must be declared BEFORE any conditional returns
    * to satisfy React's Rules of Hooks (consistent hook order on every render).
    *
-   * @see /src/app/(contractor)/projects/new/page.tsx for ensureProject implementation
+   * @see /src/app/(dashboard)/projects/new/page.tsx for ensureProject implementation
    */
   const sendMessageWithContext = useCallback(
     async (text: string, toolChoice?: DeepToolChoice) => {
@@ -2300,6 +2314,26 @@ export function ChatWizard({
             await applyImageOrder(payload.imageOrder);
           }
         })();
+      } else if (action.type === 'composeUILayout') {
+        // ===== AGENTIC UI: Apply AI-generated design tokens and semantic blocks =====
+        const payload = action.payload as {
+          designTokens?: unknown;
+          blocks?: unknown[];
+          rationale?: string;
+          confidence?: number;
+        } | undefined;
+
+        if (payload?.designTokens && Array.isArray(payload.blocks)) {
+          setPortfolioLayout({
+            tokens: payload.designTokens as import('@/lib/design/tokens').DesignTokens,
+            blocks: payload.blocks as import('@/lib/design/semantic-blocks').SemanticBlock[],
+            rationale: payload.rationale,
+          });
+          // Auto-expand canvas to show the new layout
+          if (canvasSize === 'collapsed') {
+            setCanvasSize('medium');
+          }
+        }
       } else if (action.type === 'openForm') {
         openFormPanel();
       } else if (action.type === 'updateProjectData') {
@@ -2636,15 +2670,112 @@ export function ChatWizard({
             </div>
           )}
 
-          {/* Chat messages - fills available space */}
-          <ChatMessages
+          <ChatSurface
             messages={messages}
             isLoading={isLoading}
             onArtifactAction={handleArtifactAction}
             images={uploadedImages}
-            className="flex-1 overflow-y-auto"
             isSaving={isSavingContent}
             processedSideEffectToolCallIds={processedSideEffectToolCalls.current}
+            className="flex-1 min-h-0"
+            messagesClassName="flex-1 overflow-y-auto"
+            footerSlot={
+              <>
+                {/* Peek bar - visible on mobile and tablet, hidden on desktop (which has side canvas) */}
+                <div className="lg:hidden">
+                  <CollectedDataPeekBar
+                    data={projectData}
+                    completeness={completeness}
+                    onExpand={() => {
+                      setOverlayTab('preview');
+                      setShowPreviewOverlay(true);
+                    }}
+                  />
+                </div>
+
+                {/* Fixed bottom input area with gradient fade */}
+                {/* PHILOSOPHY: Always show input - no phase gating */}
+                {/* User can type, upload, or generate at any point */}
+                {phase !== 'analyzing' && phase !== 'generating' && (
+                  <div className="sticky bottom-0 pb-4 pt-3 bg-gradient-to-t from-background via-background/95 to-transparent">
+                    <div className="max-w-[720px] mx-auto px-4">
+                      {/* Quick actions - only show early in conversation */}
+                      {messages.length <= 2 && quickActions.length > 0 && (
+                        <QuickActionChips
+                          actions={quickActions}
+                          onInsertPrompt={handleInsertPrompt}
+                          onAction={handleQuickAction}
+                          disabled={isLoading}
+                          className="mb-3"
+                        />
+                      )}
+
+                      {/* Generate button - above input when ready */}
+                      {/* No phase gate - canGenerate alone decides visibility */}
+                      {canGenerate && (
+                        <Button
+                          onClick={handleGenerate}
+                          disabled={isLoading}
+                          className={cn(
+                            'w-full mb-3 rounded-full h-11',
+                            completeness.visualState === 'ready' && 'animate-glow-pulse'
+                          )}
+                          size="lg"
+                        >
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Generate Portfolio Page
+                        </Button>
+                      )}
+
+                      {showMicPermissionPrompt && (
+                        <MicPermissionPrompt
+                          status={micPermissionStatus}
+                          onRequestPermission={requestMicPermission}
+                          isRequesting={isRequestingMicPermission}
+                          compact
+                          className="mb-2"
+                        />
+                      )}
+
+                      {voiceMode === 'voice_chat' ? (
+                        <VoiceLiveControls
+                          status={liveVoiceSession.status}
+                          isConnected={liveVoiceSession.isConnected}
+                          isContinuousMode={liveVoiceSession.isContinuousMode}
+                          audioLevel={liveVoiceSession.audioLevel}
+                          liveUserTranscript={liveVoiceSession.liveUserTranscript}
+                          liveAssistantTranscript={liveVoiceSession.liveAssistantTranscript}
+                          error={liveVoiceSession.error}
+                          onPressStart={
+                            canStartLiveVoice ? liveVoiceSession.startTalking : requestMicPermission
+                          }
+                          onPressEnd={liveVoiceSession.stopTalking}
+                          onDisconnect={liveVoiceSession.disconnect}
+                          onTalkModeChange={handleTalkModeChange}
+                          onReturnToText={() => setVoiceMode('text')}
+                        />
+                      ) : (
+                        <ChatInput
+                          onSend={handleSendMessage}
+                          onAttachPhotos={handleOpenPhotoSheet}
+                          photoCount={uploadedImages.length}
+                          disabled={isLoading}
+                          isLoading={isLoading}
+                          value={inputValue}
+                          onChange={setInputValue}
+                          placeholder={inputPlaceholder}
+                          enableVoice={enableVoiceInput}
+                          onImageDrop={addImages}
+                          voiceMode={voiceMode}
+                          onVoiceModeChange={voiceChatAvailable ? setVoiceMode : undefined}
+                          voiceChatEnabled={voiceChatAvailable}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            }
           />
 
           {/* Loading indicator for analysis/generation - centered overlay */}
@@ -2683,96 +2814,6 @@ export function ChatWizard({
             </div>
           )}
 
-          {/* Peek bar - visible on mobile and tablet, hidden on desktop (which has side canvas) */}
-          <div className="lg:hidden">
-            <CollectedDataPeekBar
-              data={projectData}
-              completeness={completeness}
-              onExpand={() => {
-                setOverlayTab('preview');
-                setShowPreviewOverlay(true);
-              }}
-            />
-          </div>
-
-          {/* Fixed bottom input area with gradient fade */}
-          {(phase === 'conversation' || phase === 'review') && (
-            <div className="sticky bottom-0 pb-4 pt-3 bg-gradient-to-t from-background via-background/95 to-transparent">
-              <div className="max-w-[720px] mx-auto px-4">
-                {/* Quick actions - only show early in conversation */}
-                {messages.length <= 2 && quickActions.length > 0 && (
-                  <QuickActionChips
-                    actions={quickActions}
-                    onInsertPrompt={handleInsertPrompt}
-                    onAction={handleQuickAction}
-                    disabled={isLoading}
-                    className="mb-3"
-                  />
-                )}
-
-                {/* Generate button - above input when ready */}
-                {canGenerate && phase === 'conversation' && (
-                  <Button
-                    onClick={handleGenerate}
-                    disabled={isLoading}
-                    className={cn(
-                      'w-full mb-3 rounded-full h-11',
-                      completeness.visualState === 'ready' && 'animate-glow-pulse'
-                    )}
-                    size="lg"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Generate Portfolio Page
-                  </Button>
-                )}
-
-                {showMicPermissionPrompt && (
-                  <MicPermissionPrompt
-                    status={micPermissionStatus}
-                    onRequestPermission={requestMicPermission}
-                    isRequesting={isRequestingMicPermission}
-                    compact
-                    className="mb-2"
-                  />
-                )}
-
-                {voiceMode === 'voice_chat' ? (
-                  <VoiceLiveControls
-                    status={liveVoiceSession.status}
-                    isConnected={liveVoiceSession.isConnected}
-                    isContinuousMode={liveVoiceSession.isContinuousMode}
-                    audioLevel={liveVoiceSession.audioLevel}
-                    liveUserTranscript={liveVoiceSession.liveUserTranscript}
-                    liveAssistantTranscript={liveVoiceSession.liveAssistantTranscript}
-                    error={liveVoiceSession.error}
-                    onPressStart={
-                      canStartLiveVoice ? liveVoiceSession.startTalking : requestMicPermission
-                    }
-                    onPressEnd={liveVoiceSession.stopTalking}
-                    onDisconnect={liveVoiceSession.disconnect}
-                    onTalkModeChange={handleTalkModeChange}
-                    onReturnToText={() => setVoiceMode('text')}
-                  />
-                ) : (
-                  <ChatInput
-                    onSend={handleSendMessage}
-                    onAttachPhotos={handleOpenPhotoSheet}
-                    photoCount={uploadedImages.length}
-                    disabled={isLoading}
-                    isLoading={isLoading}
-                    value={inputValue}
-                    onChange={setInputValue}
-                    placeholder={inputPlaceholder}
-                    enableVoice={enableVoiceInput}
-                    onImageDrop={addImages}
-                    voiceMode={voiceMode}
-                    onVoiceModeChange={voiceChatAvailable ? setVoiceMode : undefined}
-                    voiceChatEnabled={voiceChatAvailable}
-                  />
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ===== CANVAS COLUMN (Desktop only) ===== */}
@@ -2784,6 +2825,7 @@ export function ChatWizard({
           previewMessage={previewHints.message}
           publicPreview={publicPreview}
           titleOverride={previewHints.title}
+          portfolioLayout={portfolioLayout}
           size={canvasSize}
           onSizeChange={setCanvasSize}
           activeTab={hasFormContent ? canvasTab : 'preview'}
@@ -2813,6 +2855,7 @@ export function ChatWizard({
         completeness={completeness}
         publicPreview={publicPreview}
         titleOverride={previewHints.title}
+        portfolioLayout={portfolioLayout}
         highlightFields={previewHints.highlightFields}
         previewMessage={previewHints.message}
         formContent={formContent}

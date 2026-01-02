@@ -2,17 +2,17 @@
 
 **Priority:** P2 (Phase 3)
 **Status:** Not Implemented
-**Target:** March - June 2025
+**Target:** March - June 2026
 
 ## Overview
 
-National Service Landing pages are **service-focused content pages** that target informational keywords at the national level (no specific city). These pages educate homeowners about specific masonry services and funnel them to city-specific pages.
+National Service Landing pages are **service-focused content pages** that target informational keywords at the national level (no specific city). These pages educate clients about specific services and funnel them to city-specific pages.
 
 **Business Purpose:**
 - Capture informational search traffic ("what is tuckpointing")
-- Establish domain authority on masonry topics
+- Establish domain authority on service topics (current vertical: masonry)
 - Internal linking hub to city + service type pages
-- Educational content marketing for homeowners
+- Educational content marketing for clients
 
 ## Route Configuration
 
@@ -36,7 +36,7 @@ app/(public)/services/[type]/page.tsx
 - `/services/masonry-waterproofing`
 - `/services/efflorescence-removal`
 
-### Service Type Slugs
+### Service Type Slugs (Current Vertical: Masonry)
 
 | Slug | Display Name | Target Keyword | Est. Volume |
 |------|--------------|----------------|-------------|
@@ -58,7 +58,7 @@ app/(public)/services/[type]/page.tsx
 ```typescript
 /**
  * Get list of cities with published projects for a specific service type.
- * Used to populate "Find Contractors by City" section.
+ * Used to populate "Find Businesses by City" section.
  */
 export async function getCitiesByServiceType(
   serviceTypeSlug: string
@@ -144,22 +144,22 @@ export async function getFeaturedProjectsByService(
 ### 1. Hero Section
 
 **Components:**
-- H1 heading: `{Service Type}: Expert Guide & Top Contractors`
+- H1 heading: `{Service Type}: Expert Guide & Top Businesses`
 - Brief overview (150-200 words)
-- CTA button: "Find Local Contractors" (scrolls to city list)
+- CTA button: "Find Local Businesses" (scrolls to city list)
 
 **Example:**
 ```tsx
 <header className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-8 md:p-12">
   <h1 className="text-3xl md:text-4xl font-bold mb-4">
-    Chimney Repair: Expert Guide & Top Contractors
+    Chimney Repair: Expert Guide & Top Businesses
   </h1>
   <p className="text-lg text-muted-foreground max-w-3xl mb-6">
     Learn everything you need to know about chimney repair, from common issues to cost
-    estimates. Find qualified contractors in your area to restore and maintain your chimney.
+    estimates. Find qualified businesses in your area to restore and maintain your chimney.
   </p>
-  <Button size="lg" onClick={() => scrollTo('#find-contractors')}>
-    Find Local Contractors
+  <Button size="lg" onClick={() => scrollTo('#find-businesses')}>
+    Find Local Businesses
   </Button>
 </header>
 ```
@@ -248,7 +248,7 @@ moderate temperatures for proper curing.
 **Purpose:**
 - Visual proof of service quality
 - Internal linking to project detail pages
-- Showcase contractor diversity (different cities)
+- Showcase business diversity (different cities)
 
 ```tsx
 <section className="max-w-6xl mx-auto mb-12">
@@ -291,7 +291,7 @@ moderate temperatures for proper curing.
 
 **Purpose:**
 - Primary internal linking to city + service type pages
-- User-friendly navigation to local contractors
+- User-friendly navigation to local businesses
 - SEO benefit: Links with keyword-rich anchor text
 
 ### 6. FAQ Section
@@ -307,7 +307,7 @@ moderate temperatures for proper curing.
 - How long does chimney repair take?
 - How often should chimneys be inspected?
 - What causes chimney damage?
-- Is chimney repair covered by homeowners insurance?
+- Is chimney repair covered by client insurance?
 
 **Source:** Content plan + common search queries
 
@@ -402,7 +402,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     : undefined;
 
   const title = `${serviceTypeName}: Complete Guide, Costs & Local Contractors | KNearMe`;
-  const description = `Everything you need to know about ${serviceTypeName.toLowerCase()}: what it is, when you need it, typical costs, and how to find qualified contractors in your area.`;
+  const description = `Everything you need to know about ${serviceTypeName.toLowerCase()}: what it is, when you need it, typical costs, and how to find qualified businesses in your area.`;
 
   return {
     title,
@@ -441,7 +441,7 @@ Target audience: Homeowners researching masonry services.
 
 **Step 2: Section Drafting**
 ```
-Prompt: Write the "What is {service}?" section (300-400 words) for a homeowner audience.
+Prompt: Write the "What is {service}?" section (300-400 words) for a client audience.
 Explain the service, common use cases, and why it's important. Avoid jargon.
 ```
 
@@ -594,8 +594,8 @@ Focus on cost, timing, DIY vs professional, and common problems.
 ### Conversion Performance
 
 - ✅ 10%+ of service page visitors navigate to city pages
-- ✅ 5%+ of service page visitors view contractor profiles
-- ✅ 2+ contractor signups attributed to service page traffic
+- ✅ 5%+ of service page visitors view business profiles
+- ✅ 2+ business signups attributed to service page traffic
 
 ## Related Documentation
 

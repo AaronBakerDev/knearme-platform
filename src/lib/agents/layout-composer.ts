@@ -2,7 +2,7 @@
  * Layout Composer Agent
  *
  * Generates structured description blocks and optional image ordering
- * for a contractor portfolio project.
+ * for a business portfolio project.
  *
  * @see /docs/09-agent/multi-agent-architecture.md
  */
@@ -41,7 +41,7 @@ const LayoutComposerSchema = z.object({
  * Don't prescribe sections like "Problem → Solution → Results" - each
  * project is unique and deserves authentic presentation.
  */
-const LAYOUT_SYSTEM_PROMPT = `You are a layout composer for contractor portfolio pages.
+const LAYOUT_SYSTEM_PROMPT = `You are a layout composer for business portfolio pages.
 
 Turn the provided project context into structured description blocks.
 

@@ -9,7 +9,7 @@
 
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { slugify } from '@/lib/utils/slugify';
@@ -21,6 +21,10 @@ import type { Contractor } from '@/types/database';
 const updateContractorSchema = z.object({
   business_name: z.string().min(2).max(100).optional(),
   profile_slug: z.string().min(2).max(100).optional(),
+  address: z.string().max(200).optional().nullable(),
+  postal_code: z.string().max(20).optional().nullable(),
+  phone: z.string().max(40).optional().nullable(),
+  website: z.string().max(200).optional().nullable(),
   city: z.string().min(2).max(100).optional(),
   state: z.string().length(2).optional(),
   description: z.string().max(1000).optional(),
@@ -29,34 +33,61 @@ const updateContractorSchema = z.object({
   profile_photo_url: z.string().url().optional().nullable(),
 });
 
+/**
+ * Find a unique profile slug for a contractor using a single SQL query.
+ * CT-1 FIX: Replaced N+1 loop (up to 50 queries) with single query.
+ *
+ * Algorithm:
+ * 1. Query all slugs matching pattern: baseSlug OR baseSlug-N
+ * 2. Find highest existing suffix
+ * 3. Return baseSlug if available, otherwise baseSlug-(max+1)
+ */
 async function findUniqueProfileSlug(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   baseSlug: string,
   contractorId: string
 ): Promise<string> {
-  let candidate = baseSlug;
-  let suffix = 1;
+  // Single query: find all slugs starting with baseSlug
+  const { data: existingSlugs, error } = await supabase
+    .from('contractors')
+    .select('profile_slug')
+    .neq('id', contractorId)
+    .or(`profile_slug.eq.${baseSlug},profile_slug.like.${baseSlug}-%`)
+    .limit(100);
 
-  while (suffix <= 50) {
-    const { data, error } = await supabase
-      .from('contractors')
-      .select('id')
-      .eq('profile_slug', candidate)
-      .neq('id', contractorId)
-      .limit(1);
-
-    if (!error && (!data || data.length === 0)) {
-      return candidate;
-    }
-
-    suffix += 1;
-    candidate = `${baseSlug}-${suffix}`;
+  if (error) {
+    console.error('[findUniqueProfileSlug] Query error:', error);
+    // Fallback to random suffix on error
+    return `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
   }
 
-  // Fallback: short random suffix if too many collisions
-  const randomSuffix = Math.random().toString(36).slice(2, 6);
-  return `${baseSlug}-${randomSuffix}`;
+  // If no conflicts, use the base slug
+  if (!existingSlugs || existingSlugs.length === 0) {
+    return baseSlug;
+  }
+
+  // Build set of taken slugs for O(1) lookup
+  const slugStrings = existingSlugs
+    .map((row: { profile_slug: string | null }) => row.profile_slug)
+    .filter((s: string | null): s is string => typeof s === 'string');
+  const takenSlugs = new Set<string>(slugStrings);
+
+  // If base slug is available, use it
+  if (!takenSlugs.has(baseSlug)) {
+    return baseSlug;
+  }
+
+  // Find highest suffix and return next
+  let maxSuffix = 1;
+  for (const slug of slugStrings) {
+    const match = slug.match(new RegExp(`^${baseSlug}-(\\d+)$`));
+    if (match) {
+      maxSuffix = Math.max(maxSuffix, parseInt(match[1], 10));
+    }
+  }
+
+  return `${baseSlug}-${maxSuffix + 1}`;
 }
 
 /**
@@ -126,7 +157,6 @@ export async function PATCH(request: NextRequest) {
 
     const updates = parsed.data;
     const supabase = await createClient();
-    const adminClient = createAdminClient();
 
     // Build update payload
     const updatePayload: Partial<Contractor> = { ...updates };
@@ -152,7 +182,7 @@ export async function PATCH(request: NextRequest) {
       const baseSlug = slugify(desiredSlugSource);
       if (baseSlug && baseSlug !== contractor.profile_slug) {
         updatePayload.profile_slug = await findUniqueProfileSlug(
-          adminClient,
+          supabase,
           baseSlug,
           contractor.id
         );
@@ -172,6 +202,11 @@ export async function PATCH(request: NextRequest) {
       console.error('[PATCH /api/contractors/me] Update error:', error);
       return handleApiError(error);
     }
+
+    // CT-3 FIX: Removed bidirectional sync to businesses table.
+    // Businesses table is now the source of truth. Updates to contractors
+    // are allowed for backward compatibility but do NOT sync to businesses.
+    // Use /api/businesses/me for canonical updates (which syncs TO contractors).
 
     return apiSuccess({ contractor: updated });
   } catch (error) {

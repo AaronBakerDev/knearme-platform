@@ -1,7 +1,7 @@
 # Launch Checklist & Plan
 
-> **Version:** 1.0
-> **Last Updated:** December 26, 2025
+> **Version:** 1.1
+> **Last Updated:** January 2, 2026
 > **Target Launch:** MVP Soft Launch
 
 ---
@@ -13,7 +13,7 @@
 We're doing a **controlled soft launch** rather than a public launch:
 
 1. **Launch City:** Your local metro area (easier onboarding, in-person support)
-2. **Initial Contractors:** 10-20 hand-selected contractors
+2. **Initial Businesses:** 10-20 hand-selected businesses
 3. **Onboarding:** Personal outreach, walk through first project together
 4. **Timeline:** 2-week soft launch before any marketing
 
@@ -113,7 +113,7 @@ We're doing a **controlled soft launch** rather than a public launch:
 - [ ] Code freeze (bug fixes only)
 - [ ] Deploy to staging
 - [ ] Full QA pass on staging
-- [ ] Prepare contractor outreach list (20 names)
+- [ ] Prepare business outreach list (20 names)
 
 ### Day -1: Production Deploy
 
@@ -124,32 +124,32 @@ We're doing a **controlled soft launch** rather than a public launch:
 
 ### Day 0: Soft Launch
 
-- [ ] Begin personal outreach to contractors
-- [ ] Goal: 3-5 contractors onboarded Day 1
+- [ ] Begin personal outreach to business owners
+- [ ] Goal: 3-5 businesses onboarded Day 1
 - [ ] Available for real-time support
 - [ ] Monitor error logs closely
 
 ### Day 1-7: Onboarding Sprint
 
-- [ ] Daily check-ins with early contractors
+- [ ] Daily check-ins with early businesses
 - [ ] Collect feedback on friction points
 - [ ] Quick iterations on critical issues
-- [ ] Target: 10 contractors, 20 projects by end of week
+- [ ] Target: 10 businesses, 20 projects by end of week
 
 ### Day 8-14: Stabilization
 
 - [ ] Address top 3 feedback items
 - [ ] Continue onboarding
-- [ ] Target: 20 contractors, 50 projects
+- [ ] Target: 20 businesses, 50 projects
 - [ ] Begin documenting success stories
 
 ---
 
-## Contractor Onboarding Script
+## Business Onboarding Script
 
 ### Initial Outreach (Phone/Text)
 
-> "Hey [Name], this is [Your Name]. I'm launching a new tool that helps masonry contractors showcase their work online—it takes about 2 minutes to post a project using voice and photos. I'd love to get your feedback as one of the first users. Can I walk you through it sometime this week? It's free to use."
+> "Hey [Name], this is [Your Name]. I'm launching a new tool that helps portfolio-based businesses showcase their work online—it takes about 2 minutes to post a project using voice and photos. I'd love to get your feedback as one of the first users. Can I walk you through it sometime this week? It's free to use."
 
 ### Onboarding Call (15 min)
 
@@ -180,7 +180,7 @@ We're doing a **controlled soft launch** rather than a public launch:
 
 | Metric | Target | Measurement |
 |--------|--------|-------------|
-| Contractors onboarded | 10 | Database count |
+| Businesses onboarded | 10 | Database count |
 | Projects published | 20 | Database count |
 | Average time to publish | <5 min | Manual timing |
 | First-try approval rate | >70% | Track regenerations |
@@ -190,7 +190,7 @@ We're doing a **controlled soft launch** rather than a public launch:
 
 | Metric | Target | Measurement |
 |--------|--------|-------------|
-| Contractors onboarded | 20 | Database count |
+| Businesses onboarded | 20 | Database count |
 | Projects published | 50 | Database count |
 | Repeat usage | 50% post 2nd project | Database |
 | NPS score | >7 | Survey |
@@ -222,7 +222,7 @@ vercel rollback [deployment-url]
 ### Communication
 
 If rollback needed:
-- Text early contractors: "We found an issue and are fixing it. Back online within [X hours]."
+- Text early businesses: "We found an issue and are fixing it. Back online within [X hours]."
 - No public announcement needed during soft launch
 
 ---
@@ -239,7 +239,7 @@ Based on soft launch feedback, prioritize:
 
 ### Month 2: Growth Prep
 
-1. **Document case studies** (3-5 contractor success stories)
+1. **Document case studies** (3-5 business success stories)
 2. **SEO optimization** (target keywords showing traction)
 3. **Prepare marketing materials** (if ready for wider launch)
 4. **Consider Jobber integration** (if demand validated)
@@ -274,7 +274,7 @@ Based on soft launch feedback, prioritize:
 
 ### Questions to Answer
 
-1. Did contractors find value? (Would they pay?)
+1. Did businesses find value? (Would they pay?)
 2. What's the biggest friction point?
 3. Is AI content quality acceptable?
 4. Are we on track for 100 projects by Month 2?

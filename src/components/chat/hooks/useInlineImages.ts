@@ -86,7 +86,7 @@ export interface UseInlineImagesOptions {
    * Returns the new project ID to use for uploads.
    *
    * This enables the "image upload gate" pattern to prevent orphaned drafts.
-   * @see /src/app/(contractor)/projects/new/page.tsx for implementation
+   * @see /src/app/(dashboard)/projects/new/page.tsx for implementation
    */
   onEnsureProject?: () => Promise<string>;
 }
@@ -265,7 +265,7 @@ export function useInlineImages({
   const uploadSingleFile = useCallback(
     async (file: File, pendingId: string): Promise<UploadedImage> => {
       // Step 1: Validate file
-      const validationError = validateFile(file, 'project-images');
+      const validationError = validateFile(file, 'project-images-draft');
       if (validationError) {
         throw new Error(validationError);
       }
@@ -323,6 +323,11 @@ export function useInlineImages({
         const errText = await storageRes.text().catch(() => '');
         throw new Error(errText || `Storage upload failed (${storageRes.status})`);
       }
+
+      // Sync to public bucket if project is published (server decides)
+      fetch(`/api/projects/${currentProjectId}/images/${image.id}/sync`, {
+        method: 'POST',
+      }).catch((err) => console.warn('[useInlineImages] Sync failed:', err));
 
       updatePendingProgress(pendingId, 100);
 

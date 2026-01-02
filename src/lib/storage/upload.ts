@@ -17,6 +17,11 @@ export const STORAGE_BUCKETS = {
     allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic'],
     public: true,
   },
+  'project-images-draft': {
+    maxSize: 5 * 1024 * 1024, // 5MB
+    allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic'],
+    public: false,
+  },
   'profile-images': {
     maxSize: 2 * 1024 * 1024, // 2MB
     allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],

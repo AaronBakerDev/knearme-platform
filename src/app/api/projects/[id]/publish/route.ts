@@ -13,6 +13,7 @@ import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { composeProjectDescription } from '@/lib/projects/compose-description';
 import { trackProjectPublished } from '@/lib/observability/kpi-events';
 import { getPublishedProjectLimit, normalizePlanTier } from '@/lib/billing/plan-limits';
+import { copyDraftImagesToPublic, removePublicImages } from '@/lib/storage/upload.server';
 import type { ProjectWithImages } from '@/types/database';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -21,18 +22,16 @@ type RouteParams = { params: Promise<{ id: string }> };
  * POST /api/projects/[id]/publish
  *
  * Publish a project, making it visible on the public portfolio.
- * Validates that the project has required content before publishing.
  *
  * Query Parameters:
- * - dry_run=true: Only validate without publishing, returns { valid, missing }
+ * - dry_run=true: Only validate without publishing, returns { valid, warnings }
+ * - force=true: Publish even with warnings (user override)
  *
- * Requirements for publishing:
- * - title
- * - project type + slug
- * - city + state
- * - hero image (auto-set to first upload if missing)
- * - at least 1 image
+ * PHILOSOPHY: Warn, don't block. User decides when to publish.
+ * Validation issues become warnings that are logged but don't prevent publishing.
+ * The model explains warnings in conversation; user can choose to proceed anyway.
  *
+ * @see /docs/philosophy/agent-philosophy.md
  * @see Issue #6 in todo/ai-sdk-phase-6-edit-mode.md for dry_run implementation
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
@@ -47,8 +46,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Issue #6: Support dry_run parameter for validation-only checks
+    // PHILOSOPHY: force=true allows publishing with warnings (user override)
     const { searchParams } = new URL(request.url);
     const dryRun = searchParams.get('dry_run') === 'true';
+    const force = searchParams.get('force') === 'true';
 
     // Get project with images to validate
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,25 +119,26 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // Validate publishability
-    const errors: string[] = [];
+    // PHILOSOPHY: Collect warnings, not blocking errors.
+    // User decides when to publish; model explains trade-offs.
+    const warnings: string[] = [];
 
     if (!projectData.title) {
-      errors.push('Project must have a title');
+      warnings.push('Project is missing a title');
     }
     if (!projectData.project_type) {
-      errors.push('Project must have a project type');
+      warnings.push('Project is missing a project type');
     } else if (!projectData.project_type_slug) {
-      errors.push('Project type slug is missing. Please re-save the project type.');
+      warnings.push('Project type slug is missing. Please re-save the project type.');
     }
     if (!projectData.city) {
-      errors.push('Project must have a city');
+      warnings.push('Project is missing a city (affects SEO)');
     }
     if (!projectData.state) {
-      errors.push('Project must have a state');
+      warnings.push('Project is missing a state (affects SEO)');
     }
     if (!projectData.project_images || projectData.project_images.length === 0) {
-      errors.push('Project must have at least one image');
+      warnings.push('Project has no images');
     }
     if (!projectData.hero_image_id && projectData.project_images && projectData.project_images.length > 0) {
       // Auto-assign hero image from the first image (by display_order if available)
@@ -148,7 +150,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       projectData.hero_image_id = (sortedImages[0] as { id?: string }).id ?? null;
     }
     if (!projectData.hero_image_id) {
-      errors.push('Project must have a hero image');
+      warnings.push('Project has no hero image');
     }
 
     // Issue #6: For dry_run, skip the "already published" check since we just want validation
@@ -158,17 +160,26 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Issue #6: If dry_run, return validation result without publishing
     if (dryRun) {
-      const missing = planLimitMessage ? [...errors, planLimitMessage] : errors;
+      const allWarnings = planLimitMessage ? [...warnings, planLimitMessage] : warnings;
       return apiSuccess({
-        valid: missing.length === 0,
-        missing,
+        valid: allWarnings.length === 0,
+        warnings: allWarnings,
       });
     }
 
-    if (errors.length > 0) {
-      return apiError('VALIDATION_ERROR', 'Project cannot be published', {
-        missing: errors,
+    // PHILOSOPHY: Warn, don't block. Unless force=false and warnings exist.
+    // Model explains warnings; user can override with force=true.
+    if (warnings.length > 0 && !force) {
+      console.log('[POST /api/projects/[id]/publish] Warnings (blocking):', warnings);
+      return apiError('VALIDATION_ERROR', 'Project has warnings. Use force=true to publish anyway.', {
+        warnings,
+        canForce: true,
       });
+    }
+
+    // Log warnings but proceed when force=true
+    if (warnings.length > 0) {
+      console.log('[POST /api/projects/[id]/publish] Publishing with warnings:', warnings);
     }
 
     const shouldComposeDescription = !projectData.description && !projectData.description_manual;
@@ -219,6 +230,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return handleApiError(updateError);
     }
 
+    // Copy draft images to public bucket
+    if (projectData.project_images && projectData.project_images.length > 0) {
+      const storagePaths = projectData.project_images
+        .map((img) => (img as { storage_path?: string }).storage_path)
+        .filter(Boolean) as string[];
+      const { errors } = await copyDraftImagesToPublic(storagePaths);
+      if (errors.length > 0) {
+        console.warn('[POST /api/projects/[id]/publish] Image copy warnings:', errors);
+      }
+    }
+
     // Track time-to-publish KPI
     // Fire-and-forget: don't block response on tracking
     if (projectData.created_at) {
@@ -230,7 +252,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }).catch((err) => console.error('[KPI] trackProjectPublished failed:', err));
     }
 
-    return apiSuccess({ project: published as ProjectWithImages });
+    // Include warnings in response so model can inform user
+    return apiSuccess({
+      project: published as ProjectWithImages,
+      ...(warnings.length > 0 && { warnings, forcedPublish: true }),
+    });
   } catch (error) {
     return handleApiError(error);
   }
@@ -291,7 +317,19 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return handleApiError(updateError);
     }
 
-    return apiSuccess({ project: unpublished as ProjectWithImages });
+    // Remove public copies when unpublishing
+    const unpublishedProject = unpublished as ProjectWithImages;
+    const publicStoragePaths = (unpublishedProject.project_images || [])
+      .map((img) => img.storage_path)
+      .filter(Boolean) as string[];
+    if (publicStoragePaths.length > 0) {
+      const { errors } = await removePublicImages(publicStoragePaths);
+      if (errors.length > 0) {
+        console.warn('[DELETE /api/projects/[id]/publish] Public image cleanup warnings:', errors);
+      }
+    }
+
+    return apiSuccess({ project: unpublishedProject });
   } catch (error) {
     return handleApiError(error);
   }

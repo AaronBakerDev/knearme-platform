@@ -12,6 +12,7 @@ import { FAQ } from "@/components/marketing/FAQ";
 import { FinalCTA } from "@/components/marketing/FinalCTA";
 import { SiteHeader } from "@/components/marketing/SiteHeader";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
+import { getAuthCta, getAuthStatus } from "@/lib/auth/auth-status";
 
 /**
  * KnearMe Landing Page
@@ -37,13 +38,16 @@ import { SiteFooter } from "@/components/marketing/SiteFooter";
  *
  * Note: Testimonials removed until we have real users
  */
-export default function Home() {
+export default async function Home() {
+  const authStatus = await getAuthStatus();
+  const authCta = getAuthCta(authStatus);
+
   return (
     <div className="flex min-h-screen flex-col font-sans">
       <SiteHeader />
       <main className="flex-1">
         {/* Above the fold */}
-        <HeroSection />
+        <HeroSection authCta={authCta} />
         <StatsBar />
 
         {/* Problem & Solution */}
@@ -60,9 +64,9 @@ export default function Home() {
         {/* Testimonials removed until we have real users */}
 
         {/* Conversion */}
-        <Pricing />
+        <Pricing authCta={authCta} />
         <FAQ />
-        <FinalCTA />
+        <FinalCTA authCta={authCta} />
       </main>
       <SiteFooter />
     </div>

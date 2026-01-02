@@ -11,7 +11,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import { requireAuth, isAuthError } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { transcribeAudio, cleanTranscription } from '@/lib/ai/transcription';
 
@@ -65,12 +64,29 @@ const transcribeSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth();
-    if (isAuthError(auth)) {
-      return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return apiError('UNAUTHORIZED', 'Authentication required. Please log in.');
     }
 
-    const { contractor } = auth;
+    // Allow incomplete profiles for onboarding transcription
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: contractorData, error: contractorError } = await (supabase as any)
+      .from('contractors')
+      .select('id, auth_user_id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    const contractor = contractorData as { id: string; auth_user_id: string } | null;
+
+    if (contractorError || !contractor) {
+      return apiError('UNAUTHORIZED', 'Contractor profile not found.');
+    }
 
     // Parse multipart form data
     const formData = await request.formData();
@@ -138,8 +154,6 @@ export async function POST(request: NextRequest) {
       }
 
       const { project_id, question_id, question_text } = parsed.data;
-      const supabase = await createClient();
-
       // Verify project ownership
       const { data: project, error: projectError } = await supabase
         .from('projects')

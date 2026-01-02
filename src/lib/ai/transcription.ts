@@ -1,19 +1,19 @@
 /**
- * OpenAI Whisper audio transcription for contractor interviews.
+ * Audio transcription using Google Gemini.
  *
- * Uses Vercel AI SDK with OpenAI provider for transcription.
- * Note: Gemini doesn't have a transcription API via AI SDK yet,
- * so we keep using OpenAI Whisper for audio-to-text.
+ * Uses Vercel AI SDK with Google provider for multimodal transcription.
+ * Gemini processes audio files via generateText with file parts.
  *
  * Transcribes voice recordings from the interview flow into text
  * that can be used for content generation.
  *
  * @see /docs/03-architecture/c4-container.md for AI pipeline flow
- * @see https://ai-sdk.dev/docs/ai-sdk-core/transcription
+ * @see https://ai-sdk.dev/docs/ai-sdk-core/prompts#file-parts
  */
 
-import { experimental_transcribe as transcribe } from 'ai';
-import { getTranscriptionModel, isOpenAIEnabled } from './providers';
+import { generateText } from 'ai';
+import { google } from '@ai-sdk/google';
+import { isGoogleAIEnabled } from './providers';
 
 /**
  * Result of transcribing audio.
@@ -49,14 +49,14 @@ export async function transcribeAudio(
   _filename: string = 'recording.webm'
 ): Promise<TranscriptionResult | { error: string; retryable: boolean }> {
   // Check if AI is available
-  if (!isOpenAIEnabled()) {
+  if (!isGoogleAIEnabled()) {
     return {
       error: 'AI transcription is not available',
       retryable: false,
     };
   }
 
-  // Validate blob size (Whisper has a 25MB limit)
+  // Validate blob size (Gemini supports large files, but keep reasonable limit)
   const maxSize = 25 * 1024 * 1024;
   if (audioBlob.size > maxSize) {
     return {
@@ -78,29 +78,44 @@ export async function transcribeAudio(
     const arrayBuffer = await audioBlob.arrayBuffer();
     const audioData = new Uint8Array(arrayBuffer);
 
+    // Extract base MIME type (strip codec parameters like "audio/webm;codecs=opus")
+    const mimeType = (audioBlob.type.split(';')[0] || 'audio/webm') as
+      | 'audio/webm'
+      | 'audio/mp3'
+      | 'audio/mpeg'
+      | 'audio/wav'
+      | 'audio/ogg';
+
     /**
-     * Use AI SDK experimental_transcribe for Whisper.
-     * This provides a unified interface for transcription
-     * that can be swapped to other providers if needed.
+     * Use Gemini's multimodal capabilities for transcription.
+     * Gemini 2.0 Flash natively supports audio file processing.
      *
-     * @see https://ai-sdk.dev/docs/ai-sdk-core/transcription
+     * @see https://ai-sdk.dev/docs/ai-sdk-core/prompts#file-parts
      */
-    const result = await transcribe({
-      model: getTranscriptionModel(),
-      audio: audioData,
-      // Masonry-specific context to improve accuracy
-      providerOptions: {
-        openai: {
-          language: 'en',
-          prompt: 'This is a masonry contractor describing their work. Common terms: tuckpointing, repointing, mortar, brick, chimney, flashing, weep holes, lintel.',
+    const result = await generateText({
+      model: google('gemini-2.0-flash'),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Transcribe this audio recording exactly as spoken. Return only the transcribed text, nothing else. Preserve any trade-specific or technical terms exactly as spoken.',
+            },
+            {
+              type: 'file',
+              mediaType: mimeType,
+              data: audioData,
+            },
+          ],
         },
-      },
+      ],
     });
 
     return {
-      text: result.text,
-      language: result.language,
-      duration: result.durationInSeconds,
+      text: result.text.trim(),
+      language: 'en', // Gemini doesn't return language detection in this mode
+      duration: undefined, // Duration not available from generateText
     };
   } catch (error) {
     const aiError = parseTranscriptionError(error);
@@ -149,8 +164,8 @@ function parseTranscriptionError(error: unknown): { message: string; retryable: 
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
 
-    // Rate limiting
-    if (message.includes('rate') || message.includes('quota') || message.includes('429')) {
+    // Rate limiting (Gemini returns 429 for quota exceeded)
+    if (message.includes('rate') || message.includes('quota') || message.includes('429') || message.includes('resource_exhausted')) {
       return {
         message: 'AI service is busy. Please try again in a moment.',
         retryable: true,
@@ -158,15 +173,15 @@ function parseTranscriptionError(error: unknown): { message: string; retryable: 
     }
 
     // File too large
-    if (message.includes('size') || message.includes('large') || message.includes('limit')) {
+    if (message.includes('size') || message.includes('large') || message.includes('limit') || message.includes('payload')) {
       return {
         message: 'Audio file is too large. Please record a shorter response.',
         retryable: false,
       };
     }
 
-    // Invalid audio format
-    if (message.includes('format') || message.includes('audio') || message.includes('codec')) {
+    // Invalid audio format (Gemini returns specific MIME type errors)
+    if (message.includes('format') || message.includes('mime') || message.includes('unsupported') || message.includes('invalid_argument')) {
       return {
         message: 'Audio format not supported. Please try a different recording.',
         retryable: false,
@@ -174,18 +189,26 @@ function parseTranscriptionError(error: unknown): { message: string; retryable: 
     }
 
     // Network/timeout
-    if (message.includes('timeout') || message.includes('network')) {
+    if (message.includes('timeout') || message.includes('network') || message.includes('econnrefused') || message.includes('fetch')) {
       return {
         message: 'Transcription request timed out. Please try again.',
         retryable: true,
       };
     }
 
-    // API key issues
-    if (message.includes('api key') || message.includes('unauthorized') || message.includes('401')) {
+    // API key issues (Gemini returns 401/403 for auth errors)
+    if (message.includes('api key') || message.includes('unauthorized') || message.includes('401') || message.includes('403') || message.includes('permission')) {
       return {
         message: 'AI service configuration error. Please contact support.',
         retryable: false,
+      };
+    }
+
+    // Safety filter (Gemini may block certain content)
+    if (message.includes('safety') || message.includes('blocked') || message.includes('harm')) {
+      return {
+        message: 'Could not process this audio. Please try recording again.',
+        retryable: true,
       };
     }
 

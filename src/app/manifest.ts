@@ -20,7 +20,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'KnearMe Portfolio',
     short_name: 'KnearMe',
-    description: 'AI-powered portfolio platform for masonry contractors. Build professional project showcases in minutes.',
+    description: 'AI-powered portfolio platform for contractors. Build professional project showcases in minutes.',
     start_url: '/dashboard',
     display: 'standalone',
     background_color: '#ffffff',

@@ -2,7 +2,7 @@
  * JSON-LD structured data generators for SEO.
  *
  * Generates Schema.org structured data for:
- * - LocalBusiness (contractor profiles)
+ * - LocalBusiness (business profiles)
  * - CreativeWork (project portfolios)
  * - ImageObject (project photos)
  *
@@ -10,36 +10,47 @@
  * @see /docs/02-requirements/capabilities.md SEO capabilities
  */
 
-import type { Contractor, Project, ProjectImage } from '@/types/database';
+import type { Business, Contractor, Project, ProjectImage } from '@/types/database';
 import type { ArticleFrontmatter } from '@/lib/content/mdx';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
 /**
- * Generate LocalBusiness schema for a contractor.
+ * Generate LocalBusiness schema for a business profile.
+ *
+ * @param business - Business profile (or legacy Contractor)
+ * @returns Schema.org LocalBusiness JSON-LD
  */
-export function generateContractorSchema(contractor: Contractor) {
-  const contractorSlug = contractor.profile_slug || contractor.id;
+export function generateBusinessSchema(business: Business | Contractor) {
+  // Handle both Business and legacy Contractor types
+  const name = 'name' in business ? business.name : business.business_name;
+  const slug = 'slug' in business ? business.slug : business.profile_slug;
+  const businessSlug = slug || business.id;
+  const businessUrl = `${SITE_URL}/businesses/${business.city_slug}/${businessSlug}`;
   return {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    '@id': `${SITE_URL}/contractors/${contractor.city_slug}/${contractorSlug}`,
-    name: contractor.business_name,
-    description: contractor.description,
+    '@id': businessUrl,
+    name: name,
+    description: business.description,
     address: {
       '@type': 'PostalAddress',
-      addressLocality: contractor.city,
-      addressRegion: contractor.state,
+      ...(business.address ? { streetAddress: business.address } : {}),
+      addressLocality: business.city,
+      addressRegion: business.state,
+      ...(business.postal_code ? { postalCode: business.postal_code } : {}),
       addressCountry: 'US',
     },
-    areaServed: (contractor.service_areas || []).map((area) => ({
+    ...(business.phone ? { telephone: business.phone } : {}),
+    url: businessUrl,
+    areaServed: (business.service_areas || []).map((area) => ({
       '@type': 'City',
       name: area,
     })),
     hasOfferCatalog: {
       '@type': 'OfferCatalog',
-      name: 'Masonry Services',
-      itemListElement: (contractor.services || []).map((service, index) => ({
+      name: 'Services',
+      itemListElement: (business.services || []).map((service, index) => ({
         '@type': 'Offer',
         itemOffered: {
           '@type': 'Service',
@@ -48,18 +59,30 @@ export function generateContractorSchema(contractor: Contractor) {
         position: index + 1,
       })),
     },
-    image: contractor.profile_photo_url,
+    image: business.profile_photo_url,
   };
 }
 
 /**
+ * @deprecated Use generateBusinessSchema instead
+ */
+export const generateContractorSchema = generateBusinessSchema;
+
+/**
  * Generate CreativeWork schema for a project.
+ *
+ * @param project - Project data
+ * @param business - Business profile (or legacy Contractor)
+ * @param images - Project images
  */
 export function generateProjectSchema(
   project: Project,
-  contractor: Contractor,
+  business: Business | Contractor,
   images: ProjectImage[]
 ) {
+  // Handle both Business and legacy Contractor types
+  const businessName = 'name' in business ? business.name : business.business_name;
+
   const projectUrl = `${SITE_URL}/${project.city_slug}/masonry/${project.project_type_slug}/${project.slug}`;
   const primaryImage = images[0];
 
@@ -73,12 +96,15 @@ export function generateProjectSchema(
     dateModified: project.updated_at,
     creator: {
       '@type': 'LocalBusiness',
-      name: contractor.business_name,
+      name: businessName,
       address: {
         '@type': 'PostalAddress',
-        addressLocality: contractor.city,
-        addressRegion: contractor.state,
+        ...(business.address ? { streetAddress: business.address } : {}),
+        addressLocality: business.city,
+        addressRegion: business.state,
+        ...(business.postal_code ? { postalCode: business.postal_code } : {}),
       },
+      ...(business.phone ? { telephone: business.phone } : {}),
     },
     image: images.map((img) => ({
       '@type': 'ImageObject',
@@ -242,8 +268,8 @@ export function generateArticleHowToSchema(
  * This schema helps search engines understand:
  * - What service is offered
  * - Where the service is available
- * - Who provides the service (aggregate of contractors)
- * - Quality indicators (project count, contractor count)
+ * - Who provides the service (aggregate of businesses)
+ * - Quality indicators (project count, business count)
  *
  * @see https://schema.org/Service
  * @see /docs/SEO-DISCOVERY-STRATEGY.md for programmatic SEO architecture
@@ -288,7 +314,7 @@ export function generateServiceSchema(
     provider: stats.providers?.slice(0, 5).map((provider) => ({
       '@type': 'LocalBusiness',
       name: provider.name,
-      url: `${SITE_URL}/contractors/${provider.citySlug}/${provider.slug}`,
+      url: `${SITE_URL}/businesses/${provider.citySlug}/${provider.slug}`,
     })) || [],
     // Aggregate offer showing availability
     offers: {
@@ -351,7 +377,7 @@ export function generateOrganizationSchema() {
     '@id': `${SITE_URL}/#organization`,
     name: 'KnearMe',
     url: SITE_URL,
-    description: 'AI-powered portfolio platform for masonry contractors. Showcase your work, get discovered by homeowners.',
+    description: 'AI-powered portfolio platform for service businesses. Showcase your work, get discovered by clients.',
     logo: `${SITE_URL}/logo.png`,
     sameAs: [
       // Add social media links when available
@@ -446,7 +472,7 @@ export function generateNationalServiceSchema(
     offers: {
       '@type': 'AggregateOffer',
       offerCount: stats.projectCount,
-      description: `${stats.contractorCount} contractors offering ${service.name}`,
+      description: `${stats.contractorCount} businesses offering ${service.name}`,
     },
     category: 'Masonry Services',
   };

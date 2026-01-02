@@ -27,7 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 import { SERVICE_CONTENT } from '@/lib/constants/service-content';
-import { NATIONAL_SERVICE_TYPES } from '@/lib/data/services';
+import { getServiceTypes } from '@/lib/data/services';
 import { createAdminClient } from '@/lib/supabase/server';
 import type { ServiceId } from '@/lib/constants/services';
 
@@ -137,38 +137,28 @@ const SERVICE_ICONS: Record<string, string> = {
 };
 
 export default async function ServicesIndexPage() {
-  const stats = await getServiceStats();
+  // Fetch service types from database and stats in parallel
+  const [serviceTypes, stats] = await Promise.all([
+    getServiceTypes(),
+    getServiceStats(),
+  ]);
 
-  // Build service cards from SERVICE_CONTENT
+  // Build service cards from database + SERVICE_CONTENT
   const serviceCards: ServiceCardData[] = [];
 
-  // Map URL slugs to service IDs
-  const urlSlugToServiceId: Record<string, ServiceId> = {
-    'chimney-repair': 'chimney-repair',
-    tuckpointing: 'tuckpointing',
-    'brick-repair': 'brick-repair',
-    'stone-masonry': 'stone-work',
-    'foundation-repair': 'foundation-repair',
-    'historic-restoration': 'restoration',
-    'masonry-waterproofing': 'waterproofing',
-    'efflorescence-removal': 'efflorescence-removal',
-  };
-
-  NATIONAL_SERVICE_TYPES.forEach((urlSlug) => {
-    const serviceId = urlSlugToServiceId[urlSlug];
-    if (!serviceId) return;
-
+  serviceTypes.forEach((serviceType) => {
+    const serviceId = serviceType.service_id as ServiceId;
     const content = SERVICE_CONTENT[serviceId];
-    if (!content) return;
 
+    // Use database data, fallback to SERVICE_CONTENT for rich content
     const serviceStats = stats.get(serviceId) || { projectCount: 0, cityCount: 0 };
 
     serviceCards.push({
       id: serviceId,
-      urlSlug,
-      label: content.label,
-      shortDescription: content.shortDescription,
-      keywords: content.keywords.slice(0, 3),
+      urlSlug: serviceType.url_slug,
+      label: serviceType.label || content?.label || serviceId,
+      shortDescription: serviceType.short_description || content?.shortDescription || '',
+      keywords: content?.keywords.slice(0, 3) || [],
       projectCount: serviceStats.projectCount,
       cityCount: serviceStats.cityCount,
     });

@@ -28,6 +28,8 @@
 
 import { z } from 'zod';
 import { descriptionBlocksSchema } from '@/lib/content/description-blocks';
+import { DesignTokenSchema } from '@/lib/design/tokens';
+import { SemanticBlocksSchema } from '@/lib/design/semantic-blocks';
 
 // ============================================================================
 // Create Mode Tools (Main Chat Route)
@@ -37,15 +39,15 @@ import { descriptionBlocksSchema } from '@/lib/content/description-blocks';
  * Schema for extracting project data from conversation.
  * Called by the model when it detects relevant information.
  *
- * IMPORTANT: city and state are required for publishing.
- * Always extract location as separate city and state fields.
+ * IMPORTANT: city and state are recommended for publishing.
+ * Extract location as separate city and state fields when available.
  * @see /src/app/api/projects/[id]/publish/route.ts
  */
 export const extractProjectDataSchema = z.object({
   project_type: z
     .string()
     .optional()
-    .describe('Type of masonry project (chimney, tuckpointing, stone repair, brick repair, etc.)'),
+    .describe('Type of project based on the work described'),
   customer_problem: z
     .string()
     .optional()
@@ -57,7 +59,7 @@ export const extractProjectDataSchema = z.object({
   materials_mentioned: z
     .array(z.string())
     .optional()
-    .describe('Materials mentioned (brick types, mortar, stone, etc.)'),
+    .describe('Materials mentioned (if any)'),
   techniques_mentioned: z
     .array(z.string())
     .optional()
@@ -69,11 +71,11 @@ export const extractProjectDataSchema = z.object({
   city: z
     .string()
     .optional()
-    .describe('REQUIRED: City where project was done (e.g., "Denver", "Hamilton"). Extract from any location mention.'),
+    .describe('Recommended: City where project was done. Extract from any location mention.'),
   state: z
     .string()
     .optional()
-    .describe('REQUIRED: State or province abbreviation (e.g., "CO", "ON", "CA"). Extract from any location mention.'),
+    .describe('Recommended: State or province abbreviation (e.g., "CO", "ON", "CA"). Extract from any location mention.'),
   location: z
     .string()
     .optional()
@@ -86,17 +88,13 @@ export const extractProjectDataSchema = z.object({
     .string()
     .optional()
     .describe('What the contractor is most proud of about this work'),
+  // PHILOSOPHY: ready_for_images is deprecated. Users can upload images anytime.
+  // Kept for backwards compatibility with existing sessions.
+  // @see /docs/philosophy/agent-philosophy.md
   ready_for_images: z
     .boolean()
     .optional()
-    .describe(
-      'ONLY set true when ALL conditions are met: ' +
-        '(1) specific project type confirmed (not "brick work"), ' +
-        '(2) customer_problem is at least ~8+ words, ' +
-        '(3) solution_approach is at least ~8+ words, ' +
-        '(4) at least 1 specific material mentioned. ' +
-        'Location is helpful but not required. If any are vague, ask follow-up questions first.'
-    ),
+    .describe('DEPRECATED - set true only if asking for photos next feels helpful.'),
 });
 
 /** Input type for extractProjectData tool */
@@ -111,9 +109,9 @@ export type ExtractProjectDataOutput = ExtractProjectDataInput;
 export const promptForImagesSchema = z.object({
   existingCount: z.number().default(0).describe('Number of images already uploaded'),
   suggestedCategories: z
-    .array(z.enum(['before', 'after', 'progress', 'detail']))
+    .array(z.string())
     .optional()
-    .describe('Suggested photo categories based on project type'),
+    .describe('Suggested photo categories based on the work (e.g., before, after, detail, process, gallery)'),
   message: z.string().optional().describe('Optional message to display with the upload prompt'),
 });
 
@@ -206,15 +204,9 @@ export const suggestQuickActionsSchema = z.object({
     .array(
       z.object({
         label: z.string().describe('Short label for the chip'),
-        type: z.enum([
-          'addPhotos',
-          'generate',
-          'openForm',
-          'showPreview',
-          'composeLayout',
-          'checkPublishReady',
-          'insert',
-        ]),
+        type: z
+          .string()
+          .describe('Action type (use existing UI types when possible, but any relevant action is allowed)'),
         value: z.string().optional().describe('Prefilled text for insert-type actions'),
       })
     )
@@ -251,6 +243,61 @@ export const generatePortfolioContentSchema = z.object({
     .optional()
     .describe('Specific aspects to emphasize (e.g., ["craftsmanship", "materials", "historic"])'),
 });
+
+/**
+ * Schema for parallel Story + Design agent execution.
+ * Runs both agents simultaneously for faster initial layout after images.
+ *
+ * ARCHITECTURE: Orchestrator + Subagents Pattern
+ * Story Agent extracts narrative while Design Agent composes initial layout.
+ * Results are merged by the orchestrator for a coherent response.
+ *
+ * @see /todo/ai-sdk-phase-10-persona-agents.md
+ * @see /src/lib/agents/orchestrator.ts delegateParallel()
+ */
+export const processParallelSchema = z.object({
+  trigger: z
+    .enum(['images_uploaded', 'content_ready', 'user_request'])
+    .describe('What triggered the parallel processing'),
+  userMessage: z
+    .string()
+    .optional()
+    .describe('Optional user message to include in Story Agent context'),
+  skipStory: z
+    .boolean()
+    .optional()
+    .describe('Skip Story Agent if narrative is already complete'),
+  skipDesign: z
+    .boolean()
+    .optional()
+    .describe('Skip Design Agent if only story updates needed'),
+});
+
+/** Input type for processParallel tool */
+export type ProcessParallelInput = z.infer<typeof processParallelSchema>;
+
+/** Output type for processParallel tool */
+export interface ProcessParallelOutput {
+  success: boolean;
+  /** Which agents were executed */
+  agentsRun: ('story' | 'design')[];
+  /** Story agent results if run */
+  storyResult?: {
+    title?: string;
+    description?: string;
+    checkpoint?: string;
+    followUpQuestion?: string;
+  };
+  /** Design agent results if run */
+  designResult?: {
+    heroImageId?: string;
+    layoutStyle?: string;
+  };
+  /** Combined duration of all agents */
+  durationMs: number;
+  /** Error if any agent failed */
+  error?: string;
+}
 
 /** Input type for generatePortfolioContent tool */
 export type GeneratePortfolioContentInput = z.infer<typeof generatePortfolioContentSchema>;
@@ -309,10 +356,51 @@ export interface ComposePortfolioLayoutOutput {
    * Optional gallery ordering by image id. The first image is treated as hero.
    */
   imageOrder?: string[];
+  /**
+   * Hero image selection from Design Agent (Phase 10 - Subagent Architecture).
+   * The Design Agent analyzes images and selects the most impactful hero.
+   */
+  heroImageId?: string;
   rationale?: string;
   missingContext?: string[];
   confidence?: number;
 }
+
+/**
+ * Schema for composing a full UI layout using the UI Composer agent.
+ * Produces design tokens and semantic blocks for rich portfolio rendering.
+ *
+ * @see /src/lib/agents/ui-composer.ts
+ * @see /src/lib/design/tokens.ts
+ * @see /src/lib/design/semantic-blocks.ts
+ */
+export const composeUILayoutInputSchema = z.object({
+  feedback: z
+    .string()
+    .optional()
+    .describe('User feedback for iterating on the layout (e.g., "make it more modern")'),
+  focusAreas: z
+    .array(z.string())
+    .optional()
+    .describe('Areas to focus on (e.g., ["hero", "gallery", "content"])'),
+  preserveElements: z
+    .array(z.string())
+    .optional()
+    .describe('Elements to keep unchanged during iteration'),
+});
+
+export const composeUILayoutOutputSchema = z.object({
+  designTokens: DesignTokenSchema,
+  blocks: SemanticBlocksSchema,
+  rationale: z.string().describe('Why this layout fits the project'),
+  confidence: z.number().min(0).max(1),
+});
+
+/** Input type for composeUILayout tool */
+export type ComposeUILayoutInput = z.infer<typeof composeUILayoutInputSchema>;
+
+/** Output type for composeUILayout tool */
+export type ComposeUILayoutOutput = z.infer<typeof composeUILayoutOutputSchema>;
 
 /**
  * Schema for checking publish readiness using QualityChecker agent.
@@ -353,11 +441,22 @@ const updateFieldStringFields = [
   'description',
   'seo_title',
   'seo_description',
+  'project_type',
+  'summary',
+  'challenge',
+  'solution',
+  'results',
+  'neighborhood',
+  'duration',
+  'client_type',
+  'budget_range',
+  'hero_image_id',
+  'status',
   'city',
   'state',
 ] as const;
 
-const updateFieldArrayFields = ['tags', 'materials', 'techniques'] as const;
+const updateFieldArrayFields = ['tags', 'materials', 'techniques', 'outcome_highlights'] as const;
 
 export const editableFields = [
   ...updateFieldStringFields,
@@ -501,19 +600,25 @@ export interface ValidateForPublishOutput {
 }
 
 // ============================================================================
-// Contractor Profile Tools
+// Business Profile Tools (Legacy name: Contractor)
 // ============================================================================
 
 /**
- * Editable contractor profile field names.
- * These map to columns in the contractors table.
+ * Editable business profile field names.
+ * These map to columns in the businesses table.
+ *
+ * Note: Variables and types still use "contractor" naming for schema compatibility.
+ * The tool executor implementation uses the `businesses` table internally.
+ * @see /src/lib/chat/tools-runtime.ts updateContractorProfile executor
  */
 const contractorProfileStringFields = [
   'business_name',
+  'address',
+  'postal_code',
+  'phone',
   'city',
   'state',
   'description',
-  'phone',
   'email',
   'website',
 ] as const;
@@ -528,10 +633,11 @@ export const contractorProfileFields = [
 export type ContractorProfileField = (typeof contractorProfileFields)[number];
 
 /**
- * Schema for updating contractor profile fields.
+ * Schema for updating business profile fields.
  * Allows the agent to update business information during conversation.
  *
- * @see /src/app/api/contractors/me/route.ts
+ * @see /src/app/api/businesses/me/route.ts (canonical)
+ * @see /src/app/api/contractors/me/route.ts (legacy, still supported)
  */
 // Use a discriminated union to keep field/value types aligned and bounded.
 export const updateContractorProfileSchema = z.discriminatedUnion('field', [
@@ -594,12 +700,14 @@ export type ToolOutput =
   | SuggestQuickActionsOutput
   | GeneratePortfolioContentOutput
   | ComposePortfolioLayoutOutput
+  | ComposeUILayoutOutput
   | CheckPublishReadyOutput
   | UpdateFieldOutput
   | RegenerateSectionOutput
   | ReorderImagesOutput
   | ValidateForPublishOutput
-  | UpdateContractorProfileOutput;
+  | UpdateContractorProfileOutput
+  | ProcessParallelOutput;
 
 /**
  * Tool name to output type mapping.
@@ -614,12 +722,14 @@ export interface ToolOutputMap {
   suggestQuickActions: SuggestQuickActionsOutput;
   generatePortfolioContent: GeneratePortfolioContentOutput;
   composePortfolioLayout: ComposePortfolioLayoutOutput;
+  composeUILayout: ComposeUILayoutOutput;
   checkPublishReady: CheckPublishReadyOutput;
   updateField: UpdateFieldOutput;
   regenerateSection: RegenerateSectionOutput;
   reorderImages: ReorderImagesOutput;
   validateForPublish: ValidateForPublishOutput;
   updateContractorProfile: UpdateContractorProfileOutput;
+  processParallel: ProcessParallelOutput;
 }
 
 /** Tool names */

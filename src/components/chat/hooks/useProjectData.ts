@@ -62,28 +62,10 @@ export interface ProjectPreviewData {
 
 /**
  * Format project type slug into human-readable text.
- * Handles common masonry project types.
+ * Uses a simple title-case fallback for any slug.
  */
 function formatProjectType(slug: string | undefined): string | null {
   if (!slug) return null;
-
-  const typeMap: Record<string, string> = {
-    'chimney-rebuild': 'Chimney Rebuild',
-    'chimney-repair': 'Chimney Repair',
-    'tuckpointing': 'Tuckpointing',
-    'brick-repair': 'Brick Repair',
-    'stone-work': 'Stone Work',
-    'foundation-repair': 'Foundation Repair',
-    'fireplace': 'Fireplace',
-    'retaining-wall': 'Retaining Wall',
-    'paver': 'Paver Installation',
-    'concrete': 'Concrete Work',
-  };
-
-  // Try direct match
-  if (typeMap[slug]) {
-    return typeMap[slug];
-  }
 
   // Fallback: Title case the slug
   return slug
@@ -114,26 +96,45 @@ function generateSuggestedTitle(
 
 /**
  * Select hero images for the canvas grid layout.
- * Prioritizes 'after' images for primary slot.
+ *
+ * PHILOSOPHY: Trust the agent's image analysis.
+ * The Visual Agent categorizes images based on actual content.
+ * We use a default display order, but the agent can override.
+ *
+ * Default behavior:
+ * - Show "best result" images first (after, hero, featured)
+ * - Then supporting context (detail, process, progress)
+ * - Finally before/context shots
+ *
+ * The image_type comes from the Visual Agent's analysis - we're
+ * not prescribing categories, just organizing what the agent found.
  */
-function selectHeroImages(images: UploadedImage[]): HeroImageLayout {
+function selectHeroImages(
+  images: UploadedImage[],
+  customPriority?: string[]
+): HeroImageLayout {
   if (images.length === 0) {
     return { primary: null, secondary: [] };
   }
 
-  // Sort by preference: after > detail > progress > before > uncategorized
-  const priorityOrder: (string | undefined)[] = [
-    'after',
-    'detail',
-    'progress',
-    'before',
-    undefined,
+  // Default priority: results first, then context
+  // This is a sensible default for any portfolio - show your best work first
+  // Agent can override via customPriority for specific business types
+  const priorityOrder = customPriority ?? [
+    'after',      // Result of transformational work
+    'hero',       // Featured/best shot (any business)
+    'featured',   // Highlighted by agent
+    'detail',     // Close-up/specific element
+    'progress',   // Work in action
+    'process',    // How it was done
+    'before',     // Starting point
+    'context',    // Setting/environment
   ];
 
   const sorted = [...images].sort((a, b) => {
-    const aIndex = priorityOrder.indexOf(a.image_type);
-    const bIndex = priorityOrder.indexOf(b.image_type);
-    // Unknown types (-1) should sort last, not first
+    const aIndex = priorityOrder.indexOf(a.image_type ?? '');
+    const bIndex = priorityOrder.indexOf(b.image_type ?? '');
+    // Unknown types sort last but preserve original order among themselves
     const aScore = aIndex === -1 ? priorityOrder.length : aIndex;
     const bScore = bIndex === -1 ? priorityOrder.length : bIndex;
     return aScore - bScore;

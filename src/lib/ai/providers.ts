@@ -2,15 +2,13 @@
  * Centralized AI provider configuration.
  *
  * Uses Vercel AI SDK for provider-agnostic model access.
- * Primary provider: Google Gemini 3.0 Flash (vision, generation, chat)
- * Secondary provider: OpenAI Whisper (transcription only)
+ * Provider: Google Gemini (vision, generation, chat, transcription)
  *
  * @see https://ai-sdk.dev/docs/introduction
  * @see https://ai.google.dev/gemini-api/docs/models#gemini-3-flash
  */
 
 import { google } from '@ai-sdk/google';
-import { openai } from '@ai-sdk/openai';
 
 // ============================================================================
 // Environment Validation
@@ -21,22 +19,14 @@ export function isGoogleAIEnabled(): boolean {
   return Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 }
 
-/** Check if OpenAI is configured (for Whisper transcription) */
-export function isOpenAIEnabled(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY);
-}
-
 /** Check if any AI provider is available */
 export function isAIEnabled(): boolean {
-  return isGoogleAIEnabled() || isOpenAIEnabled();
+  return isGoogleAIEnabled();
 }
 
 // Log warnings at module load
 if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-  console.warn('[AI Providers] GOOGLE_GENERATIVE_AI_API_KEY not set - Gemini features disabled');
-}
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('[AI Providers] OPENAI_API_KEY not set - Whisper transcription disabled');
+  console.warn('[AI Providers] GOOGLE_GENERATIVE_AI_API_KEY not set - AI features disabled');
 }
 
 // ============================================================================
@@ -61,10 +51,8 @@ export const AI_MODELS = {
   chat: 'gemini-3-flash-preview',
   /** Live audio model for Voice -> Voice sessions */
   live: 'gemini-2.5-flash-native-audio-preview-12-2025',
-  /** Stable fallback model for reliability-first flows */
+  /** Stable fallback model for reliability-first flows (also used for transcription) */
   fallback: 'gemini-2.0-flash',
-  /** Transcription model (OpenAI Whisper - AI SDK doesn't support Gemini transcription yet) */
-  transcription: 'whisper-1',
 } as const;
 
 /**
@@ -127,17 +115,6 @@ export function getChatModel() {
   return google(getGeminiModel('chat'));
 }
 
-/**
- * Get the transcription model for audio-to-text.
- * Uses OpenAI Whisper (AI SDK doesn't support Gemini transcription yet).
- */
-export function getTranscriptionModel() {
-  if (!isOpenAIEnabled()) {
-    throw new Error('OpenAI not configured. Set OPENAI_API_KEY for transcription.');
-  }
-  return openai.transcription(AI_MODELS.transcription);
-}
-
 // ============================================================================
 // Cost Estimation
 // ============================================================================
@@ -149,13 +126,9 @@ export function getTranscriptionModel() {
  * - Input: $0.50/1M tokens
  * - Output: $3.00/1M tokens
  * - Audio input: $1.00/1M tokens
- *
- * OpenAI Whisper:
- * - $0.006/minute of audio
  */
 const PRICING = {
   'gemini-3-flash-preview': { input: 0.5, output: 3.0, audioInput: 1.0 },
-  'whisper-1': { perMinute: 0.006 },
 } as const;
 
 /**
@@ -176,17 +149,6 @@ export function estimateGeminiCost(
   const inputCost = (inputTokens / 1_000_000) * inputRate;
   const outputCost = (outputTokens / 1_000_000) * pricing.output;
   return inputCost + outputCost;
-}
-
-/**
- * Estimate cost for Whisper transcription.
- *
- * @param durationSeconds - Audio duration in seconds
- * @returns Estimated cost in USD
- */
-export function estimateWhisperCost(durationSeconds: number): number {
-  const durationMinutes = durationSeconds / 60;
-  return durationMinutes * PRICING['whisper-1'].perMinute;
 }
 
 // ============================================================================

@@ -2,11 +2,13 @@
 
 **Priority:** P2 (Phase 3)
 **Status:** Not Implemented
-**Target:** March - June 2025
+**Target:** March - June 2026
 
 ## Overview
 
-Educational Content pages are **in-depth articles and how-to guides** targeting informational keywords and homeowner pain points. These pages build domain authority, capture top-of-funnel traffic, and guide homeowners toward city/service pages.
+Educational Content pages are **in-depth articles and how-to guides** targeting informational keywords and client pain points. These pages build domain authority, capture top-of-funnel traffic, and guide clients toward city/service pages.
+
+**Vertical note:** Examples reference masonry topics as the current SEO wedge; the structure should generalize to any portfolio‑based business category.
 
 **Business Purpose:**
 - Capture informational search queries ("how to", "what is", "signs you need")
@@ -77,7 +79,7 @@ app/(public)/resources/[slug]/page.tsx
 ## When to Hire a Professional (H2)
 [200-300 words]
 
-## Find Local Contractors (H2)
+## Find Local Businesses (H2)
 [CTA section with links to city hubs]
 
 ## Related Resources (H2)
@@ -117,7 +119,7 @@ app/(public)/resources/[slug]/page.tsx
 [Numbered steps with images, 600-800 words total]
 
 ## Professional Solution (H2)
-[What contractors do differently, benefits, 200-300 words]
+[What businesses do differently, benefits, 200-300 words]
 
 ## Featured Projects (H2)
 [Before/after examples from portfolio]
@@ -274,7 +276,7 @@ masonry, dissolving salts and depositing them on the surface.
 
 **Component:** `<ProjectExample>` (custom MDX component)
 **Purpose:** Visual examples from real projects
-**Display:** Compact card with image, title, contractor, link
+**Display:** Compact card with image, title, business, link
 
 **Implementation:**
 ```tsx
@@ -499,7 +501,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 1. **Keyword Research:**
    - Use Google Keyword Planner, Ahrefs, or AnswerThePublic
    - Identify informational queries with 500+ monthly searches
-   - Prioritize questions homeowners are actively searching
+   - Prioritize questions clients are actively searching
 
 2. **Content Calendar:**
    - Reference `/docs/content-planning/masonry/content-plan.md` Section 2
@@ -547,7 +549,7 @@ Start with a relatable problem statement, explain why it matters, and preview th
 1. **Deploy MDX file** to `content/learn/{slug}.mdx`
 2. **Update sitemap** (automatic if using dynamic sitemap)
 3. **Submit to Google Search Console** for indexing
-4. **Share on social media** (Twitter, LinkedIn, contractor email)
+4. **Share on social media** (Twitter, LinkedIn, business email)
 5. **Monitor performance** (Google Analytics, Search Console)
 
 ## Target Keywords (Examples)
@@ -688,8 +690,8 @@ Start with a relatable problem statement, explain why it matters, and preview th
 ### Conversion Performance
 
 - ✅ 10%+ of article readers navigate to city pages
-- ✅ 5%+ of article readers view contractor profiles
-- ✅ 5+ contractor signups attributed to educational content
+- ✅ 5%+ of article readers view business profiles
+- ✅ 5+ business signups attributed to educational content
 
 ## Related Documentation
 

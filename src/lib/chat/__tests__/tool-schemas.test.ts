@@ -80,12 +80,8 @@ describe('promptForImagesSchema', () => {
     expect(result.existingCount).toBe(0);
   });
 
-  it('rejects invalid categories and does not coerce numbers', () => {
-    expectInvalid(
-      promptForImagesSchema,
-      { suggestedCategories: ['before', 'unknown'] },
-      'suggestedCategories.1'
-    );
+  it('accepts arbitrary categories and does not coerce numbers', () => {
+    expectValid(promptForImagesSchema, { suggestedCategories: ['before', 'gallery', 'in-progress'] });
     expectInvalid(promptForImagesSchema, { existingCount: '2' }, 'existingCount');
   });
 });
@@ -195,7 +191,7 @@ describe('suggestQuickActionsSchema', () => {
   it('rejects invalid actions and overflow', () => {
     expectInvalid(
       suggestQuickActionsSchema,
-      { actions: [{ label: 'Oops', type: 'unsupported' }] },
+      { actions: [{ label: 'Oops', type: 3 }] },
       'actions.0.type'
     );
 

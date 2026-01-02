@@ -13,7 +13,7 @@
  * - Overall publish readiness status
  * - SEO auto-generation suggestion
  *
- * @see src/app/(contractor)/projects/[id]/edit/page.tsx - Integration point
+ * @see src/app/(dashboard)/projects/[id]/edit/page.tsx - Integration point
  */
 
 import { useMemo } from 'react'

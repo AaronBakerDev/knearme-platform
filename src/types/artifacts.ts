@@ -10,6 +10,7 @@
 
 import type { ExtractedProjectData } from '@/lib/chat/chat-types';
 import type { DescriptionBlock } from '@/lib/content/description-blocks';
+import type { DiscoveredBusiness } from '@/lib/tools/business-discovery';
 
 /**
  * Tool part states from AI SDK 6.
@@ -40,6 +41,7 @@ export type ArtifactType =
   | 'updateDescriptionBlocks'
   | 'suggestQuickActions'
   | 'generatePortfolioContent'
+  | 'showBusinessSearchResults'
   | 'composePortfolioLayout'
   | 'checkPublishReady'
   | 'reorderImages'
@@ -220,6 +222,14 @@ export interface GeneratedContentData {
 }
 
 /**
+ * Business search results data from Discovery Agent.
+ */
+export interface BusinessSearchResultsData {
+  results: DiscoveredBusiness[];
+  prompt?: string;
+}
+
+/**
  * Layout composition data from Layout Composer agent.
  */
 export interface ComposePortfolioLayoutData {
@@ -247,6 +257,7 @@ export type ArtifactPart =
   | ToolPart<ClarificationData, ClarificationData> & { type: 'tool-requestClarification' }
   | ToolPart<UpdateFieldData, UpdateFieldData> & { type: 'tool-updateField' }
   | ToolPart<UpdateDescriptionBlocksData, UpdateDescriptionBlocksData> & { type: 'tool-updateDescriptionBlocks' }
+  | ToolPart<BusinessSearchResultsData, BusinessSearchResultsData> & { type: 'tool-showBusinessSearchResults' }
   | ToolPart<GeneratedContentData, GeneratedContentData> & { type: 'tool-generatePortfolioContent' }
   | ToolPart<ComposePortfolioLayoutData, ComposePortfolioLayoutData> & { type: 'tool-composePortfolioLayout' }
   | ToolPart<PublishReadinessData, PublishReadinessData> & { type: 'tool-checkPublishReady' };

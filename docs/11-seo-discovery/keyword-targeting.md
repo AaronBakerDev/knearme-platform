@@ -1,7 +1,7 @@
 # Keyword Targeting Strategy
 
-> **Version:** 1.0
-> **Last Updated:** December 2024
+> **Version:** 1.1
+> **Last Updated:** January 2, 2026
 > **Status:** Active
 > **Purpose:** Document keyword research, targeting strategy, and content-to-keyword mapping
 
@@ -9,12 +9,12 @@
 
 ## 1. Overview
 
-KNearMe targets two distinct keyword audiences:
+KnearMe targets two distinct keyword audiences:
 
-1. **Homeowners** (Demand Side) - Searching for contractors and project information
-2. **Contractors** (Supply Side) - Searching for marketing/portfolio solutions (Phase 2+)
+1. **Clients** (Demand Side) - Searching for providers and project information (current vertical queries still use contractor language)
+2. **Businesses** (Supply Side) - Searching for marketing/portfolio solutions (Phase 2+)
 
-**Primary Focus (MVP):** Homeowner keywords for organic traffic and contractor discovery
+**Primary Focus (MVP):** Client keywords for organic traffic and business discovery
 
 **Data Sources:**
 - Google Keyword Planner
@@ -24,7 +24,7 @@ KNearMe targets two distinct keyword audiences:
 
 ---
 
-## 2. Homeowner Keywords (Demand Side)
+## 2. Client Keywords (Demand Side)
 
 ### 2.1 Primary Keyword Patterns
 
@@ -40,7 +40,7 @@ KNearMe targets two distinct keyword audiences:
 | **{city} {service}** | "Denver chimney repair" | 720/mo | Medium | **P0** | Service Type by City |
 
 **Page Type Definitions:**
-- **City Hub (Roundup):** Content hub built from contractor-generated projects and profiles. No review analysis.
+- **City Hub (Roundup):** Content hub built from business-generated projects and profiles. No review analysis.
 - **Review Analysis Hub:** Separate editorial pipeline for “best {service} in {city}” and review-intent queries. Based on market review signals; links to city hub roundups and proof pages.
 
 **Volume Notes:**
@@ -49,7 +49,7 @@ KNearMe targets two distinct keyword audiences:
 - Larger cities (NYC, LA): 200-300% of Denver volume
 - National "near me" queries highest volume but geo-dependent
 
-### 2.2 Long-Tail Homeowner Keywords
+### 2.2 Long-Tail Client Keywords
 
 **High-Intent, Lower Competition:**
 
@@ -121,11 +121,11 @@ Based on `/docs/content-planning/masonry/content-plan.md`:
 
 ---
 
-## 3. Contractor Acquisition Keywords (Supply Side)
+## 3. Business Acquisition Keywords (Supply Side)
 
-### 3.1 B2B Contractor Keywords
+### 3.1 B2B Business Keywords
 
-**Phase 2+ Focus (Lower Priority than Homeowner Keywords in MVP):**
+**Phase 2+ Focus (Lower Priority than Client Keywords in MVP):**
 
 | Keyword | Monthly Volume (National) | Competition | Target Landing Page | Priority |
 |---------|---------------------------|-------------|---------------------|----------|
@@ -141,19 +141,19 @@ Based on `/docs/content-planning/masonry/content-plan.md`:
 | **contractor lead generation** | 1,600 | High | Educational content | **P3** |
 
 **Strategy Notes:**
-- Contractor keywords targeted via content marketing (not paid ads)
+- Business keywords targeted via content marketing (not paid ads)
 - Blog posts and educational content to build trust
-- Conversion metric: "contractor signups from organic B2B search"
-- Secondary to homeowner keyword focus (homeowners drive contractor demand)
+- Conversion metric: "business signups from organic B2B search"
+- Secondary to client keyword focus (clients drive demand)
 
-### 3.2 Content Marketing Keywords (Contractor Funnel)
+### 3.2 Content Marketing Keywords (Business Funnel)
 
 **Awareness Stage (TOFU):**
 
 | Keyword | Monthly Volume | Content Type | Target Article |
 |---------|----------------|--------------|----------------|
 | **how to market masonry business** | 260 | Blog post | "5 Ways Masonry Contractors Can Get More Leads Without Ads" |
-| **contractor marketing ideas** | 480 | Blog post | "Why Every Contractor Needs a Portfolio in 2025" |
+| **contractor marketing ideas** | 480 | Blog post | "Why Every Contractor Needs a Portfolio in 2026" |
 | **get more contractor leads** | 720 | Blog post | "How AI Can Build Your Contractor Portfolio in 30 Minutes" |
 
 **Consideration Stage (MOFU):**
@@ -161,8 +161,8 @@ Based on `/docs/content-planning/masonry/content-plan.md`:
 | Keyword | Monthly Volume | Content Type | Target Article |
 |---------|----------------|--------------|----------------|
 | **best contractor portfolio website** | 210 | Comparison guide | "Traditional Website vs. AI Portfolio: What's Best?" |
-| **AI portfolio generator** | 320 | Case study | "How [Contractor] Built a Portfolio in 30 Minutes with AI" |
-| **contractor portfolio examples** | 480 | Gallery page | Featured contractor portfolios |
+| **AI portfolio generator** | 320 | Case study | "How [Business] Built a Portfolio in 30 Minutes with AI" |
+| **contractor portfolio examples** | 480 | Gallery page | Featured business portfolios |
 
 **Decision Stage (BOFU):**
 
@@ -183,12 +183,12 @@ Based on `/docs/content-planning/masonry/content-plan.md`:
 | **/{city}/masonry** | {city} masonry contractors | masonry {city}, {city} masonry services | 500-900/mo | **P0** |
 | **/{city}/masonry/{type}** | {service} in {city} | {city} {service}, {service} contractors {city} | 200-800/mo | **P1** |
 | **/{city}/masonry/{type}/{slug}** | {project title} | {service} project, {city} {service} example | 10-50/mo (long-tail) | **P0** |
-| **/contractor/{username}** | {contractor name} | {contractor business name}, {city} {service} contractor | <10/mo (branded) | **P0** |
+| **/businesses/{city}/{slug}** | {business name} | {business name}, {city} {service} contractor | <10/mo (branded) | **P0** |
 
 **Optimization Strategy:**
-- **City Hub (Roundup):** H1 = "{City} Masonry Contractors", meta title includes "Find Masonry Contractors in {City}"
-- **Service Type:** H1 = "{Service} in {City}", meta title = "Expert {Service} Contractors in {City} | KNearMe"
-- **Project Detail:** H1 = AI-generated project title, meta title = "{Title} | {Contractor Name} | {City}"
+- **City Hub (Roundup):** H1 = "{City} Masonry Contractors" (current vertical), meta title includes "Find Masonry Contractors in {City}"
+- **Service Type:** H1 = "{Service} in {City}", meta title = "Expert {Service} Contractors in {City} | KnearMe" (current vertical)
+- **Project Detail:** H1 = AI-generated project title, meta title = "{Title} | {Business Name} | {City}"
 - **Review Analysis Hub:** H1 = "Best {Service} in {City}", with methodology, review data sources, and a disclaimer.
 
 ### 4.2 National Service Landing Pages (Phase 3)
@@ -395,7 +395,7 @@ Based on `/docs/content-planning/masonry/content-plan.md` Section 3:
 
 ### Phase 1 (Current - COMPLETE)
 
-- [x] Identify primary keyword patterns (homeowner keywords)
+- [x] Identify primary keyword patterns (client keywords)
 - [x] Map service type keywords to database slugs
 - [x] Optimize existing City Hub (Roundup) and Project Detail pages
 - [x] Define geographic keyword strategy (Colorado focus)

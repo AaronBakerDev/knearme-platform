@@ -1,104 +1,113 @@
 # Agent System Roadmap
 
-> Tracks implementation progress and links to detailed planning docs.
-
-## Source of Truth
-
-The authoritative implementation plan lives at:
-**`docs/09-agent/implementation-plan.md`**
-
-This file summarizes status and provides quick context for development sessions.
+> Current state and design decisions for the agent system.
 
 ---
 
-## Current Phase Summary
+## Philosophy Status
 
-| Phase | Name | Status | Key Files |
-|-------|------|--------|-----------|
-| 1 | Prompt & Context Injection | ✅ Complete | chat-prompts.ts, context-shared.ts |
-| 2 | Gating & Extraction Behavior | 🔄 In Progress | story-extractor.ts, useCompleteness.ts |
-| 3 | Business Profile Update Tooling | ⏳ Pending | tool-schemas.ts, contractors API |
-| 4 | Content Generation & Layout | 🔄 In Progress | content-generator.ts, layout-composer.ts |
-| 5 | UX Polish & Alignment | ⏳ Pending | ChatWizard.tsx, GeneratedContentCard.tsx |
+The agent system follows **Orchestrator + Subagents** architecture:
+- ✅ Philosophy migrations complete (Phases 1-4)
+- 🔄 Phase 10: Implementing Orchestrator + Subagents pattern
+- See [`AGENT-PERSONAS.md`](AGENT-PERSONAS.md) for agent definitions
+- See [`PHILOSOPHY.md`](PHILOSOPHY.md) for principles
 
 ---
 
-## Recent Changes (2025-01)
+## Agent Architecture
 
-### Completed
-- `checkPublishReady` moved to FAST_TURN_TOOLS (no longer needs explicit toolChoice)
-- city/state added to updateFieldSchema for location updates
-- ThinkingBlock component for collapsed AI reasoning
-- stripToolMarkers() cleans raw tool text from chat
-- Layout Composer tool wired (`composePortfolioLayout`)
-- Tool scoping in /api/chat (fast-turn by default, deep-context explicit)
+> **Pattern:** Account Manager coordinates specialist subagents.
+> **Principle:** Don't overload the orchestrator with all the tools.
 
-### In Progress
-- Relaxing ready_for_images criteria (no materials required)
-- Trade-agnostic content generation
-- Business profile context injection
+```
+┌─────────────────────────────────────────────────┐
+│           ACCOUNT MANAGER (Orchestrator)         │
+│       Lightweight tools • Delegates complex work │
+└───────────────────────┬─────────────────────────┘
+                        │
+        ┌───────────────┼───────────────┐
+        ▼               ▼               ▼
+   ┌─────────┐    ┌─────────┐    ┌─────────┐
+   │  STORY  │    │ DESIGN  │    │ QUALITY │
+   │  AGENT  │    │  AGENT  │    │  AGENT  │
+   └─────────┘    └─────────┘    └─────────┘
+```
 
-### Upcoming
-- updateContractorProfile tool
-- Contractor logo field + upload
-- Draft recap confirmation flow
-- Preview update throttling
+| Agent | Role | Tools |
+|-------|------|-------|
+| **Account Manager** | User-facing, routes, synthesizes | read, delegateTask |
+| **Story Agent** | Conversation, images, content | extract, multimodal |
+| **Design Agent** | Layout, tokens, preview | compose, render |
+| **Quality Agent** | Assessment, advisory | assess, suggest |
+
+### Key Principles
+
+- **Orchestrator has lightweight tools** - Delegates heavy work to subagents
+- **Subagents are specialists** - Each has focused context and tools
+- **Parallel when possible** - Independent tasks run simultaneously
+- **Quality is advisory** - Suggests, doesn't block publishing
 
 ---
 
-## Design Decisions Log
+## Current Tools
 
-| Decision | Outcome | Reference |
-|----------|---------|-----------|
-| Tool-call budget | Guidance only, not hard limit | tool-call-budget.md |
-| Publish gates | city/state required at publish only | implementation-plan.md |
-| Draft without photos | Allowed (photos optional) | Phase 2 |
-| Layout ownership | Layout Composer tool | Phase 4 |
-| AI SDK loop | streamText + tool loop | implementation-plan.md |
+**Account Manager Tools** (orchestration):
+- `read` - Quick lookups, project state
+- `delegateTask` - Spawn subagents for complex work
+
+**Story Agent Tools**:
+- `extractNarrative` - Extract story from conversation
+- `analyzeImages` - Multimodal image understanding
+- `generateContent` - Write content in business voice
+- `signalCheckpoint` - Signal orchestrator when ready
+
+**Design Agent Tools**:
+- `selectTokens` - Choose from design token library
+- `composeLayout` - Generate semantic blocks
+- `selectHero` - Pick best hero image
+- `renderPreview` - Generate portfolio preview
+
+**Quality Agent Tools**:
+- `assessReadiness` - Contextual quality check
+- `identifyGaps` - Find missing elements
+- `suggestImprovements` - Advisory suggestions
+
+---
+
+## Design Decisions
+
+| Decision | Outcome |
+|----------|---------|
+| Orchestration pattern | Account Manager + Subagents |
+| Tool distribution | Lightweight orchestrator, heavy subagents |
+| Quality gates | Advisory only, "publish anyway" always allowed |
+| Image handling | Multimodal (Story Agent sees images directly) |
+| Design constraints | Token-based guardrails |
+| Parallel execution | Independent subagents run simultaneously |
+| AI SDK integration | Vercel AI SDK with Gemini models |
+| State management | Shared ProjectState across agents |
+
+---
+
+## Implementation Status
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Discovery Agent (onboarding) | ✅ Done | `src/lib/agents/discovery.ts` |
+| Account Manager (orchestrator) | 🔄 Enhance | `src/lib/agents/orchestrator.ts` |
+| Story Agent | 🔄 Enhance | `src/lib/agents/story-extractor.ts` |
+| Design Agent | 🔄 Build | `src/lib/agents/ui-composer.ts` |
+| Quality Agent | 🔄 Enhance | `src/lib/agents/quality-checker.ts` |
+| Design Tokens | ✅ Exists | `src/lib/design/tokens.ts` |
 
 ---
 
 ## Related Documentation
 
-### Architecture & Design
-- [`docs/09-agent/README.md`](../../../docs/09-agent/README.md) - Main system overview
-- [`docs/09-agent/multi-agent-architecture.md`](../../../docs/09-agent/multi-agent-architecture.md) - Agent design
-- [`docs/09-agent/project-chat-unification.md`](../../../docs/09-agent/project-chat-unification.md) - Session model
-
-### Interviewer Experience
-- [`docs/09-agent/interviewer-experience.md`](../../../docs/09-agent/interviewer-experience.md) - Experience principles
-- [`docs/09-agent/interviewer-system-prompt.md`](../../../docs/09-agent/interviewer-system-prompt.md) - Persona prompt
-- [`docs/09-agent/interviewer-example-conversations.md`](../../../docs/09-agent/interviewer-example-conversations.md) - Example flows
-- [`docs/09-agent/role-contracts.md`](../../../docs/09-agent/role-contracts.md) - Authority rules
-
-### Implementation Details
-- [`docs/09-agent/tool-call-budget.md`](../../../docs/09-agent/tool-call-budget.md) - Budget guidance
-- [`docs/09-agent/voice-modes-implementation.md`](../../../docs/09-agent/voice-modes-implementation.md) - Voice features
-
----
-
-## Legacy/Deprecated Items
-
-These items in `docs/09-agent/` are **implemented or superseded**:
-
-| File | Status | Notes |
-|------|--------|-------|
-| `project-chat-unification.md` | ✅ Implemented | Single session per project done |
-| `multi-agent-system-review.md` | ✅ Addressed | Tool wiring complete |
-
----
-
-## Updating This Roadmap
-
-When completing work:
-
-1. Update phase status in table above
-2. Move items from "In Progress" to "Completed"
-3. Add date to Recent Changes section
-4. Update `implementation-plan.md` as authoritative source
-5. Add entry to CHANGE-LOG.md for significant changes
-
----
-
-*Last updated: 2025-01-01*
-*See [implementation-plan.md](../../../docs/09-agent/implementation-plan.md) for detailed scope*
+| Document | Content |
+|----------|---------|
+| [`AGENT-PERSONAS.md`](AGENT-PERSONAS.md) | Agent definitions and personas |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | System architecture |
+| [`PHILOSOPHY.md`](PHILOSOPHY.md) | Design principles |
+| [`MIGRATIONS.md`](MIGRATIONS.md) | Migration history |
+| `todo/ai-sdk-phase-10-persona-agents.md` | Implementation plan |

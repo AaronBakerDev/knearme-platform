@@ -58,7 +58,11 @@ const tiers = [
   },
 ];
 
-export function Pricing() {
+type PricingProps = {
+  authCta?: { href: string; label: string } | null;
+};
+
+export function Pricing({ authCta }: PricingProps) {
   const [isAnnual, setIsAnnual] = useState(false);
 
   const getPrice = (tier: (typeof tiers)[0]) => {
@@ -156,9 +160,9 @@ export function Pricing() {
                   ))}
                 </ul>
 
-                <Link href="/signup" className="block">
+                <Link href={authCta?.href ?? "/signup"} className="block">
                   <Button variant={tier.ctaVariant} className="w-full h-11">
-                    {tier.cta}
+                    {authCta?.label ?? tier.cta}
                   </Button>
                 </Link>
 

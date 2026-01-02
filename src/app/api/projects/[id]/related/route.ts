@@ -28,7 +28,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: project, error } = await (supabase as any)
       .from('projects')
-      .select('id, contractor_id, city_slug, project_type_slug')
+      .select('id, business_id, city_slug, project_type_slug')
       .eq('id', id)
       .single();
 
@@ -36,7 +36,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError('NOT_FOUND', 'Project not found');
     }
 
-    if (project.contractor_id !== auth.contractor.id) {
+    // Check ownership via business_id (same UUID as contractor during migration)
+    if (project.business_id !== auth.contractor.id) {
       return apiError('FORBIDDEN', 'Not authorized to view related projects');
     }
 
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       supabase,
       {
         id: project.id,
-        contractor_id: project.contractor_id,
+        business_id: project.business_id,
         city_slug: project.city_slug,
         project_type_slug: project.project_type_slug,
       },

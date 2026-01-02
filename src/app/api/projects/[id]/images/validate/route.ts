@@ -74,7 +74,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Validate storage paths
     const storagePaths = imageRecords.map((img) => img.storage_path);
-    const result = await validateStorageImages('project-images', storagePaths);
+    const result = await validateStorageImages('project-images-draft', storagePaths);
 
     // Map back to image IDs
     const pathToId = new Map(imageRecords.map((img) => [img.storage_path, img.id]));

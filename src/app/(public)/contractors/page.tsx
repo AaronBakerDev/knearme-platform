@@ -1,7 +1,7 @@
 /**
- * Contractor Portfolios Landing Page
+ * Business Portfolios Landing Page
  *
- * Highlights real masonry work and routes visitors to portfolio hubs
+ * Highlights real project work and routes visitors to portfolio hubs
  * by city and service type.
  */
 
@@ -13,25 +13,25 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 import { createAdminClient } from '@/lib/supabase/server';
-import { NATIONAL_SERVICE_TYPES } from '@/lib/data/services';
+import { getServiceTypes } from '@/lib/data/services';
 import { SERVICE_CONTENT } from '@/lib/constants/service-content';
 import type { ServiceId } from '@/lib/constants/services';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
 export const metadata: Metadata = {
-  title: 'Contractor Portfolios | Browse Real Masonry Work | KnearMe',
+  title: 'Business Portfolios | Browse Real Project Work | KnearMe',
   description:
-    'Browse real masonry work from local contractors. Filter by city or service type and choose with confidence.',
+    'Browse real project work from local businesses. Filter by city or service type and choose with confidence.',
   openGraph: {
-    title: 'Contractor Portfolios | KnearMe',
+    title: 'Business Portfolios | KnearMe',
     description:
-      'Browse real masonry work from local contractors. Filter by city or service type and choose with confidence.',
+      'Browse real project work from local businesses. Filter by city or service type and choose with confidence.',
     type: 'website',
-    url: `${SITE_URL}/contractors`,
+    url: `${SITE_URL}/businesses`,
   },
   alternates: {
-    canonical: `${SITE_URL}/contractors`,
+    canonical: `${SITE_URL}/businesses`,
   },
 };
 
@@ -83,35 +83,29 @@ async function getTopCities(limit: number = 18): Promise<CityCard[]> {
     .slice(0, limit);
 }
 
-const URL_SLUG_TO_SERVICE_ID: Record<string, ServiceId> = {
-  'chimney-repair': 'chimney-repair',
-  tuckpointing: 'tuckpointing',
-  'brick-repair': 'brick-repair',
-  'stone-masonry': 'stone-work',
-  'foundation-repair': 'foundation-repair',
-  'historic-restoration': 'restoration',
-  'masonry-waterproofing': 'waterproofing',
-  'efflorescence-removal': 'efflorescence-removal',
-};
-
 export default async function ContractorsLandingPage() {
-  const cities = await getTopCities();
+  // Fetch service types from database and cities in parallel
+  const [serviceTypes, cities] = await Promise.all([
+    getServiceTypes(),
+    getTopCities(),
+  ]);
+
   const breadcrumbItems = [
     { name: 'Home', url: '/' },
-    { name: 'Contractors', url: '/contractors' },
+    { name: 'Businesses', url: '/businesses' },
   ];
 
-  const serviceCards = NATIONAL_SERVICE_TYPES.map((slug) => {
-    const serviceId = URL_SLUG_TO_SERVICE_ID[slug];
-    const content = serviceId ? SERVICE_CONTENT[serviceId] : null;
-    if (!content) return null;
+  // Build service cards from database, fallback to SERVICE_CONTENT for rich descriptions
+  const serviceCards = serviceTypes.map((serviceType) => {
+    const serviceId = serviceType.service_id as ServiceId;
+    const content = SERVICE_CONTENT[serviceId];
 
     return {
-      slug,
-      label: content.label,
-      shortDescription: content.shortDescription,
+      slug: serviceType.url_slug,
+      label: serviceType.label || content?.label || serviceId,
+      shortDescription: serviceType.short_description || content?.shortDescription || '',
     };
-  }).filter((card): card is NonNullable<typeof card> => Boolean(card));
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -121,13 +115,13 @@ export default async function ContractorsLandingPage() {
         </div>
         <div className="container mx-auto px-4 py-16 md:py-24">
           <Badge variant="secondary" className="mb-6">
-            Contractor Portfolios
+            Business Portfolios
           </Badge>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight max-w-3xl">
             Every project is proof.
           </h1>
           <p className="mt-5 text-lg text-muted-foreground max-w-2xl">
-            Browse real masonry work from local contractors. Filter by city or service
+            Browse real project work from local businesses. Filter by city or service
             type and choose with confidence.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -145,10 +139,10 @@ export default async function ContractorsLandingPage() {
         <section id="cities" className="space-y-6">
           <div className="flex items-end justify-between flex-wrap gap-4">
             <div>
-              <h2 className="text-2xl font-semibold">Browse portfolios by city</h2>
-              <p className="text-muted-foreground">
-                See completed projects from contractors in your area.
-              </p>
+            <h2 className="text-2xl font-semibold">Browse portfolios by city</h2>
+            <p className="text-muted-foreground">
+              See completed projects from businesses in your area.
+            </p>
             </div>
             <Link href="/services" className="text-sm text-primary hover:underline inline-flex items-center gap-1">
               Explore services

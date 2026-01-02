@@ -3,12 +3,12 @@
  *
  * Contains all static and dynamic pages.
  * Includes:
- * - Static pages (home, contractors, etc.)
+ * - Static pages (home, businesses, etc.)
  * - National service landing pages
  * - Learning center articles
  * - Homeowner tools
  * - Published portfolio projects
- * - Contractor profiles
+ * - Business profiles
  * - City landing pages
  * - City masonry hub pages
  * - Service type by city pages
@@ -18,7 +18,7 @@
 
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { NATIONAL_SERVICE_TYPES } from '@/lib/data/services';
+import { getServiceTypeSlugs } from '@/lib/data/services';
 import { getAllArticles } from '@/lib/content/mdx';
 import { LIVE_TOOLS } from '@/lib/tools/catalog';
 
@@ -51,11 +51,12 @@ export async function GET() {
     // Static pages
     urls.push(
       generateUrlEntry(SITE_URL, new Date(), 'daily', 1.0),
-      generateUrlEntry(`${SITE_URL}/contractors`, new Date(), 'daily', 0.8)
+      generateUrlEntry(`${SITE_URL}/businesses`, new Date(), 'daily', 0.8)
     );
 
-    // National service landing pages
-    NATIONAL_SERVICE_TYPES.forEach((type) => {
+    // National service landing pages (from database)
+    const serviceSlugs = await getServiceTypeSlugs();
+    serviceSlugs.forEach((type) => {
       urls.push(
         generateUrlEntry(`${SITE_URL}/services/${type}`, new Date(), 'weekly', 0.75)
       );
@@ -142,7 +143,7 @@ export async function GET() {
         );
       });
 
-      // Contractors with published projects
+      // Businesses with published projects (contractors table)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: contractors } = await (supabase as any)
         .from('contractors')
@@ -176,7 +177,7 @@ export async function GET() {
       Array.from(uniqueContractors.values()).forEach((contractor) => {
         urls.push(
           generateUrlEntry(
-            `${SITE_URL}/contractors/${contractor.city_slug}/${contractor.profile_slug}`,
+            `${SITE_URL}/businesses/${contractor.city_slug}/${contractor.profile_slug}`,
             new Date(contractor.updated_at),
             'weekly',
             0.6

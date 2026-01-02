@@ -13,6 +13,7 @@
 
 import Link from "next/link";
 import { LIVE_TOOLS } from "@/lib/tools/catalog";
+import { getAuthCta, getAuthStatus } from "@/lib/auth/auth-status";
 
 /**
  * Top services by search volume for footer links.
@@ -43,7 +44,10 @@ const LEARNING_CATEGORIES = [
   { href: "/learn?category=hiring", label: "Hiring" },
 ];
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const authStatus = await getAuthStatus();
+  const authCta = getAuthCta(authStatus);
+
   return (
     <footer className="border-t bg-zinc-50 dark:bg-zinc-950">
       <div className="container mx-auto py-12 px-4 sm:px-6 lg:px-8">
@@ -194,8 +198,8 @@ export function SiteFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/signup" className="hover:text-foreground">
-                  Get Started
+                <Link href={authCta?.href ?? "/signup"} className="hover:text-foreground">
+                  {authCta?.label ?? "Get Started"}
                 </Link>
               </li>
               <li>

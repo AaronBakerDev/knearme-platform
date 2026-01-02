@@ -1,19 +1,21 @@
 /**
- * Gemini 3.0 Flash image analysis for masonry project detection.
+ * Gemini 3.0 Flash image analysis for contractor project detection.
  *
  * Uses Vercel AI SDK with Google provider for type-safe structured outputs.
  *
- * Analyzes project photos to identify:
- * - Project type (chimney, tuckpointing, etc.)
- * - Materials used (brick type, mortar, stone)
+ * Trade-agnostic: Analyzes project photos to identify:
+ * - Project type (inferred from visual content)
+ * - Materials used (trade-specific vocabulary)
  * - Techniques demonstrated
  * - Before/after/progress status
+ *
+ * The model infers the trade context from images without assumptions.
  *
  * @see /docs/03-architecture/c4-container.md for AI pipeline flow
  * @see https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data
  */
 
-import { generateText, Output } from 'ai';
+import { generateText, Output, type DataContent } from 'ai';
 import { getVisionModel, isGoogleAIEnabled, OUTPUT_LIMITS, validateTokenLimit, TOKEN_LIMITS } from './providers';
 import { IMAGE_ANALYSIS_PROMPT, buildImageAnalysisMessage } from './prompts';
 import { ImageAnalysisSchema } from './schemas';
@@ -23,13 +25,13 @@ import { withRetry, AI_RETRY_OPTIONS } from './retry';
  * Result of analyzing project images.
  */
 export interface ImageAnalysisResult {
-  /** Primary type of masonry work detected */
+  /** Primary type of work detected (trade-agnostic) */
   project_type: string;
   /** Confidence in project type detection (0-1) */
   project_type_confidence: number;
   /** Materials identified in the images */
   materials: string[];
-  /** Masonry techniques observed */
+  /** Techniques observed */
   techniques: string[];
   /** Stage of the project (before/during/after) */
   image_stage: 'before' | 'during' | 'after' | 'detail' | 'unknown';
@@ -48,20 +50,20 @@ export interface ImageAnalysisResult {
  * Default result when analysis fails or is unavailable.
  */
 const DEFAULT_ANALYSIS: ImageAnalysisResult = {
-  project_type: 'masonry-project',
+  project_type: 'project',
   project_type_confidence: 0,
   materials: [],
   techniques: [],
   image_stage: 'unknown',
   quality_notes: '',
-  suggested_title_keywords: ['masonry', 'project'],
+  suggested_title_keywords: ['project', 'work'],
   image_alt_texts: {},
 };
 
 /**
  * Analyze project images using Gemini 3.0 Flash with AI SDK.
  *
- * @param imageUrls - Public URLs of images to analyze (max 4 for cost control)
+ * @param imageInputs - Image inputs (URLs or raw data) to analyze (max 4 for cost control)
  * @returns Analysis result or error
  *
  * @example
@@ -77,7 +79,7 @@ const DEFAULT_ANALYSIS: ImageAnalysisResult = {
  * }
  */
 export async function analyzeProjectImages(
-  imageUrls: string[]
+  imageInputs: Array<string | { data: DataContent; mediaType?: string }>
 ): Promise<ImageAnalysisResult | { error: string; retryable: boolean }> {
   // Check if AI is available
   if (!isGoogleAIEnabled()) {
@@ -86,21 +88,21 @@ export async function analyzeProjectImages(
   }
 
   // Limit images to control costs (charges per image)
-  const limitedUrls = imageUrls.slice(0, 4);
+  const limitedInputs = imageInputs.slice(0, 4);
 
-  if (limitedUrls.length === 0) {
+  if (limitedInputs.length === 0) {
     return { error: 'No images provided for analysis', retryable: false };
   }
 
   // Build prompt for token validation
-  const userPrompt = buildImageAnalysisMessage(limitedUrls);
+  const userPrompt = buildImageAnalysisMessage(limitedInputs.length);
 
   // Validate token limits before making request
   const tokenValidation = validateTokenLimit(
     {
       systemPrompt: IMAGE_ANALYSIS_PROMPT,
       userPrompt,
-      images: limitedUrls.length,
+      images: limitedInputs.length,
     },
     TOKEN_LIMITS.imageAnalysisInput
   );
@@ -122,12 +124,24 @@ export async function analyzeProjectImages(
      *
      * @see https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data#multimodal-inputs
      */
-    const content: Array<{ type: 'text'; text: string } | { type: 'image'; image: URL }> = [
+    const content: Array<
+      { type: 'text'; text: string } | { type: 'image'; image: URL | DataContent; mediaType?: string }
+    > = [
       { type: 'text', text: userPrompt },
-      ...limitedUrls.map((url) => ({
-        type: 'image' as const,
-        image: new URL(url),
-      })),
+      ...limitedInputs.map((input) => {
+        if (typeof input === 'string') {
+          return {
+            type: 'image' as const,
+            image: new URL(input),
+          };
+        }
+
+        return {
+          type: 'image' as const,
+          image: input.data,
+          ...(input.mediaType ? { mediaType: input.mediaType } : {}),
+        };
+      }),
     ];
 
     // Wrap in retry logic for transient failures (rate limits, timeouts)
@@ -147,11 +161,11 @@ export async function analyzeProjectImages(
       return DEFAULT_ANALYSIS;
     }
 
-    // Handle non-masonry images gracefully
-    if (object.project_type === 'not_masonry') {
+    // Handle unrecognized work types gracefully
+    if (object.project_type === 'unknown' || object.project_type === 'not_construction') {
       return {
         ...DEFAULT_ANALYSIS,
-        quality_notes: 'Image does not appear to show masonry work',
+        quality_notes: 'Image does not appear to show construction or trade work',
       };
     }
 
@@ -242,7 +256,11 @@ function parseImageAnalysisError(error: unknown): { message: string; retryable: 
 
 /**
  * Map project type to a URL-friendly slug.
- * Used for SEO routing: /{city}/masonry/{project-type-slug}/{slug}
+ * Used for SEO routing: /{city}/{trade}/{project-type-slug}/{slug}
+ *
+ * NOTE: This includes common masonry types for backward compatibility.
+ * New project types are normalized automatically via the fallback logic.
+ * As more trades are added, their common types can be added here.
  */
 export function projectTypeToSlug(projectType: string): string {
   const slugMap: Record<string, string> = {
@@ -270,6 +288,9 @@ export function projectTypeToSlug(projectType: string): string {
 
 /**
  * Get human-readable project type name.
+ *
+ * NOTE: This includes common masonry types for backward compatibility.
+ * Unknown types are title-cased automatically via the fallback logic.
  */
 export function projectTypeToDisplay(projectType: string): string {
   const displayMap: Record<string, string> = {

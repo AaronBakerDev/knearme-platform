@@ -15,7 +15,9 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { requireAuthUnified, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
-import { buildStoragePath, generateUniqueFilename, getPublicUrl } from '@/lib/storage/upload';
+import { buildStoragePath, generateUniqueFilename } from '@/lib/storage/upload';
+import { copyDraftImagesToPublic } from '@/lib/storage/upload.server';
+import { resolveProjectImageUrl } from '@/lib/storage/project-images';
 import { createAdminClient } from '@/lib/supabase/server';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -109,12 +111,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: project, error: projectError } = await (supabase as any)
       .from('projects')
-      .select('id, hero_image_id')
+      .select('id, hero_image_id, status')
       .eq('id', projectId)
       .eq('contractor_id', contractor.id)
       .single();
 
-    const typedProject = project as { id: string; hero_image_id: string | null } | null;
+    const typedProject = project as {
+      id: string;
+      hero_image_id: string | null;
+      status: string | null;
+    } | null;
 
     if (projectError || !typedProject) {
       return apiError('NOT_FOUND', 'Project not found');
@@ -135,6 +141,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       display_order: number;
     }> = [];
     const errors: Array<{ url: string; error: string }> = [];
+
+    const isPublished = typedProject?.status === 'published';
 
     // Process each image
     for (const img of images) {
@@ -171,11 +179,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         const filename = extractFilename(img.url, img.filename);
         const extension = contentType.split('/')[1] || 'jpg';
         const uniqueFilename = generateUniqueFilename(filename, extension);
-        const storagePath = buildStoragePath('project-images', contractor.id, uniqueFilename, projectId);
+        const storagePath = buildStoragePath('project-images-draft', contractor.id, uniqueFilename, projectId);
 
         // Upload to Supabase Storage using admin client (bypasses RLS)
         const { error: uploadError } = await adminClient.storage
-          .from('project-images')
+          .from('project-images-draft')
           .upload(storagePath, imageBlob, {
             contentType,
             upsert: false,
@@ -204,14 +212,26 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         if (insertError) {
           console.error('[from-url] DB insert error:', insertError);
           // Try to clean up the uploaded file
-          await adminClient.storage.from('project-images').remove([storagePath]);
+          await adminClient.storage.from('project-images-draft').remove([storagePath]);
           errors.push({ url: img.url, error: insertError.message });
           continue;
         }
 
+        if (isPublished) {
+          const { errors } = await copyDraftImagesToPublic([storagePath]);
+          if (errors.length > 0) {
+            console.warn('[from-url] Failed to copy to public:', errors);
+          }
+        }
+
         uploadedImages.push({
           id: imageRecord.id,
-          url: getPublicUrl('project-images', storagePath),
+          url: resolveProjectImageUrl({
+            projectId,
+            imageId: imageRecord.id,
+            storagePath,
+            isPublished,
+          }),
           image_type: img.image_type ?? null,
           display_order: currentOrder - 1,
         });

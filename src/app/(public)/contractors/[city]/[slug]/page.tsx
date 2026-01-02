@@ -1,8 +1,8 @@
 /**
- * Public Contractor Profile Page - SEO-optimized contractor showcase.
+ * Public Business Profile Page - SEO-optimized portfolio showcase.
  *
- * URL Structure: /contractors/{city-slug}/{contractor-slug}
- * Example: /contractors/denver-co/denver-masonry-pro
+ * URL Structure: /businesses/{city-slug}/{contractor-slug}
+ * Example: /businesses/denver-co/denver-masonry-pro
  *
  * Features:
  * - Server-rendered for SEO
@@ -18,7 +18,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MapPin, Briefcase, Building2, ChevronLeft, ChevronRight, Star, Award, CheckCircle2 } from 'lucide-react';
+import { MapPin, Phone, Globe, Briefcase, Building2, ChevronLeft, ChevronRight, Star, Award, CheckCircle2 } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/server';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -113,37 +113,54 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   const { city, slug } = await params;
   const supabase = createAdminClient();
 
-  // Include profile_photo_url and first published project image for OG
-  const { data } = await supabase
+  const { data: contractorData } = await supabase
     .from('contractors')
-    .select(`
-      business_name, city, state, description, services, profile_photo_url, city_slug,
-      projects(project_images!project_images_project_id_fkey(storage_path, alt_text, display_order))
-    `)
+    .select('id, business_name, city, state, description, services, profile_photo_url, city_slug, address, postal_code, phone, website')
     .eq('profile_slug', slug)
     .eq('city_slug', city)
-    .eq('projects.status', 'published')
-    .limit(1, { foreignTable: 'projects' })
     .single();
 
-  type ContractorWithProject = Partial<Contractor> & {
-    projects?: Array<{
-      project_images: Array<{ storage_path: string; alt_text: string | null; display_order: number }>;
-    }>;
-  };
-  const contractor = data as ContractorWithProject | null;
+  const contractor = contractorData as Partial<Contractor> | null;
 
-  if (!contractor) {
+  if (!contractor || !contractor.id) {
     return {
       title: 'Contractor Not Found',
     };
   }
 
+  const { count: publishedCount } = await supabase
+    .from('projects')
+    .select('id', { count: 'exact', head: true })
+    .eq('contractor_id', contractor.id)
+    .eq('status', 'published');
+
+  const hasPublishedProjects = (publishedCount ?? 0) > 0;
+
+  // Type for the join query result
+  type ProjectWithImages = {
+    project_images: Array<{
+      storage_path: string;
+      alt_text: string | null;
+      display_order: number;
+    }>;
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: publishedProjectsData } = await (supabase as any)
+    .from('projects')
+    .select('project_images!project_images_project_id_fkey(storage_path, alt_text, display_order)')
+    .eq('contractor_id', contractor.id)
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(1);
+
+  const publishedProjects = publishedProjectsData as ProjectWithImages[] | null;
+
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
-  const title = `${contractor.business_name} | Masonry Contractor in ${contractor.city}, ${contractor.state}`;
+  const title = `${contractor.business_name} | Contractor in ${contractor.city}, ${contractor.state}`;
   const description =
     contractor.description?.slice(0, 160) ||
-    `${contractor.business_name} provides professional masonry services in ${contractor.city}, ${contractor.state}. View their portfolio of completed projects.`;
+    `${contractor.business_name} provides professional services in ${contractor.city}, ${contractor.state}. View their portfolio of completed projects.`;
 
   // OG image priority: profile photo > first project cover image
   let imageUrl: string | undefined;
@@ -152,8 +169,8 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   if (contractor.profile_photo_url) {
     imageUrl = contractor.profile_photo_url;
     imageAlt = contractor.business_name || 'Contractor profile';
-  } else if (contractor.projects?.[0]?.project_images?.length) {
-    const sortedImages = [...contractor.projects[0].project_images].sort(
+  } else if (publishedProjects?.[0]?.project_images?.length) {
+    const sortedImages = [...publishedProjects[0].project_images].sort(
       (a, b) => a.display_order - b.display_order
     );
     const coverImage = sortedImages[0];
@@ -171,7 +188,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
       title: contractor.business_name || 'Masonry Contractor',
       description,
       type: 'profile',
-      url: `${siteUrl}/contractors/${city}/${slug}`,
+      url: `${siteUrl}/businesses/${city}/${slug}`,
       images: imageUrl ? [{ url: imageUrl, alt: imageAlt }] : [],
     },
     twitter: {
@@ -180,8 +197,9 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
       description,
       images: imageUrl ? [imageUrl] : [],
     },
+    robots: hasPublishedProjects ? undefined : { index: false, follow: true },
     alternates: {
-      canonical: `${siteUrl}/contractors/${city}/${slug}`,
+      canonical: `${siteUrl}/businesses/${city}/${slug}`,
     },
   };
 }
@@ -229,11 +247,16 @@ export default async function ContractorProfilePage({ params, searchParams }: Pa
       return dateB - dateA;
     });
 
-  // If no published projects, show 404
-  // (Contractor profiles are only public if they have published work)
-  if (allPublishedProjects.length === 0) {
-    notFound();
-  }
+  const hasPublishedProjects = allPublishedProjects.length > 0;
+
+  const contactAddress =
+    contractor.address?.trim() ||
+    [contractor.city, contractor.state, contractor.postal_code]
+      .filter(Boolean)
+      .join(', ');
+  const contactPhone = contractor.phone?.trim() || '';
+  const contactWebsite = contractor.website?.trim() || '';
+  const hasContactInfo = Boolean(contactAddress || contactPhone || contactWebsite);
 
   // Pagination calculations
   const totalProjects = allPublishedProjects.length;
@@ -256,16 +279,18 @@ export default async function ContractorProfilePage({ params, searchParams }: Pa
 
   // Generate structured data (use all published for complete list schema)
   const contractorSchema = generateContractorSchema(contractor);
-  const projectListSchema = generateProjectListSchema(
-    allPublishedProjects.map((p) => ({ ...p, contractor })),
-    `Projects by ${contractor.business_name}`
-  );
+  const projectListSchema = hasPublishedProjects
+    ? generateProjectListSchema(
+        allPublishedProjects.map((p) => ({ ...p, contractor })),
+        `Projects by ${contractor.business_name}`
+      )
+    : null;
 
   // Breadcrumb items for navigation and schema
   const breadcrumbItems = [
     { name: 'Home', url: '/' },
-    { name: 'Contractors', url: '/contractors' },
-    { name: contractor.business_name || 'Contractor', url: `/contractors/${city}/${slug}` },
+    { name: 'Businesses', url: '/businesses' },
+    { name: contractor.business_name || 'Business', url: `/businesses/${city}/${slug}` },
   ];
 
   return (
@@ -275,10 +300,12 @@ export default async function ContractorProfilePage({ params, searchParams }: Pa
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: schemaToString(contractorSchema) }}
       />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: schemaToString(projectListSchema) }}
-      />
+      {projectListSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: schemaToString(projectListSchema) }}
+        />
+      )}
 
       <div className="min-h-screen bg-background">
         {/* Header with Breadcrumbs */}
@@ -402,8 +429,46 @@ export default async function ContractorProfilePage({ params, searchParams }: Pa
               </div>
             </div>
 
-            {/* Service Areas - Side Column */}
-            <div className="lg:col-span-1">
+            {/* Contact + Service Areas - Side Column */}
+            <div className="lg:col-span-1 space-y-6">
+              {hasContactInfo && (
+                <div className="bg-card rounded-2xl p-8 border border-border shadow-sm">
+                  <h2 className="text-xl font-display mb-6 flex items-center gap-2">
+                    <Phone className="h-5 w-5 text-primary" />
+                    Contact
+                  </h2>
+                  <div className="space-y-4 text-sm">
+                    {contactAddress && (
+                      <div className="flex items-start gap-3">
+                        <MapPin className="h-4 w-4 text-primary mt-0.5" />
+                        <span className="text-muted-foreground">{contactAddress}</span>
+                      </div>
+                    )}
+                    {contactPhone && (
+                      <div className="flex items-center gap-3">
+                        <Phone className="h-4 w-4 text-primary" />
+                        <a href={`tel:${contactPhone}`} className="text-muted-foreground hover:text-primary transition-colors">
+                          {contactPhone}
+                        </a>
+                      </div>
+                    )}
+                    {contactWebsite && (
+                      <div className="flex items-center gap-3">
+                        <Globe className="h-4 w-4 text-primary" />
+                        <a
+                          href={contactWebsite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground hover:text-primary transition-colors break-all"
+                        >
+                          {contactWebsite.replace(/^https?:\/\//, '')}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {contractor.service_areas && contractor.service_areas.length > 0 && (
                 <div className="bg-muted/30 rounded-2xl p-8 border border-border h-full">
                   <h2 className="text-xl font-display mb-6 flex items-center gap-2">
@@ -435,7 +500,11 @@ export default async function ContractorProfilePage({ params, searchParams }: Pa
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10 px-1">
               <div>
                 <h2 className="text-3xl md:text-4xl font-display tracking-tight mb-2">Project Portfolio</h2>
-                <p className="text-muted-foreground">Detailed case studies and high-resolution visuals of our recent masonry work.</p>
+                <p className="text-muted-foreground">
+                  {hasPublishedProjects
+                    ? 'Detailed case studies and high-resolution visuals of recent masonry work.'
+                    : 'New project photos are on the way. Check back soon for finished work.'}
+                </p>
               </div>
               <div className="hidden md:flex gap-2">
                 <div className="h-10 w-1 rounded-full bg-primary/20" />
@@ -443,121 +512,131 @@ export default async function ContractorProfilePage({ params, searchParams }: Pa
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projectsWithCovers.map((project, idx) => (
-                <Link
-                  key={project.id}
-                  href={`/${project.city_slug}/masonry/${project.project_type_slug}/${project.slug}`}
-                  className="group block h-full animate-fade-up"
-                  style={{ animationDelay: `${0.1 + (idx % 3) * 0.1}s` }}
-                >
-                  <Card className="overflow-hidden bg-card/40 border border-white/5 backdrop-blur-sm card-interactive h-full flex flex-col group">
-                    {/* Project Image Container */}
-                    <div className="relative aspect-[4/3] bg-muted overflow-hidden">
-                      {project.cover_image ? (
-                        <Image
-                          src={getPublicUrl('project-images', project.cover_image.storage_path)}
-                          alt={project.cover_image.alt_text || project.title || 'Project'}
-                          fill
-                          className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/50">
-                          <Building2 className="h-16 w-16" />
-                        </div>
-                      )}
-
-                      {/* Floating Badge (Hover) */}
-                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                        <Badge className="bg-primary/90 text-primary-foreground backdrop-blur-sm border-none shadow-xl">
-                          View Project
-                        </Badge>
-                      </div>
-
-                      {/* Top Gradient Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
-                    </div>
-
-                    <CardContent className="p-6 flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-3">
-                          <Badge variant="outline" className="text-[10px] uppercase tracking-widest font-bold border-primary/30 text-primary bg-primary/5">
-                            {project.project_type || 'Masonry'}
-                          </Badge>
-                          {project.city && (
-                            <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                              <MapPin className="h-3 w-3" />
-                              {project.city}
-                            </span>
+            {hasPublishedProjects ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {projectsWithCovers.map((project, idx) => (
+                    <Link
+                      key={project.id}
+                      href={`/${project.city_slug}/masonry/${project.project_type_slug}/${project.slug}`}
+                      className="group block h-full animate-fade-up"
+                      style={{ animationDelay: `${0.1 + (idx % 3) * 0.1}s` }}
+                    >
+                      <Card className="overflow-hidden bg-card/40 border border-white/5 backdrop-blur-sm card-interactive h-full flex flex-col group">
+                        {/* Project Image Container */}
+                        <div className="relative aspect-[4/3] bg-muted overflow-hidden">
+                          {project.cover_image ? (
+                            <Image
+                              src={getPublicUrl('project-images', project.cover_image.storage_path)}
+                              alt={project.cover_image.alt_text || project.title || 'Project'}
+                              fill
+                              className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/50">
+                              <Building2 className="h-16 w-16" />
+                            </div>
                           )}
+
+                          {/* Floating Badge (Hover) */}
+                          <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                            <Badge className="bg-primary/90 text-primary-foreground backdrop-blur-sm border-none shadow-xl">
+                              View Project
+                            </Badge>
+                          </div>
+
+                          {/* Top Gradient Overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
                         </div>
-                        <h3 className="text-xl font-bold line-clamp-2 leading-snug group-hover:text-primary transition-colors duration-300">
-                          {project.title}
-                        </h3>
-                      </div>
 
-                      <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">Full Project Story</span>
-                        <ChevronRight className="h-4 w-4 text-primary transform group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
+                        <CardContent className="p-6 flex-1 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center gap-2 mb-3">
+                              <Badge variant="outline" className="text-[10px] uppercase tracking-widest font-bold border-primary/30 text-primary bg-primary/5">
+                                {project.project_type || 'Masonry'}
+                              </Badge>
+                              {project.city && (
+                                <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                                  <MapPin className="h-3 w-3" />
+                                  {project.city}
+                                </span>
+                              )}
+                            </div>
+                            <h3 className="text-xl font-bold line-clamp-2 leading-snug group-hover:text-primary transition-colors duration-300">
+                              {project.title}
+                            </h3>
+                          </div>
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <nav
-                className="flex items-center justify-center gap-2 mt-8"
-                aria-label="Project portfolio pagination"
-              >
-                {/* Previous Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={validatedPage <= 1}
-                  asChild={validatedPage > 1}
-                >
-                  {validatedPage > 1 ? (
-                    <Link href={`/contractors/${city}/${slug}?page=${validatedPage - 1}`}>
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Previous
+                          <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">Full Project Story</span>
+                            <ChevronRight className="h-4 w-4 text-primary transform group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </CardContent>
+                      </Card>
                     </Link>
-                  ) : (
-                    <span>
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Previous
-                    </span>
-                  )}
-                </Button>
+                  ))}
+                </div>
 
-                {/* Page Indicator */}
-                <span className="text-sm text-muted-foreground px-4">
-                  Page {validatedPage} of {totalPages}
-                </span>
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <nav
+                    className="flex items-center justify-center gap-2 mt-8"
+                    aria-label="Project portfolio pagination"
+                  >
+                    {/* Previous Button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={validatedPage <= 1}
+                      asChild={validatedPage > 1}
+                    >
+                      {validatedPage > 1 ? (
+                        <Link href={`/businesses/${city}/${slug}?page=${validatedPage - 1}`}>
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Previous
+                        </Link>
+                      ) : (
+                        <span>
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Previous
+                        </span>
+                      )}
+                    </Button>
 
-                {/* Next Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={validatedPage >= totalPages}
-                  asChild={validatedPage < totalPages}
-                >
-                  {validatedPage < totalPages ? (
-                    <Link href={`/contractors/${city}/${slug}?page=${validatedPage + 1}`}>
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Link>
-                  ) : (
-                    <span>
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
+                    {/* Page Indicator */}
+                    <span className="text-sm text-muted-foreground px-4">
+                      Page {validatedPage} of {totalPages}
                     </span>
-                  )}
-                </Button>
-              </nav>
+
+                    {/* Next Button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={validatedPage >= totalPages}
+                      asChild={validatedPage < totalPages}
+                    >
+                      {validatedPage < totalPages ? (
+                        <Link href={`/businesses/${city}/${slug}?page=${validatedPage + 1}`}>
+                          Next
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Link>
+                      ) : (
+                        <span>
+                          Next
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </span>
+                      )}
+                    </Button>
+                  </nav>
+                )}
+              </>
+            ) : (
+              <Card className="bg-muted/30 border border-border">
+                <CardContent className="p-8 text-center text-muted-foreground">
+                  Project photos will show here once the first portfolio is published.
+                </CardContent>
+              </Card>
             )}
           </div>
         </main>

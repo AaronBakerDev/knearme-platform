@@ -12,7 +12,13 @@ import { ArrowRight, Shield } from "lucide-react";
  * - Primary CTA
  */
 
-export function FinalCTA() {
+type FinalCTAProps = {
+  authCta?: { href: string; label: string } | null;
+};
+
+export function FinalCTA({ authCta }: FinalCTAProps) {
+  const primaryCta = authCta ?? { href: "/signup", label: "Create Your First Project" };
+
   return (
     <section className="relative bg-primary py-24 text-primary-foreground overflow-hidden">
       {/* Background decoration */}
@@ -30,12 +36,12 @@ export function FinalCTA() {
           Start building your online reputation today.
         </p>
 
-        <Link href="/signup" className="inline-block group">
+        <Link href={primaryCta.href} className="inline-block group">
           <CTAButton
             size="lg"
             className="bg-background text-foreground hover:bg-zinc-100 shadow-xl hover:shadow-2xl px-8 h-14 text-lg"
           >
-            Create Your First Project
+            {primaryCta.label}
             <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
           </CTAButton>
         </Link>

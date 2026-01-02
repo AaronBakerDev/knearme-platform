@@ -12,7 +12,7 @@
  * - Saves order to API on change
  *
  * @see https://docs.dndkit.com/presets/sortable
- * @see src/app/(contractor)/projects/[id]/edit/page.tsx - Integration point
+ * @see src/app/(dashboard)/projects/[id]/edit/page.tsx - Integration point
  */
 
 import { useCallback, useState } from 'react'

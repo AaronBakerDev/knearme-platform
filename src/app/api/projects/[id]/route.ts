@@ -294,9 +294,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     if (imagesList.length > 0) {
       const paths = imagesList.map((img) => img.storage_path);
       supabase.storage
+        .from('project-images-draft')
+        .remove(paths)
+        .catch((err: Error) => console.error('[Draft storage cleanup failed]', err));
+      supabase.storage
         .from('project-images')
         .remove(paths)
-        .catch((err: Error) => console.error('[Storage cleanup failed]', err));
+        .catch((err: Error) => console.error('[Public storage cleanup failed]', err));
     }
 
     return apiSuccess({ deleted: true });

@@ -2,11 +2,69 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## 🚀 Vision & Direction (Read First)
+
+> **We are evolving from a masonry-specific tool to a universal portfolio platform powered by agentic AI.**
+
+### The North Star
+
+Any business that does work worth showing can benefit from a portfolio. The AI agents should discover what that means for each business, not assume it.
+
+**Core Principles:**
+- **Conversation is the interface** - Forms are fallbacks, not defaults
+- **Agents get personas and tools** - Not prescribed workflows
+- **Structure emerges from content** - Not forced into templates
+- **Trust the AI** - It knows how to interview, extract, and generate
+
+### Philosophy Documentation
+
+**Read these to understand where we're going:**
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/philosophy/agent-philosophy.md`](docs/philosophy/agent-philosophy.md) | Core beliefs about agentic design |
+| [`docs/philosophy/over-engineering-audit.md`](docs/philosophy/over-engineering-audit.md) | 25+ specific issues to fix (with line numbers) |
+| [`docs/philosophy/universal-portfolio-agents.md`](docs/philosophy/universal-portfolio-agents.md) | Agent personas, handoffs, any-business vision |
+| [`docs/philosophy/agentic-first-experience.md`](docs/philosophy/agentic-first-experience.md) | Complete UX journey, data model, and tools |
+| [`docs/philosophy/implementation-roadmap.md`](docs/philosophy/implementation-roadmap.md) | **Concrete phases and MVP definition** |
+| [`docs/philosophy/operational-excellence.md`](docs/philosophy/operational-excellence.md) | Testing, observability, resilience strategies |
+
+### Current State vs Vision
+
+| Aspect | Current (Legacy) | Vision (Target) |
+|--------|------------------|-----------------|
+| **Business type** | Masonry contractors only | Any business with work to show |
+| **Onboarding** | 3-step form wizard | Conversation with Discovery Agent |
+| **Project creation** | 6-step wizard | Natural dialogue with Story Agent |
+| **Data model** | Fixed columns (materials, techniques) | JSONB, structure emerges |
+| **Agent workflow** | Rigid phases, magic numbers | Agent-initiated handoffs |
+| **Business discovery** | Manual form entry | DataForSEO lookup → 1 confirmation |
+
+### Development Guidelines
+
+**For new features:**
+- Follow the agentic philosophy, not the legacy patterns
+- Prefer conversation over forms
+- Let agents decide workflow, don't prescribe
+- Use JSONB for flexible data structures
+- Reference philosophy docs for guidance
+
+**For existing code:**
+- The architecture below describes what EXISTS, not what we're building toward
+- See `over-engineering-audit.md` for specific issues to address
+- Don't add more masonry-specific code
+
+---
+
 ## Project Overview
 
-KnearMe is an AI-powered portfolio platform for masonry contractors. Contractors upload photos, complete voice-driven interviews, and AI generates SEO-optimized project showcases. Built with Next.js 14 (App Router), Supabase, and Google Gemini.
+KnearMe is an AI-powered portfolio platform. Currently serving masonry contractors (MVP), evolving to support any business with work worth showing.
 
-**Status:** ✅ MVP Feature Complete (December 2024)
+Built with Next.js 14 (App Router), Supabase, and Google Gemini.
+
+**Status:** ✅ MVP Feature Complete (December 2024) | 🔄 Evolving to Agentic Architecture
 
 ## Brand Voice & Messaging
 
@@ -100,22 +158,24 @@ app/
 │   ├── signup/          # Registration page
 │   └── reset-password/  # Password reset flow
 │
-├── (contractor)/        # Authenticated contractor dashboard
+├── (dashboard)/         # Authenticated business dashboard (renamed from contractor in 11.9)
 │   ├── dashboard/       # Main dashboard with stats
 │   ├── profile/
-│   │   ├── setup/       # First-time profile setup (3-step wizard)
+│   │   ├── setup/       # First-time profile setup
 │   │   └── edit/        # Edit existing profile
 │   └── projects/
 │       ├── page.tsx     # Projects list with filters
-│       ├── new/         # 6-step AI interview wizard
-│       └── [id]/edit/   # Edit existing project
+│       ├── new/         # Chat-based project creation
+│       └── [id]/        # Unified project workspace
 │
 ├── (public)/            # Public SEO pages
+│   ├── businesses/      # Business profile pages
 │   └── [city]/masonry/[type]/[slug]/  # Project detail pages
 │
 ├── api/                 # API Routes
 │   ├── ai/              # AI endpoints (analyze, transcribe, generate)
-│   ├── contractors/me/  # Current contractor CRUD
+│   ├── businesses/me/   # Current business CRUD (primary)
+│   ├── contractors/me/  # Legacy endpoint (deprecated)
 │   └── projects/        # Projects CRUD + images + publish
 │
 ├── auth/
@@ -128,7 +188,7 @@ app/
 ```
 
 **Key Patterns:**
-- Routes in `(auth)` and `(contractor)` use **Client Components** for interactivity
+- Routes in `(auth)` and `(dashboard)` use **Client Components** for interactivity
 - Routes in `(public)` use **Server Components** for SEO
 - API routes in `app/api/` follow RESTful patterns with standardized error handling
 
@@ -137,14 +197,19 @@ app/
 Core entities (see `docs/03-architecture/data-model.md` for full schema):
 
 ```
-contractors           # Contractor profiles
+businesses            # Business profiles (primary, renamed from contractors in Phase 11)
   ├── auth_user_id    # FK to Supabase auth.users
-  ├── business_name
+  ├── name            # Business name
+  ├── slug            # URL identifier
   ├── city_slug       # For SEO routing
-  └── services[]      # Array of service types
+  ├── services[]      # Array of service types
+  ├── location        # JSONB: Agentic location context
+  ├── understanding   # JSONB: Agent-discovered business data
+  └── context         # JSONB: Agent memory/context
 
 projects              # Project showcases
-  ├── contractor_id   # FK to contractors
+  ├── business_id     # FK to businesses (primary)
+  ├── contractor_id   # FK to contractors (legacy, deprecated)
   ├── title           # AI-generated
   ├── description     # AI-generated (400-600 words)
   ├── project_type_slug
@@ -158,18 +223,15 @@ project_images        # Images for projects
   ├── image_type      # before | after | process
   └── display_order
 
-interview_sessions    # AI interview state
-  ├── project_id
-  ├── questions       # JSONB: Q&A pairs
-  ├── image_analysis  # JSONB: Gemini vision results
-  └── generated_content  # JSONB: Final AI output
+contractors           # Legacy table (deprecated, kept for backward compatibility)
+  └── (see businesses table for current schema)
 ```
 
 **RLS (Row Level Security):**
 - All tables use RLS for security
-- Contractors can only manage their own data
+- Businesses can only manage their own data
 - Published projects are publicly readable
-- See migration `supabase/migrations/001_initial_schema.sql`
+- See migrations `supabase/migrations/033_*.sql` for current schema
 
 ### Supabase Client Patterns
 

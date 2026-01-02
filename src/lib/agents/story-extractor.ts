@@ -1,15 +1,21 @@
 /**
- * Story Extractor Agent
+ * Story Extractor Agent (STORY AGENT SUBAGENT)
  *
- * Extracts structured project data from natural conversation with contractors.
- * Runs after each contractor message to pull out key information and track
- * completion status.
+ * ARCHITECTURE: Subagent of Account Manager Orchestrator
+ *
+ * The Story Agent handles conversation, content extraction, and multimodal
+ * image understanding. It writes to the `businessContext` and `project`
+ * sections of the shared ProjectState.
+ *
+ * Persona: "I'm having a conversation with someone who has work to show.
+ * I listen, I see their images, I extract what matters, and I write in
+ * their voice—not mine."
  *
  * Trade-agnostic design: Uses TradeConfig to determine valid project types,
- * materials, and techniques for the contractor's trade.
+ * materials, and techniques for the business's trade.
  *
  * Key extraction targets:
- * - projectType: Derived from trade config (e.g., chimney-rebuild for masonry)
+ * - projectType: Derived from trade config (e.g., kitchen-remodel, deck-build)
  * - customerProblem: What issue brought the customer
  * - solutionApproach: How it was solved
  * - materials: Array of materials used (from trade vocabulary)
@@ -18,7 +24,10 @@
  * - duration: How long it took
  * - proudOf: What they're most proud of
  *
- * @see /docs/09-agent/multi-agent-architecture.md
+ * Tools: extractNarrative, analyzeImages, generateContent, signalCheckpoint
+ *
+ * @see /.claude/skills/agent-atlas/references/AGENT-PERSONAS.md
+ * @see /todo/ai-sdk-phase-10-persona-agents.md
  * @see /src/lib/trades/config.ts for trade configuration
  */
 
@@ -31,24 +40,23 @@ import { getTradeConfig, buildTradeContext, type TradeConfig } from '@/lib/trade
 import type { SharedProjectState, StoryExtractionResult } from './types';
 
 // ============================================================================
-// Constants
+// Philosophy: Let the Model Be Agentic
 // ============================================================================
-
-/** Minimum word count for customerProblem to be considered complete */
-const MIN_PROBLEM_WORDS = 8;
-
-/** Minimum word count for solutionApproach to be considered complete */
-const MIN_SOLUTION_WORDS = 8;
-
-/** Minimum materials count before we're ready for images */
-const MIN_MATERIALS_FOR_IMAGES = 1;
-
-/** Confidence threshold below which we mark fields for clarification */
-const CLARIFICATION_THRESHOLD = 0.7;
+//
+// REMOVED artificial gates that second-guess the model:
+// - MIN_PROBLEM_WORDS, MIN_SOLUTION_WORDS (model knows when content is sufficient)
+// - MIN_MATERIALS_FOR_IMAGES (users can upload images whenever they want)
+// - CLARIFICATION_THRESHOLD (model expresses uncertainty naturally, not via scores)
+//
+// The extraction agent extracts what it finds. It does NOT gate or block.
+// The chat agent decides when to ask for clarification based on context.
+//
+// @see /docs/philosophy/agent-philosophy.md
+// ============================================================================
 
 /**
  * Get valid project types from trade config.
- * Converts display names to URL-friendly slugs (e.g., "chimney rebuild" → "chimney-rebuild").
+ * Converts display names to URL-friendly slugs (e.g., "kitchen remodel" → "kitchen-remodel").
  */
 function getValidProjectTypes(config: TradeConfig): string[] {
   const slugs = config.terminology.projectTypes.map((type) =>
@@ -63,7 +71,7 @@ function getValidProjectTypes(config: TradeConfig): string[] {
 
 /**
  * Project type - dynamically derived from trade config.
- * For masonry: chimney-rebuild, tuckpointing, stone-veneer, etc.
+ * Examples: kitchen-remodel, bathroom-remodel, deck-build, etc.
  */
 export type ProjectType = string;
 
@@ -80,7 +88,7 @@ const ExtractionSchema = z.object({
   projectType: z
     .string()
     .optional()
-    .describe('Project type: chimney-rebuild, tuckpointing, stone-veneer, etc.'),
+    .describe('Project type slug derived from trade config (e.g., kitchen-remodel, deck-build)'),
 
   /** What problem the customer had */
   customerProblem: z
@@ -88,11 +96,11 @@ const ExtractionSchema = z.object({
     .optional()
     .describe('The customer problem or need that led to this project'),
 
-  /** How the contractor solved it */
+  /** How the business owner solved it */
   solutionApproach: z
     .string()
     .optional()
-    .describe('How the contractor addressed the problem'),
+    .describe('How the business owner addressed the problem'),
 
   /** Materials used */
   materials: z
@@ -134,7 +142,7 @@ const ExtractionSchema = z.object({
   proudOf: z
     .string()
     .optional()
-    .describe('What the contractor is most proud of about this project'),
+    .describe('What the business owner is most proud of about this project'),
 
   /** Confidence scores for each extracted field (0-1) */
   confidence: z
@@ -176,16 +184,16 @@ function buildExtractionSystemPrompt(config: TradeConfig): string {
   const materialsExamples = config.terminology.materials.slice(0, 8).join(', ');
   const techniquesExamples = config.terminology.techniques.slice(0, 8).join(', ');
 
-  return `You are a data extraction agent for a contractor portfolio system.
+  return `You are a data extraction agent for a business portfolio system.
 
-Your job is to extract structured project information from natural conversation with contractors.
+Your job is to extract structured project information from natural conversation with business owners.
 
 TRADE CONTEXT:
 ${buildTradeContext(config)}
 
 EXTRACTION RULES:
 1. Extract ONLY information that is explicitly stated - never infer or guess
-2. Preserve the contractor's voice and specific details
+2. Preserve the business owner's voice and specific details
 3. Return confidence scores based on how clearly the information was stated
 4. If something is vague or unclear, give it low confidence
 
@@ -200,23 +208,22 @@ PROJECT TYPES (use exact slugs):
 ${projectTypesSection}
 - other: Anything that doesn't fit above
 
-DEDUPLICATION RULES (CRITICAL):
-1. PREFER SPECIFIC over generic - if a specific material is mentioned, do NOT also add the generic term
-2. NO SUBSTRINGS - if "X installation" is a technique, do NOT also add "X" separately
-3. NO CROSS-CONTAMINATION - items should appear in only ONE list, not both materials AND techniques
+CLARITY GUIDELINES:
+- Prefer specific terms over generic ones when available
+- Avoid duplicates across lists
+- Keep materials and techniques distinct when it's clear
 
-MATERIALS vs TECHNIQUES - STRICT SEPARATION:
 MATERIALS are physical substances used in construction:
   Examples: ${materialsExamples}
-  Include specific variants when mentioned (e.g., "reclaimed red brick" not just "brick")
+  Include specific variants when mentioned
 
 TECHNIQUES are methods/processes/actions:
   Examples: ${techniquesExamples}
-  Use the full process name (e.g., "flashing installation" not just "flashing")
+  Use the full process name when possible
 
 IMPORTANT:
 - customerProblem: Should capture WHY the customer called (the issue/need)
-- solutionApproach: Should capture HOW the contractor solved it
+- solutionApproach: Should capture HOW the business owner solved it
 - materials: Be specific, NO overlap with techniques
 - techniques: Use proper terminology, NO overlap with materials
 - location: Always extract city and state when possible`;
@@ -227,15 +234,15 @@ IMPORTANT:
 // ============================================================================
 
 /**
- * Extract structured project data from a contractor message.
+ * Extract structured project data from a user message.
  *
- * @param message - The contractor's message to extract from
+ * @param message - The user's message to extract from
  * @param existingState - Optional existing state to merge with
  * @returns StoryExtractionResult with extracted data, confidence scores, and readiness flags
  *
  * @example
  * const result = await extractStory(
- *   "We rebuilt a chimney in Denver. The homeowner had water damage from bad flashing. Used reclaimed brick and lime mortar.",
+ *   "We remodeled a kitchen in Denver. The homeowner wanted more counter space. Used quartz countertops and custom cabinetry.",
  *   existingState
  * );
  */
@@ -485,29 +492,21 @@ function processExtraction(
   const confidence: Record<string, number> = {};
   const needsClarification: string[] = [];
 
-  // Process each field
+  // Process each field - no gating, just extract what's there
+  // The model will naturally ask for clarification in conversation if needed
   if (extraction.projectType) {
     state.projectType = normalizeProjectType(extraction.projectType);
     confidence.projectType = extraction.confidence?.projectType ?? 0.8;
-    if (confidence.projectType < CLARIFICATION_THRESHOLD) {
-      needsClarification.push('projectType');
-    }
   }
 
   if (extraction.customerProblem) {
     state.customerProblem = extraction.customerProblem;
     confidence.customerProblem = extraction.confidence?.customerProblem ?? 0.8;
-    if (confidence.customerProblem < CLARIFICATION_THRESHOLD) {
-      needsClarification.push('customerProblem');
-    }
   }
 
   if (extraction.solutionApproach) {
     state.solutionApproach = extraction.solutionApproach;
     confidence.solutionApproach = extraction.confidence?.solutionApproach ?? 0.8;
-    if (confidence.solutionApproach < CLARIFICATION_THRESHOLD) {
-      needsClarification.push('solutionApproach');
-    }
   }
 
   // Merge arrays (don't overwrite, add new items)
@@ -555,17 +554,11 @@ function processExtraction(
   if (extraction.city) {
     state.city = extraction.city.trim();
     confidence.city = extraction.confidence?.city ?? extraction.confidence?.location ?? 0.8;
-    if (confidence.city < CLARIFICATION_THRESHOLD) {
-      needsClarification.push('city');
-    }
   }
 
   if (extraction.state) {
     state.state = extraction.state.trim();
     confidence.state = extraction.confidence?.state ?? extraction.confidence?.location ?? 0.8;
-    if (confidence.state < CLARIFICATION_THRESHOLD) {
-      needsClarification.push('state');
-    }
   }
 
   if (!state.location && (state.city || state.state)) {
@@ -622,16 +615,15 @@ function extractWithoutAI(
     }
   }
 
-  // Fallback: Try to detect common patterns and ask for clarification
+  // Fallback: Try to detect common patterns
   if (!state.projectType) {
     // Check for trade-specific keywords that might indicate a project type
     for (const projectType of tradeConfig.terminology.projectTypes) {
       const words = projectType.toLowerCase().split(/\s+/);
-      // If any significant word matches, use that type but mark for clarification
+      // If any significant word matches, use that type (model asks for clarification naturally)
       if (words.some((word) => word.length > 4 && lowerMessage.includes(word))) {
         state.projectType = projectType.toLowerCase().replace(/\s+/g, '-');
         confidence.projectType = 0.5;
-        needsClarification.push('projectType');
         break;
       }
     }
@@ -676,14 +668,11 @@ function extractWithoutAI(
     state.city = city;
     if (stateCode) {
       state.state = stateCode;
-    } else {
-      needsClarification.push('state');
-    }
-    state.location = formatProjectLocation({ city, state: stateCode }) || city;
-    confidence.city = 0.5;
-    if (stateCode) {
       confidence.state = 0.5;
     }
+    // Model asks for state naturally in conversation if needed
+    state.location = formatProjectLocation({ city, state: stateCode }) || city;
+    confidence.city = 0.5;
   }
 
   // Duration detection
@@ -712,39 +701,19 @@ function extractWithoutAI(
 /**
  * Check if we have enough data to proceed to the image upload phase.
  *
- * Requirements:
- * - projectType is set
- * - customerProblem has at least MIN_PROBLEM_WORDS
- * - solutionApproach has at least MIN_SOLUTION_WORDS
- * - At least MIN_MATERIALS_FOR_IMAGES materials
- * - Location is helpful but not required to proceed to images
+ * @deprecated This function now always returns true.
+ * Users can upload images anytime - no gating required.
+ * The model decides flow naturally through conversation.
+ *
+ * Kept for backwards compatibility but will be removed.
+ * @see /docs/philosophy/agent-philosophy.md
  */
 export function checkReadyForImages(
-  state: Partial<SharedProjectState>
+  _state: Partial<SharedProjectState>
 ): boolean {
-  // Must have project type
-  if (!state.projectType) {
-    return false;
-  }
-
-  // Must have sufficient customer problem description
-  const problemWordCount = countWords(state.customerProblem);
-  if (problemWordCount < MIN_PROBLEM_WORDS) {
-    return false;
-  }
-
-  // Must have sufficient solution description
-  const solutionWordCount = countWords(state.solutionApproach);
-  if (solutionWordCount < MIN_SOLUTION_WORDS) {
-    return false;
-  }
-
-  // Must have minimum materials
-  const materialCount = state.materials?.length || 0;
-  if (materialCount < MIN_MATERIALS_FOR_IMAGES) {
-    return false;
-  }
-
+  // PHILOSOPHY: Users can upload images whenever they want.
+  // The old word-count and material-count gates were artificial friction.
+  // The model handles conversation flow naturally.
   return true;
 }
 
@@ -797,26 +766,32 @@ export function normalizeProjectType(type: string): ProjectType {
 }
 
 /**
- * Get list of fields that are still needed for completion.
+ * Get list of fields that are still empty.
+ *
+ * NOTE: This is informational only, not for gating.
+ * The model decides what information is needed via conversation.
+ *
+ * @see /docs/philosophy/agent-philosophy.md
  */
 export function getMissingFields(
   state: Partial<SharedProjectState>
 ): string[] {
   const missing: string[] = [];
 
+  // Simple presence checks - no word count requirements
   if (!state.projectType) {
     missing.push('projectType');
   }
 
-  if (countWords(state.customerProblem) < MIN_PROBLEM_WORDS) {
+  if (!state.customerProblem) {
     missing.push('customerProblem');
   }
 
-  if (countWords(state.solutionApproach) < MIN_SOLUTION_WORDS) {
+  if (!state.solutionApproach) {
     missing.push('solutionApproach');
   }
 
-  if ((state.materials?.length || 0) < MIN_MATERIALS_FOR_IMAGES) {
+  if (!state.materials?.length) {
     missing.push('materials');
   }
 

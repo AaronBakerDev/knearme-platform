@@ -3,7 +3,10 @@
  *
  * Creates polished, SEO-optimized content from extracted project data.
  * Uses Gemini AI to generate professional portfolio content that highlights
- * craftsmanship, problem-solving, and masonry expertise.
+ * craftsmanship, problem-solving, and trade expertise.
+ *
+ * Trade-agnostic: Works for any business type. The model infers
+ * appropriate terminology from the project data.
  *
  * @see /docs/09-agent/multi-agent-architecture.md
  * @see /src/lib/ai/providers.ts for model configuration
@@ -42,7 +45,7 @@ const ContentGenerationSchema = z.object({
  * sections like "Problem → Solution → Results" - each project is unique
  * and the model knows how to write compelling content.
  */
-const CONTENT_GENERATION_SYSTEM_PROMPT = `You are a professional content writer for contractor portfolios.
+const CONTENT_GENERATION_SYSTEM_PROMPT = `You are a professional content writer for business portfolios.
 
 Write compelling, authentic content that:
 - Tells this project's unique story in a natural way
@@ -104,7 +107,7 @@ function buildContentPrompt(state: SharedProjectState): string {
 
   // What they're proud of
   if (state.proudOf) {
-    sections.push(`Contractor's Pride Point:\n${state.proudOf}`);
+    sections.push(`Pride Point:\n${state.proudOf}`);
   }
 
   // Number of images
@@ -116,7 +119,7 @@ function buildContentPrompt(state: SharedProjectState): string {
     sections.push(`Images: ${state.images.length} photos${imageTypes ? ` (${imageTypes})` : ''}`);
   }
 
-  return `Generate portfolio content for this masonry project:
+  return `Generate portfolio content for this project:
 
 ${sections.join('\n\n')}
 
@@ -186,12 +189,12 @@ export interface ContentGenerationError {
  * @example
  * ```typescript
  * const state: SharedProjectState = {
- *   projectType: 'chimney-rebuild',
+ *   projectType: 'kitchen-remodel',
  *   location: 'Denver, CO',
- *   customerProblem: 'Crumbling chimney with water damage...',
- *   solutionApproach: 'Complete tear-down and rebuild...',
- *   materials: ['reclaimed brick', 'Type S mortar'],
- *   techniques: ['tuckpointing', 'flashing installation'],
+ *   customerProblem: 'Outdated kitchen with poor layout...',
+ *   solutionApproach: 'Complete renovation with modern design...',
+ *   materials: ['quartz countertops', 'oak cabinets'],
+ *   techniques: ['custom carpentry', 'tile installation'],
  *   // ... other fields
  * };
  *
@@ -199,7 +202,7 @@ export interface ContentGenerationError {
  * if ('error' in result) {
  *   console.error(result.error);
  * } else {
- *   console.log(result.title); // "Historic Chimney Restoration in Denver"
+ *   console.log(result.title); // "Modern Kitchen Transformation in Denver"
  * }
  * ```
  */

@@ -2,16 +2,18 @@
 
 **Priority:** P1 (Next Sprint)
 **Status:** Not Implemented
-**Target:** Phase 2 - January 2025
+**Target:** Phase 2 - January 2026
 
 ## Overview
 
-Service Type by City pages are the **highest-priority SEO implementation** for Phase 2. These programmatic landing pages target long-tail keywords like "chimney repair in Denver" and serve as critical conversion paths from search → contractor profiles.
+Service Type by City pages are the **highest-priority SEO implementation** for Phase 2. These programmatic landing pages target long-tail keywords like "chimney repair in Denver" and serve as critical conversion paths from search → business profiles.
 
 **Business Impact:**
 - Target 60+ new pages (10 cities × 6 service types)
 - Rank for high-intent local searches
-- Dual-purpose: Homeowner discovery + contractor showcasing
+- Dual-purpose: Client discovery + business showcasing
+
+**Vertical note:** Current route and slugs reflect the masonry wedge (`/masonry/`). Generalize once routing and taxonomy are abstracted.
 
 ## Route Configuration
 
@@ -33,7 +35,7 @@ app/(public)/[city]/masonry/[type]/page.tsx
 - `/boulder-co/masonry/foundation-repair`
 - `/arvada-co/masonry/historic-restoration`
 
-### Service Type Slugs
+### Service Type Slugs (Current Vertical: Masonry)
 
 | Slug | Display Name | Priority | Est. Search Volume |
 |------|--------------|----------|-------------------|
@@ -54,7 +56,7 @@ app/(public)/[city]/masonry/[type]/page.tsx
 /**
  * Fetch published projects filtered by city and service type.
  *
- * Returns projects with contractor details and cover images for display.
+ * Returns projects with business details and cover images for display.
  * Used to populate Service Type by City pages.
  */
 export async function getProjectsByCityAndType(
@@ -116,12 +118,12 @@ export async function getProjectsByCityAndType(
 }
 ```
 
-### Secondary Query: Contractor Count for Service Type
+### Secondary Query: Business Count for Service Type
 
 ```typescript
 /**
- * Get count of unique contractors offering a service type in a city.
- * Used for page stats ("12 contractors in Denver offer chimney repair").
+ * Get count of unique businesses offering a service type in a city.
+ * Used for page stats ("12 businesses in Denver offer chimney repair").
  */
 export async function getContractorCountByService(
   citySlug: string,
@@ -141,7 +143,7 @@ export async function getContractorCountByService(
     return 0;
   }
 
-  // Get unique contractor IDs
+  // Get unique contractor IDs (businesses in current schema)
   const uniqueContractors = new Set((data || []).map((p) => p.contractor_id));
   return uniqueContractors.size;
 }
@@ -216,7 +218,7 @@ export async function getRelatedServiceTypes(
   <div className="flex gap-4 text-muted-foreground mb-4">
     <span>{projectCount} Projects</span>
     <span>•</span>
-    <span>{contractorCount} Local Contractors</span>
+    <span>{contractorCount} Local Businesses</span>
   </div>
   <p className="text-lg max-w-2xl">
     {serviceDescription}
@@ -269,16 +271,16 @@ Tone: helpful and informative, not salesy.
 </div>
 ```
 
-### 4. Featured Contractors
+### 4. Featured Businesses
 
-**Purpose:** Showcase top contractors for this service in this city
+**Purpose:** Showcase top businesses for this service in this city
 **Algorithm:** Sort by project count for this service type
-**Display:** Top 3-5 contractors
+**Display:** Top 3-5 businesses
 
 ```tsx
 <section className="mt-12">
   <h2 className="text-2xl font-bold mb-6">
-    {serviceTypeName} Contractors in {cityName}
+    {serviceTypeName} Businesses in {cityName}
   </h2>
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
     {featuredContractors.map((contractor) => (
@@ -316,7 +318,7 @@ Tone: helpful and informative, not salesy.
 **Content:** City-specific tips, local insights (200-300 words)
 
 **Example Topics:**
-- "Finding the Right {Service} Contractor in {City}"
+- "Finding the Right {Service} Provider in {City}"
 - "Average {Service} Costs in {City}"
 - "Local Building Codes and Permits"
 
@@ -344,7 +346,7 @@ export function generateServiceSchema(
     '@type': 'Service',
     'serviceType': serviceType,
     'name': `${serviceType} in ${cityName}, ${stateCode}`,
-    'description': `Professional ${serviceType} services in ${cityName}. Browse projects and find local contractors.`,
+    'description': `Professional ${serviceType} services in ${cityName}. Browse projects and find local businesses.`,
     'areaServed': {
       '@type': 'City',
       'name': cityName,
@@ -365,7 +367,7 @@ export function generateServiceSchema(
             'addressRegion': contractor.state,
             'addressCountry': 'US',
           },
-          'url': `${siteUrl}/contractors/${contractor.city_slug}/${contractor.id}`,
+          'url': `${siteUrl}/businesses/${contractor.city_slug}/${contractor.id}`,
         },
       })),
     },
@@ -456,8 +458,8 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     : undefined;
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
-  const title = `${serviceTypeName} in ${cityName} | Local Contractors & Projects`;
-  const description = `Find ${serviceTypeName} contractors in ${cityName}. Browse completed projects, compare portfolios, and connect with local masonry professionals.`;
+  const title = `${serviceTypeName} in ${cityName} | Local Businesses & Projects`;
+  const description = `Find ${serviceTypeName} businesses in ${cityName}. Browse completed projects, compare portfolios, and connect with local professionals.`;
 
   return {
     title,
@@ -499,7 +501,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 - [ ] Build hero section with H1 and stats
 - [ ] Add service description block (placeholder text initially)
 - [ ] Implement filtered project grid (reuse City Hub components)
-- [ ] Add featured contractors section
+- [ ] Add featured businesses section
 - [ ] Add related services navigation
 - [ ] Build SEO footer section
 
@@ -545,7 +547,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
    - ✅ Page shows all projects for city + service type combination
    - ✅ Projects sorted by most recent first
    - ✅ Each project card links to project detail page
-   - ✅ Contractor attribution visible on each project
+   - ✅ Business attribution visible on each project
 
 3. **SEO Metadata:**
    - ✅ Unique `<title>` per page following pattern
@@ -556,13 +558,13 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 4. **Structured Data:**
    - ✅ Service schema present and valid
    - ✅ Passes Google Rich Results Test
-   - ✅ Provider list includes top contractors
+   - ✅ Provider list includes top businesses
 
 5. **Internal Linking:**
    - ✅ Breadcrumbs link to parent City Hub
    - ✅ Related services link to other service type pages
    - ✅ Project cards link to project detail pages
-   - ✅ Contractor cards link to contractor profiles
+   - ✅ Business cards link to profile pages
 
 ### Performance Requirements
 
@@ -592,7 +594,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 
 2. **Data Accuracy:**
    - Verify project count matches database
-   - Verify contractor count matches unique contractors
+   - Verify business count matches unique contractors (current schema)
    - Check related services list excludes current service
 
 3. **Visual Regression:**

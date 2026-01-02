@@ -2,6 +2,18 @@
 
 > Data shapes, transformations, and state management for the agent system.
 
+> **Architecture:** Orchestrator + Subagents with Shared State
+>
+> All agents read from and write to a common `ProjectState`. Each agent owns specific sections:
+> - **Story Agent** writes: `businessContext`, `project` (content, images)
+> - **Design Agent** writes: `design` (layout, tokens, hero)
+> - **Quality Agent** writes: `assessment` (ready, confidence, suggestions)
+>
+> See [AGENT-PERSONAS.md](AGENT-PERSONAS.md) for agent definitions.
+>
+> **Philosophy Note:** Schemas should capture *storage needs*, not business rules.
+> Structure should emerge from content, not be forced into templates.
+
 ## Core State Types
 
 ### ImageContextData (Prompt Context)
@@ -17,6 +29,10 @@ interface ImageContextData {
   isHero: boolean;
 }
 ```
+
+> **Philosophy Note:** This fixed enum is transitional. In target architecture,
+> image categories emerge from content analysis, not predefined templates.
+> See [PHILOSOPHY.md](PHILOSOPHY.md) for target design principles.
 
 **Usage**:
 - Loaded by `loadPromptContext()` in parallel with project data
@@ -75,51 +91,99 @@ const welcomeMessage = getAdaptiveOpeningMessage({ projectState, title, hasExist
 
 The central data structure shared across all agents. Defined in `src/lib/agents/types.ts`.
 
+Each agent owns specific sections (see [AGENT-PERSONAS.md](AGENT-PERSONAS.md)):
+
 ```typescript
 interface SharedProjectState {
   // ─────────────────────────────────────────────
+  // Story Agent writes: businessContext
+  // ─────────────────────────────────────────────
+  businessContext: {
+    name: string;                 // Business name
+    type: string;                 // Discovered, not enumerated
+    voice: 'formal' | 'casual' | 'technical';
+    vocabulary: string[];         // Their words, not ours
+  };
+
+  // ─────────────────────────────────────────────
+  // Story Agent writes: project content
+  // ─────────────────────────────────────────────
+  project: {
+    title: string;                // 60 chars max
+    description: string;          // 300-500 words
+    story: string;                // Extracted narrative
+    images: ImageWithAnalysis[];  // Images with multimodal analysis
+  };
+
+  // ─────────────────────────────────────────────
+  // Design Agent writes: design
+  // ─────────────────────────────────────────────
+  design: {
+    layout: LayoutToken;          // 'hero-focused' | 'gallery-grid' | etc.
+    spacing: SpacingToken;        // 'compact' | 'comfortable' | 'spacious'
+    headingStyle: HeadingToken;   // 'bold' | 'elegant' | 'technical' | 'playful'
+    accentColor: AccentToken;     // 'slate' | 'warm' | 'cool' | 'earth' | 'vibrant'
+    heroImage: string;            // Best image for hero
+  };
+
+  // ─────────────────────────────────────────────
+  // Quality Agent writes: assessment
+  // ─────────────────────────────────────────────
+  assessment: {
+    ready: boolean;               // Is it publish-ready?
+    confidence: 'high' | 'medium' | 'low';
+    suggestions: string[];        // Advisory, not requirements
+    contextualChecks: string[];   // What was evaluated
+  };
+
+  // ─────────────────────────────────────────────
+  // Coordination (Account Manager)
+  // ─────────────────────────────────────────────
+  checkpoint: 'images_uploaded' | 'basic_info' | 'story_complete' |
+              'design_complete' | 'ready_to_publish';
+}
+```
+
+### Legacy SharedProjectState (Transitional)
+
+> **⚠️ Legacy Pattern** - The current implementation uses a flatter structure.
+> Migration to the agent-owned sections above is in progress.
+
+```typescript
+interface LegacySharedProjectState {
   // Extracted Data (from conversation)
-  // ─────────────────────────────────────────────
-  projectType?: string;           // e.g., "chimney-rebuild"
-  projectTypeSlug?: string;       // Database slug
-  customerProblem?: string;       // What issue led to project
-  solutionApproach?: string;      // How contractor solved it
-  materials: string[];            // e.g., ["reclaimed brick", "Type S mortar"]
-  techniques: string[];           // e.g., ["repointing", "waterproofing"]
-  city?: string;                  // e.g., "Denver"
-  state?: string;                 // e.g., "CO"
-  location?: string;              // Formatted location string
-  duration?: string;              // e.g., "3 days"
-  proudOf?: string;               // What contractor is proud of
+  projectType?: string;
+  projectTypeSlug?: string;
+  customerProblem?: string;
+  solutionApproach?: string;
+  materials: string[];
+  techniques: string[];
+  city?: string;
+  state?: string;
+  location?: string;
+  duration?: string;
+  proudOf?: string;
 
-  // ─────────────────────────────────────────────
-  // Generated Content (by AI)
-  // ─────────────────────────────────────────────
-  title?: string;                 // 60 chars max
-  suggestedTitle?: string;        // Pre-confirmation title
-  description?: string;           // 300-500 words
-  seoTitle?: string;              // SEO page title
-  seoDescription?: string;        // 160 chars max
-  tags: string[];                 // Categorization
+  // Generated Content
+  title?: string;
+  suggestedTitle?: string;
+  description?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  tags: string[];
 
-  // ─────────────────────────────────────────────
   // Images
-  // ─────────────────────────────────────────────
   images: ProjectImageState[];
   heroImageId?: string;
 
-  // ─────────────────────────────────────────────
-  // State Flags
-  // ─────────────────────────────────────────────
-  readyForImages: boolean;        // Has enough story data
-  readyForContent: boolean;       // Has images, can generate
-  readyToPublish: boolean;        // All requirements met
+  // State Flags (DEPRECATED - becoming checkpoints)
+  readyForImages: boolean;        // DEPRECATED: Always true
+  readyForContent: boolean;       // ADVISORY: Agent decides
+  readyToPublish: boolean;        // ADVISORY: Quality check
 
-  // ─────────────────────────────────────────────
   // Clarification Tracking
-  // ─────────────────────────────────────────────
-  needsClarification: string[];   // Fields needing clarity
-  clarifiedFields: string[];      // Fields already clarified
+  needsClarification: string[];
+  clarifiedFields: string[];
 }
 ```
 
@@ -247,15 +311,19 @@ function mergeProjectState(
 
 ## Readiness Calculations
 
-### readyForImages
+### readyForImages (DEPRECATED)
 
-Function: `checkReadyForImages()` in `story-extractor.ts`
+> ⚠️ This function now returns `true` unconditionally.
+> Images enrich agent context but never block progress.
+> See [PHILOSOPHY.md](PHILOSOPHY.md) "Images as Context, Not Gates".
 
-**Conditions** (all required):
-1. `projectType` is set and specific
-2. `customerProblem` >= 8 words
-3. `solutionApproach` >= 8 words
-4. At least 1 material mentioned
+~~Function: `checkReadyForImages()` in `story-extractor.ts`~~
+
+~~**Conditions** (all required):~~
+~~1. `projectType` is set and specific~~
+~~2. `customerProblem` >= 8 words~~
+~~3. `solutionApproach` >= 8 words~~
+~~4. At least 1 material mentioned~~
 
 ### readyForContent
 
@@ -279,7 +347,11 @@ Function: `checkQuality()` in `quality-checker.ts`
 
 ---
 
-## Publish Requirements
+## Publish Requirements (Advisory)
+
+> **Philosophy Note:** These are advisory quality checks, not gates.
+> Agent explains what would make the portfolio better, doesn't block.
+> See [PHILOSOPHY.md](PHILOSOPHY.md) for target design principles.
 
 Defined in `types.ts:214-246`:
 

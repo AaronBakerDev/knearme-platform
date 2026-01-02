@@ -17,7 +17,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Calendar, Wrench, ArrowLeft } from 'lucide-react';
+import { MapPin, Calendar, Wrench, ArrowLeft, Phone, Globe } from 'lucide-react';
 import sanitizeHtml from 'sanitize-html';
 import { createAdminClient } from '@/lib/supabase/server';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +25,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PhotoGallery } from '@/components/portfolio/PhotoGallery';
 import { DescriptionBlocks } from '@/components/portfolio/DescriptionBlocks';
+import { DynamicPortfolioRenderer, type PortfolioImage } from '@/components/portfolio/DynamicPortfolioRenderer';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
+import type { DesignTokens } from '@/lib/design/tokens';
+import type { SemanticBlock } from '@/lib/design/semantic-blocks';
 import { RelatedProjects } from '@/components/seo/RelatedProjects';
 import { fetchRelatedProjects } from '@/lib/data/projects';
 import {
@@ -98,6 +101,7 @@ export async function generateStaticParams() {
 type ProjectWithRelations = Project & {
   contractor: Contractor;
   project_images: ProjectImage[];
+  portfolio_layout?: unknown; // JSONB column for AI-generated layouts
 };
 
 const ALLOWED_DESCRIPTION_TAGS = ['p', 'strong', 'em', 'ul', 'ol', 'li', 'br'];
@@ -302,6 +306,11 @@ export default async function ProjectPage({ params }: PageParams) {
     title: string;
     description: string;
     description_blocks: unknown;
+    portfolio_layout: {
+      tokens: DesignTokens;
+      blocks: SemanticBlock[];
+      rationale?: string;
+    } | null;
     city: string;
     neighborhood?: string;
     state: string;
@@ -321,6 +330,10 @@ export default async function ProjectPage({ params }: PageParams) {
     state: string;
     services: string[];
     profile_photo_url?: string;
+    address?: string | null;
+    postal_code?: string | null;
+    phone?: string | null;
+    website?: string | null;
   };
   let imagesData: Array<{
     id: string;
@@ -339,6 +352,7 @@ export default async function ProjectPage({ params }: PageParams) {
       title: demoProject.title,
       description: demoProject.description,
       description_blocks: demoProject.description_blocks,
+      portfolio_layout: null, // Demo projects don't have dynamic layouts yet
       city: demoProject.city,
       neighborhood: demoProject.neighborhood,
       state: demoProject.state,
@@ -352,6 +366,10 @@ export default async function ProjectPage({ params }: PageParams) {
     contractorData = {
       ...demoProject.contractor,
       profile_slug: slugify(demoProject.contractor.business_name),
+      address: null,
+      postal_code: null,
+      phone: null,
+      website: null,
     };
     imagesData = demoProject.images.map((img) => ({
       id: img.id,
@@ -387,11 +405,33 @@ export default async function ProjectPage({ params }: PageParams) {
       (a, b) => a.display_order - b.display_order
     );
 
+    // Parse portfolio_layout from JSONB column
+    let parsedLayout: typeof projectData.portfolio_layout = null;
+    if (project.portfolio_layout) {
+      try {
+        const layout = project.portfolio_layout as {
+          tokens?: unknown;
+          blocks?: unknown[];
+          rationale?: string;
+        };
+        if (layout.tokens && Array.isArray(layout.blocks)) {
+          parsedLayout = {
+            tokens: layout.tokens as DesignTokens,
+            blocks: layout.blocks as SemanticBlock[],
+            rationale: layout.rationale,
+          };
+        }
+      } catch {
+        // Invalid JSON, fall back to standard rendering
+      }
+    }
+
     projectData = {
       id: project.id,
       title: project.title || '',
       description: project.description || '',
       description_blocks: project.description_blocks,
+      portfolio_layout: parsedLayout,
       city: project.city || '',
       neighborhood: project.neighborhood ?? undefined,
       state: project.state ?? contractor.state ?? '',
@@ -411,6 +451,10 @@ export default async function ProjectPage({ params }: PageParams) {
       state: contractor.state || '',
       services: contractor.services || [],
       profile_photo_url: contractor.profile_photo_url ?? undefined,
+      address: contractor.address ?? null,
+      postal_code: contractor.postal_code ?? null,
+      phone: contractor.phone ?? null,
+      website: contractor.website ?? null,
     };
     imagesData = images.map((img) => ({
       id: img.id,
@@ -425,7 +469,7 @@ export default async function ProjectPage({ params }: PageParams) {
     // Fetch related projects
     relatedProjects = await fetchRelatedProjects(supabase, {
       id: project.id,
-      contractor_id: project.contractor_id,
+      business_id: project.business_id,
       city_slug: city,
       project_type_slug: type,
     }, 6);
@@ -455,6 +499,15 @@ export default async function ProjectPage({ params }: PageParams) {
       day: 'numeric',
     })
     : null;
+
+  const contactAddress =
+    contractorData.address?.trim() ||
+    [contractorData.city, contractorData.state, contractorData.postal_code]
+      .filter(Boolean)
+      .join(', ');
+  const contactPhone = contractorData.phone?.trim() || '';
+  const contactWebsite = contractorData.website?.trim() || '';
+  const hasContactInfo = Boolean(contactAddress || contactPhone || contactWebsite);
 
   return (
     <>
@@ -503,7 +556,7 @@ export default async function ProjectPage({ params }: PageParams) {
               </Link>
             ) : (
               <Link
-                href={`/contractors/${contractorData.city_slug}/${contractorData.profile_slug}`}
+                href={`/businesses/${contractorData.city_slug}/${contractorData.profile_slug}`}
                 className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
               >
                 <ArrowLeft className="h-4 w-4 mr-1" />
@@ -537,71 +590,90 @@ export default async function ProjectPage({ params }: PageParams) {
               </div>
             </div>
 
-            {/* Image Gallery with Lightbox */}
-            {imagesData.length > 0 && (
-              <PhotoGallery
-                images={imagesData}
-                title={projectData.title || 'Project Gallery'}
-                className="mb-8"
-              />
-            )}
-
-            {/* Tags */}
-            {projectData.tags && projectData.tags.length > 0 && (
-              <div className="bg-muted/30 rounded-lg p-4 mb-8">
-                <div className="flex flex-wrap gap-2">
-                  {projectData.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="bg-background hover:bg-background/80">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
+            {/* Dynamic Layout - AI-generated portfolio page */}
+            {projectData.portfolio_layout ? (
+              <div className="mb-8">
+                <DynamicPortfolioRenderer
+                  tokens={projectData.portfolio_layout.tokens}
+                  blocks={projectData.portfolio_layout.blocks}
+                  images={imagesData.map((img): PortfolioImage => ({
+                    id: img.id,
+                    url: img.src,
+                    alt: img.alt,
+                    width: img.width || 800,
+                    height: img.height || 600,
+                  }))}
+                />
               </div>
+            ) : (
+              <>
+                {/* Image Gallery with Lightbox */}
+                {imagesData.length > 0 && (
+                  <PhotoGallery
+                    images={imagesData}
+                    title={projectData.title || 'Project Gallery'}
+                    className="mb-8"
+                  />
+                )}
+
+                {/* Tags */}
+                {projectData.tags && projectData.tags.length > 0 && (
+                  <div className="bg-muted/30 rounded-lg p-4 mb-8">
+                    <div className="flex flex-wrap gap-2">
+                      {projectData.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="bg-background hover:bg-background/80">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Description */}
+                {renderDescription(projectData.description, projectData.description_blocks)}
+
+                {/* Materials & Techniques */}
+                <div className="grid md:grid-cols-2 gap-6 mb-8">
+                  {projectData.materials && projectData.materials.length > 0 && (
+                    <Card className="border-0 bg-gradient-to-br from-muted/50 to-muted/30 shadow-sm">
+                      <CardContent className="pt-6">
+                        <h3 className="font-display mb-4 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          Materials Used
+                        </h3>
+                        <ul className="space-y-2">
+                          {projectData.materials.map((material) => (
+                            <li key={material} className="text-sm text-muted-foreground flex items-start gap-2">
+                              <span className="text-primary mt-1">•</span>
+                              <span>{material}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {projectData.techniques && projectData.techniques.length > 0 && (
+                    <Card className="border-0 bg-gradient-to-br from-muted/50 to-muted/30 shadow-sm">
+                      <CardContent className="pt-6">
+                        <h3 className="font-display mb-4 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          Techniques
+                        </h3>
+                        <ul className="space-y-2">
+                          {projectData.techniques.map((technique) => (
+                            <li key={technique} className="text-sm text-muted-foreground flex items-start gap-2">
+                              <span className="text-primary mt-1">•</span>
+                              <span>{technique}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </>
             )}
-
-            {/* Description */}
-            {renderDescription(projectData.description, projectData.description_blocks)}
-
-            {/* Materials & Techniques */}
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-              {projectData.materials && projectData.materials.length > 0 && (
-                <Card className="border-0 bg-gradient-to-br from-muted/50 to-muted/30 shadow-sm">
-                  <CardContent className="pt-6">
-                    <h3 className="font-display mb-4 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      Materials Used
-                    </h3>
-                    <ul className="space-y-2">
-                      {projectData.materials.map((material) => (
-                        <li key={material} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <span className="text-primary mt-1">•</span>
-                          <span>{material}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-
-              {projectData.techniques && projectData.techniques.length > 0 && (
-                <Card className="border-0 bg-gradient-to-br from-muted/50 to-muted/30 shadow-sm">
-                  <CardContent className="pt-6">
-                    <h3 className="font-display mb-4 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      Techniques
-                    </h3>
-                    <ul className="space-y-2">
-                      {projectData.techniques.map((technique) => (
-                        <li key={technique} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <span className="text-primary mt-1">•</span>
-                          <span>{technique}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
 
             {/* Contractor CTA */}
             <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 shadow-md py-0">
@@ -640,12 +712,43 @@ export default async function ProjectPage({ params }: PageParams) {
                     </Button>
                   ) : (
                     <Button asChild size="lg" className="shadow-sm">
-                      <Link href={`/contractors/${contractorData.city_slug}/${contractorData.profile_slug}`}>
+                      <Link href={`/businesses/${contractorData.city_slug}/${contractorData.profile_slug}`}>
                         View All Projects
                       </Link>
                     </Button>
                   )}
                 </div>
+                {!isDemo && hasContactInfo && (
+                  <div className="mt-5 pt-5 border-t border-primary/10 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                    {contactAddress && (
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-4 w-4 text-primary mt-0.5" />
+                        <span>{contactAddress}</span>
+                      </div>
+                    )}
+                    {contactPhone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-primary" />
+                        <a href={`tel:${contactPhone}`} className="hover:text-primary transition-colors">
+                          {contactPhone}
+                        </a>
+                      </div>
+                    )}
+                    {contactWebsite && (
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-primary" />
+                        <a
+                          href={contactWebsite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-primary transition-colors break-all"
+                        >
+                          {contactWebsite.replace(/^https?:\/\//, '')}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

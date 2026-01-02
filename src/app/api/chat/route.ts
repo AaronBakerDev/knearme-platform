@@ -15,7 +15,7 @@ import { streamText, tool, convertToModelMessages, stepCountIs, type UIMessage }
 import { after } from 'next/server';
 import { z } from 'zod';
 import { getChatModel, isGoogleAIEnabled } from '@/lib/ai/providers';
-import { requireAuth, isAuthError } from '@/lib/api/auth';
+import { requireAuthBusiness, isBusinessAuthError } from '@/lib/api/auth';
 import {
   buildSystemPromptWithContext,
   UNIFIED_PROJECT_SYSTEM_PROMPT,
@@ -32,6 +32,7 @@ import {
   suggestQuickActionsSchema,
   generatePortfolioContentSchema,
   composePortfolioLayoutSchema,
+  composeUILayoutInputSchema,
   checkPublishReadySchema,
   updateFieldSchema,
   regenerateSectionSchema,
@@ -39,6 +40,7 @@ import {
   validateForPublishSchema,
   updateDescriptionBlocksSchema,
   updateContractorProfileSchema,
+  processParallelSchema,
 } from '@/lib/chat/tool-schemas';
 import {
   createChatToolExecutors,
@@ -109,10 +111,28 @@ function checkRateLimit(key: string): { allowed: boolean; retryAfterSeconds: num
   return { allowed: true, retryAfterSeconds: 0 };
 }
 
+/**
+ * @deprecated Deep tool inference is no longer used for gating.
+ * All tools are now always available. The model decides what to call.
+ * Kept for backwards compatibility and potential analytics use.
+ *
+ * @see /docs/philosophy/agent-philosophy.md
+ */
 function inferDeepToolChoice(text: string): DeepToolName | null {
   const normalized = text.trim().toLowerCase();
   if (!normalized) return null;
 
+  // UI composition - design tokens and semantic blocks
+  const wantsUILayout =
+    /\bdesign\s+(layout|tokens?)\b/.test(normalized) ||
+    /\bvisual\s+layout\b/.test(normalized) ||
+    /\bsemantic\s+blocks\b/.test(normalized) ||
+    /\bui\s+layout\b/.test(normalized) ||
+    /\bcompose\s+(ui|layout|design)\b/.test(normalized);
+
+  if (wantsUILayout) return 'composeUILayout';
+
+  // Portfolio layout - description blocks and image ordering
   const wantsLayout =
     /\blayout\b/.test(normalized) ||
     /\b(description|content)\s+blocks\b/.test(normalized) ||
@@ -209,9 +229,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify authentication
-    const auth = await requireAuth();
-    if (isAuthError(auth)) {
+    // Verify authentication (uses businesses table)
+    const auth = await requireAuthBusiness();
+    if (isBusinessAuthError(auth)) {
       return new Response(
         JSON.stringify({ error: auth.message }),
         { status: auth.type === 'UNAUTHORIZED' ? 401 : 403 }
@@ -252,28 +272,27 @@ export async function POST(request: Request) {
     const latestUserMessage = getLatestUserMessage(messages);
     const includeSummary = !hasSummaryContext(messages);
 
-    const inferredDeepTool = inferDeepToolChoice(latestUserMessage);
-    const requestedDeepTool =
-      typeof toolChoice === 'string' &&
-      (DEEP_CONTEXT_TOOLS as readonly string[]).includes(toolChoice) &&
-      toolChoice === inferredDeepTool
-        ? (toolChoice as DeepToolName)
-        : undefined;
+    // PHILOSOPHY: All tools always available. Model decides what to call.
+    // Removed inference gating that second-guessed the model's intelligence.
+    // @see /docs/philosophy/agent-philosophy.md
+    const activeTools: AllowedToolName[] = [
+      ...FAST_TURN_TOOLS,
+      ...DEEP_CONTEXT_TOOLS,
+    ];
 
-    const activeTools: AllowedToolName[] = requestedDeepTool
-      ? [...FAST_TURN_TOOLS, requestedDeepTool]
-      : [...FAST_TURN_TOOLS];
+    // Analytics only - not used for gating
+    const _inferredDeepTool = inferDeepToolChoice(latestUserMessage);
+    void _inferredDeepTool; // Silence unused warning
 
-    const enforcedToolChoice = requestedDeepTool
-      ? ({ type: 'tool', toolName: requestedDeepTool } as const)
-      : 'auto';
+    // Let model decide tool choice freely
+    const enforcedToolChoice = 'auto' as const;
 
     // Build tool context from auth + request
     // Tools receive this via closure for security (model can't manipulate)
     // @see /src/lib/chat/chat-types.ts ToolContext documentation
     const toolContext: ToolContext = {
       userId: auth.user.id,
-      contractorId: auth.contractor.id,
+      businessId: auth.business.id,
       projectId,
       sessionId,
     };
@@ -288,7 +307,7 @@ export async function POST(request: Request) {
       const promptContext = await loadPromptContext({
         projectId,
         sessionId,
-        contractorId: auth.contractor.id,
+        businessId: auth.business.id,
         includeSummary,
       });
       systemPrompt = buildSystemPromptWithContext({
@@ -296,6 +315,7 @@ export async function POST(request: Request) {
         summary: promptContext.summary,
         projectData: promptContext.projectData,
         businessProfile: promptContext.businessProfile,
+        memory: promptContext.memory,
       });
     } catch (err) {
       console.warn('[ChatAPI] Failed to load prompt context:', err);
@@ -318,13 +338,13 @@ export async function POST(request: Request) {
       // Enable Langfuse telemetry for observability
       // @see /src/lib/observability/traced-ai.ts
       experimental_telemetry: chatTelemetry({
-        contractorId: toolContext.contractorId,
+        businessId: toolContext.businessId,
         projectId: toolContext.projectId,
         sessionId: toolContext.sessionId,
       }),
       // Tools have access to toolContext via closure for:
       // - userId: auth.users.id (for RLS)
-      // - contractorId: contractors.id (for ownership checks)
+      // - businessId: businesses.id (for ownership checks)
       // - projectId: current project being edited (if any)
       // - sessionId: chat session for state persistence
       tools: {
@@ -474,7 +494,7 @@ After generating, share the draft in the chat response and offer to open the edi
 
         /**
          * Tool for composing structured description blocks and optional image order.
-         * This is a deep-context tool; call only when explicitly requested.
+         * This is a deep-context tool; call only when explicitly asked.
          */
         composePortfolioLayout: tool({
           description: `Compose structured description blocks and optional image ordering.
@@ -485,6 +505,35 @@ Returns:
 - rationale, missingContext, confidence`,
           inputSchema: composePortfolioLayoutSchema,
           execute: toolExecutors.composePortfolioLayout,
+        }),
+
+        /**
+         * Tool for composing full UI layout with design tokens and semantic blocks.
+         * This is a deep-context tool; call only when explicitly asked for visual layout.
+         *
+         * @see /src/lib/agents/ui-composer.ts
+         * @see /src/lib/design/tokens.ts
+         * @see /src/lib/design/semantic-blocks.ts
+         */
+        composeUILayout: tool({
+          description: `Compose a full UI layout with design tokens and semantic blocks.
+Call this tool when the user asks to create or refine the visual design/layout of their portfolio.
+Supports iterative refinement with feedback.
+
+This uses the UI Composer agent to generate:
+- Design tokens (layout style, spacing, typography, colors, image display, hero style)
+- Semantic blocks (hero-section, before-after, paragraphs, stats, image-gallery, etc.)
+- Rationale explaining design choices
+- Confidence score
+
+IMPORTANT: Only call this tool ONCE per user request. If it returns low confidence,
+do NOT retry. Instead, ask the user for more specific feedback.
+
+Use feedback parameter when iterating on an existing layout.
+Use focusAreas to emphasize specific sections (hero, gallery, content, stats).
+Use preserveElements to keep certain parts unchanged during iteration.`,
+          inputSchema: composeUILayoutInputSchema,
+          execute: toolExecutors.composeUILayout,
         }),
 
         /**
@@ -595,10 +644,40 @@ The update is applied immediately to the contractor's profile.`,
           inputSchema: updateContractorProfileSchema,
           execute: toolExecutors.updateContractorProfile,
         }),
+
+        /**
+         * Tool for parallel Story + Design agent execution.
+         * Runs both agents simultaneously for faster processing.
+         *
+         * ARCHITECTURE: Phase 10 - Orchestrator + Subagents Pattern
+         * Story Agent extracts narrative while Design Agent composes layout.
+         *
+         * @see /todo/ai-sdk-phase-10-persona-agents.md
+         * @see /src/lib/agents/orchestrator.ts delegateParallel()
+         */
+        processParallel: tool({
+          description: `Run Story and Design agents in parallel for faster processing.
+Call this tool when:
+- User has just uploaded images (trigger: 'images_uploaded')
+- Content is ready for layout composition (trigger: 'content_ready')
+- User explicitly requests both story and design work (trigger: 'user_request')
+
+This runs Story Agent (narrative extraction) and Design Agent (layout composition)
+simultaneously, reducing total processing time.
+
+Use skipStory if narrative is already complete and only layout is needed.
+Use skipDesign if only story extraction is needed.
+
+IMPORTANT: Only call this tool ONCE per user request. The parallel execution
+handles both agents automatically. Do not call followed by separate agent tools.`,
+          inputSchema: processParallelSchema,
+          execute: toolExecutors.processParallel,
+        }),
       },
-      // Allow up to 5 tool steps for multi-tool responses
-      // Reduced from 10 to prevent excessive retries on rate-limited tools
-      stopWhen: stepCountIs(5),
+      // Allow up to 15 tool steps for complex multi-tool responses
+      // PHILOSOPHY: Trust the model to use the right number of steps
+      // @see /docs/philosophy/agent-philosophy.md
+      stopWhen: stepCountIs(15),
       // Temperature for natural conversation
       temperature: 0.7,
     });

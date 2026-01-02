@@ -24,8 +24,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LivePortfolioCanvas } from './LivePortfolioCanvas';
 import type { ProjectPreviewData } from './hooks/useProjectData';
 import type { CompletenessState } from './hooks/useCompleteness';
-import type { Project, Contractor, ProjectImage } from '@/types/database';
+import type { Project, Business, Contractor, ProjectImage } from '@/types/database';
 import type { RelatedProject } from '@/lib/data/projects';
+import type { DesignTokens } from '@/lib/design/tokens';
+import type { SemanticBlock } from '@/lib/design/semantic-blocks';
 
 type OverlayTab = 'preview' | 'form';
 
@@ -41,9 +43,12 @@ interface PreviewOverlayProps {
   /** Optional public preview data for full parity rendering */
   publicPreview?: {
     project: Project;
-    contractor: Contractor;
+    /** Business data for the preview */
+    business: Business | Contractor;
     images: (ProjectImage & { url?: string })[];
     relatedProjects?: RelatedProject[];
+    /** @deprecated Use business instead */
+    contractor?: Contractor;
   };
   /** Optional override title (e.g. showPortfolioPreview tool) */
   titleOverride?: string | null;
@@ -51,6 +56,12 @@ interface PreviewOverlayProps {
   highlightFields?: string[];
   /** Optional preview status message */
   previewMessage?: string | null;
+  /** Optional dynamic portfolio layout from AI-generated design tokens and blocks */
+  portfolioLayout?: {
+    tokens: DesignTokens;
+    blocks: SemanticBlock[];
+    rationale?: string;
+  } | null;
   /** Form content to render in edit tab */
   formContent?: React.ReactNode;
   /** Optional controlled active tab */
@@ -71,6 +82,7 @@ export function PreviewOverlay({
   titleOverride,
   highlightFields,
   previewMessage,
+  portfolioLayout,
   formContent,
   activeTab,
   onTabChange,
@@ -143,6 +155,7 @@ export function PreviewOverlay({
               completeness={completeness}
               publicPreview={publicPreview}
               titleOverride={titleOverride}
+              portfolioLayout={portfolioLayout}
               highlightFields={highlightFields}
               previewMessage={previewMessage}
               className="h-full"

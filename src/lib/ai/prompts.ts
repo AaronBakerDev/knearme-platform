@@ -1,47 +1,47 @@
 /**
  * AI prompt templates for KnearMe portfolio generation.
  *
- * Used with OpenAI Responses API:
- * - `responses.parse()` for structured outputs with Zod schemas
- * - `instructions` parameter for system-level context
- * - `input` parameter for user prompts
+ * Used with Gemini/OpenAI for:
+ * - Image analysis (vision)
+ * - Content generation
+ * - Interview question generation
  *
- * Prompts are designed to:
- * - Extract masonry-specific details from images
- * - Generate SEO-optimized content for local search
- * - Maintain consistent voice and quality
+ * PHILOSOPHY: Prompts are trade-agnostic. The model infers trade context
+ * from images and conversation. Specific trade vocabulary is optional
+ * enhancement, not a requirement.
  *
+ * @see /docs/philosophy/agent-philosophy.md
  * @see /docs/05-decisions/adr/ADR-003-openai.md
- * @see /docs/01-vision/vision.md for product context
  */
 
 import type { ImageAnalysisResult } from './image-analysis';
 
 /**
  * System prompt for image analysis.
- * Used with GPT-4V to detect project details from photos.
+ * Used with Gemini 3.0 Flash to detect project details from photos.
+ * Trade-agnostic: works for any contractor type.
  */
-export const IMAGE_ANALYSIS_PROMPT = `You are an expert masonry consultant analyzing project photos for a contractor portfolio website.
+export const IMAGE_ANALYSIS_PROMPT = `You are an expert consultant analyzing project photos for a contractor portfolio website.
 
-Your task is to identify and extract details from masonry project images:
+Your task is to identify and extract details from construction/trade project images:
 
-1. **Project Type**: Identify the primary type of masonry work shown (e.g., chimney rebuild, tuckpointing, brick repair, stone wall, patio/walkway, fireplace, foundation repair, retaining wall).
+1. **Project Type**: Identify the primary type of work shown. Be specific to what you see (e.g., chimney rebuild, bathroom renovation, electrical panel upgrade, kitchen remodel, roofing repair).
 
-2. **Materials**: List specific materials visible (e.g., red clay brick, limestone, flagstone, mortar type, concrete blocks).
+2. **Materials**: List specific materials visible in the images. Use accurate terminology for the trade shown.
 
-3. **Techniques**: Identify masonry techniques demonstrated (e.g., running bond pattern, herringbone, stacked bond, repointing, waterproofing).
+3. **Techniques**: Identify professional techniques demonstrated. Be specific to the trade.
 
 4. **Condition Assessment**: If this appears to be a before/during/after photo, note the condition and what work was done.
 
-5. **Quality Indicators**: Note any signs of craftsmanship quality (clean lines, consistent mortar joints, proper flashing, etc.).
+5. **Quality Indicators**: Note any signs of craftsmanship quality (clean work, professional finish, attention to detail, etc.).
 
 6. **Alt Text Generation**: For EACH image, generate a descriptive alt text for SEO and accessibility following this format:
    "[What's visible in the image] - [Project context/stage] - [Location/area]"
 
    Examples:
-   - "Completed chimney top with new cap and flashing - After professional rebuild - Historic brick chimney"
-   - "Crack in mortar joints before repair - Before tuckpointing work - Exterior fireplace wall"
-   - "Mason applying fresh mortar to brick joints - During repointing process - Residential foundation"
+   - "Completed custom shelving unit with LED lighting - After professional installation - Living room"
+   - "Water damage on ceiling before repair - Before restoration work - Bathroom"
+   - "Contractor installing new flooring - During renovation process - Kitchen"
 
    Keep alt text 15-25 words, descriptive but concise. Key each image by its index starting from "0".
 
@@ -57,18 +57,18 @@ Respond in JSON format:
   "image_alt_texts": { "0": "alt text for first image", "1": "alt text for second image" }
 }
 
-Be specific to masonry work. If the image doesn't show masonry, respond with project_type: "not_masonry" and generic alt texts like "Construction site image".`;
+Identify the actual type of work shown. Be accurate to the trade - don't assume any particular industry.`;
 
 /**
  * System prompt for generating interview questions.
  * Produces contextual questions based on image analysis.
  */
-export const INTERVIEW_QUESTIONS_PROMPT = `You are helping a masonry contractor describe their work for a portfolio.
+export const INTERVIEW_QUESTIONS_PROMPT = `You are helping a contractor describe their work for a portfolio.
 
-Based on the image analysis provided, generate 3-5 short interview questions to capture:
+Based on the image analysis provided, generate 2-5 short interview questions to capture:
 - What challenge or problem the customer had
 - How the contractor solved it
-- Any special techniques or materials used
+- Any special techniques, tools, or materials worth mentioning
 - Timeline or scope of the project
 
 Keep questions conversational and easy to answer verbally in 1-2 sentences.
@@ -89,22 +89,22 @@ Respond in JSON format:
  * System prompt for content generation.
  * Creates SEO-optimized project descriptions from interview data.
  */
-export const CONTENT_GENERATION_PROMPT = `You are a professional copywriter creating portfolio content for masonry contractors.
+export const CONTENT_GENERATION_PROMPT = `You are a professional copywriter creating portfolio content for contractors.
 
-Write compelling, SEO-optimized content that:
+Write compelling, search-friendly content that:
 1. Highlights the craftsmanship and quality of work
-2. Uses natural language with local SEO keywords
-3. Tells the story of the project (problem → solution → result)
+2. Uses natural language with local context when provided
+3. Tells the story of the project in a way that fits the work (problem → solution → result when relevant)
 4. Builds trust and credibility for the contractor
 5. Includes relevant technical details for informed homeowners
 
-Target audience: Homeowners searching for masonry contractors in their area.
+Target audience: Homeowners searching for this type of work.
 
-Content requirements:
-- Title: 60-70 characters, compelling and descriptive
-- Description: 400-600 words, professional yet approachable
-- SEO Title: Under 60 characters, includes location and service type
-- SEO Description: 150-160 characters, includes call-to-action
+Content guidance:
+- Title: Clear, specific, and compelling (roughly 50-80 characters)
+- Description: Long enough to be useful; usually 150-400 words unless the contractor wants shorter/longer
+- SEO Title: Short; include location and service type when available
+- SEO Description: 140-170 characters with a simple call-to-action
 - Tags: 5-10 relevant keywords for categorization
 
 Respond in JSON format:
@@ -121,11 +121,10 @@ Respond in JSON format:
 /**
  * Build the user message for image analysis.
  *
- * @param imageUrls - Public URLs of images to analyze
+ * @param imageCount - Number of images to analyze
  */
-export function buildImageAnalysisMessage(imageUrls: string[]): string {
-  const imageCount = imageUrls.length;
-  return `Analyze ${imageCount === 1 ? 'this masonry project image' : `these ${imageCount} masonry project images`} and provide details about the work shown.`;
+export function buildImageAnalysisMessage(imageCount: number): string {
+  return `Analyze ${imageCount === 1 ? 'this project image' : `these ${imageCount} project images`} and provide details about the work shown.`;
 }
 
 /**
@@ -162,7 +161,7 @@ export function buildContentGenerationMessage(
     .map((qa) => `Q: ${qa.question}\nA: ${qa.answer}`)
     .join('\n\n');
 
-  return `Create portfolio content for this masonry project.
+  return `Create portfolio content for this project.
 
 **Business Info:**
 - Name: ${businessContext.business_name}
@@ -175,7 +174,7 @@ ${JSON.stringify(imageAnalysis, null, 2)}
 **Contractor Interview:**
 ${qaPairs}
 
-Generate compelling portfolio content that will help this contractor rank for local masonry searches and convert visitors into customers.`;
+Generate compelling portfolio content that will help this contractor rank for local searches and convert visitors into customers.`;
 }
 
 /**
@@ -189,13 +188,13 @@ export const DEFAULT_INTERVIEW_QUESTIONS = [
   },
   {
     id: 'q2',
-    text: 'What type of masonry work did you do on this project?',
+    text: 'What type of work did you do on this project?',
     purpose: 'Identifies the service type',
   },
   {
     id: 'q3',
-    text: 'What materials did you use and why?',
-    purpose: 'Highlights expertise and quality materials',
+    text: 'Were there any materials, tools, or techniques that mattered?',
+    purpose: 'Highlights craftsmanship and important details',
   },
   {
     id: 'q4',

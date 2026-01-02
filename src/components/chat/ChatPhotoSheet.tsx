@@ -64,7 +64,7 @@ async function uploadSingleImage(
   projectId: string
 ): Promise<UploadedImage> {
   // Step 1: Validate file
-  const validationError = validateFile(file, 'project-images');
+  const validationError = validateFile(file, 'project-images-draft');
   if (validationError) {
     throw new Error(validationError);
   }
@@ -110,6 +110,11 @@ async function uploadSingleImage(
     const errText = await storageRes.text().catch(() => '');
     throw new Error(errText || `Storage upload failed (${storageRes.status})`);
   }
+
+  // Sync to public bucket if project is published (server decides)
+  fetch(`/api/projects/${projectId}/images/${image.id}/sync`, {
+    method: 'POST',
+  }).catch((err) => console.warn('[ChatPhotoSheet] Sync failed:', err));
 
   return {
     id: image.id,

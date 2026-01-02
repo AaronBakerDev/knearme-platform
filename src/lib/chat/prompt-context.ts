@@ -10,6 +10,7 @@
 import type { BusinessProfileContext, ProjectContextData, ImageContextData } from '@/lib/chat/context-shared';
 import type { ExtractedProjectData } from '@/lib/chat/chat-types';
 import { createClient } from '@/lib/supabase/server';
+import { buildSessionContext, formatMemoryForPrompt } from '@/lib/chat/memory';
 
 function normalizeText(value?: string | null, maxLength = 200): string | null {
   if (!value) return null;
@@ -22,21 +23,23 @@ function normalizeText(value?: string | null, maxLength = 200): string | null {
 export async function loadPromptContext({
   projectId,
   sessionId,
-  contractorId,
+  businessId,
   includeSummary,
 }: {
   projectId?: string;
   sessionId?: string;
-  contractorId?: string;
+  businessId?: string;
   includeSummary: boolean;
 }): Promise<{
   projectData: ProjectContextData | null;
   summary: string | null;
   businessProfile: BusinessProfileContext | null;
+  memory: string | null;
 }> {
   const supabase = await createClient();
   let projectData: ProjectContextData | null = null;
   let summary: string | null = null;
+  let memory: string | null = null;
 
   if (projectId) {
     // Load project with images in parallel
@@ -121,26 +124,37 @@ export async function loadPromptContext({
   }
 
   let businessProfile: BusinessProfileContext | null = null;
-  if (contractorId) {
+  if (businessId) {
+    // Load from businesses table (primary source)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: contractor, error } = await (supabase as any)
-      .from('contractors')
-      .select('business_name, city, state, services, service_areas, description')
-      .eq('id', contractorId)
+    const { data: business, error } = await (supabase as any)
+      .from('businesses')
+      .select('name, city, state, services, service_areas, description')
+      .eq('id', businessId)
       .single();
 
-    if (!error && contractor) {
-      const differentiator = normalizeText(contractor.description, 180);
+    if (!error && business) {
+      const differentiator = normalizeText(business.description, 180);
       businessProfile = {
-        businessName: contractor.business_name ?? null,
-        services: contractor.services ?? null,
-        serviceAreas: contractor.service_areas ?? null,
-        city: contractor.city ?? null,
-        state: contractor.state ?? null,
+        businessName: business.name ?? null,
+        services: business.services ?? null,
+        serviceAreas: business.service_areas ?? null,
+        city: business.city ?? null,
+        state: business.state ?? null,
         differentiators: differentiator ? [differentiator] : null,
       };
     }
   }
 
-  return { projectData, summary, businessProfile };
+  if (projectId) {
+    try {
+      const context = await buildSessionContext(projectId);
+      const memoryContext = formatMemoryForPrompt(context);
+      memory = memoryContext || null;
+    } catch (error) {
+      console.warn('[PromptContext] Failed to load memory context:', error);
+    }
+  }
+
+  return { projectData, summary, businessProfile, memory };
 }

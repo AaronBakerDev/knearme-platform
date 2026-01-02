@@ -486,7 +486,7 @@ export default async function ServiceTypePage({ params }: PageParams) {
                 {contractors.slice(0, 4).map((contractor) => (
                   <Link
                     key={contractor.id}
-                    href={`/contractors/${contractor.city_slug}/${contractor.profile_slug || contractor.id}`}
+                    href={`/businesses/${contractor.city_slug}/${contractor.profile_slug || contractor.id}`}
                     className="group"
                   >
                     <Card className="shadow-sm hover:shadow-md transition-all duration-200 border-0 bg-card">

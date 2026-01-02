@@ -297,6 +297,37 @@ export function formatContextForPrompt(context: SessionContext): string {
 }
 
 /**
+ * Format memory/preference context for inclusion in the system prompt.
+ *
+ * Focuses on durable preferences and key facts, avoids repeating summaries.
+ */
+export function formatMemoryForPrompt(context: SessionContext): string {
+  const parts: string[] = [];
+
+  const prefs = context.projectMemory?.preferences;
+  if (prefs?.tone) {
+    parts.push(`Preferred tone: ${prefs.tone}`);
+  }
+  if (prefs?.focusAreas?.length) {
+    parts.push(`Focus areas: ${prefs.focusAreas.join(', ')}`);
+  }
+  if (prefs?.avoidTopics?.length) {
+    parts.push(`Avoid: ${prefs.avoidTopics.join(', ')}`);
+  }
+
+  const memoryFacts =
+    context.projectMemory?.facts?.length ? context.projectMemory.facts : context.keyFacts;
+  if (memoryFacts.length > 0) {
+    parts.push('\nKey facts to remember:');
+    for (const fact of memoryFacts.slice(0, 10)) {
+      parts.push(`- [${fact.type}] ${fact.content}`);
+    }
+  }
+
+  return parts.length > 0 ? parts.join('\n') : '';
+}
+
+/**
  * Generate a summary prompt for the AI.
  *
  * Returns a prompt that asks the AI to summarize a conversation

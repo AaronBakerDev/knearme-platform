@@ -1,13 +1,27 @@
 /**
- * Quality Checker Agent
+ * Quality Checker Agent (QUALITY AGENT SUBAGENT)
  *
- * Validates that a project meets all publish requirements and provides
- * actionable feedback for missing or incomplete fields.
+ * ARCHITECTURE: Subagent of Account Manager Orchestrator
+ *
+ * The Quality Agent handles contextual assessment—ADVISORY, NOT BLOCKING.
+ * It writes to the `assessment` section of the shared ProjectState.
+ *
+ * Persona: "I assess if the portfolio represents the work well.
+ * My standards adapt to this business type. I advise, I don't block."
+ *
+ * KEY PRINCIPLE: Quality is advisory, not a gate.
+ * - No fixed word count requirements
+ * - No mandatory field checklists
+ * - Standards adapt to business type
+ * - Always allow "publish anyway"
  *
  * This is a pure logic agent - no AI calls needed. It checks the shared
  * project state against defined requirements and recommendations.
  *
- * @see /docs/09-agent/multi-agent-architecture.md
+ * Tools: assessReadiness, identifyGaps, suggestImprovements
+ *
+ * @see /.claude/skills/agent-atlas/references/AGENT-PERSONAS.md
+ * @see /todo/ai-sdk-phase-10-persona-agents.md
  * @see /src/lib/agents/types.ts for PUBLISH_REQUIREMENTS and PUBLISH_RECOMMENDATIONS
  */
 
@@ -19,7 +33,7 @@ import { PUBLISH_REQUIREMENTS, PUBLISH_RECOMMENDATIONS } from './types';
  */
 const FIELD_SUGGESTIONS: Record<string, string> = {
   title: 'Add a compelling project title that describes your work',
-  project_type: 'Select the type of masonry project (e.g., chimney rebuild, tuckpointing)',
+  project_type: 'Select the type of project you completed',
   project_type_slug: 'Re-save the project type so the slug can be generated',
   city: 'Add the city where this project was completed',
   state: 'Add the state/province where this project was completed',
@@ -185,7 +199,7 @@ export function checkQuality(state: SharedProjectState): QualityCheckResult {
 
 /**
  * Returns a human-readable summary of the quality check result.
- * Useful for displaying to contractors in the UI.
+ * Useful for displaying to users in the UI.
  */
 export function formatQualityCheckSummary(result: QualityCheckResult): string {
   if (result.ready && result.warnings.length === 0) {

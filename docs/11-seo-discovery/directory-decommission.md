@@ -75,7 +75,7 @@ These remain in the database but are no longer referenced by the app.
 - Removed directory API routes and UI components.
 - Removed directory data layer, types, and category constants.
 - Removed directory sitemaps and sitemap index entries.
-- Updated `/contractors` landing to point at portfolio hubs by city and service.
+- Updated `/businesses` landing to point at portfolio hubs by city and service.
 - Updated sitemap documentation to reflect the simplified structure.
 
 ## Safety Checks
@@ -85,7 +85,7 @@ Use these to confirm the directory is fully removed:
 1. `rg -n "/find" src` returns no results.
 2. `rg -n "directory" src` returns no feature references (content/learn directory is ok).
 3. `/sitemap.xml` only references `/sitemap-main.xml`.
-4. `/contractors` loads and links to active portfolio hubs.
+4. `/businesses` loads and links to active portfolio hubs.
 
 ## Optional Follow-ups
 

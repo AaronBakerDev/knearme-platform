@@ -3,7 +3,13 @@ import { CTAButton } from "@/components/ui/cta-button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Camera, Mic, ImageIcon, ArrowRight } from "lucide-react";
 
-export function HeroSection() {
+type HeroSectionProps = {
+    authCta?: { href: string; label: string } | null;
+};
+
+export function HeroSection({ authCta }: HeroSectionProps) {
+    const primaryCta = authCta ?? { href: "/signup", label: "Get Started Free" };
+
     return (
         <section className="relative overflow-hidden bg-background pt-16 pb-32 md:pt-32 lg:pt-40 lg:pb-32 xl:pt-48 xl:pb-40">
             {/* Background Gradients */}
@@ -28,9 +34,9 @@ export function HeroSection() {
                         </p>
 
                         <div className="flex flex-col gap-4 sm:flex-row">
-                            <Link href="/signup">
+                            <Link href={primaryCta.href}>
                                 <CTAButton size="lg" className="px-8 text-lg h-14 w-full sm:w-auto">
-                                    Get Started Free
+                                    {primaryCta.label}
                                 </CTAButton>
                             </Link>
                             <Link href="#how-it-works">

@@ -1,7 +1,7 @@
 # Internal Linking Architecture
 
-> **Version:** 1.0
-> **Last Updated:** December 2024
+> **Version:** 1.1
+> **Last Updated:** January 2, 2026
 > **Status:** Active
 > **Purpose:** Document internal linking strategy for SEO discovery and user navigation
 
@@ -32,7 +32,7 @@
    {type}/{slug}
         │
         │
-   Contractor Profile
+   Business Profile
    /contractor/{username}
 ```
 
@@ -66,11 +66,11 @@
 
 | Page Type | Must Link To | Optional Links | Anchor Text Strategy | Link Count |
 |-----------|--------------|----------------|---------------------|------------|
-| **Homepage** | - Top 3-5 City Hubs (Denver, Lakewood, etc.)<br>- Featured projects | - /for-contractors<br>- /how-it-works<br>- /pricing | Exact match: "{City} Masonry" | 10-15 internal |
+| **Homepage** | - Top 3-5 City Hubs (Denver, Lakewood, etc.)<br>- Featured projects | - /for-contractors<br>- /how-it-works<br>- /pricing | Exact match: "{City} Masonry" (current vertical) | 10-15 internal |
 | **City Hub** | - All Service Type by City pages<br>- Homepage (breadcrumb) | - Featured projects<br>- Nearby cities (within 50 miles) | Exact match: "{Service} in {City}" | 20-30 internal |
 | **Service Type by City** | - All projects of service type<br>- Parent City Hub (breadcrumb) | - Related service types<br>- Same service in nearby cities | Project name + city context | 15-25 internal |
-| **Project Detail** | - Contractor Profile<br>- Parent Service Type page (breadcrumb)<br>- 3-4 Related Projects | - Educational content<br>- National service page | Contractor name; "More {service} projects" | 8-12 internal |
-| **Contractor Profile** | - All contractor's projects<br>- City Hub | - Social media (nofollow)<br>- Contact form | Project names | 10-20 internal |
+| **Project Detail** | - Business Profile<br>- Parent Service Type page (breadcrumb)<br>- 3-4 Related Projects | - Educational content<br>- National service page | Business name; "More {service} projects" | 8-12 internal |
+| **Business Profile** | - All business projects<br>- City Hub | - Social media (nofollow)<br>- Contact form | Project names | 10-20 internal |
 | **National Service Landing** | - City Hubs offering service (sorted by project count)<br>- Homepage (breadcrumb) | - Educational content<br>- Related services | "{Service} in {City}" | 15-25 internal |
 | **Educational Content** | - 2-3 relevant City Hubs or Service Type pages<br>- /learn landing page (breadcrumb) | - Related articles<br>- National service pages | Exact match keywords in context | 8-15 internal |
 
@@ -79,7 +79,7 @@
 **Anchor Text:**
 - Use descriptive, keyword-rich anchor text (no "click here")
 - Exact match for primary keywords (e.g., "Chimney Repair in Denver")
-- Branded anchors for contractor profiles (e.g., "Johnson Masonry")
+- Branded anchors for business profiles (e.g., "Johnson Masonry")
 - Natural language in editorial content
 
 **Link Attributes:**
@@ -185,7 +185,7 @@ export async function getRelatedProjects(
 
 **UI Placement:**
 - Below project description
-- Above contractor CTA section
+- Above business CTA section
 - Full-width container
 
 **Component Props:**
@@ -288,7 +288,7 @@ export async function getNearbyCities(
 
 **Purpose:**
 - Aggregate all cities in a state
-- Target state-level searches (e.g., "masonry contractors Colorado")
+- Target state-level searches (e.g., "masonry contractors Colorado" — current vertical phrasing)
 - Provide geographic context for clustering
 
 **Links To:**
@@ -341,7 +341,7 @@ export function generateBreadcrumbSchema(
 | City Hub | Home > {City} > Masonry |
 | Service Type by City | Home > {City} > Masonry > {Service} |
 | Project Detail | Home > {City} > Masonry > {Service} > {Project Title} |
-| Contractor Profile | Home > Contractors > {Contractor Name} |
+| Business Profile | Home > Contractors > {Business Name} |
 | National Service Landing | Home > Services > {Service} |
 | Educational Content | Home > Learn > {Article Title} |
 
@@ -370,9 +370,9 @@ const breadcrumbSchema = generateBreadcrumbSchema(breadcrumbs);
 **Example:**
 - Article: "Signs Your Chimney Needs Repair"
 - Links:
-  - "Find chimney repair contractors in [Denver](/denver-co/masonry/chimney-repair)"
+  - "Find chimney repair businesses in [Denver](/denver-co/masonry/chimney-repair)"
   - "View [chimney repair projects](/services/chimney-repair)"
-  - "Browse [Denver masonry contractors](/denver-co/masonry)"
+  - "Browse [Denver masonry businesses](/denver-co/masonry)"
 
 **Implementation:**
 - Add links naturally in article body

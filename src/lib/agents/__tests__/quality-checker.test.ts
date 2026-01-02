@@ -65,82 +65,84 @@ describe('checkQuality', () => {
   // Required Field Tests
   // ---------------------------------------------------------------------------
 
-  describe('required fields', () => {
-    it('returns ready=false when title is missing', () => {
+  /**
+   * Agentic Philosophy: Nothing is truly required anymore.
+   * PUBLISH_REQUIREMENTS.required = [] (empty array).
+   * All fields are optional - users decide what to publish.
+   * @see /docs/philosophy/agent-philosophy.md
+   */
+  describe('required fields (lenient mode)', () => {
+    it('returns ready=true even when title is missing (nothing required)', () => {
       const state = createMinimalValidState();
       state.title = undefined;
 
       const result = checkQuality(state);
 
-      expect(result.ready).toBe(false);
-      expect(result.missing).toContain('title');
-      expect(result.suggestions.some((s) => s.includes('title'))).toBe(true);
+      // Philosophy: User decides what to publish
+      expect(result.ready).toBe(true);
+      expect(result.missing).not.toContain('title');
     });
 
-    it('returns ready=false when title is empty string', () => {
+    it('returns ready=true even when title is empty string (nothing required)', () => {
       const state = createMinimalValidState();
       state.title = '   ';
 
       const result = checkQuality(state);
 
-      expect(result.ready).toBe(false);
-      expect(result.missing).toContain('title');
+      expect(result.ready).toBe(true);
+      expect(result.missing).not.toContain('title');
     });
 
-    it('returns ready=false when project_type is missing', () => {
+    it('returns ready=true even when project_type is missing (nothing required)', () => {
       const state = createMinimalValidState();
       state.projectType = undefined;
 
       const result = checkQuality(state);
 
-      expect(result.ready).toBe(false);
-      expect(result.missing).toContain('project_type');
+      expect(result.ready).toBe(true);
+      expect(result.missing).not.toContain('project_type');
     });
 
-    it('returns ready=false when city is missing', () => {
+    it('returns ready=true even when city is missing (nothing required)', () => {
       const state = createMinimalValidState();
       state.city = undefined;
 
       const result = checkQuality(state);
 
-      expect(result.ready).toBe(false);
-      expect(result.missing).toContain('city');
+      expect(result.ready).toBe(true);
+      expect(result.missing).not.toContain('city');
     });
 
-    it('returns ready=false when state is missing', () => {
+    it('returns ready=true even when state is missing (nothing required)', () => {
       const state = createMinimalValidState();
       state.state = undefined;
 
       const result = checkQuality(state);
 
-      expect(result.ready).toBe(false);
-      expect(result.missing).toContain('state');
+      expect(result.ready).toBe(true);
+      expect(result.missing).not.toContain('state');
     });
 
-    it('returns ready=false when project_type_slug is missing', () => {
+    it('returns ready=true even when project_type_slug is missing (nothing required)', () => {
       const state = createMinimalValidState();
       state.projectTypeSlug = undefined;
 
       const result = checkQuality(state);
 
-      expect(result.ready).toBe(false);
-      expect(result.missing).toContain('project_type_slug');
+      expect(result.ready).toBe(true);
+      expect(result.missing).not.toContain('project_type_slug');
     });
 
-    it('reports all missing required fields at once', () => {
+    it('returns ready=true with no required fields (PUBLISH_REQUIREMENTS.required is empty)', () => {
       const state = createEmptyProjectState();
 
       const result = checkQuality(state);
 
-      expect(result.ready).toBe(false);
-      // Should include title, project_type, project_type_slug, city, state, images, hero_image
-      expect(result.missing.length).toBeGreaterThanOrEqual(4);
-      expect(result.missing).toContain('title');
-      expect(result.missing).toContain('project_type');
-      expect(result.missing).toContain('project_type_slug');
-      expect(result.missing).toContain('city');
-      expect(result.missing).toContain('state');
-      expect(result.missing).toContain('images');
+      // Philosophy: Nothing blocks publishing, user always has final say
+      expect(result.ready).toBe(true);
+      expect(result.missing).toHaveLength(0);
+      // Warnings may still exist for recommendations
+      expect(PUBLISH_REQUIREMENTS.required).toHaveLength(0);
     });
   });
 
@@ -148,37 +150,44 @@ describe('checkQuality', () => {
   // Image Requirement Tests
   // ---------------------------------------------------------------------------
 
-  describe('image requirements', () => {
-    it('returns ready=false when no images uploaded', () => {
+  /**
+   * Agentic Philosophy: Images are optional.
+   * PUBLISH_REQUIREMENTS.minImages = 0, requireHeroImage = false.
+   * Users decide what to publish.
+   * @see /docs/philosophy/agent-philosophy.md
+   */
+  describe('image requirements (lenient mode)', () => {
+    it('returns ready=true even when no images uploaded (minImages=0)', () => {
       const state = createMinimalValidState();
       state.images = [];
       state.heroImageId = undefined;
 
       const result = checkQuality(state);
 
-      expect(result.ready).toBe(false);
-      expect(result.missing).toContain('images');
+      // Philosophy: User decides if images are needed
+      expect(result.ready).toBe(true);
+      expect(result.missing).not.toContain('images');
     });
 
-    it('returns ready=false when no hero image selected', () => {
+    it('returns ready=true even when no hero image selected (requireHeroImage=false)', () => {
       const state = createMinimalValidState();
       state.heroImageId = undefined;
 
       const result = checkQuality(state);
 
-      expect(result.ready).toBe(false);
-      expect(result.missing).toContain('hero_image');
-      expect(result.suggestions.some((s) => s.includes('hero'))).toBe(true);
+      // Philosophy: Hero image is a recommendation, not requirement
+      expect(result.ready).toBe(true);
+      expect(result.missing).not.toContain('hero_image');
     });
 
-    it('returns ready=false when hero image ID does not match any image', () => {
+    it('returns ready=true even when hero image ID does not match (requireHeroImage=false)', () => {
       const state = createMinimalValidState();
       state.heroImageId = 'non-existent-id';
 
       const result = checkQuality(state);
 
-      expect(result.ready).toBe(false);
-      expect(result.missing).toContain('hero_image');
+      expect(result.ready).toBe(true);
+      expect(result.missing).not.toContain('hero_image');
     });
 
     it('returns ready=true when hero image matches an uploaded image', () => {
@@ -191,16 +200,19 @@ describe('checkQuality', () => {
       expect(result.missing).not.toContain('hero_image');
     });
 
-    it('validates minimum image count from requirements', () => {
-      // This test ensures we're checking against PUBLISH_REQUIREMENTS.minImages
-      expect(PUBLISH_REQUIREMENTS.minImages).toBe(1);
+    it('validates minimum image count is now 0 (nothing required)', () => {
+      // Philosophy: minImages changed from 1 to 0 - users decide
+      expect(PUBLISH_REQUIREMENTS.minImages).toBe(0);
+      expect(PUBLISH_REQUIREMENTS.requireHeroImage).toBe(false);
 
       const state = createMinimalValidState();
       state.images = [];
 
       const result = checkQuality(state);
 
-      expect(result.missing).toContain('images');
+      // No images is perfectly valid
+      expect(result.ready).toBe(true);
+      expect(result.missing).not.toContain('images');
     });
   });
 

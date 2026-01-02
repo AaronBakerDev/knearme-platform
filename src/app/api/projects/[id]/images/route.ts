@@ -16,9 +16,9 @@ import { apiError, apiSuccess, apiCreated, handleApiError } from '@/lib/api/erro
 import {
   buildStoragePath,
   generateUniqueFilename,
-  getPublicUrl,
 } from '@/lib/storage/upload';
 import { createSignedUploadUrl } from '@/lib/storage/upload.server';
+import { resolveProjectImageUrl } from '@/lib/storage/project-images';
 import type { ProjectImage } from '@/types/database';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -82,9 +82,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Verify project ownership
-    const { data: project, error: projectError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: project, error: projectError } = await (supabase as any)
       .from('projects')
-      .select('id')
+      .select('id, status')
       .eq('id', projectId)
       .eq('contractor_id', contractor.id)
       .single();
@@ -92,6 +93,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (projectError || !project) {
       return apiError('NOT_FOUND', 'Project not found');
     }
+
+    // Type assertion for project status check
+    const projectData = project as { id: string; status: string };
 
     // Get images
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,10 +113,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     type ImageData = ProjectImage & { storage_path: string };
     const imagesList = (images ?? []) as ImageData[];
 
-    // Add public URLs to images
+    // Add URLs to images
+    const isPublished = projectData.status === 'published';
     const imagesWithUrls = imagesList.map((img) => ({
       ...img,
-      url: getPublicUrl('project-images', img.storage_path),
+      url: resolveProjectImageUrl({
+        projectId,
+        imageId: img.id,
+        storagePath: img.storage_path,
+        isPublished,
+      }),
     }));
 
     return apiSuccess({ images: imagesWithUrls });
@@ -159,12 +169,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: project, error: projectError } = await (supabase as any)
       .from('projects')
-      .select('id, hero_image_id')
+      .select('id, hero_image_id, status')
       .eq('id', projectId)
       .eq('contractor_id', contractor.id)
       .single();
 
-    const typedProject = project as { id: string; hero_image_id: string | null } | null;
+    const typedProject = project as {
+      id: string;
+      hero_image_id: string | null;
+      status: string | null;
+    } | null;
 
     if (projectError || !typedProject) {
       return apiError('NOT_FOUND', 'Project not found');
@@ -173,7 +187,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Generate unique filename and storage path
     const extension = content_type === 'image/heic' ? 'jpg' : content_type.split('/')[1];
     const uniqueFilename = generateUniqueFilename(filename, extension);
-    const storagePath = buildStoragePath('project-images', contractor.id, uniqueFilename, projectId);
+    const storagePath = buildStoragePath('project-images-draft', contractor.id, uniqueFilename, projectId);
 
     // Get next display order if not provided
     let order = display_order;
@@ -206,8 +220,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return handleApiError(insertError);
     }
 
-    // Generate signed upload URL
-    const uploadResult = await createSignedUploadUrl('project-images', storagePath);
+    // Generate signed upload URL (draft bucket)
+    const uploadResult = await createSignedUploadUrl('project-images-draft', storagePath);
 
     if ('error' in uploadResult) {
       // Rollback image record
@@ -226,10 +240,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         .eq('contractor_id', contractor.id);
     }
 
+    const isPublished = typedProject?.status === 'published';
+
     return apiCreated({
       image: {
         ...image,
-        url: getPublicUrl('project-images', storagePath),
+        url: resolveProjectImageUrl({
+          projectId,
+          imageId: image.id,
+          storagePath,
+          isPublished,
+        }),
       } as ProjectImage & { url: string },
       upload: {
         signed_url: uploadResult.signedUrl,
@@ -313,9 +334,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // Delete from storage (fire and forget)
     supabase.storage
+      .from('project-images-draft')
+      .remove([imageData.storage_path])
+      .catch((err: Error) => console.error('[Draft storage delete failed]', err));
+    supabase.storage
       .from('project-images')
       .remove([imageData.storage_path])
-      .catch((err: Error) => console.error('[Storage delete failed]', err));
+      .catch((err: Error) => console.error('[Public storage delete failed]', err));
 
     return apiSuccess({ deleted: true });
   } catch (error) {

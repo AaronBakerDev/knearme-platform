@@ -111,7 +111,7 @@ export function ImageUploader({
       for (const pending of newPending) {
         try {
           // Validate file
-          const validationError = validateFile(pending.file, 'project-images');
+          const validationError = validateFile(pending.file, 'project-images-draft');
           if (validationError) {
             setPendingUploads((prev) =>
               prev.map((p) =>
@@ -177,6 +177,11 @@ export function ImageUploader({
             const errText = await uploadRes.text().catch(() => '');
             throw new Error(errText || 'Failed to upload to storage');
           }
+
+          // Sync to public bucket if project is published (server decides)
+          fetch(`/api/projects/${projectId}/images/${image.id}/sync`, {
+            method: 'POST',
+          }).catch((err) => console.warn('[ImageUploader] Sync failed:', err));
 
           setPendingUploads((prev) =>
             prev.map((p) => (p.id === pending.id ? { ...p, progress: 100 } : p))

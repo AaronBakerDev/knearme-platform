@@ -6,16 +6,18 @@
 
 ## Overview
 
-City Hub pages are **city-specific roundup pages** that aggregate all masonry projects and contractors in a geographic area. These pages target broad local keywords like "Denver masonry" and serve as the primary entry point for homeowners browsing by location.
+City Hub pages are **city-specific roundup pages** that aggregate all projects and businesses in a geographic area. These pages target broad local keywords like "{city} {service}" and serve as the primary entry point for clients browsing by location.
 
-**Note:** City Hubs are roundup hubs built from contractor-generated content. Review-analysis pages (e.g., "best {service} in {city}") are a separate editorial pipeline.
+**Note:** City Hubs are roundup hubs built from business-generated content. Review-analysis pages (e.g., "best {service} in {city}") are a separate editorial pipeline.
+
+**Vertical note:** Current routes and examples use the masonry wedge (`/masonry/`) until routing is generalized.
 
 **Implementation:** `app/(public)/[city]/masonry/page.tsx` (441 lines)
 
 **Business Purpose:**
-- Homeowner discovery by geography
-- Showcase all local contractors in one place
-- SEO landing pages for `{city} masonry` queries
+- Client discovery by geography
+- Showcase all local businesses in one place
+- SEO landing pages for `{city} {service}` queries
 
 ## Route Configuration
 
@@ -97,8 +99,8 @@ export async function generateStaticParams() {
 ### 3. Page Structure (Implemented)
 
 #### Hero Section
-- **H1:** `Masonry Services in {City Name}, {State}`
-- **Stats:** Project count, contractor count
+- **H1:** `Services in {City Name}, {State}` (current vertical example uses masonry)
+- **Stats:** Project count, business count
 - **Gradient background** for visual interest
 
 **Code:**
@@ -109,7 +111,7 @@ export async function generateStaticParams() {
   </h1>
   <p className="text-lg text-muted-foreground">
     Browse {projects.length} completed projects from {contractors.length} local{' '}
-    {contractors.length === 1 ? 'contractor' : 'contractors'}
+    {contractors.length === 1 ? 'business' : 'businesses'}
   </p>
 </div>
 ```
@@ -121,11 +123,11 @@ export async function generateStaticParams() {
 
 **Purpose:** Internal linking to service type pages (Phase 2)
 
-#### Featured Contractors
-- Top 4 contractors by project count
+#### Featured Businesses
+- Top 4 businesses by project count (contractors in current schema)
 - Profile photo, business name, services
-- Link to contractor profile page
-- Shows additional contractor count if > 4
+- Link to business profile page
+- Shows additional business count if > 4
 
 **Card Design:**
 - Circular profile photo (56px × 56px)
@@ -135,7 +137,7 @@ export async function generateStaticParams() {
 #### Projects Grid
 - Masonry layout: 3 columns desktop, 2 tablet, 1 mobile
 - Sorted by `published_at` descending
-- Each card: Cover image, title, project type badge, contractor attribution
+- Each card: Cover image, title, project type badge, business attribution
 - Hover effects: Shadow lift, image scale
 
 **Performance:**
@@ -144,7 +146,7 @@ export async function generateStaticParams() {
 - Optimized layout shift (CLS < 0.1)
 
 #### SEO Footer
-- Simple CTA: "Looking for masonry services in {City}?"
+- Simple CTA: "Looking for services in {City}?"
 - Gradient background
 - No keyword stuffing (clean UX)
 

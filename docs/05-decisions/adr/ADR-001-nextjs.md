@@ -120,7 +120,7 @@ app/
 │   │   └── masonry/
 │   │       └── [type]/
 │   │           └── [slug]/  # Project detail
-│   └── contractors/
+│   └── businesses/ (public route; source lives under /contractors)
 │       └── [city]/
 │           └── [id]/        # Profile page
 ├── api/                 # API routes
@@ -135,7 +135,7 @@ app/
 | Route Pattern | Rendering | Reason |
 |---------------|-----------|--------|
 | `/[city]/masonry/[type]/[slug]` | SSG with ISR | SEO-critical, cacheable |
-| `/contractors/[city]/[id]` | SSG with ISR | SEO-critical, cacheable |
+| `/businesses/[city]/[slug]` | SSG with ISR | SEO-critical, cacheable |
 | `/dashboard/*` | CSR | Authenticated, dynamic |
 | `/projects/new` | CSR | Highly interactive |
 | `/login`, `/signup` | CSR | Auth forms, no SEO value |

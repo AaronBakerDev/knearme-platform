@@ -1,22 +1,20 @@
 /**
  * Hook for calculating and tracking portfolio completeness.
  *
- * Determines what percentage of required data has been collected
- * for generating a portfolio page. Used by LivePortfolioCanvas
- * to show progress and by ChatWizard to determine when to enable
- * the generate button.
+ * PHILOSOPHY: This hook is for UI DISPLAY ONLY, not gating.
+ * The model decides when content is ready, not arbitrary thresholds.
  *
- * Weight distribution (totals 100):
- * - Images: 20 (at least 1 photo required)
- * - Project type: 15 (core categorization)
- * - City: 10 (SEO URL)
- * - State: 5 (SEO URL)
- * - Materials: 12 (visual/SEO content)
- * - Customer problem: 12 (story context)
- * - Solution approach: 12 (story resolution)
- * - Duration: 8 (project scope)
- * - Proud of: 6 (bonus highlight)
+ * What this hook does:
+ * - Shows progress percentage for visual feedback
+ * - Lists completed/missing fields for transparency
+ * - Provides visual states for the canvas animation
  *
+ * What this hook does NOT do:
+ * - Block generation (model decides)
+ * - Enforce minimum word counts (model decides quality)
+ * - Gate publishing (warnings only, user decides)
+ *
+ * @see /docs/philosophy/agent-philosophy.md
  * @see chat-ux-patterns.md#progress-visualization
  */
 
@@ -24,128 +22,51 @@ import { useMemo } from 'react';
 import type { ExtractedProjectData, UploadedImage } from '@/lib/chat/chat-types';
 
 /**
- * Completeness weights for each field.
- * Total weight = 100
+ * PHILOSOPHY: No fixed field list.
  *
- * NOTE: canPublish aligns with server-side publish requirements.
- * Server requires: title, project_type, city, state, images, hero_image_id
- * @see /src/app/api/projects/[id]/publish/route.ts
+ * The AI agent decides what's relevant for THIS business:
+ * - A mason might need materials and techniques
+ * - A photographer might need lighting and equipment
+ * - A caterer might need cuisine type and serving size
+ *
+ * We track presence of ANY meaningful content, not specific fields.
+ * The visual feedback shows "something" vs "nothing", not a checklist.
+ *
+ * Core fields that apply to ANY portfolio (minimal guardrails):
  */
-const WEIGHTS = {
-  images: 20,         // Required by server
-  project_type: 15,   // Required by server
-  city: 10,           // Required by server (SEO URL)
-  state: 5,           // Required by server (SEO URL)
-  materials: 12,      // Quality content
-  customer_problem: 12, // Story context
-  solution_approach: 12, // Story resolution
-  duration: 8,        // Project scope
-  proud_of: 6,        // Bonus highlight
-} as const;
+const CORE_FIELDS = ['photos', 'project_type', 'location'] as const;
 
 /**
- * Minimum threshold for generation.
- *
- * 45% generally means photos plus at least two core story signals.
- * This acts as a soft gate alongside quality checks.
- *
- * @see Plan file for rationale on threshold value
- */
-const GENERATION_THRESHOLD = 45;
-
-/**
- * Quality thresholds for content validation.
- *
- * These ensure enough context for AI to generate a quality 400-600 word description.
- * Character counts are intentionally low to accommodate voice transcriptions
- * and non-English speakers.
- */
-const QUALITY_THRESHOLDS = {
-  /** Minimum chars for customer problem (~4-5 words) */
-  customer_problem_min: 20,
-  /** Minimum chars for solution approach (~4-5 words) */
-  solution_approach_min: 20,
-  /** Combined minimum for problem + solution (ensures enough story) */
-  combined_context_min: 50,
-} as const;
-
-/**
- * Result of content quality validation.
- */
-export interface ContentQualityResult {
-  /** Whether all quality thresholds are met */
-  meetsQuality: boolean;
-  /** List of issues preventing quality generation */
-  issues: string[];
-}
-
-/**
- * Check if extracted data meets minimum quality requirements.
- *
- * This is a quality gate that ensures enough context exists for the AI
- * to generate a compelling portfolio description (400-600 words).
- *
- * @param data - Extracted project data from conversation
- * @returns Quality check result with issues list
- *
- * @example
- * ```ts
- * const quality = checkContentQuality(data);
- * if (!quality.meetsQuality) {
- *   console.log('Issues:', quality.issues);
- * }
- * ```
- */
-export function checkContentQuality(data: ExtractedProjectData): ContentQualityResult {
-  const issues: string[] = [];
-
-  const problemLength = (data.customer_problem || '').length;
-  const solutionLength = (data.solution_approach || '').length;
-  const combinedLength = problemLength + solutionLength;
-  // Check individual field lengths (only if field exists but is too short)
-  if (data.customer_problem && problemLength < QUALITY_THRESHOLDS.customer_problem_min) {
-    issues.push('customer_problem needs more detail');
-  }
-
-  if (data.solution_approach && solutionLength < QUALITY_THRESHOLDS.solution_approach_min) {
-    issues.push('solution_approach needs more detail');
-  }
-
-  // Check combined context (the story needs enough substance)
-  if (combinedLength < QUALITY_THRESHOLDS.combined_context_min) {
-    issues.push('overall context too brief for quality content');
-  }
-
-  return {
-    meetsQuality: issues.length === 0,
-    issues,
-  };
-}
-
-/**
- * Completeness state with percentage and missing fields.
+ * Completeness state with percentage and field tracking.
  */
 export interface CompletenessState {
-  /** Percentage complete (0-100) */
+  /** Percentage complete (0-100) - for UI display only */
   percentage: number;
   /** Fields that are complete */
   completedFields: string[];
   /** Fields that are still missing */
   missingFields: string[];
-  /** Whether we have minimum requirements to generate */
+  /** Whether we have ANY content (not a gate, just info) */
   canGenerate: boolean;
-  /** Whether we meet minimum requirements to publish */
+  /** Whether we have recommended fields for publish (not a gate, just info) */
   canPublish: boolean;
   /** Human-readable status message */
   statusMessage: string;
   /** Current visual state for the canvas */
   visualState: 'empty' | 'starting' | 'partial' | 'almost' | 'ready';
-  /** Quality issues preventing generation (empty if none) */
+  /** Quality suggestions (informational, not blocking) */
   qualityIssues: string[];
 }
 
 /**
  * Calculate completeness from extracted data and image count.
+ *
+ * PHILOSOPHY: Track content presence, not specific field checklists.
+ * The AI decides what's important for this business - we just show
+ * whether there's "something" to work with.
+ *
+ * Core fields (guardrails): photos, project_type, location
+ * Additional content: Anything else the AI extracted
  */
 export function calculateCompleteness(
   data: ExtractedProjectData,
@@ -153,80 +74,59 @@ export function calculateCompleteness(
 ): CompletenessState {
   const completedFields: string[] = [];
   const missingFields: string[] = [];
-  let score = 0;
 
-  // Check each weighted field
-  // Server-required fields (these block publishing)
+  // === CORE FIELDS (universal guardrails) ===
+  // These apply to ANY portfolio regardless of business type
+
   if (imageCount > 0) {
-    score += WEIGHTS.images;
     completedFields.push('photos');
   } else {
     missingFields.push('photos');
   }
 
   if (data.project_type) {
-    score += WEIGHTS.project_type;
     completedFields.push('project_type');
   } else {
     missingFields.push('project_type');
   }
 
-  // City is required for SEO URL generation
-  if (data.city) {
-    score += WEIGHTS.city;
-    completedFields.push('city');
+  const hasLocation = data.city || data.state || data.location;
+  if (hasLocation) {
+    completedFields.push('location');
   } else {
-    missingFields.push('city');
+    missingFields.push('location');
   }
 
-  // State is required for SEO URL generation
-  if (data.state) {
-    score += WEIGHTS.state;
-    completedFields.push('state');
-  } else {
-    missingFields.push('state');
-  }
+  // === ADDITIONAL CONTENT (agent-decided) ===
+  // Count how much additional context the AI has extracted
+  // Don't prescribe WHAT should be here - just track presence
 
-  // Quality content fields
-  if (data.materials_mentioned?.length) {
-    score += WEIGHTS.materials;
-    completedFields.push('materials');
-  } else {
-    missingFields.push('materials');
-  }
+  const additionalContent: string[] = [];
 
-  if (data.customer_problem) {
-    score += WEIGHTS.customer_problem;
-    completedFields.push('customer_problem');
-  } else {
-    missingFields.push('customer_problem');
-  }
+  if (data.customer_problem) additionalContent.push('problem');
+  if (data.solution_approach) additionalContent.push('solution');
+  if (data.materials_mentioned?.length) additionalContent.push('materials');
+  if (data.techniques_mentioned?.length) additionalContent.push('techniques');
+  if (data.duration) additionalContent.push('duration');
+  if (data.proud_of) additionalContent.push('highlight');
 
-  if (data.solution_approach) {
-    score += WEIGHTS.solution_approach;
-    completedFields.push('solution_approach');
-  } else {
-    missingFields.push('solution_approach');
-  }
+  // Add any additional content to completed fields
+  completedFields.push(...additionalContent);
 
-  if (data.duration) {
-    score += WEIGHTS.duration;
-    completedFields.push('duration');
-  } else {
-    missingFields.push('duration');
-  }
+  // Percentage based on core fields + richness of additional content
+  // Core fields worth 60%, additional content worth 40%
+  const coreComplete = completedFields.filter((f) =>
+    CORE_FIELDS.includes(f as (typeof CORE_FIELDS)[number])
+  ).length;
+  const corePercentage = (coreComplete / CORE_FIELDS.length) * 60;
 
-  if (data.proud_of) {
-    score += WEIGHTS.proud_of;
-    completedFields.push('proud_of');
-  } else {
-    missingFields.push('proud_of');
-  }
+  // Additional content: diminishing returns (first few matter most)
+  // 0 = 0%, 1 = 15%, 2 = 25%, 3 = 32%, 4+ = 40%
+  const additionalPercentage = Math.min(40, additionalContent.length * 12);
 
-  // Clamp to 100
-  const percentage = Math.min(100, score);
+  const percentage = Math.round(corePercentage + additionalPercentage);
 
-  // Determine visual state based on percentage ranges
+  // Determine visual state based on percentage ranges (for animation only)
   let visualState: CompletenessState['visualState'];
   if (percentage === 0) {
     visualState = 'empty';
@@ -240,74 +140,73 @@ export function calculateCompleteness(
     visualState = 'ready';
   }
 
-  // Check content quality for generation gate
-  const qualityCheck = checkContentQuality(data);
+  // canGenerate: true if we have ANY content at all
+  // This is NOT a gate - just an indicator
+  const hasAnyContent =
+    imageCount > 0 ||
+    !!data.project_type ||
+    !!data.customer_problem ||
+    !!data.solution_approach ||
+    (data.materials_mentioned?.length ?? 0) > 0;
 
-  // Server-required fields for publishing
-  // @see /src/app/api/projects/[id]/publish/route.ts
-  const hasGenerationInputs =
-    imageCount > 0 &&
-    (!!data.project_type ||
-      !!data.customer_problem ||
-      !!data.solution_approach ||
-      (data.materials_mentioned?.length ?? 0) > 0);
-
-  const hasPublishRequirements =
+  // canPublish: true if we have core fields
+  // This is NOT a gate - just a recommendation indicator
+  const hasRecommendedFields =
     imageCount > 0 &&
     !!data.project_type &&
     !!data.city &&
     !!data.state;
 
-  // Can generate/publish when:
-  // 1. All server-required fields are present (images, project_type, city, state)
-  // 2. Meets percentage threshold (55%) for content quality
-  // 3. Passes quality gate (enough context for good description)
-  const canGenerate =
-    hasGenerationInputs && percentage >= GENERATION_THRESHOLD && qualityCheck.meetsQuality;
-
-  const canPublish = hasPublishRequirements;
-
-  // Generate status message based on state
+  // Status message (helpful, not blocking)
   let statusMessage: string;
-  if (canGenerate) {
-    statusMessage = 'Ready to generate your portfolio!';
-  } else if (imageCount === 0) {
-    statusMessage = 'Add some photos to continue';
-  } else if (!qualityCheck.meetsQuality) {
-    statusMessage = 'Add a bit more detail to enable generation';
-  } else if (visualState === 'empty') {
+  if (visualState === 'empty') {
     statusMessage = 'Tell me about your project to get started';
   } else if (visualState === 'starting') {
-    statusMessage = 'Looking good! Keep telling me more...';
+    statusMessage = 'Looking good! Keep going...';
   } else if (visualState === 'partial') {
-    statusMessage = "We're making progress!";
+    statusMessage = 'Making progress!';
+  } else if (visualState === 'almost') {
+    statusMessage = 'Almost complete!';
   } else {
-    statusMessage = 'Almost there!';
+    statusMessage = 'Ready to generate!';
   }
+
+  // Quality suggestions (informational only, never blocking)
+  // Focus on core fields only - agent decides what else matters
+  const qualityIssues: string[] = [];
+  if (missingFields.includes('photos')) {
+    qualityIssues.push('Photos help showcase your work');
+  }
+  if (missingFields.includes('location')) {
+    qualityIssues.push('Location helps customers find you');
+  }
+  // No suggestions for additional content - agent knows what's relevant
 
   return {
     percentage,
     completedFields,
     missingFields,
-    canGenerate,
-    canPublish,
+    canGenerate: hasAnyContent, // Always enabled if any content
+    canPublish: hasRecommendedFields, // Recommendation only
     statusMessage,
     visualState,
-    qualityIssues: qualityCheck.issues,
+    qualityIssues,
   };
 }
 
 /**
  * Hook for tracking portfolio completeness.
  *
- * Memoizes calculation to avoid unnecessary re-renders.
+ * IMPORTANT: This hook provides UI feedback only.
+ * It does NOT gate any actions - the model decides when ready.
  *
  * @example
  * ```tsx
- * const { percentage, canGenerate, statusMessage } = useCompleteness(
+ * const { percentage, statusMessage, visualState } = useCompleteness(
  *   extractedData,
  *   uploadedImages
  * );
+ * // Use for display, never for gating
  * ```
  */
 export function useCompleteness(
@@ -318,4 +217,23 @@ export function useCompleteness(
     () => calculateCompleteness(data, images.length),
     [data, images.length]
   );
+}
+
+// Legacy export for backwards compatibility during migration
+// TODO: Remove after Phase 2 cleanup
+export interface ContentQualityResult {
+  meetsQuality: boolean;
+  issues: string[];
+}
+
+/**
+ * @deprecated Quality checking is now informational only.
+ * The model decides quality, not character counts.
+ */
+export function checkContentQuality(_data: ExtractedProjectData): ContentQualityResult {
+  // Always returns true - model decides quality
+  return {
+    meetsQuality: true,
+    issues: [],
+  };
 }

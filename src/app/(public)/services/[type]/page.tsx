@@ -55,7 +55,8 @@ import {
   getProjectCountByService,
   getContractorCountByService,
   mapUrlSlugToServiceId,
-  isValidNationalServiceType,
+  getServiceTypeSlugs,
+  getServiceTypeBySlug,
 } from '@/lib/data/services';
 import { SERVICE_CONTENT, getServiceContent } from '@/lib/constants/service-content';
 import { RelatedArticles } from '@/components/content/RelatedArticles';
@@ -82,19 +83,12 @@ const SERVICE_ICONS: Record<string, string> = {
 };
 
 /**
- * Generate static params for all 8 national service pages.
+ * Generate static params for national service pages.
+ * Dynamically fetches service types from database.
  */
 export async function generateStaticParams() {
-  return [
-    { type: 'chimney-repair' },
-    { type: 'tuckpointing' },
-    { type: 'brick-repair' },
-    { type: 'stone-masonry' },
-    { type: 'foundation-repair' },
-    { type: 'historic-restoration' },
-    { type: 'masonry-waterproofing' },
-    { type: 'efflorescence-removal' },
-  ];
+  const slugs = await getServiceTypeSlugs();
+  return slugs.map((slug) => ({ type: slug }));
 }
 
 /**
@@ -103,12 +97,13 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { type } = await params;
 
-  // Validate service type
-  if (!isValidNationalServiceType(type)) {
+  // Validate service type exists in database
+  const serviceType = await getServiceTypeBySlug(type);
+  if (!serviceType) {
     return { title: 'Service Not Found' };
   }
 
-  const serviceId = mapUrlSlugToServiceId(type) as ServiceId;
+  const serviceId = serviceType.service_id as ServiceId;
   const content = getServiceContent(serviceId);
 
   if (!content) {
@@ -179,12 +174,13 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 export default async function NationalServicePage({ params }: PageParams) {
   const { type } = await params;
 
-  // Validate service type
-  if (!isValidNationalServiceType(type)) {
+  // Validate service type exists in database
+  const serviceType = await getServiceTypeBySlug(type);
+  if (!serviceType) {
     notFound();
   }
 
-  const serviceId = mapUrlSlugToServiceId(type) as ServiceId;
+  const serviceId = serviceType.service_id as ServiceId;
   const content = getServiceContent(serviceId);
 
   if (!content) {
@@ -588,8 +584,8 @@ export default async function NationalServicePage({ params }: PageParams) {
                         <div className="flex items-center justify-between text-sm text-muted-foreground">
                           <span className="flex items-center gap-1.5">
                             <MapPin className="h-4 w-4" />
-                            {project.contractor?.city || project.city},{' '}
-                            {project.contractor?.state || ''}
+                            {project.business?.city || project.city},{' '}
+                            {project.business?.state || ''}
                           </span>
                           {project.published_at && (
                             <span className="flex items-center gap-1.5">

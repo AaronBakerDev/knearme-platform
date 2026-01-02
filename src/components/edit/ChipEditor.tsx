@@ -10,7 +10,7 @@
  * - Remove chips with X button
  * - Reusable for both materials and techniques
  *
- * @see src/app/(contractor)/projects/[id]/edit/page.tsx - Integration point
+ * @see src/app/(dashboard)/projects/[id]/edit/page.tsx - Integration point
  */
 
 import { useState, useCallback } from 'react'

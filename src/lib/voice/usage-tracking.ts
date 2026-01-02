@@ -32,14 +32,14 @@ export interface VoiceUsageRecord {
  * Returns the usage record ID to be used when ending the session.
  *
  * @param params.userId - The authenticated user's ID
- * @param params.contractorId - Optional contractor ID associated with the session
+ * @param params.businessId - Optional business ID associated with the session
  * @param params.sessionId - Optional chat session ID for correlation
  * @param params.mode - 'voice_text' for voice-to-text or 'voice_voice' for live voice
  * @returns The usage record ID, or null if tracking failed
  */
 export async function startVoiceSession(params: {
   userId: string;
-  contractorId?: string;
+  businessId?: string;
   sessionId?: string;
   mode: VoiceMode;
 }): Promise<string | null> {
@@ -51,7 +51,8 @@ export async function startVoiceSession(params: {
     .from('voice_usage')
     .insert({
       user_id: params.userId,
-      contractor_id: params.contractorId ?? null,
+      // DB column is still contractor_id, uses business ID value
+      contractor_id: params.businessId ?? null,
       session_id: params.sessionId ?? null,
       mode: params.mode,
       started_at: new Date().toISOString(),

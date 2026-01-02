@@ -25,13 +25,16 @@ import { ImageIcon, Clock, MapPin, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ProjectPublicPreview } from '@/components/portfolio/ProjectPublicPreview';
+import { DynamicPortfolioRenderer, type PortfolioImage } from '@/components/portfolio/DynamicPortfolioRenderer';
 import Image from 'next/image';
 import { EmptyProjectState } from './EmptyProjectState';
 import { ExpandableProgressChecklist } from './ExpandableProgressChecklist';
 import type { ProjectPreviewData } from './hooks/useProjectData';
 import type { CompletenessState } from './hooks/useCompleteness';
-import type { Project, Contractor, ProjectImage } from '@/types/database';
+import type { Project, Business, Contractor, ProjectImage } from '@/types/database';
 import type { RelatedProject } from '@/lib/data/projects';
+import type { DesignTokens } from '@/lib/design/tokens';
+import type { SemanticBlock } from '@/lib/design/semantic-blocks';
 
 interface LivePortfolioCanvasProps {
   /** Aggregated project data from useProjectData */
@@ -41,10 +44,19 @@ interface LivePortfolioCanvasProps {
   /** Optional public project preview data for full parity rendering */
   publicPreview?: {
     project: Project;
-    contractor: Contractor;
+    /** Business data for the preview */
+    business: Business | Contractor;
     images: (ProjectImage & { url?: string })[];
     relatedProjects?: RelatedProject[];
+    /** @deprecated Use business instead */
+    contractor?: Contractor;
   };
+  /** Optional dynamic portfolio layout from AI-generated design tokens and blocks */
+  portfolioLayout?: {
+    tokens: DesignTokens;
+    blocks: SemanticBlock[];
+    rationale?: string;
+  } | null;
   /** Optional override title (e.g. showPortfolioPreview tool) */
   titleOverride?: string | null;
   /** Fields to visually highlight as recently updated */
@@ -147,6 +159,7 @@ export function LivePortfolioCanvas({
   data,
   completeness,
   publicPreview,
+  portfolioLayout,
   titleOverride,
   highlightFields,
   previewMessage,
@@ -169,22 +182,6 @@ export function LivePortfolioCanvas({
   const displayTitle = titleOverride ?? data.suggestedTitle;
   const shouldShowChecklist = showChecklist ?? !publicPreview;
 
-  if (publicPreview) {
-    return (
-      <div className={cn('h-full flex flex-col overflow-y-auto overscroll-contain', className)}>
-        <ProjectPublicPreview
-          project={publicPreview.project}
-          contractor={publicPreview.contractor}
-          images={publicPreview.images}
-          relatedProjects={publicPreview.relatedProjects ?? []}
-          showBreadcrumbs={false}
-          showBackLink={false}
-          className="min-h-0"
-        />
-      </div>
-    );
-  }
-
   /**
    * Handle action from progress checklist.
    * Currently only supports 'addPhotos'.
@@ -194,6 +191,58 @@ export function LivePortfolioCanvas({
       onAddPhotos();
     }
   };
+
+  // Render dynamic AI-generated layout when available
+  if (portfolioLayout?.tokens && portfolioLayout?.blocks?.length > 0) {
+    // Convert uploaded images to PortfolioImage format
+    const portfolioImages: PortfolioImage[] = data?.allImages?.map(img => ({
+      id: img.id,
+      url: img.url,
+      alt: img.filename || 'Project image',
+      width: img.width || 800,
+      height: img.height || 600,
+    })) || [];
+
+    return (
+      <div className={cn('h-full flex flex-col overflow-y-auto overscroll-contain', className)}>
+        <DynamicPortfolioRenderer
+          tokens={portfolioLayout.tokens}
+          blocks={portfolioLayout.blocks}
+          images={portfolioImages}
+          className="p-4"
+        />
+        {portfolioLayout.rationale && (
+          <div className="p-4 bg-muted/50 text-sm text-muted-foreground border-t">
+            <span className="font-medium">Layout rationale:</span> {portfolioLayout.rationale}
+          </div>
+        )}
+        {shouldShowChecklist && (
+          <ExpandableProgressChecklist
+            completeness={completeness}
+            onInsertPrompt={onInsertPrompt || (() => {})}
+            onAction={handleAction}
+            className="flex-shrink-0"
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (publicPreview) {
+    return (
+      <div className={cn('h-full flex flex-col overflow-y-auto overscroll-contain', className)}>
+        <ProjectPublicPreview
+          project={publicPreview.project}
+          business={publicPreview.business || publicPreview.contractor!}
+          images={publicPreview.images}
+          relatedProjects={publicPreview.relatedProjects ?? []}
+          showBreadcrumbs={false}
+          showBackLink={false}
+          className="min-h-0"
+        />
+      </div>
+    );
+  }
 
   // Show improved empty state if no content
   if (!data.hasContent && visualState === 'empty') {

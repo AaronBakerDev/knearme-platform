@@ -176,7 +176,7 @@ export function NearbyCities({
 
       {/* Link to browse all */}
       <Link
-        href="/contractors"
+        href="/businesses"
         className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-4"
       >
         Browse all service areas

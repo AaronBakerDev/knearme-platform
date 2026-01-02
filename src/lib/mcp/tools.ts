@@ -469,7 +469,10 @@ export async function handleCreateProjectDraft(
 
   const project = toProjectOutput(result.data.project as unknown as Record<string, unknown>);
   const images = (result.data.project as unknown as { project_images?: unknown[] }).project_images || [];
-  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const isPublished = project.status === 'published';
+  const imageOutputs = images.map((img) =>
+    toImageOutput(img as unknown as Record<string, unknown>, { isPublished })
+  );
   const projectWithHero = attachHeroImageUrl(project, imageOutputs);
   const missing = getMissingPublishFields(projectWithHero);
   if (imageOutputs.length === 0) missing.push('images');
@@ -559,7 +562,10 @@ export async function handleAddProjectMedia(
 
   const project = toProjectOutput(projectResult.data.project as unknown as Record<string, unknown>);
   const images = (projectResult.data.project as unknown as { project_images?: unknown[] }).project_images || [];
-  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const isPublished = project.status === 'published';
+  const imageOutputs = images.map((img) =>
+    toImageOutput(img as unknown as Record<string, unknown>, { isPublished })
+  );
   const projectWithHero = attachHeroImageUrl(project, imageOutputs);
   const missing = getMissingPublishFields(projectWithHero);
   if (imageOutputs.length === 0) missing.push('images');
@@ -604,7 +610,10 @@ export async function handleReorderProjectMedia(
 
   const project = toProjectOutput(projectResult.data.project as unknown as Record<string, unknown>);
   const images = (projectResult.data.project as unknown as { project_images?: unknown[] }).project_images || [];
-  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const isPublished = project.status === 'published';
+  const imageOutputs = images.map((img) =>
+    toImageOutput(img as unknown as Record<string, unknown>, { isPublished })
+  );
   const projectWithHero = attachHeroImageUrl(project, imageOutputs);
 
   return {
@@ -634,7 +643,10 @@ export async function handleSetProjectHeroMedia(
 
   const project = toProjectOutput(projectResult.data.project as unknown as Record<string, unknown>);
   const images = (projectResult.data.project as unknown as { project_images?: unknown[] }).project_images || [];
-  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const isPublished = project.status === 'published';
+  const imageOutputs = images.map((img) =>
+    toImageOutput(img as unknown as Record<string, unknown>, { isPublished })
+  );
   const projectWithHero = attachHeroImageUrl(project, imageOutputs);
 
   return {
@@ -664,7 +676,10 @@ export async function handleSetProjectMediaLabels(
 
   const project = toProjectOutput(projectResult.data.project as unknown as Record<string, unknown>);
   const images = (projectResult.data.project as unknown as { project_images?: unknown[] }).project_images || [];
-  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const isPublished = project.status === 'published';
+  const imageOutputs = images.map((img) =>
+    toImageOutput(img as unknown as Record<string, unknown>, { isPublished })
+  );
   const projectWithHero = attachHeroImageUrl(project, imageOutputs);
 
   return {
@@ -692,7 +707,10 @@ export async function handleUpdateProjectSections(
 
   const project = toProjectOutput(result.data.project as unknown as Record<string, unknown>);
   const images = (result.data.project as { project_images?: unknown[] }).project_images || [];
-  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const isPublished = project.status === 'published';
+  const imageOutputs = images.map((img) =>
+    toImageOutput(img as unknown as Record<string, unknown>, { isPublished })
+  );
   const projectWithHero = attachHeroImageUrl(project, imageOutputs);
   const missing = getMissingPublishFields(projectWithHero);
   if (imageOutputs.length === 0) missing.push('images');
@@ -723,7 +741,10 @@ export async function handleUpdateProjectMeta(
 
   const project = toProjectOutput(result.data.project as unknown as Record<string, unknown>);
   const images = (result.data.project as { project_images?: unknown[] }).project_images || [];
-  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const isPublished = project.status === 'published';
+  const imageOutputs = images.map((img) =>
+    toImageOutput(img as unknown as Record<string, unknown>, { isPublished })
+  );
   const projectWithHero = attachHeroImageUrl(project, imageOutputs);
   const missing = getMissingPublishFields(projectWithHero);
   if (imageOutputs.length === 0) missing.push('images');
@@ -753,12 +774,18 @@ export async function handlePublishProject(
 
   const project = toProjectOutput(result.data.project as unknown as Record<string, unknown>);
   const images = (result.data.project as { project_images?: unknown[] }).project_images || [];
-  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const isPublished = project.status === 'published';
+  const imageOutputs = images.map((img) =>
+    toImageOutput(img as unknown as Record<string, unknown>, { isPublished })
+  );
   const projectWithHero = attachHeroImageUrl(project, imageOutputs);
 
   const basePublicUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.co';
+  // TODO: Replace hardcoded '/masonry/' with dynamic trade segment when routes are restructured
+  // @see /docs/philosophy/universal-portfolio-agents.md for multi-trade vision
+  const tradeSegment = 'masonry'; // Will become dynamic: project.trade_slug || 'construction'
   const url = project.city_slug && project.project_type_slug && project.slug
-    ? `${basePublicUrl}/${project.city_slug}/masonry/${project.project_type_slug}/${project.slug}`
+    ? `${basePublicUrl}/${project.city_slug}/${tradeSegment}/${project.project_type_slug}/${project.slug}`
     : basePublicUrl;
 
   return {
@@ -785,7 +812,10 @@ export async function handleUnpublishProject(
 
   const project = toProjectOutput(result.data.project as unknown as Record<string, unknown>);
   const images = (result.data.project as { project_images?: unknown[] }).project_images || [];
-  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const isPublished = project.status === 'published';
+  const imageOutputs = images.map((img) =>
+    toImageOutput(img as unknown as Record<string, unknown>, { isPublished })
+  );
   const projectWithHero = attachHeroImageUrl(project, imageOutputs);
 
   const missing = getMissingPublishFields(projectWithHero);
@@ -827,7 +857,10 @@ export async function handleListContractorProjects(
   const projects = result.data.projects.map((p) => {
     const project = toProjectOutput(p as unknown as Record<string, unknown>);
     const images = (p as { project_images?: unknown[] }).project_images || [];
-    const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+    const isPublished = project.status === 'published';
+    const imageOutputs = images.map((img) =>
+      toImageOutput(img as unknown as Record<string, unknown>, { isPublished })
+    );
     return attachHeroImageUrl(project, imageOutputs);
   });
   const offset = input.offset || 0;
@@ -865,7 +898,10 @@ export async function handleGetProjectStatus(
 
   const project = toProjectOutput(result.data.project as unknown as Record<string, unknown>);
   const images = (result.data.project as { project_images?: unknown[] }).project_images || [];
-  const imageOutputs = images.map((img) => toImageOutput(img as unknown as Record<string, unknown>));
+  const isPublished = project.status === 'published';
+  const imageOutputs = images.map((img) =>
+    toImageOutput(img as unknown as Record<string, unknown>, { isPublished })
+  );
   const projectWithHero = attachHeroImageUrl(project, imageOutputs);
   const missing = getMissingPublishFields(projectWithHero);
   if (imageOutputs.length === 0) missing.push('images');

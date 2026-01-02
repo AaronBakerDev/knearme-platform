@@ -20,7 +20,7 @@ import { RelatedProjects } from '@/components/seo/RelatedProjects';
 import { getPublicUrl } from '@/lib/storage/upload';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { cn } from '@/lib/utils';
-import type { Project, Contractor, ProjectImage } from '@/types/database';
+import type { Project, Business, Contractor, ProjectImage } from '@/types/database';
 import type { RelatedProject } from '@/lib/data/projects';
 import { sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
 
@@ -184,23 +184,31 @@ function renderDescription(description: string, blocks: unknown) {
 
 interface ProjectPublicPreviewProps {
   project: Project;
-  contractor: Contractor;
+  /** Business data - accepts both Business and legacy Contractor types */
+  business: Business | Contractor;
   images: PreviewImage[];
   relatedProjects: RelatedProject[];
   showBreadcrumbs?: boolean;
   showBackLink?: boolean;
   className?: string;
+  /** @deprecated Use `business` prop instead */
+  contractor?: Contractor;
 }
 
 export function ProjectPublicPreview({
   project,
-  contractor,
+  business: businessProp,
   images,
   relatedProjects,
   showBreadcrumbs = true,
   showBackLink = true,
   className,
+  contractor: deprecatedContractorProp,
 }: ProjectPublicPreviewProps) {
+  // Support deprecated contractor prop for backward compatibility
+  const business = businessProp || deprecatedContractorProp!;
+  // Normalize field names (Business uses 'name', Contractor uses 'business_name')
+  const businessName = 'name' in business ? business.name : business.business_name;
   const sortedImages = [...images].sort(
     (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
   );
@@ -225,7 +233,7 @@ export function ProjectPublicPreview({
   const locationLabel = formatProjectLocation({
     neighborhood: project.neighborhood,
     city: project.city,
-    state: project.state ?? contractor.state,
+    state: project.state ?? business.state,
   });
 
   return (
@@ -242,11 +250,11 @@ export function ProjectPublicPreview({
         <div className="max-w-4xl mx-auto">
           {showBackLink && (
             <Link
-              href={`/contractors/${contractor.city_slug || ''}/${contractor.profile_slug || contractor.id}`}
+              href={`/businesses/${business.city_slug || ''}/${('slug' in business ? business.slug : business.profile_slug) || business.id}`}
               className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
-              More projects by {contractor.business_name}
+              More projects by {businessName}
             </Link>
           )}
 
@@ -344,30 +352,30 @@ export function ProjectPublicPreview({
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div className="relative w-14 h-14 rounded-full overflow-hidden flex-shrink-0 bg-muted ring-2 ring-primary/20">
-                    {contractor.profile_photo_url ? (
+                    {business.profile_photo_url ? (
                       <Image
-                        src={contractor.profile_photo_url}
-                        alt={contractor.business_name || 'Contractor'}
+                        src={business.profile_photo_url}
+                        alt={businessName || 'Business'}
                         fill
                         className="object-cover"
                         sizes="56px"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-primary font-semibold text-lg">
-                        {contractor.business_name?.charAt(0) || 'C'}
+                        {businessName?.charAt(0) || 'B'}
                       </div>
                     )}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">{contractor.business_name}</h3>
+                    <h3 className="font-semibold text-lg">{businessName}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {contractor.city}, {contractor.state} •{' '}
-                      {contractor.services?.slice(0, 3).join(', ')}
+                      {business.city}, {business.state} •{' '}
+                      {business.services?.slice(0, 3).join(', ')}
                     </p>
                   </div>
                 </div>
                 <Button asChild size="lg" className="shadow-sm">
-                  <Link href={`/contractors/${contractor.city_slug || ''}/${contractor.profile_slug || contractor.id}`}>
+                  <Link href={`/businesses/${business.city_slug || ''}/${('slug' in business ? business.slug : business.profile_slug) || business.id}`}>
                     View All Projects
                   </Link>
                 </Button>

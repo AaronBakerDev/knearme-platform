@@ -6,7 +6,7 @@
  * Displays the complete edit form (Content, Images, SEO tabs) inside
  * the canvas panel of the chat-first edit interface.
  *
- * Extracted from /src/app/(contractor)/projects/[id]/edit/page.tsx
+ * Extracted from /src/app/(dashboard)/projects/[id]/edit/page.tsx
  * to be used as a canvas artifact in the three-panel layout.
  *
  * @see /docs/ai-sdk/chat-artifacts-spec.md
@@ -74,8 +74,8 @@ interface ProjectEditFormArtifactProps {
   project: ProjectWithImages;
   /** Project images with URLs */
   images: ImageWithUrl[];
-  /** Contractor ID for uploads */
-  contractorId: string;
+  /** Business ID for uploads */
+  businessId: string;
   /** Callback when form saves */
   onSave?: () => void;
   /** Callback when images change */
@@ -93,7 +93,7 @@ export function ProjectEditFormArtifact({
   projectId,
   project,
   images: initialImages,
-  contractorId,
+  businessId,
   onSave,
   onImagesChange,
   activeTab: initialTab = 'content',
@@ -461,7 +461,7 @@ export function ProjectEditFormArtifact({
               onDelete={handleDeleteImage}
             />
 
-            {contractorId && images.length < 10 && (
+            {businessId && images.length < 10 && (
               <div className="pt-4 border-t">
                 <h4 className="text-xs font-medium mb-3">Add Images</h4>
                 {uploadingFile && (

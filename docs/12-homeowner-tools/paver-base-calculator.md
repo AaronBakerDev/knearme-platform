@@ -9,14 +9,14 @@
 
 ## Overview
 
-A deterministic calculator for homeowners planning a brick/stone paver patio, walkway, or driveway. It outputs excavation depth, gravel base volume, bedding sand volume, and an optional paver count. Designed to be the fastest, cleanest “materials list” tool in the category.
+A deterministic calculator for clients planning a brick/stone paver patio, walkway, or driveway. It outputs excavation depth, gravel base volume, bedding sand volume, and an optional paver count. Designed to be the fastest, cleanest “materials list” tool in the category.
 
 ---
 
 ## Goals
 
 1. Rank for “paver base calculator / how much gravel under pavers” queries.
-2. Provide an accurate, easy materials list homeowners can order from.
+2. Provide an accurate, easy materials list clients can order from.
 3. Funnel into patio/paver service pages (future) and related learn content.
 
 ### Non‑Goals (MVP)

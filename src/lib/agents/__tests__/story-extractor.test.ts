@@ -53,7 +53,13 @@ describe('StoryExtractor', () => {
       expect(checkReadyForImages(state)).toBe(true);
     });
 
-    it('returns false when story is too short', () => {
+    /**
+     * @deprecated checkReadyForImages now always returns true.
+     * Users can upload images anytime - no gating required.
+     * The model handles conversation flow naturally.
+     * @see /docs/philosophy/agent-philosophy.md
+     */
+    it('always returns true (no gating - users can upload images anytime)', () => {
       const state: Partial<SharedProjectState> = {
         projectType: 'chimney-rebuild',
         customerProblem: 'Chimney leak.',
@@ -61,7 +67,8 @@ describe('StoryExtractor', () => {
         materials: ['reclaimed brick'],
       };
 
-      expect(checkReadyForImages(state)).toBe(false);
+      // Philosophy: Users can upload images whenever they want
+      expect(checkReadyForImages(state)).toBe(true);
     });
   });
 

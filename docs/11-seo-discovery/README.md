@@ -8,9 +8,11 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 
 **Source Strategy:** [`../SEO-DISCOVERY-STRATEGY.md`](../SEO-DISCOVERY-STRATEGY.md)
 
-**Scope:** All public-facing SEO pages that drive homeowner discovery and contractor showcasing.
+**Scope:** All public-facing SEO pages that drive client discovery and business showcasing.
 
-**Note:** City Hub pages are roundup hubs built from contractor-generated projects and profiles. "Best {service} in {city}" review-analysis hubs are a separate editorial pipeline and are not covered by these templates yet.
+**Note:** City Hub pages are roundup hubs built from business-generated projects and profiles. "Best {service} in {city}" review-analysis hubs are a separate editorial pipeline and are not covered by these templates yet.
+
+**Vertical note:** Current routes and keywords reflect the masonry wedge (e.g., `/masonry/`). The strategy is portfolio‑business‑first and will generalize as routing is abstracted.
 
 ## Documentation Structure
 
@@ -21,7 +23,7 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 | [Service Type by City](./page-templates/service-type-city.md) | `/{city}/masonry/{type}` | **P1** | Next sprint |
 | [City Hub](./page-templates/city-hub.md) | `/{city}/masonry` | **P0** | ✅ Implemented |
 | [Project Detail](./page-templates/project-detail.md) | `/{city}/masonry/{type}/{slug}` | **P0** | ✅ Implemented |
-| [Contractor Profile](./page-templates/contractor-profile.md) | `/contractors/{city}/{slug}` | **P0** | ✅ Implemented |
+| [Business Profile](./page-templates/contractor-profile.md) | `/businesses/{city}/{slug}` | **P0** | ✅ Implemented |
 | [National Service Landing](./page-templates/national-service.md) | `/services/{type}` | **P2** | Phase 3 |
 | [Educational Content](./page-templates/educational-content.md) | `/learn/{slug}` or `/resources/{slug}` | **P2** | Phase 3 |
 
@@ -37,7 +39,7 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 |---------|-------|---------------|--------|
 | City Hub Pages | `app/(public)/[city]/masonry/page.tsx` | 441 | ✅ Complete |
 | Project Detail Pages | `app/(public)/[city]/masonry/[type]/[slug]/page.tsx` | 474 | ✅ Complete |
-| Contractor Profiles | `app/(public)/contractors/[city]/[slug]/page.tsx` | 510 | ✅ Complete |
+| Business Profiles | `app/(public)/businesses/[city]/[slug]/page.tsx` | 510 | ✅ Complete |
 | Dynamic Sitemap | `app/sitemap.ts` | ~150 | ✅ Complete |
 | JSON-LD Utilities | `src/lib/seo/structured-data.ts` | ~300 | ✅ Complete |
 
@@ -88,12 +90,12 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 
 | Page Type | Primary Audience | Business Goal | Conversion Metric |
 |-----------|------------------|---------------|-------------------|
-| **Service Type by City** | Homeowners searching "{service} in {city}" | Project inquiries | Contractor profile clicks |
-| **City Hub** | Homeowners browsing local contractors | Discovery | Project detail views |
-| **Project Detail** | Homeowners evaluating quality | Trust building | Contractor profile visits |
-| **Contractor Profile** | Homeowners ready to contact | Conversion | Contact clicks (Phase 2) |
-| **National Service** | Homeowners researching services | Education | City hub clicks |
-| **Educational Content** | Homeowners learning | Authority | City/service page clicks |
+| **Service Type by City** | Clients searching "{service} in {city}" | Project inquiries | Business profile clicks |
+| **City Hub** | Clients browsing local providers | Discovery | Project detail views |
+| **Project Detail** | Clients evaluating quality | Trust building | Business profile visits |
+| **Business Profile** | Clients ready to contact | Conversion | Contact clicks (Phase 2) |
+| **National Service** | Clients researching services | Education | City hub clicks |
+| **Educational Content** | Clients learning | Authority | City/service page clicks |
 
 ### Keyword Strategy Summary
 
@@ -108,7 +110,7 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 **Future (Phase 3):**
 - Informational: "how to {task}", "what is {service}"
 - Cost guides: "{service} cost", "masonry pricing"
-- Contractor selection: "how to choose a {service} contractor"
+- Provider selection: "how to choose a {service} contractor" (current vertical phrasing)
 
 ## Data Requirements
 
@@ -116,7 +118,7 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 
 All page types query from these tables:
 - `projects` - Published project showcases
-- `contractors` - Contractor profiles
+- `contractors` - Business profiles (current schema)
 - `project_images` - Project gallery images
 
 **Key Columns for SEO:**
@@ -125,7 +127,7 @@ All page types query from these tables:
 - `projects.slug` - Unique project identifier
 - `projects.status` - Must be 'published' for public pages
 - `projects.seo_title`, `seo_description` - Meta tags
-- `contractors.city_slug` - Contractor city identifier
+- `contractors.city_slug` - Business city identifier (current schema)
 
 **See:** Phase 2 spec includes complete Supabase query code examples.
 
@@ -138,7 +140,7 @@ All page types query from these tables:
 | Indexed Pages | ~50 | 200+ |
 | Organic Clicks/Month | 50 | 500+ |
 | Keywords in Top 50 | 0 | 10+ |
-| Contractor Signups from Organic | 0 | 5+ |
+| Business Signups from Organic | 0 | 5+ |
 
 **Measurement Tools:**
 - Google Search Console (index coverage, keyword rankings)

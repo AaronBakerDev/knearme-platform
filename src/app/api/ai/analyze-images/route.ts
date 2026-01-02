@@ -17,7 +17,7 @@ import { z } from 'zod';
 import { requireAuth, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { analyzeProjectImages, projectTypeToSlug } from '@/lib/ai/image-analysis';
-import { getPublicUrl } from '@/lib/storage/upload';
+import { downloadProjectImage } from '@/lib/storage/upload.server';
 
 /**
  * Request schema for image analysis.
@@ -97,11 +97,31 @@ export async function POST(request: NextRequest) {
       return apiError('VALIDATION_ERROR', 'No images to analyze. Please upload photos first.');
     }
 
-    // Get public URLs for images (already sorted by display_order from query)
-    const imageUrls = images.map((img) => getPublicUrl('project-images', img.storage_path));
+    // Limit analysis to first 4 images to control cost + keep prompt indexing consistent.
+    const analysisCandidates = images.slice(0, 4);
+    const analyzedImages: ProjectImage[] = [];
+    const imageInputs: Array<{ data: Buffer; mediaType?: string }> = [];
+
+    for (const img of analysisCandidates) {
+      const downloadResult = await downloadProjectImage(img.storage_path);
+      if ('error' in downloadResult) {
+        console.warn('[analyze-images] Failed to download image:', downloadResult.error);
+        continue;
+      }
+
+      analyzedImages.push(img);
+      imageInputs.push({
+        data: downloadResult.data,
+        mediaType: downloadResult.contentType,
+      });
+    }
+
+    if (imageInputs.length === 0) {
+      return apiError('VALIDATION_ERROR', 'Unable to load images for analysis.');
+    }
 
     // Analyze images with GPT-4V
-    const analysisResult = await analyzeProjectImages(imageUrls);
+    const analysisResult = await analyzeProjectImages(imageInputs);
 
     if ('error' in analysisResult) {
       return apiError('AI_SERVICE_ERROR', analysisResult.error);
@@ -146,7 +166,7 @@ export async function POST(request: NextRequest) {
     // Store generated alt texts in project_images table
     // Images are keyed by index ("0", "1", etc.) matching the order they were analyzed
     if (analysisResult.image_alt_texts && Object.keys(analysisResult.image_alt_texts).length > 0) {
-      const altTextUpdates = images.map((img, index) => {
+      const altTextUpdates = analyzedImages.map((img, index) => {
         const altText = analysisResult.image_alt_texts[String(index)];
         if (altText) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

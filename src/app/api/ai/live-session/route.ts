@@ -19,7 +19,7 @@ import {
   EndSensitivity,
   type LiveConnectConfig,
 } from '@google/genai';
-import { requireAuth, isAuthError } from '@/lib/api/auth';
+import { requireAuthBusiness, isBusinessAuthError } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { buildSystemPromptWithContext, UNIFIED_PROJECT_SYSTEM_PROMPT } from '@/lib/chat/chat-prompts';
 import { loadPromptContext } from '@/lib/chat/prompt-context';
@@ -51,8 +51,8 @@ export async function POST(request: NextRequest) {
   const start = Date.now();
 
   try {
-    const auth = await requireAuth();
-    if (isAuthError(auth)) {
+    const auth = await requireAuthBusiness();
+    if (isBusinessAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
 
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     const { projectId, sessionId, continuousMode } = parsed.data;
 
     // Check voice quota before creating session
-    const quota = await checkVoiceQuota(auth.user.id, auth.contractor.id, 'voice_voice');
+    const quota = await checkVoiceQuota(auth.user.id, auth.business.id, 'voice_voice');
 
     if (!quota.allowed) {
       return apiError('QUOTA_EXCEEDED', quota.reason ?? 'Voice quota exceeded for today.', {
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     const promptContext = await loadPromptContext({
       projectId,
       sessionId,
-      contractorId: auth.contractor.id,
+      businessId: auth.business.id,
       includeSummary,
     });
 
@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
       summary: promptContext.summary,
       projectData: promptContext.projectData,
       businessProfile: promptContext.businessProfile,
+      memory: promptContext.memory,
     });
 
     const tools = [
@@ -184,7 +185,7 @@ export async function POST(request: NextRequest) {
     // Note: usageId is returned so client can call end-session endpoint when done
     const usageId = await startVoiceSession({
       userId: auth.user.id,
-      contractorId: auth.contractor.id,
+      businessId: auth.business.id,
       sessionId,
       mode: 'voice_voice',
     });

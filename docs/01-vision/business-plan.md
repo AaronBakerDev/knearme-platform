@@ -1,7 +1,7 @@
 # Business Plan (Draft)
 
 > Status: Draft  
-> Date: December 31, 2025  
+> Date: January 2, 2026  
 > Owner: Product
 
 This document captures the business plan structure for KnearMe. It is a working
@@ -13,22 +13,22 @@ outline meant to be expanded with validated data and decisions.
 KnearMe turns finished projects into shareable proof that wins more jobs.
 
 ## 2) Problem
-Contractors do great work but their proof is invisible online. Updating a
-portfolio takes time they do not have, so most work never gets shown.
+Portfolio-based businesses do great work but their proof is invisible online.
+Updating a portfolio takes time they do not have, so most work never gets shown.
 
 ## 3) Solution
 Make every completed job a professional project page in minutes, straight from
-the job site. The contractor talks, the portfolio updates, and the page is ready
+the job site. The owner talks, the portfolio updates, and the page is ready
 to share.
 
 ## 4) Target Customer
-- Primary: Established masonry contractors who hate typing and want more trust.
-- Secondary: Growth‑stage contractors who need credibility fast.
+- Primary: Established portfolio businesses who hate typing and want more trust.
+- Secondary: Growth‑stage businesses who need credibility fast.
 
 See: `docs/01-vision/personas.md`
 
 ## 5) Value Proposition
-- The contractor’s work is the hero.
+- The business’s work is the hero.
 - Each job becomes visible proof.
 - Trust and better jobs come from that proof, not promises.
 
@@ -49,7 +49,7 @@ See: `docs/10-launch/pricing-plan-research.md`
 
 ## 7) Unit Economics (Conservative Assumptions)
 
-Assumptions (per Pro contractor per month):
+Assumptions (per Pro business per month):
 - 6 projects published
 - 10 minutes of voice per project (Voice -> Voice average, combined input/output)
 - 60 total voice minutes/month
@@ -109,7 +109,7 @@ Targets:
 
 ## 9) Go-to-Market
 - Soft launch in a single metro area
-- 10–20 contractors onboarded by hand
+- 10–20 businesses onboarded by hand
 - Capture before/after proof and short testimonials
 
 See: `docs/10-launch/launch-checklist.md`
@@ -118,17 +118,17 @@ GTM add-ons (in motion):
 - Programmatic SEO for service + city pages and city hub roundups
 - Review-analysis hubs for “best {service} in {city}” markets
 - Content review agent to improve quality and consistency
-- Network outreach for initial contractor cohort
+- Network outreach for initial business cohort
 
 ## 10) SEO-First Wedge (Deeper Plan)
 
-Thesis: indexing every project and contractor page creates a compounding
-inventory of long‑tail pages that bring in homeowner demand without paid ads.
+Thesis: indexing every project and business page creates a compounding
+inventory of long‑tail pages that bring in client demand without paid ads.
 
 Primary page types (all indexable when quality thresholds are met):
 - Project detail pages: core proof asset
-- Contractor profiles: conversion target for homeowners
-- City hubs (roundups): content hubs built from contractor-generated pages
+- Business profiles: conversion target for clients
+- City hubs (roundups): content hubs built from business-generated pages
 - Service + city pages: “{service} in {city}” intent
 - Review-analysis hubs: “best {service} in {city}” market review analysis
 
@@ -140,7 +140,7 @@ Indexing policy (guardrails to avoid thin pages):
 - Review-analysis hubs use separate thresholds (review volume/coverage), not project counts.
 
 Internal linking rules:
-- Project -> service+city -> city hub roundup -> contractor profile
+- Project -> service+city -> city hub roundup -> business profile
 - Review-analysis hub -> city hub roundup + top proof projects (include methodology)
 - Footer or sidebar links to related cities and services
 
@@ -153,35 +153,35 @@ Quality rules:
 SEO KPIs:
 - Index coverage % (Search Console)
 - Impressions and clicks for top 20 service+city terms
-- Project page clicks to contractor profiles
+- Project page clicks to business profiles
 - Conversion events (contact or lead form in Phase 2)
 
 ## 10) Competition & Differentiation
 - Not a lead marketplace
 - Not a general website builder
-- Built for trades: voice-first, fast, and proof-driven
+- Built for portfolio businesses: voice-first, fast, and proof-driven
 
 ## 11) Core Offering and Expansion Path
 
 Core offering:
 - A voice-first Interviewer that turns each job into proof.
 - Portfolio pages that are immediately shareable and credible.
-- The contractor’s work is the hero; the agent does the marketing work.
+- The business’s work is the hero; the agent does the marketing work.
 
 Expansion path (marketing ops layer):
 - Update Google Business Profile (posts, photos, business info).
-- Draft review replies in the contractor’s voice.
+- Draft review replies in the business’s voice.
 - Generate social posts from published projects.
 - Draft Google Business Profile posts for each new project.
-- Cross-post to the contractor’s own website or social if connected.
+- Cross-post to the business’s own website or social if connected.
 
 This is enabled by the agent + tool architecture already in place.
 
 ## 12) Metrics
-- Projects published per contractor per month
+- Projects published per business per month
 - Interview completion rate
 - Time to first publish
-- Monthly active contractors
+- Monthly active businesses
 
 See: `docs/01-vision/vision.md`
 
@@ -196,7 +196,7 @@ Risk mitigation matrix (short):
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
 | AI cost overruns | Medium | High | Fair-use caps, idle timeouts, auto-fallback to text |
-| Low contractor adoption | Medium | High | Hand onboarding, instant proof link, 3‑minute flow |
+| Low business adoption | Medium | High | Hand onboarding, instant proof link, 3‑minute flow |
 | Content quality inconsistent | Medium | Medium | Review agent, edit UI, regeneration prompts |
 | SEO traction slow | Medium | Medium | Review-analysis hubs + internal linking |
 | Abuse / long idle sessions | Low | High | Push‑to‑talk default, silence cutoff, session caps |
@@ -209,6 +209,6 @@ Risk mitigation matrix (short):
 
 Staged wedge -> marketing ops expansion:
 1) Project page -> one-click social/GBP post draft
-2) Review reply drafts using project proof and contractor voice
+2) Review reply drafts using project proof and business voice
 3) Google Business Profile updates (hours, services, photos) with approval
 4) Cross-post to website and social channels when connected

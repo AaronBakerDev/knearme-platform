@@ -9,7 +9,7 @@
 
 ## Overview
 
-An interactive estimator that provides a **planning‑level cost range** for common masonry services based on location, project size, severity, and access. The tool is intentionally transparent and conservative, designed to help homeowners budget and decide next steps.
+An interactive estimator that provides a **planning‑level cost range** for common masonry services based on location, project size, severity, and access. The tool is intentionally transparent and conservative, designed to help clients budget and decide next steps.
 
 ---
 
@@ -21,7 +21,7 @@ An interactive estimator that provides a **planning‑level cost range** for com
 
 ### Non‑Goals (MVP)
 
-- Perfect accuracy or contractor‑grade quoting.
+- Perfect accuracy or business‑grade quoting.
 - AI‑based pricing.
 - Storing estimates as public report pages (Phase 2).
 
@@ -184,7 +184,7 @@ If inputs imply a rebuild‑level job (high severity + large size), we cap range
 
 Above results:
 
-> “This is a planning estimate. Actual bids vary by contractor and site conditions. Use this range to budget, then confirm with local quotes.”
+> “This is a planning estimate. Actual bids vary by provider and site conditions. Use this range to budget, then confirm with local quotes.”
 
 Below results:
 
@@ -230,7 +230,7 @@ For each priority service, publish 3 satellites that link into this estimator.
 
 ### Phase 2 Enhancements
 
-- Add optional price ranges to contractor publish flow.
+- Add optional price ranges to business publish flow.
 - Compute per‑city medians.
 - Add shareable report pages.
 

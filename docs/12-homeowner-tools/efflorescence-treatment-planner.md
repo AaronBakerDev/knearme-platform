@@ -9,7 +9,7 @@
 
 ## Overview
 
-A deterministic homeowner tool that identifies the most likely cause of efflorescence (white powdery salt staining) and outputs a safe DIY removal plan plus prevention steps. The tool also flags cases that require professional moisture inspection.
+A deterministic client tool that identifies the most likely cause of efflorescence (white powdery salt staining) and outputs a safe DIY removal plan plus prevention steps. The tool also flags cases that require professional moisture inspection.
 
 ---
 

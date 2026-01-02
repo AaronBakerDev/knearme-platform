@@ -5,14 +5,14 @@
 ## Overview
 
 The "Marketing Part" of KnearMe serves two distinct audiences effectively:
-1.  **Contractors (Primary for MVP):** The **Landing Page** (`/`) must convert visitors into signups by promising effortless portfolio building.
-2.  **Homeowners (Secondary/SEO):** The **Project Pages** (`/[city]/masonry/...`) and **Contractor Profiles** (`/contractors/[city]/[id]`) act as landing pages for organic search traffic.
+1.  **Businesses (Primary for MVP):** The **Landing Page** (`/`) must convert visitors into signups by promising effortless portfolio building.
+2.  **Clients (Secondary/SEO):** The **Project Pages** (`/[city]/masonry/...`) and **Business Profiles** (`/businesses/[city]/[slug]`) act as landing pages for organic search traffic.
 
-This plan focuses on implementing the **Contractor Acquisition Landing Page** and the **SEO Infrastructure** required to make the platform discoverable.
+This plan focuses on implementing the **Business Acquisition Landing Page** and the **SEO Infrastructure** required to make the platform discoverable.
 
 ---
 
-## Phase 1: Landing Page (Contractor Acquisition)
+## Phase 1: Landing Page (Business Acquisition)
 **Target Audience:** "Mike the Mason"
 **Goal:** Convert visitors to Signups (Start Free).
 
@@ -39,7 +39,7 @@ Based on `user-journeys.md` Screen 1.
     -   "Look professional instantly"
 
 4.  **Social Proof / Trust**
-    -   "Trusted by [X]+ Contractors"
+    -   "Trusted by [X]+ Businesses"
     -   Testimonial carousel (optional for MVP, use placeholders if needed).
 
 5.  **CTA Footer**
@@ -69,7 +69,7 @@ Implement Next.js Metadata API in `layout.tsx` and dynamic pages.
 
 -   **Dynamic Metadata**:
     -   **Project Page**: `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx`
-    -   **Profile Page**: `src/app/(public)/contractors/[city]/[id]/page.tsx`
+    -   **Profile Page**: `src/app/(public)/businesses/[city]/[slug]/page.tsx`
     -   *Action*: Implement `generateMetadata()` fetching real data from Supabase.
 
 ### 2.2 Structured Data (JSON-LD)
@@ -85,16 +85,16 @@ Implement `Script` tags with JSON-LD in dynamic pages.
     -   Disallow `/dashboard`, `/api`
 -   **Sitemap**: `src/app/sitemap.ts`
     -   Fetch all `published` projects.
-    -   Fetch all active contractors.
+    -   Fetch all active businesses (contractors table).
     -   Generate XML URLs dynamically.
 
 ---
 
 ## Phase 3: Public Page Layouts
-Although part of "Product", these are marketing pages for the contractors.
+Although part of "Product", these are marketing pages for the businesses.
 
 -   **Layout**: `src/app/(public)/layout.tsx`
-    -   **Header**: "KnearMe" Logo (Home link), "For Contractors" (CTA).
+    -   **Header**: "KnearMe" Logo (Home link), "For Businesses" (CTA).
     -   **Footer**: Links to About, Terms, Privacy, "Build Your Portfolio".
 
 ---

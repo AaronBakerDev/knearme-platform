@@ -12,6 +12,8 @@ import type {
   SuggestQuickActionsOutput,
   GeneratePortfolioContentOutput,
   ComposePortfolioLayoutOutput,
+  ComposeUILayoutInput,
+  ComposeUILayoutOutput,
   CheckPublishReadyOutput,
   UpdateFieldOutput,
   RegenerateSectionOutput,
@@ -20,6 +22,8 @@ import type {
   UpdateDescriptionBlocksOutput,
   UpdateContractorProfileOutput,
   ContractorProfileField,
+  ProcessParallelInput,
+  ProcessParallelOutput,
 } from '@/lib/chat/tool-schemas';
 import { contractorProfileFields } from '@/lib/chat/tool-schemas';
 import {
@@ -31,10 +35,18 @@ import {
   getTopPriority,
   createEmptyProjectState,
   composePortfolioLayout,
+  composeUI,
+  // Delegation functions (Phase 10 - Subagent Architecture)
+  delegateToStoryAgent,
+  delegateToQualityAgent,
+  delegateToDesignAgent,
+  delegateParallel,
   type SharedProjectState,
+  type DelegationContext,
 } from '@/lib/agents';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { createClient } from '@/lib/supabase/server';
+import { resolveProjectImageUrl } from '@/lib/storage/project-images';
 
 export const FAST_TURN_TOOLS = [
   'extractProjectData',
@@ -53,6 +65,8 @@ export const FAST_TURN_TOOLS = [
 export const DEEP_CONTEXT_TOOLS = [
   'generatePortfolioContent',
   'composePortfolioLayout',
+  'composeUILayout',
+  'processParallel', // Phase 10: Parallel Story + Design execution
 ] as const;
 
 export type AllowedToolName =
@@ -72,6 +86,7 @@ export type ToolExecutors = {
     focusAreas?: string[];
     includeImageOrder?: boolean;
   }) => Promise<ComposePortfolioLayoutOutput>;
+  composeUILayout: (args: ComposeUILayoutInput) => Promise<ComposeUILayoutOutput>;
   checkPublishReady: (args: { showWarnings: boolean }) => Promise<CheckPublishReadyOutput>;
   updateField: (args: { field: string; value: unknown; reason?: string }) => Promise<UpdateFieldOutput>;
   regenerateSection: (args: {
@@ -87,17 +102,19 @@ export type ToolExecutors = {
     value: string | string[];
     reason?: string;
   }) => Promise<UpdateContractorProfileOutput>;
+  /** Phase 10: Parallel Story + Design agent execution */
+  processParallel: (args: ProcessParallelInput) => Promise<ProcessParallelOutput>;
 };
 
 async function loadProjectState({
   projectId,
-  contractorId,
+  businessId,
 }: {
   projectId?: string;
-  contractorId?: string;
+  businessId?: string;
 }): Promise<SharedProjectState | null> {
-  if (!projectId || !contractorId) {
-    // Require contractor scoping to avoid unbounded cross-tenant reads.
+  if (!projectId || !businessId) {
+    // Require business scoping to avoid unbounded cross-tenant reads.
     return null;
   }
 
@@ -139,7 +156,7 @@ async function loadProjectState({
       )
     `)
     .eq('id', projectId)
-    .eq('contractor_id', contractorId);
+    .eq('business_id', businessId);
 
   const { data: project, error } = await query.single();
 
@@ -152,6 +169,28 @@ async function loadProjectState({
   const images = project.project_images || [];
   const heroImageId =
     (project as { hero_image_id?: string | null }).hero_image_id ?? images[0]?.id;
+  const isPublished = project.status === 'published';
+
+  const imagesWithUrls = images.map((img: {
+    id: string;
+    storage_path: string;
+    image_type?: string;
+    alt_text?: string;
+    display_order?: number;
+  }) => ({
+    id: img.id,
+    url: resolveProjectImageUrl({
+      projectId,
+      imageId: img.id,
+      storagePath: img.storage_path,
+      isPublished,
+    }),
+    storagePath: img.storage_path,
+    bucket: 'project-images-draft' as const,
+    imageType: img.image_type as 'before' | 'after' | 'progress' | 'detail' | undefined,
+    altText: img.alt_text,
+    displayOrder: img.display_order || 0,
+  }));
 
   const readyForImages = checkReadyForImages({
     projectType: project.project_type || undefined,
@@ -193,19 +232,7 @@ async function loadProjectState({
       (project.duration as string | null) ||
       undefined,
     proudOf: (aiContext?.proud_of as string) || undefined,
-    images: images.map((img: {
-      id: string;
-      storage_path: string;
-      image_type?: string;
-      alt_text?: string;
-      display_order?: number;
-    }) => ({
-      id: img.id,
-      url: img.storage_path,
-      imageType: img.image_type as 'before' | 'after' | 'progress' | 'detail' | undefined,
-      altText: img.alt_text,
-      displayOrder: img.display_order || 0,
-    })),
+    images: imagesWithUrls,
     heroImageId,
     readyForImages,
     readyForContent: Boolean(
@@ -223,12 +250,12 @@ async function loadProjectState({
 
 async function loadSessionExtractedData({
   sessionId,
-  contractorId,
+  businessId,
 }: {
   sessionId?: string;
-  contractorId?: string;
+  businessId?: string;
 }): Promise<ExtractedProjectData | null> {
-  if (!sessionId || !contractorId) return null;
+  if (!sessionId || !businessId) return null;
   const supabase = await createClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -236,8 +263,8 @@ async function loadSessionExtractedData({
     .from('chat_sessions')
     .select('extracted_data')
     .eq('id', sessionId)
-    // Scope session reads to the authenticated contractor (defense in depth).
-    .eq('contractor_id', contractorId)
+    // Scope session reads to the authenticated business (defense in depth).
+    .eq('business_id', businessId)
     .single();
 
   if (error || !session) {
@@ -331,32 +358,52 @@ export function createChatToolExecutors({
   toolContext: ToolContext;
   latestUserMessage: string;
 }): ToolExecutors {
-  // Per-request state to prevent AI model from retrying expensive tools.
-  // This closure captures state for the lifetime of a single request.
-  // When AI model calls a tool multiple times, we block at the executor level.
-  // @see docs/testing/agent-ux-issues-2026-01-01.md for retry loop bug details
-  let contentGenerationAttempted = false;
-  let layoutCompositionAttempted = false;
+  // ============================================================================
+  // Philosophy: Let the Model Be Agentic
+  // ============================================================================
+  //
+  // REMOVED per-request tool blocking that prevented model retries.
+  // If the model calls a tool twice, it's doing so for a reason.
+  // Blocking at the executor level second-guesses the model's intelligence.
+  //
+  // The old pattern (contentGenerationAttempted, etc.) was treating symptoms,
+  // not causes. If there was a retry loop bug, the fix belongs in the prompt
+  // or step limits, not in executor-level blocking.
+  //
+  // @see /docs/philosophy/agent-philosophy.md
+  // ============================================================================
 
   return {
     extractProjectData: async (args) => {
       const sessionData = await loadSessionExtractedData({
         sessionId: toolContext.sessionId,
-        contractorId: toolContext.contractorId,
+        businessId: toolContext.businessId,
       });
       let mergedState = createEmptyProjectState();
       mergedState = mergeProjectState(mergedState, mapExtractedDataToState(sessionData || undefined));
       mergedState = mergeProjectState(mergedState, mapExtractedDataToState(args));
 
-      if (!latestUserMessage.trim()) {
+      // If no message AND no images, return early (nothing to extract)
+      // But if images exist, still delegate for image analysis even without message
+      const hasImages = mergedState.images && mergedState.images.length > 0;
+      if (!latestUserMessage.trim() && !hasImages) {
         return mapStateToExtractedData(mergedState);
       }
 
-      const result = await orchestrate({
+      // Use Story Agent delegation (Phase 10 - Subagent Architecture)
+      // The Story Agent specializes in conversation, image analysis, and narrative extraction
+      const delegationContext: DelegationContext = {
         state: mergedState,
-        message: latestUserMessage,
-        phase: 'gathering',
-      });
+        message: latestUserMessage || '',
+        images: hasImages ? mergedState.images : undefined,
+      };
+
+      const result = await delegateToStoryAgent(delegationContext);
+
+      // Log delegation errors but don't fail - return best available state
+      if (result.error) {
+        console.warn('[extractProjectData] Story Agent delegation failed:', result.error.message);
+      }
 
       return mapStateToExtractedData(result.state);
     },
@@ -366,23 +413,10 @@ export function createChatToolExecutors({
     requestClarification: async (args) => args,
     suggestQuickActions: async (args) => args,
     generatePortfolioContent: async () => {
-      // Block retries at executor level - AI model cannot bypass this
-      if (contentGenerationAttempted) {
-        return {
-          success: false,
-          title: '',
-          description: '',
-          seoTitle: '',
-          seoDescription: '',
-          tags: [],
-          error: 'Content generation already attempted in this request. Ask the user to try again.',
-        };
-      }
-      contentGenerationAttempted = true;
-
+      // Model can retry if needed - we trust its judgment
       const projectState = await loadProjectState({
         projectId: toolContext.projectId,
-        contractorId: toolContext.contractorId,
+        businessId: toolContext.businessId,
       });
       if (!projectState) {
         return {
@@ -441,20 +475,10 @@ export function createChatToolExecutors({
       };
     },
     composePortfolioLayout: async (args) => {
-      // Block retries at executor level - AI model cannot bypass this
-      if (layoutCompositionAttempted) {
-        return {
-          blocks: [],
-          rationale: 'Layout composition already attempted in this request. Ask the user to try again.',
-          missingContext: [],
-          confidence: 0.1,
-        };
-      }
-      layoutCompositionAttempted = true;
-
+      // Model can retry if needed - we trust its judgment
       const projectState = await loadProjectState({
         projectId: toolContext.projectId,
-        contractorId: toolContext.contractorId,
+        businessId: toolContext.businessId,
       });
       if (!projectState) {
         return {
@@ -465,10 +489,71 @@ export function createChatToolExecutors({
         };
       }
 
+      // TODO: Phase 10 migration - currently calls both Design Agent and legacy composer.
+      // Design Agent provides heroImageId selection, legacy provides DescriptionBlock[].
+      // Future: align Design Agent schema with DescriptionBlock[] to eliminate legacy call.
+      // @see /src/lib/agents/subagents/design-agent.ts
+
+      // Use Design Agent delegation (Phase 10 - Subagent Architecture)
+      // The Design Agent specializes in visual composition and hero image selection
+      const delegationContext: DelegationContext = {
+        state: projectState,
+        message: args.goal || '',
+      };
+
+      const orchestratorResult = await delegateToDesignAgent(
+        delegationContext,
+        args.focusAreas?.join(', ')
+      );
+
+      // Log delegation errors but don't fail - we'll fall back to legacy
+      if (orchestratorResult.error) {
+        console.warn('[composePortfolioLayout] Design Agent delegation failed:', orchestratorResult.error.message);
+      }
+
+      // Legacy composePortfolioLayout produces DescriptionBlock[] format for BlockEditor
       const result = await composePortfolioLayout(projectState, {
         goal: args.goal,
         focusAreas: args.focusAreas,
         includeImageOrder: args.includeImageOrder,
+      });
+
+      // Merge: Design Agent provides heroImageId, legacy provides blocks
+      return {
+        blocks: result.blocks,
+        rationale: result.rationale,
+        missingContext: result.missingContext,
+        confidence: result.confidence,
+        heroImageId: orchestratorResult.state.heroImageId,
+      };
+    },
+    composeUILayout: async (args) => {
+      // Model can retry if needed - we trust its judgment
+      const projectState = await loadProjectState({
+        projectId: toolContext.projectId,
+        businessId: toolContext.businessId,
+      });
+
+      if (!projectState) {
+        return {
+          designTokens: {
+            layout: 'hero-gallery',
+            spacing: 'comfortable',
+            typography: { headingStyle: 'bold', bodySize: 'base' },
+            colors: { accent: 'primary', background: 'light' },
+            imageDisplay: 'rounded',
+            heroStyle: 'large-single',
+          },
+          blocks: [],
+          rationale: 'No project found to compose layout for.',
+          confidence: 0,
+        };
+      }
+
+      const result = await composeUI(projectState, {
+        feedback: args.feedback,
+        focusAreas: args.focusAreas,
+        preserveElements: args.preserveElements,
       });
 
       return result;
@@ -476,7 +561,7 @@ export function createChatToolExecutors({
     checkPublishReady: async (args) => {
       const projectState = await loadProjectState({
         projectId: toolContext.projectId,
-        contractorId: toolContext.contractorId,
+        businessId: toolContext.businessId,
       });
       if (!projectState) {
         return {
@@ -489,13 +574,23 @@ export function createChatToolExecutors({
         };
       }
 
-      const orchestration = await orchestrate({
+      // Use Quality Agent delegation (Phase 10 - Subagent Architecture)
+      // The Quality Agent provides contextual, advisory assessment (never blocking)
+      const delegationContext: DelegationContext = {
         state: projectState,
         message: '',
-        phase: 'ready',
-      });
+      };
 
-      const result = checkQuality(orchestration.state);
+      const orchestratorResult = await delegateToQualityAgent(delegationContext);
+
+      // Log delegation errors but don't fail - we'll use legacy checkQuality
+      if (orchestratorResult.error) {
+        console.warn('[checkPublishReady] Quality Agent delegation failed:', orchestratorResult.error.message);
+      }
+
+      // Also run legacy checkQuality for backwards-compatible response format
+      // TODO: Remove this once all callers use Quality Agent format
+      const result = checkQuality(orchestratorResult.state);
       const summary = formatQualityCheckSummary(result);
       const priority = getTopPriority(result);
 
@@ -531,14 +626,19 @@ export function createChatToolExecutors({
       checkFields: args.checkFields as ValidateForPublishOutput['checkFields'],
     }),
     updateDescriptionBlocks: async (args) => args,
+    /**
+     * Updates business profile fields.
+     * Note: Tool is still named updateContractorProfile for schema compatibility.
+     * Internally uses businesses table and syncs to contractors for backward compat.
+     */
     updateContractorProfile: async (args) => {
-      if (!toolContext.contractorId) {
+      if (!toolContext.businessId) {
         return {
           success: false,
           field: args.field,
           value: args.value,
           reason: args.reason,
-          error: 'No contractor ID found. Please ensure you are logged in.',
+          error: 'No business ID found. Please ensure you are logged in.',
         };
       }
 
@@ -583,15 +683,15 @@ export function createChatToolExecutors({
         };
       }
 
-      // Update the contractor profile
+      // Update businesses table (primary)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase as any)
-        .from('contractors')
+        .from('businesses')
         .update({ [args.field]: args.value })
-        .eq('id', toolContext.contractorId);
+        .eq('id', toolContext.businessId);
 
       if (error) {
-        console.error('[updateContractorProfile] Failed to update:', error);
+        console.error('[updateContractorProfile] Failed to update businesses:', error);
         return {
           success: false,
           field: args.field,
@@ -602,11 +702,169 @@ export function createChatToolExecutors({
         };
       }
 
+      // Also sync to contractors table for backward compatibility
+      // Map business field names to contractor field names
+      const fieldMapping: Record<string, string> = {
+        name: 'business_name',
+        slug: 'profile_slug',
+        // Most fields have same names in both tables
+      };
+      const contractorField = fieldMapping[args.field] || args.field;
+
+      // Get the legacy_contractor_id to sync
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: business } = await (supabase as any)
+        .from('businesses')
+        .select('legacy_contractor_id')
+        .eq('id', toolContext.businessId)
+        .single();
+
+      if (business?.legacy_contractor_id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from('contractors')
+          .update({ [contractorField]: args.value })
+          .eq('id', business.legacy_contractor_id);
+        // Don't fail if contractor sync fails - businesses is the source of truth
+      }
+
       return {
         success: true,
         field: args.field,
         value: args.value,
         reason: args.reason,
+      };
+    },
+
+    /**
+     * Phase 10: Parallel Story + Design agent execution.
+     *
+     * Runs Story Agent and Design Agent simultaneously for faster processing.
+     * Use cases:
+     * - After images are uploaded (trigger: 'images_uploaded')
+     * - When content is ready for layout (trigger: 'content_ready')
+     * - When user explicitly requests (trigger: 'user_request')
+     *
+     * @see /todo/ai-sdk-phase-10-persona-agents.md
+     * @see /src/lib/agents/orchestrator.ts delegateParallel()
+     */
+    processParallel: async (args) => {
+      const startTime = Date.now();
+
+      // Load project state
+      const projectState = await loadProjectState({
+        projectId: toolContext.projectId,
+        businessId: toolContext.businessId,
+      });
+
+      if (!projectState) {
+        return {
+          success: false,
+          agentsRun: [],
+          durationMs: Date.now() - startTime,
+          error: 'No project found. Please start by telling me about your project.',
+        };
+      }
+
+      // Build delegation context
+      const delegationContext: DelegationContext = {
+        state: projectState,
+        message: args.userMessage || latestUserMessage || '',
+        images: projectState.images.length > 0 ? projectState.images : undefined,
+      };
+
+      // Determine which agents to run
+      const runStory = !args.skipStory;
+      const runDesign = !args.skipDesign;
+      const agentsRun: ('story' | 'design')[] = [];
+
+      if (runStory) agentsRun.push('story');
+      if (runDesign) agentsRun.push('design');
+
+      // If both should run, use parallel execution
+      if (runStory && runDesign) {
+        const result = await delegateParallel(delegationContext);
+
+        // Extract results for each agent
+        const storyDelegation = result.actions.find(
+          (a) => a.type === 'parallel_delegation'
+        );
+
+        // If parallel_delegation action exists, extract results
+        if (storyDelegation && storyDelegation.type === 'parallel_delegation') {
+          const storyResult = storyDelegation.results.find((r) => r.subagent === 'story');
+          const designResult = storyDelegation.results.find((r) => r.subagent === 'design');
+
+          return {
+            success: true,
+            agentsRun,
+            storyResult: storyResult?.result.success
+              ? {
+                  title: result.state.title,
+                  description: result.state.description,
+                  checkpoint: (storyResult.result as { checkpoint?: string }).checkpoint,
+                  followUpQuestion: (storyResult.result as { followUpQuestion?: string }).followUpQuestion,
+                }
+              : undefined,
+            designResult: designResult?.result.success
+              ? {
+                  heroImageId: result.state.heroImageId,
+                  layoutStyle: (designResult.result as { layoutStyle?: string }).layoutStyle,
+                }
+              : undefined,
+            durationMs: Date.now() - startTime,
+          };
+        }
+
+        // Fallback: return merged state
+        return {
+          success: true,
+          agentsRun,
+          storyResult: {
+            title: result.state.title,
+            description: result.state.description,
+          },
+          designResult: {
+            heroImageId: result.state.heroImageId,
+          },
+          durationMs: Date.now() - startTime,
+        };
+      }
+
+      // Single agent execution
+      if (runStory && !runDesign) {
+        const result = await delegateToStoryAgent(delegationContext);
+        return {
+          success: !result.error,
+          agentsRun: ['story'],
+          storyResult: {
+            title: result.state.title,
+            description: result.state.description,
+            followUpQuestion: result.message,
+          },
+          durationMs: Date.now() - startTime,
+          error: result.error?.message,
+        };
+      }
+
+      if (runDesign && !runStory) {
+        const result = await delegateToDesignAgent(delegationContext);
+        return {
+          success: !result.error,
+          agentsRun: ['design'],
+          designResult: {
+            heroImageId: result.state.heroImageId,
+          },
+          durationMs: Date.now() - startTime,
+          error: result.error?.message,
+        };
+      }
+
+      // No agents to run (both skipped)
+      return {
+        success: true,
+        agentsRun: [],
+        durationMs: Date.now() - startTime,
       };
     },
   };
