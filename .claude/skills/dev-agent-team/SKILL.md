@@ -339,6 +339,33 @@ For basic Codex usage without personas, use `codex-delegation`.
 
 ---
 
+## Web Search for Agents
+
+Some tasks require internet access (API docs, library updates, research). Use the `--search` flag:
+
+```bash
+# Enable web search for agent
+codex -c 'sandbox_mode="danger-full-access"' --search exec \
+  "$(cat $PERSONA)
+
+TASK: Research current best practices for [topic] and apply to codebase.
+
+TASK CONTEXT:
+$(cat $HANDOFF)" 2>&1 | tee /tmp/codex-research.log &
+```
+
+**When to use `--search`:**
+- Refactorer: Researching deprecation updates, migration guides
+- Reviewer: Checking security advisories, CVE databases
+- Tester: Looking up testing patterns for specific libraries
+
+**When NOT to use:**
+- Implementer: Pure coding tasks (offline)
+- Documenter: Working with local codebase only
+- Scout: Only reviews git diff (offline)
+
+---
+
 ## Monitoring & Verification Scripts
 
 ### scripts/monitor-agent.sh
