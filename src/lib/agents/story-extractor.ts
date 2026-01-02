@@ -5,17 +5,21 @@
  * Runs after each contractor message to pull out key information and track
  * completion status.
  *
+ * Trade-agnostic design: Uses TradeConfig to determine valid project types,
+ * materials, and techniques for the contractor's trade.
+ *
  * Key extraction targets:
- * - projectType: chimney-rebuild, tuckpointing, stone-veneer, etc.
+ * - projectType: Derived from trade config (e.g., chimney-rebuild for masonry)
  * - customerProblem: What issue brought the customer
  * - solutionApproach: How it was solved
- * - materials: Array of materials used
- * - techniques: Array of techniques
+ * - materials: Array of materials used (from trade vocabulary)
+ * - techniques: Array of techniques (from trade vocabulary)
  * - city/state: Project location
  * - duration: How long it took
  * - proudOf: What they're most proud of
  *
  * @see /docs/09-agent/multi-agent-architecture.md
+ * @see /src/lib/trades/config.ts for trade configuration
  */
 
 import { generateText, Output } from 'ai';
@@ -23,6 +27,7 @@ import { z } from 'zod';
 import { google } from '@ai-sdk/google';
 import { isGoogleAIEnabled, AI_MODELS } from '@/lib/ai/providers';
 import { formatProjectLocation } from '@/lib/utils/location';
+import { getTradeConfig, buildTradeContext, type TradeConfig } from '@/lib/trades/config';
 import type { SharedProjectState, StoryExtractionResult } from './types';
 
 // ============================================================================
@@ -41,23 +46,26 @@ const MIN_MATERIALS_FOR_IMAGES = 1;
 /** Confidence threshold below which we mark fields for clarification */
 const CLARIFICATION_THRESHOLD = 0.7;
 
-/** Valid project types for masonry work */
-export const VALID_PROJECT_TYPES = [
-  'chimney-rebuild',
-  'chimney-repair',
-  'tuckpointing',
-  'stone-veneer',
-  'brick-restoration',
-  'fireplace-repair',
-  'retaining-wall',
-  'patio-paver',
-  'foundation-repair',
-  'historic-restoration',
-  'custom-masonry',
-  'other',
-] as const;
+/**
+ * Get valid project types from trade config.
+ * Converts display names to URL-friendly slugs (e.g., "chimney rebuild" → "chimney-rebuild").
+ */
+function getValidProjectTypes(config: TradeConfig): string[] {
+  const slugs = config.terminology.projectTypes.map((type) =>
+    type.toLowerCase().replace(/\s+/g, '-')
+  );
+  // Always include 'other' as fallback
+  if (!slugs.includes('other')) {
+    slugs.push('other');
+  }
+  return slugs;
+}
 
-export type ProjectType = (typeof VALID_PROJECT_TYPES)[number];
+/**
+ * Project type - dynamically derived from trade config.
+ * For masonry: chimney-rebuild, tuckpointing, stone-veneer, etc.
+ */
+export type ProjectType = string;
 
 // ============================================================================
 // Extraction Schema
@@ -151,9 +159,29 @@ type ExtractionOutput = z.infer<typeof ExtractionSchema>;
 // System Prompt
 // ============================================================================
 
-const EXTRACTION_SYSTEM_PROMPT = `You are a data extraction agent for a masonry contractor portfolio system.
+/**
+ * Build the extraction system prompt with trade-specific vocabulary.
+ * Trade-agnostic: Uses TradeConfig to inject project types, materials, and techniques.
+ *
+ * @param config - Trade configuration
+ * @returns System prompt string
+ */
+function buildExtractionSystemPrompt(config: TradeConfig): string {
+  // Build project types list with slugs
+  const projectTypesSection = config.terminology.projectTypes
+    .map((type) => `- ${type.toLowerCase().replace(/\s+/g, '-')}: ${type}`)
+    .join('\n');
+
+  // Build materials and techniques lists
+  const materialsExamples = config.terminology.materials.slice(0, 8).join(', ');
+  const techniquesExamples = config.terminology.techniques.slice(0, 8).join(', ');
+
+  return `You are a data extraction agent for a contractor portfolio system.
 
 Your job is to extract structured project information from natural conversation with contractors.
+
+TRADE CONTEXT:
+${buildTradeContext(config)}
 
 EXTRACTION RULES:
 1. Extract ONLY information that is explicitly stated - never infer or guess
@@ -169,49 +197,30 @@ CONFIDENCE SCORING:
 - 0.2: Barely mentioned, high uncertainty
 
 PROJECT TYPES (use exact slugs):
-- chimney-rebuild: Full chimney reconstruction
-- chimney-repair: Fixing existing chimney issues
-- tuckpointing: Mortar joint repair/replacement
-- stone-veneer: Stone facade installation
-- brick-restoration: Restoring damaged brick
-- fireplace-repair: Fireplace masonry work
-- retaining-wall: Building or repairing walls
-- patio-paver: Patio or walkway installation
-- foundation-repair: Foundation masonry work
-- historic-restoration: Historic building restoration
-- custom-masonry: Custom/unique masonry projects
+${projectTypesSection}
 - other: Anything that doesn't fit above
 
 DEDUPLICATION RULES (CRITICAL):
-1. PREFER SPECIFIC over generic - if "reclaimed Denver common brick" is mentioned, do NOT also add "brick"
-2. NO SUBSTRINGS - if "flashing installation" is a technique, do NOT also add "flashing" separately
+1. PREFER SPECIFIC over generic - if a specific material is mentioned, do NOT also add the generic term
+2. NO SUBSTRINGS - if "X installation" is a technique, do NOT also add "X" separately
 3. NO CROSS-CONTAMINATION - items should appear in only ONE list, not both materials AND techniques
 
 MATERIALS vs TECHNIQUES - STRICT SEPARATION:
 MATERIALS are physical substances used in construction:
-  - Brick types: "reclaimed brick", "Denver common brick", "firebrick", etc.
-  - Mortar: "Type S mortar", "lime mortar", "portland cement", etc.
-  - Stone: "limestone", "granite", "flagstone", etc.
-  - Metal: "copper flashing", "stainless steel ties", "lead sheet", etc.
-  - Sealants: "silicone sealant", "waterproofing membrane", etc.
+  Examples: ${materialsExamples}
+  Include specific variants when mentioned (e.g., "reclaimed red brick" not just "brick")
 
 TECHNIQUES are methods/processes/actions:
-  - "tuckpointing", "repointing", "flashing installation", "waterproofing"
-  - "brick replacement", "mortar matching", "crown repair"
-  - "weep hole installation", "joint raking", "pressure washing"
-  - "flashing" when referring to the PROCESS of installing flashing
-
-When "flashing" is mentioned:
-  - If discussing installing or replacing flashing → add "flashing installation" to TECHNIQUES only
-  - If discussing "copper flashing" or "lead flashing" as a material → add to MATERIALS only
-  - NEVER add bare "flashing" to both lists
+  Examples: ${techniquesExamples}
+  Use the full process name (e.g., "flashing installation" not just "flashing")
 
 IMPORTANT:
 - customerProblem: Should capture WHY the customer called (the issue/need)
 - solutionApproach: Should capture HOW the contractor solved it
-- materials: Be specific (e.g., "reclaimed red brick" not just "brick"), NO overlap with techniques
-- techniques: Use proper masonry terminology, NO overlap with materials
+- materials: Be specific, NO overlap with techniques
+- techniques: Use proper terminology, NO overlap with materials
 - location: Always extract city and state when possible`;
+}
 
 // ============================================================================
 // Main Extraction Function
@@ -263,12 +272,18 @@ export async function extractStory(
  * Perform AI-powered extraction using Gemini.
  *
  * Uses generateText with Output.object for structured extraction.
+ * Trade-agnostic: Builds system prompt from TradeConfig.
+ *
  * @see https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data
  */
 async function performAIExtraction(
   message: string,
   existingState?: Partial<SharedProjectState>
 ): Promise<ExtractionOutput> {
+  // Get trade config for dynamic prompt building
+  const tradeConfig = getTradeConfig();
+  const systemPrompt = buildExtractionSystemPrompt(tradeConfig);
+
   const contextPrompt = existingState
     ? `EXISTING DATA (merge with new information, don't overwrite with empty values):
 ${JSON.stringify(existingState, null, 2)}
@@ -281,7 +296,7 @@ ${message}`;
   const { output: object } = await generateText({
     model: google(AI_MODELS.generation),
     output: Output.object({ schema: ExtractionSchema }),
-    system: EXTRACTION_SYSTEM_PROMPT,
+    system: systemPrompt,
     prompt: contextPrompt,
     maxOutputTokens: 2048, // Increased from 1000 - structured response needs room for all fields
     temperature: 0.2, // Low temperature for consistent extraction
@@ -302,25 +317,45 @@ ${message}`;
 // ============================================================================
 
 /**
- * Known terms that are ALWAYS techniques (processes/actions), never materials.
- * Used to resolve ambiguous terms like "flashing" or "waterproofing".
+ * Generic action words that indicate a technique (trade-agnostic).
+ * These are combined with trade-specific techniques from config.
  */
-const TECHNIQUE_TERMS = new Set([
-  'flashing',
-  'waterproofing',
-  'tuckpointing',
-  'repointing',
-  'sealing',
-  'restoration',
-  'rebuild',
-  'repair',
+const GENERIC_ACTION_TERMS = new Set([
   'installation',
   'replacement',
-  'matching',
-  'raking',
+  'repair',
+  'restoration',
+  'rebuild',
   'cleaning',
   'washing',
+  'sealing',
+  'matching',
 ]);
+
+/**
+ * Build technique terms set from trade config.
+ * Combines trade-specific techniques with generic action words.
+ *
+ * @param config - Trade configuration
+ * @returns Set of lowercase technique terms
+ */
+function buildTechniqueTerms(config: TradeConfig): Set<string> {
+  const terms = new Set<string>(GENERIC_ACTION_TERMS);
+
+  // Add trade-specific techniques (lowercase, extract key words)
+  for (const technique of config.terminology.techniques) {
+    const lower = technique.toLowerCase();
+    terms.add(lower);
+    // Also add individual words for partial matching
+    for (const word of lower.split(/\s+/)) {
+      if (word.length > 3) { // Skip short words like "of", "the"
+        terms.add(word);
+      }
+    }
+  }
+
+  return terms;
+}
 
 /**
  * Check if term A is a generic/substring version of term B.
@@ -385,11 +420,15 @@ function deduplicateTerms(terms: string[]): string[] {
  * When a term appears in both lists, it's moved to the appropriate list
  * based on whether it's a process/action (technique) or substance (material).
  *
+ * @param materials - Raw materials list
+ * @param techniques - Raw techniques list
+ * @param techniqueTerms - Set of known technique terms from trade config
  * @returns Cleaned materials and techniques arrays
  */
 function separateMaterialsAndTechniques(
   materials: string[],
-  techniques: string[]
+  techniques: string[],
+  techniqueTerms: Set<string>
 ): { materials: string[]; techniques: string[] } {
   const cleanMaterials: string[] = [];
   const cleanTechniques = [...techniques];
@@ -398,8 +437,8 @@ function separateMaterialsAndTechniques(
     const lowerMaterial = material.toLowerCase();
 
     // Check if this is actually a technique term
-    const isTechniqueTerm = TECHNIQUE_TERMS.has(lowerMaterial) ||
-      Array.from(TECHNIQUE_TERMS).some((t) => lowerMaterial.includes(t));
+    const isTechniqueTerm = techniqueTerms.has(lowerMaterial) ||
+      Array.from(techniqueTerms).some((t) => lowerMaterial.includes(t));
 
     if (isTechniqueTerm) {
       // Move to techniques if not already there
@@ -433,6 +472,10 @@ function processExtraction(
   extraction: ExtractionOutput,
   existingState?: Partial<SharedProjectState>
 ): StoryExtractionResult {
+  // Get trade config for vocabulary
+  const tradeConfig = getTradeConfig();
+  const techniqueTerms = buildTechniqueTerms(tradeConfig);
+
   // Build merged state
   const state: Partial<SharedProjectState> = {
     ...existingState,
@@ -492,7 +535,7 @@ function processExtraction(
   // 2. Move technique terms from materials to techniques (e.g., "flashing")
   // 3. Remove substring duplicates (e.g., "flashing" when "flashing installation" exists)
   const { materials: cleanMaterials, techniques: cleanTechniques } =
-    separateMaterialsAndTechniques(rawMaterials, rawTechniques);
+    separateMaterialsAndTechniques(rawMaterials, rawTechniques, techniqueTerms);
 
   state.materials = cleanMaterials;
   state.techniques = cleanTechniques;
@@ -553,19 +596,25 @@ function processExtraction(
 /**
  * Basic extraction without AI for fallback scenarios.
  * Uses simple keyword matching and pattern recognition.
+ * Trade-agnostic: Uses TradeConfig for vocabulary.
  */
 function extractWithoutAI(
   message: string,
   existingState?: Partial<SharedProjectState>
 ): StoryExtractionResult {
+  // Get trade config for vocabulary
+  const tradeConfig = getTradeConfig();
+  const validProjectTypes = getValidProjectTypes(tradeConfig);
+  const techniqueTerms = buildTechniqueTerms(tradeConfig);
+
   const state: Partial<SharedProjectState> = { ...existingState };
   const confidence: Record<string, number> = {};
   const needsClarification: string[] = [];
   const lowerMessage = message.toLowerCase();
 
-  // Project type detection
-  for (const projectType of VALID_PROJECT_TYPES) {
-    const searchTerm = projectType.replace('-', ' ');
+  // Project type detection from trade config
+  for (const projectType of validProjectTypes) {
+    const searchTerm = projectType.replace(/-/g, ' ');
     if (lowerMessage.includes(searchTerm)) {
       state.projectType = projectType;
       confidence.projectType = 0.7;
@@ -573,23 +622,23 @@ function extractWithoutAI(
     }
   }
 
-  // Chimney-specific detection
+  // Fallback: Try to detect common patterns and ask for clarification
   if (!state.projectType) {
-    if (lowerMessage.includes('chimney')) {
-      state.projectType = lowerMessage.includes('rebuild')
-        ? 'chimney-rebuild'
-        : 'chimney-repair';
-      confidence.projectType = 0.6;
-      needsClarification.push('projectType');
+    // Check for trade-specific keywords that might indicate a project type
+    for (const projectType of tradeConfig.terminology.projectTypes) {
+      const words = projectType.toLowerCase().split(/\s+/);
+      // If any significant word matches, use that type but mark for clarification
+      if (words.some((word) => word.length > 4 && lowerMessage.includes(word))) {
+        state.projectType = projectType.toLowerCase().replace(/\s+/g, '-');
+        confidence.projectType = 0.5;
+        needsClarification.push('projectType');
+        break;
+      }
     }
   }
 
-  // Material detection (common masonry materials)
-  const materialKeywords = [
-    'brick', 'mortar', 'stone', 'concrete', 'limestone',
-    'granite', 'marble', 'sandstone', 'portland cement',
-    'lime mortar', 'reclaimed brick', 'natural stone',
-  ];
+  // Material detection from trade config
+  const materialKeywords = tradeConfig.terminology.materials.map((m) => m.toLowerCase());
   const foundMaterials = materialKeywords.filter((m) =>
     lowerMessage.includes(m)
   );
@@ -599,11 +648,8 @@ function extractWithoutAI(
     confidence.materials = 0.6;
   }
 
-  // Technique detection
-  const techniqueKeywords = [
-    'repointing', 'tuckpointing', 'flashing', 'waterproofing',
-    'sealing', 'restoration', 'rebuild', 'repair',
-  ];
+  // Technique detection from trade config
+  const techniqueKeywords = tradeConfig.terminology.techniques.map((t) => t.toLowerCase());
   const foundTechniques = techniqueKeywords.filter((t) =>
     lowerMessage.includes(t)
   );
@@ -615,7 +661,7 @@ function extractWithoutAI(
 
   // Apply intelligent deduplication (same as AI extraction path)
   const { materials: cleanMaterials, techniques: cleanTechniques } =
-    separateMaterialsAndTechniques(rawMaterials, rawTechniques);
+    separateMaterialsAndTechniques(rawMaterials, rawTechniques, techniqueTerms);
 
   state.materials = cleanMaterials;
   state.techniques = cleanTechniques;
@@ -712,34 +758,38 @@ export function countWords(text?: string): number {
 
 /**
  * Normalize project type to valid slug.
+ * Trade-agnostic: Uses TradeConfig for valid project types.
  */
 export function normalizeProjectType(type: string): ProjectType {
+  const tradeConfig = getTradeConfig();
+  const validTypes = getValidProjectTypes(tradeConfig);
   const normalized = type.toLowerCase().replace(/\s+/g, '-');
 
-  // Check if it's a valid type
-  if (VALID_PROJECT_TYPES.includes(normalized as ProjectType)) {
-    return normalized as ProjectType;
+  // Check if it's already a valid type
+  if (validTypes.includes(normalized)) {
+    return normalized;
   }
 
-  // Try to map common variations
-  const mappings: Record<string, ProjectType> = {
-    'chimney': 'chimney-repair',
-    'rebuild': 'chimney-rebuild',
-    'tuckpoint': 'tuckpointing',
-    'repoint': 'tuckpointing',
-    'stone': 'stone-veneer',
-    'veneer': 'stone-veneer',
-    'brick': 'brick-restoration',
-    'fireplace': 'fireplace-repair',
-    'wall': 'retaining-wall',
-    'patio': 'patio-paver',
-    'foundation': 'foundation-repair',
-    'historic': 'historic-restoration',
-  };
+  // Try to find best match from trade config project types
+  // Look for significant word matches (words > 4 chars)
+  for (const projectType of tradeConfig.terminology.projectTypes) {
+    const slug = projectType.toLowerCase().replace(/\s+/g, '-');
+    const words = projectType.toLowerCase().split(/\s+/);
 
-  for (const [key, value] of Object.entries(mappings)) {
-    if (normalized.includes(key)) {
-      return value;
+    // Check if any significant word matches
+    for (const word of words) {
+      if (word.length > 4 && normalized.includes(word)) {
+        return slug;
+      }
+    }
+  }
+
+  // If still no match, try partial slug matching
+  for (const validType of validTypes) {
+    // If the normalized input contains a key part of a valid type
+    const typeParts = validType.split('-');
+    if (typeParts.some((part) => part.length > 3 && normalized.includes(part))) {
+      return validType;
     }
   }
 

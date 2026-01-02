@@ -30,9 +30,11 @@ export {
   normalizeProjectType,
   getMissingFields,
   getExtractionProgress,
-  VALID_PROJECT_TYPES,
   type ProjectType,
 } from './story-extractor';
+
+// Note: VALID_PROJECT_TYPES removed - now derived dynamically from TradeConfig
+// Use getTradeConfig().terminology.projectTypes for valid project types
 
 export {
   checkQuality,
