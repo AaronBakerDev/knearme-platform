@@ -17,6 +17,10 @@ web_search = true
 command = "npx"
 args = ["@playwright/mcp@latest", "--extension"]
 
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+
 # Web fetch for URL content
 [mcp_servers.fetch]
 command = "npx"
