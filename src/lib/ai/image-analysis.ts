@@ -13,10 +13,11 @@
  * @see https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data
  */
 
-import { generateObject } from 'ai';
-import { getVisionModel, isGoogleAIEnabled, OUTPUT_LIMITS } from './providers';
+import { generateText, Output } from 'ai';
+import { getVisionModel, isGoogleAIEnabled, OUTPUT_LIMITS, validateTokenLimit, TOKEN_LIMITS } from './providers';
 import { IMAGE_ANALYSIS_PROMPT, buildImageAnalysisMessage } from './prompts';
 import { ImageAnalysisSchema } from './schemas';
+import { withRetry, AI_RETRY_OPTIONS } from './retry';
 
 /**
  * Result of analyzing project images.
@@ -91,6 +92,29 @@ export async function analyzeProjectImages(
     return { error: 'No images provided for analysis', retryable: false };
   }
 
+  // Build prompt for token validation
+  const userPrompt = buildImageAnalysisMessage(limitedUrls);
+
+  // Validate token limits before making request
+  const tokenValidation = validateTokenLimit(
+    {
+      systemPrompt: IMAGE_ANALYSIS_PROMPT,
+      userPrompt,
+      images: limitedUrls.length,
+    },
+    TOKEN_LIMITS.imageAnalysisInput
+  );
+
+  if (!tokenValidation.valid) {
+    console.warn(
+      `[analyzeProjectImages] Token limit exceeded: ${tokenValidation.estimated} > ${tokenValidation.limit}`
+    );
+    return {
+      error: tokenValidation.message || 'Request too large for AI processing',
+      retryable: false,
+    };
+  }
+
   try {
     /**
      * Build multimodal content array for AI SDK.
@@ -99,20 +123,25 @@ export async function analyzeProjectImages(
      * @see https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data#multimodal-inputs
      */
     const content: Array<{ type: 'text'; text: string } | { type: 'image'; image: URL }> = [
-      { type: 'text', text: buildImageAnalysisMessage(limitedUrls) },
+      { type: 'text', text: userPrompt },
       ...limitedUrls.map((url) => ({
         type: 'image' as const,
         image: new URL(url),
       })),
     ];
 
-    const { object } = await generateObject({
-      model: getVisionModel(),
-      schema: ImageAnalysisSchema,
-      system: IMAGE_ANALYSIS_PROMPT,
-      messages: [{ role: 'user', content }],
-      maxOutputTokens: OUTPUT_LIMITS.imageAnalysis,
-    });
+    // Wrap in retry logic for transient failures (rate limits, timeouts)
+    const { output: object } = await withRetry(
+      () =>
+        generateText({
+          model: getVisionModel(),
+          output: Output.object({ schema: ImageAnalysisSchema }),
+          system: IMAGE_ANALYSIS_PROMPT,
+          messages: [{ role: 'user', content }],
+          maxOutputTokens: OUTPUT_LIMITS.imageAnalysis,
+        }),
+      AI_RETRY_OPTIONS
+    );
 
     if (!object || !object.project_type) {
       return DEFAULT_ANALYSIS;

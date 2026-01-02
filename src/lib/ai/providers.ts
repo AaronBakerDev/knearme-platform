@@ -188,3 +188,58 @@ export function estimateWhisperCost(durationSeconds: number): number {
   const durationMinutes = durationSeconds / 60;
   return durationMinutes * PRICING['whisper-1'].perMinute;
 }
+
+// ============================================================================
+// Token Estimation & Validation
+// ============================================================================
+
+/**
+ * Input token limits for different contexts.
+ * Gemini 3.0 Flash has 1M token context, but we set conservative limits.
+ */
+export const TOKEN_LIMITS = {
+  /** Max input tokens for image analysis (includes image tokens) */
+  imageAnalysisInput: 100_000,
+  /** Max input tokens for content generation */
+  contentGenerationInput: 50_000,
+  /** Max input tokens for chat messages */
+  chatInput: 100_000,
+} as const;
+
+/**
+ * Estimate token count for text content.
+ * Uses character-based approximation (~4 chars per token for English).
+ */
+function estimateTextTokens(text: string): number {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Validate that input doesn't exceed token limits.
+ *
+ * @param input - Text content to validate
+ * @param limit - Maximum allowed tokens
+ * @returns Validation result with estimated count
+ */
+export function validateTokenLimit(
+  input: { systemPrompt?: string; userPrompt?: string; images?: number },
+  limit: number
+): { valid: boolean; estimated: number; limit: number; message?: string } {
+  const systemTokens = estimateTextTokens(input.systemPrompt || '');
+  const userTokens = estimateTextTokens(input.userPrompt || '');
+  const imageTokens = (input.images || 0) * 750; // ~750 tokens per image
+
+  const estimated = systemTokens + userTokens + imageTokens;
+
+  if (estimated > limit) {
+    return {
+      valid: false,
+      estimated,
+      limit,
+      message: `Estimated ${estimated} tokens exceeds limit of ${limit}`,
+    };
+  }
+
+  return { valid: true, estimated, limit };
+}

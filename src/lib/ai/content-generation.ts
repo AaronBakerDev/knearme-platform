@@ -12,8 +12,8 @@
  * @see https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data
  */
 
-import { generateObject } from 'ai';
-import { getGenerationModel, isGoogleAIEnabled, OUTPUT_LIMITS } from './providers';
+import { generateText, Output } from 'ai';
+import { getGenerationModel, isGoogleAIEnabled, OUTPUT_LIMITS, validateTokenLimit, TOKEN_LIMITS } from './providers';
 import {
   CONTENT_GENERATION_PROMPT,
   INTERVIEW_QUESTIONS_PROMPT,
@@ -23,6 +23,7 @@ import {
 } from './prompts';
 import { InterviewQuestionsSchema, GeneratedContentSchema } from './schemas';
 import type { ImageAnalysisResult } from './image-analysis';
+import { withRetry, AI_RETRY_OPTIONS } from './retry';
 
 /**
  * Interview question with context.
@@ -81,13 +82,18 @@ export async function generateInterviewQuestions(
   }
 
   try {
-    const { object } = await generateObject({
-      model: getGenerationModel(),
-      schema: InterviewQuestionsSchema,
-      system: INTERVIEW_QUESTIONS_PROMPT,
-      prompt: buildQuestionGenerationMessage(imageAnalysis, businessContext),
-      maxOutputTokens: OUTPUT_LIMITS.questionGeneration,
-    });
+    // Wrap in retry logic for transient failures
+    const { output: object } = await withRetry(
+      () =>
+        generateText({
+          model: getGenerationModel(),
+          output: Output.object({ schema: InterviewQuestionsSchema }),
+          system: INTERVIEW_QUESTIONS_PROMPT,
+          prompt: buildQuestionGenerationMessage(imageAnalysis, businessContext),
+          maxOutputTokens: OUTPUT_LIMITS.questionGeneration,
+        }),
+      AI_RETRY_OPTIONS
+    );
 
     if (!object?.questions || object.questions.length === 0) {
       return DEFAULT_INTERVIEW_QUESTIONS;
@@ -141,15 +147,42 @@ export async function generatePortfolioContent(
     };
   }
 
+  // Build prompt for token validation
+  const userPrompt = buildContentGenerationMessage(imageAnalysis, interviewResponses, businessContext);
+
+  // Validate token limits before making request
+  const tokenValidation = validateTokenLimit(
+    {
+      systemPrompt: CONTENT_GENERATION_PROMPT,
+      userPrompt,
+    },
+    TOKEN_LIMITS.contentGenerationInput
+  );
+
+  if (!tokenValidation.valid) {
+    console.warn(
+      `[generatePortfolioContent] Token limit exceeded: ${tokenValidation.estimated} > ${tokenValidation.limit}`
+    );
+    return {
+      error: tokenValidation.message || 'Interview content too large for AI processing',
+      retryable: false,
+    };
+  }
+
   try {
-    const { object } = await generateObject({
-      model: getGenerationModel(),
-      schema: GeneratedContentSchema,
-      system: CONTENT_GENERATION_PROMPT,
-      prompt: buildContentGenerationMessage(imageAnalysis, interviewResponses, businessContext),
-      maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
-      temperature: 0.7, // Some creativity for engaging content
-    });
+    // Wrap in retry logic for transient failures
+    const { output: object } = await withRetry(
+      () =>
+        generateText({
+          model: getGenerationModel(),
+          output: Output.object({ schema: GeneratedContentSchema }),
+          system: CONTENT_GENERATION_PROMPT,
+          prompt: userPrompt,
+          maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
+          temperature: 0.7, // Some creativity for engaging content
+        }),
+      AI_RETRY_OPTIONS
+    );
 
     // Validate required fields
     if (!object?.title || !object?.description) {
@@ -206,14 +239,19 @@ The contractor (${businessContext.business_name} in ${businessContext.city}, ${b
 
 Please regenerate the content incorporating this feedback while maintaining SEO optimization and professional quality.`;
 
-    const { object } = await generateObject({
-      model: getGenerationModel(),
-      schema: GeneratedContentSchema,
-      system: CONTENT_GENERATION_PROMPT,
-      prompt: regenerationPrompt,
-      maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
-      temperature: 0.7,
-    });
+    // Wrap in retry logic for transient failures
+    const { output: object } = await withRetry(
+      () =>
+        generateText({
+          model: getGenerationModel(),
+          output: Output.object({ schema: GeneratedContentSchema }),
+          system: CONTENT_GENERATION_PROMPT,
+          prompt: regenerationPrompt,
+          maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
+          temperature: 0.7,
+        }),
+      AI_RETRY_OPTIONS
+    );
 
     return {
       title: object?.title || previousContent.title,
