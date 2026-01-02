@@ -74,6 +74,7 @@ export interface SessionContext {
  * @param sessionId - The chat session ID
  * @param summary - AI-generated summary of the conversation
  * @param keyFacts - Key facts extracted from the conversation
+ * @returns Promise that resolves when the summary is persisted
  */
 export async function saveSessionSummary(
   sessionId: string,
@@ -106,6 +107,7 @@ export async function saveSessionSummary(
  * @param projectId - The project ID
  * @param newFacts - New facts to add
  * @param preferences - Optional preferences to update
+ * @returns Promise that resolves after the memory update
  */
 export async function updateProjectMemory(
   projectId: string,
@@ -169,6 +171,12 @@ export async function updateProjectMemory(
  * @param projectId - The project ID
  * @param limit - Maximum number of previous sessions to include
  * @returns Session context for AI
+ *
+ * @example
+ * ```ts
+ * const context = await buildSessionContext(projectId, 3);
+ * const promptContext = formatContextForPrompt(context);
+ * ```
  */
 export async function buildSessionContext(
   projectId: string,
@@ -294,7 +302,7 @@ export function formatContextForPrompt(context: SessionContext): string {
  * Returns a prompt that asks the AI to summarize a conversation
  * and extract key facts.
  *
- * @param messageCount - Number of messages in the conversation
+ * @param messageCount - Number of messages in the conversation (currently unused)
  * @returns Prompt for summarization
  */
 export function getSummarizePrompt(_messageCount: number): string {

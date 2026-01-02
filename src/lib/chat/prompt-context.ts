@@ -1,8 +1,13 @@
 /**
  * Shared prompt context loader for chat + live voice sessions.
+ *
+ * Loads project data, images, business profile, and conversation summary
+ * to provide rich context for the AI agent.
+ *
+ * @see /src/lib/chat/context-shared.ts for type definitions
  */
 
-import type { BusinessProfileContext, ProjectContextData } from '@/lib/chat/context-shared';
+import type { BusinessProfileContext, ProjectContextData, ImageContextData } from '@/lib/chat/context-shared';
 import type { ExtractedProjectData } from '@/lib/chat/chat-types';
 import { createClient } from '@/lib/supabase/server';
 
@@ -34,28 +39,57 @@ export async function loadPromptContext({
   let summary: string | null = null;
 
   if (projectId) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: project, error } = await (supabase as any)
-      .from('projects')
-      .select(
+    // Load project with images in parallel
+    // RLS type handling - see CLAUDE.md for pattern explanation
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const [projectResult, imagesResult] = await Promise.all([
+      (supabase as any)
+        .from('projects')
+        .select(
+          `
+          id,
+          title,
+          description,
+          project_type,
+          city,
+          state,
+          materials,
+          techniques,
+          status,
+          conversation_summary,
+          ai_context,
+          hero_image_id
         `
-        id,
-        title,
-        description,
-        project_type,
-        city,
-        state,
-        materials,
-        techniques,
-        status,
-        conversation_summary,
-        ai_context
-      `
-      )
-      .eq('id', projectId)
-      .single();
+        )
+        .eq('id', projectId)
+        .single(),
+      // Fetch images separately to get metadata for agent context
+      (supabase as any)
+        .from('project_images')
+        .select('id, image_type, alt_text, display_order')
+        .eq('project_id', projectId)
+        .order('display_order', { ascending: true }),
+    ]);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
-    if (!error && project) {
+    const project = projectResult.data;
+    const images = imagesResult.data || [];
+
+    if (!projectResult.error && project) {
+      // Map images to context format
+      const imageContextData: ImageContextData[] = images.map((img: {
+        id: string;
+        image_type: 'before' | 'after' | 'progress' | 'detail' | null;
+        alt_text: string | null;
+        display_order: number;
+      }) => ({
+        id: img.id,
+        imageType: img.image_type,
+        altText: img.alt_text,
+        displayOrder: img.display_order,
+        isHero: img.id === project.hero_image_id,
+      }));
+
       projectData = {
         id: project.id,
         title: project.title,
@@ -68,6 +102,7 @@ export async function loadPromptContext({
         status: project.status,
         extractedData: (project.ai_context as ExtractedProjectData) || {},
         conversationSummary: project.conversation_summary,
+        images: imageContextData,
       };
       summary = project.conversation_summary ?? null;
     }

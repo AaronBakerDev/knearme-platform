@@ -47,6 +47,12 @@ export interface CompactionResult {
  * @param messages - Full message history to summarize
  * @param projectData - Current project data for context
  * @returns Compaction result with summary and key facts
+ *
+ * @example
+ * ```ts
+ * const result = await compactConversation(messages, projectData);
+ * console.log(result.summary);
+ * ```
  */
 export async function compactConversation(
   messages: UIMessage[],
@@ -104,6 +110,7 @@ export async function compactConversation(
  * @param projectId - Project ID
  * @param sessionId - Session ID
  * @param summary - Generated summary
+ * @returns Promise that resolves after persistence attempts
  */
 export async function saveConversationSummary(
   projectId: string,

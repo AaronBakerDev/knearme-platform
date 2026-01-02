@@ -16,6 +16,18 @@ import type { ExtractedProjectData } from './chat-types';
 // ============================================
 
 /**
+ * Image metadata for context.
+ * Lightweight description passed to agent (not actual image bytes).
+ */
+export interface ImageContextData {
+  id: string;
+  imageType: 'before' | 'after' | 'progress' | 'detail' | null;
+  altText: string | null;
+  displayOrder: number;
+  isHero: boolean;
+}
+
+/**
  * Project data loaded for context.
  * Subset of project fields relevant for AI context.
  */
@@ -31,6 +43,8 @@ export interface ProjectContextData {
   status: string;
   extractedData: ExtractedProjectData;
   conversationSummary: string | null;
+  /** Image metadata for agent context */
+  images?: ImageContextData[];
 }
 
 /**
@@ -155,6 +169,44 @@ export function formatProjectDataForPrompt(
     if (extracted.challenges) {
       parts.push(`Challenges: ${extracted.challenges}`);
     }
+  }
+
+  // Add image inventory for agent awareness
+  if (projectData.images && projectData.images.length > 0) {
+    parts.push(`\nImages (${projectData.images.length} total):`);
+    const heroImage = projectData.images.find((img) => img.isHero);
+    if (heroImage) {
+      const heroDesc = heroImage.altText || heroImage.imageType || 'untitled';
+      parts.push(`  Hero: ${heroDesc}`);
+    }
+    // Group images by type for concise summary
+    const byType = projectData.images.reduce(
+      (acc, img) => {
+        const type = img.imageType || 'other';
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+    const typeSummary = Object.entries(byType)
+      .map(([type, count]) => `${count} ${type}`)
+      .join(', ');
+    parts.push(`  Types: ${typeSummary}`);
+    // Include alt text for images that have it (useful for agent understanding)
+    const withAltText = projectData.images.filter((img) => img.altText);
+    if (withAltText.length > 0) {
+      parts.push(`  Descriptions:`);
+      withAltText.slice(0, 5).forEach((img, i) => {
+        const typeLabel = img.imageType ? `[${img.imageType}]` : '';
+        const heroLabel = img.isHero ? ' (hero)' : '';
+        parts.push(`    ${i + 1}. ${typeLabel}${heroLabel} ${img.altText}`);
+      });
+      if (withAltText.length > 5) {
+        parts.push(`    ... and ${withAltText.length - 5} more`);
+      }
+    }
+  } else {
+    parts.push('\nImages: None uploaded yet');
   }
 
   return parts.length > 0 ? parts.join('\n') : '';

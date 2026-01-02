@@ -18,7 +18,10 @@ import type {
   ReorderImagesOutput,
   ValidateForPublishOutput,
   UpdateDescriptionBlocksOutput,
+  UpdateContractorProfileOutput,
+  ContractorProfileField,
 } from '@/lib/chat/tool-schemas';
+import { contractorProfileFields } from '@/lib/chat/tool-schemas';
 import {
   orchestrate,
   mergeProjectState,
@@ -43,11 +46,12 @@ export const FAST_TURN_TOOLS = [
   'regenerateSection',
   'reorderImages',
   'validateForPublish',
+  'checkPublishReady', // Moved from DEEP - cheap validation check
+  'updateContractorProfile', // Update business info
 ] as const;
 
 export const DEEP_CONTEXT_TOOLS = [
   'generatePortfolioContent',
-  'checkPublishReady',
   'composePortfolioLayout',
 ] as const;
 
@@ -78,12 +82,25 @@ export type ToolExecutors = {
   reorderImages: (args: { imageIds: string[]; reason?: string }) => Promise<ReorderImagesOutput>;
   validateForPublish: (args: { checkFields?: string[] }) => Promise<ValidateForPublishOutput>;
   updateDescriptionBlocks: (args: UpdateDescriptionBlocksOutput) => Promise<UpdateDescriptionBlocksOutput>;
+  updateContractorProfile: (args: {
+    field: ContractorProfileField;
+    value: string | string[];
+    reason?: string;
+  }) => Promise<UpdateContractorProfileOutput>;
 };
 
 async function loadProjectState(projectId?: string): Promise<SharedProjectState | null> {
-  if (!projectId) return null;
+  if (!projectId) {
+    return null;
+  }
 
-  const supabase = await createClient();
+  let supabase;
+  try {
+    supabase = await createClient();
+  } catch (err) {
+    console.error('[loadProjectState] Failed to create Supabase client:', err);
+    return null;
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: project, error } = await (supabase as any)
@@ -106,7 +123,7 @@ async function loadProjectState(projectId?: string): Promise<SharedProjectState 
       seo_title,
       seo_description,
       hero_image_id,
-      project_images (
+      project_images!project_images_project_id_fkey (
         id,
         storage_path,
         image_type,
@@ -299,6 +316,13 @@ export function createChatToolExecutors({
   toolContext: ToolContext;
   latestUserMessage: string;
 }): ToolExecutors {
+  // Per-request state to prevent AI model from retrying expensive tools.
+  // This closure captures state for the lifetime of a single request.
+  // When AI model calls a tool multiple times, we block at the executor level.
+  // @see docs/testing/agent-ux-issues-2026-01-01.md for retry loop bug details
+  let contentGenerationAttempted = false;
+  let layoutCompositionAttempted = false;
+
   return {
     extractProjectData: async (args) => {
       const sessionData = await loadSessionExtractedData(toolContext.sessionId);
@@ -324,6 +348,20 @@ export function createChatToolExecutors({
     requestClarification: async (args) => args,
     suggestQuickActions: async (args) => args,
     generatePortfolioContent: async () => {
+      // Block retries at executor level - AI model cannot bypass this
+      if (contentGenerationAttempted) {
+        return {
+          success: false,
+          title: '',
+          description: '',
+          seoTitle: '',
+          seoDescription: '',
+          tags: [],
+          error: 'Content generation already attempted in this request. Ask the user to try again.',
+        };
+      }
+      contentGenerationAttempted = true;
+
       const projectState = await loadProjectState(toolContext.projectId);
       if (!projectState) {
         return {
@@ -344,6 +382,9 @@ export function createChatToolExecutors({
       });
 
       if (result.error) {
+        // For ALL errors, return success: false but with a clear error message.
+        // The AI model should NOT retry - it should tell the user to try again later.
+        // Using success: false + clear error ensures the AI stops and communicates to user.
         return {
           success: false,
           title: '',
@@ -351,7 +392,9 @@ export function createChatToolExecutors({
           seoTitle: '',
           seoDescription: '',
           tags: [],
-          error: result.error.message,
+          error: result.error.retryable
+            ? 'AI service is temporarily busy. Please wait a moment and try again. DO NOT automatically retry.'
+            : result.error.message,
         };
       }
 
@@ -377,6 +420,17 @@ export function createChatToolExecutors({
       };
     },
     composePortfolioLayout: async (args) => {
+      // Block retries at executor level - AI model cannot bypass this
+      if (layoutCompositionAttempted) {
+        return {
+          blocks: [],
+          rationale: 'Layout composition already attempted in this request. Ask the user to try again.',
+          missingContext: [],
+          confidence: 0.1,
+        };
+      }
+      layoutCompositionAttempted = true;
+
       const projectState = await loadProjectState(toolContext.projectId);
       if (!projectState) {
         return {
@@ -450,5 +504,82 @@ export function createChatToolExecutors({
       checkFields: args.checkFields as ValidateForPublishOutput['checkFields'],
     }),
     updateDescriptionBlocks: async (args) => args,
+    updateContractorProfile: async (args) => {
+      if (!toolContext.contractorId) {
+        return {
+          success: false,
+          field: args.field,
+          value: args.value,
+          reason: args.reason,
+          error: 'No contractor ID found. Please ensure you are logged in.',
+        };
+      }
+
+      // Runtime validation: prevent SQL injection via dynamic column names
+      // This ensures only allowed fields can be updated, even if TypeScript types are bypassed
+      const ALLOWED_FIELDS: readonly string[] = contractorProfileFields;
+      if (!ALLOWED_FIELDS.includes(args.field)) {
+        console.error(`[updateContractorProfile] Invalid field attempted: ${args.field}`);
+        return {
+          success: false,
+          field: args.field,
+          value: args.value,
+          reason: args.reason,
+          error: `Invalid field: "${args.field}" is not an allowed profile field.`,
+        };
+      }
+
+      const supabase = await createClient();
+
+      // Validate field type matches expected value type
+      const arrayFields = ['services', 'service_areas'];
+      const isArrayField = arrayFields.includes(args.field);
+      const isArrayValue = Array.isArray(args.value);
+
+      if (isArrayField && !isArrayValue) {
+        return {
+          success: false,
+          field: args.field,
+          value: args.value,
+          reason: args.reason,
+          error: `Field "${args.field}" expects an array value.`,
+        };
+      }
+
+      if (!isArrayField && isArrayValue) {
+        return {
+          success: false,
+          field: args.field,
+          value: args.value,
+          reason: args.reason,
+          error: `Field "${args.field}" expects a string value, not an array.`,
+        };
+      }
+
+      // Update the contractor profile
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from('contractors')
+        .update({ [args.field]: args.value })
+        .eq('id', toolContext.contractorId);
+
+      if (error) {
+        console.error('[updateContractorProfile] Failed to update:', error);
+        return {
+          success: false,
+          field: args.field,
+          value: args.value,
+          reason: args.reason,
+          error: `Failed to update profile: ${error.message}`,
+        };
+      }
+
+      return {
+        success: true,
+        field: args.field,
+        value: args.value,
+        reason: args.reason,
+      };
+    },
   };
 }

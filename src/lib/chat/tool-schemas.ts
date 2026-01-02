@@ -264,6 +264,14 @@ export interface GeneratePortfolioContentOutput {
   seoDescription: string;
   tags: string[];
   error?: string;
+  /**
+   * True when the AI service is rate-limited or temporarily unavailable.
+   * When rateLimited is true, success is also true to prevent AI model retries.
+   * The UI should show the message and suggest the user try again manually.
+   */
+  rateLimited?: boolean;
+  /** User-facing message explaining the situation (used with rateLimited) */
+  message?: string;
 }
 
 /**
@@ -338,6 +346,7 @@ export interface CheckPublishReadyOutput {
 
 /**
  * Editable field names for the updateField tool.
+ * Includes location fields (city, state) for address updates.
  */
 export const editableFields = [
   'title',
@@ -347,18 +356,20 @@ export const editableFields = [
   'tags',
   'materials',
   'techniques',
+  'city',
+  'state',
 ] as const;
 
 export type EditableField = (typeof editableFields)[number];
 
 /**
  * Schema for updating a project field.
- * Called when user wants to change title, description, SEO, etc.
+ * Called when user wants to change title, description, SEO, location, etc.
  */
 export const updateFieldSchema = z.object({
   field: z
-    .enum(['title', 'description', 'seo_title', 'seo_description', 'tags', 'materials', 'techniques'])
-    .describe('The field to update'),
+    .enum(['title', 'description', 'seo_title', 'seo_description', 'tags', 'materials', 'techniques', 'city', 'state'])
+    .describe('The field to update (use city/state for location changes)'),
   value: z
     .union([z.string(), z.array(z.string())])
     .describe('The new value for the field (string for text fields, array for tags/materials/techniques)'),
@@ -467,6 +478,69 @@ export interface ValidateForPublishOutput {
 }
 
 // ============================================================================
+// Contractor Profile Tools
+// ============================================================================
+
+/**
+ * Editable contractor profile field names.
+ * These map to columns in the contractors table.
+ */
+export const contractorProfileFields = [
+  'business_name',
+  'city',
+  'state',
+  'services',
+  'service_areas',
+  'description',
+  'phone',
+  'email',
+  'website',
+] as const;
+
+export type ContractorProfileField = (typeof contractorProfileFields)[number];
+
+/**
+ * Schema for updating contractor profile fields.
+ * Allows the agent to update business information during conversation.
+ *
+ * @see /src/app/api/contractors/me/route.ts
+ */
+export const updateContractorProfileSchema = z.object({
+  field: z
+    .enum([
+      'business_name',
+      'city',
+      'state',
+      'services',
+      'service_areas',
+      'description',
+      'phone',
+      'email',
+      'website',
+    ])
+    .describe('The contractor profile field to update'),
+  value: z
+    .union([z.string(), z.array(z.string())])
+    .describe('The new value (string for text fields, array for services/service_areas)'),
+  reason: z
+    .string()
+    .optional()
+    .describe('Brief explanation of why this update was made'),
+});
+
+/** Input type for updateContractorProfile tool */
+export type UpdateContractorProfileInput = z.infer<typeof updateContractorProfileSchema>;
+
+/** Output type for updateContractorProfile tool */
+export interface UpdateContractorProfileOutput {
+  success: boolean;
+  field: ContractorProfileField;
+  value: string | string[];
+  reason?: string;
+  error?: string;
+}
+
+// ============================================================================
 // Tool Result Types (for artifact rendering)
 // ============================================================================
 
@@ -487,7 +561,8 @@ export type ToolOutput =
   | UpdateFieldOutput
   | RegenerateSectionOutput
   | ReorderImagesOutput
-  | ValidateForPublishOutput;
+  | ValidateForPublishOutput
+  | UpdateContractorProfileOutput;
 
 /**
  * Tool name to output type mapping.
@@ -507,6 +582,7 @@ export interface ToolOutputMap {
   regenerateSection: RegenerateSectionOutput;
   reorderImages: ReorderImagesOutput;
   validateForPublish: ValidateForPublishOutput;
+  updateContractorProfile: UpdateContractorProfileOutput;
 }
 
 /** Tool names */

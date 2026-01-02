@@ -101,6 +101,7 @@ interface DbMessage {
  * Determine if conversation should be compacted based on message count.
  *
  * @param messageCount - Number of messages in the session
+ * @param estimatedTokens - Optional precomputed token estimate
  * @returns True if compaction is needed
  */
 export function shouldCompact(
@@ -136,6 +137,10 @@ export function estimateTokens(
 /**
  * Estimate token count for a single message payload.
  * Uses JSON size of parts when available to account for tool outputs.
+ *
+ * @param content - Plain text content of the message
+ * @param parts - Structured parts stored alongside the message
+ * @returns Estimated token count for the message
  */
 export function estimateMessageTokens(
   content: string,
@@ -164,7 +169,16 @@ export function estimateMessageTokens(
  *
  * @param projectId - Project ID to load context for
  * @param sessionId - Session ID to load messages from
+ * @param options - Optional limits for context loading
  * @returns Context load result with messages and project data
+ *
+ * @example
+ * ```ts
+ * const context = await loadConversationContext(projectId, sessionId, {
+ *   maxMessages: 25,
+ *   recentMessagesCount: 8,
+ * });
+ * ```
  */
 export async function loadConversationContext(
   projectId: string,
@@ -405,6 +419,8 @@ function dbMessageToUIMessage(dbMsg: DbMessage): UIMessage {
  *
  * @param sessionId - Session ID
  * @param newCount - Updated message count
+ * @param estimatedTokens - Optional updated token estimate
+ * @returns Promise that resolves when the session is updated
  */
 export async function updateSessionMessageCount(
   sessionId: string,

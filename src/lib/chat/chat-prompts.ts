@@ -20,6 +20,7 @@
 
 import type { BusinessProfileContext, ProjectContextData } from './context-shared';
 import { formatBusinessProfileForPrompt, formatProjectDataForPrompt } from './context-shared';
+import type { ProjectState } from './project-state';
 
 /**
  * Interviewer system prompt for the conversation phase.
@@ -67,6 +68,8 @@ If the contractor asks to edit or restructure the page, use the editor tools and
 
 /**
  * Build the interviewer conversation prompt.
+ *
+ * @returns Interviewer system prompt string
  */
 export function buildConversationPrompt(): string {
   return INTERVIEWER_PROMPT;
@@ -97,6 +100,9 @@ export const OPENING_MESSAGES = [
 
 /**
  * Get a random opening message.
+ *
+ * @deprecated Use getAdaptiveOpeningMessage() for unified interface.
+ * @returns Opening message for a new conversation
  */
 export function getOpeningMessage(): string {
   const index = Math.floor(Math.random() * OPENING_MESSAGES.length);
@@ -140,7 +146,9 @@ export const EDIT_OPENING_MESSAGES = [
 /**
  * Get a random edit-mode opening message.
  *
+ * @deprecated Use getAdaptiveOpeningMessage() for unified interface.
  * @param projectTitle - The existing project title to personalize the greeting
+ * @returns Edit-mode greeting message
  */
 export function getEditOpeningMessage(projectTitle?: string): string {
   const index = Math.floor(Math.random() * EDIT_OPENING_MESSAGES.length);
@@ -203,6 +211,8 @@ You: "Great! I'll open the photo panel for you. What angles are you adding - mor
 
 /**
  * Build an edit mode system prompt.
+ *
+ * @returns Edit-mode system prompt string
  */
 export function buildEditModePrompt(): string {
   return EDIT_MODE_PROMPT_TEMPLATE;
@@ -329,3 +339,109 @@ export function buildSystemPromptWithContext(
 
 ${contextBlock}`;
 }
+
+// ============================================
+// Adaptive Opening Messages (Unified Interface)
+// ============================================
+
+/**
+ * Options for generating an adaptive opening message.
+ */
+export interface AdaptiveOpeningOptions {
+  /** Derived project state */
+  projectState: ProjectState;
+  /** Project title (if exists) */
+  title?: string | null;
+  /** Whether this is resuming an existing session */
+  hasExistingSession: boolean;
+}
+
+/**
+ * Get an adaptive opening message based on project state.
+ *
+ * Replaces separate getOpeningMessage() and getEditOpeningMessage() functions
+ * with a unified approach that adapts to the project's actual state rather
+ * than an explicit "mode".
+ *
+ * @param options - Project state and context
+ * @returns Appropriate greeting message
+ *
+ * @example
+ * ```ts
+ * const greeting = getAdaptiveOpeningMessage({
+ *   projectState: deriveProjectState(project, images),
+ *   title: project?.title,
+ *   hasExistingSession: Boolean(session),
+ * });
+ * ```
+ */
+export function getAdaptiveOpeningMessage(options: AdaptiveOpeningOptions): string {
+  const { projectState, title, hasExistingSession } = options;
+
+  // Published project - focus on updates
+  if (projectState.isPublished) {
+    if (title) {
+      return `"${title}" is live - anything you want to update?`;
+    }
+    return "This project is published - need to make any changes?";
+  }
+
+  // Has content (draft state) - refinement mode
+  if (projectState.hasContent) {
+    const refinementMessages = [
+      title
+        ? `Back to work on "${title}" - what needs tweaking?`
+        : "Back to polish this one - what do you want to change?",
+      "Ready to update this project? Title, description, photos - I can help with any of it.",
+      title
+        ? `Let's refine "${title}" - what's on your mind?`
+        : "Let's make some improvements - what would you like to change?",
+    ];
+    return pickRandom(refinementMessages);
+  }
+
+  // Has images but no content - encourage generation
+  if (projectState.hasImages) {
+    const imageMessages = [
+      "Got your photos - want me to write up the story for this project?",
+      "Nice photos! Ready for me to put together a description?",
+      "Photos look good - tell me a bit about the project and I'll draft something.",
+    ];
+    return pickRandom(imageMessages);
+  }
+
+  // Has title but nothing else - in progress
+  if (projectState.hasTitle && title) {
+    return `Picking up "${title}" - what should I know about this project?`;
+  }
+
+  // Resuming an empty project (session exists but no content)
+  if (hasExistingSession) {
+    const resumeMessages = [
+      "Picking up where we left off - what's this project about?",
+      "Back to this one - what are we documenting?",
+      "Let's continue - tell me about the project.",
+    ];
+    return pickRandom(resumeMessages);
+  }
+
+  // Fresh start - truly new project
+  const freshMessages = [
+    "Hey - what project are we documenting today?",
+    "Ready when you are - tell me about this job.",
+    "What do you want to showcase?",
+    "Let's build a portfolio page - what's the project?",
+  ];
+  return pickRandom(freshMessages);
+}
+
+/**
+ * Pick a random message from an array.
+ */
+function pickRandom(messages: string[]): string {
+  const index = Math.floor(Math.random() * messages.length);
+  return messages[index] ?? messages[0]!;
+}
+
+// Note: getOpeningMessage() and getEditOpeningMessage() are deprecated.
+// Use getAdaptiveOpeningMessage() instead for unified interface.
