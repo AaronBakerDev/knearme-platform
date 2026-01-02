@@ -89,8 +89,15 @@ export type ToolExecutors = {
   }) => Promise<UpdateContractorProfileOutput>;
 };
 
-async function loadProjectState(projectId?: string): Promise<SharedProjectState | null> {
-  if (!projectId) {
+async function loadProjectState({
+  projectId,
+  contractorId,
+}: {
+  projectId?: string;
+  contractorId?: string;
+}): Promise<SharedProjectState | null> {
+  if (!projectId || !contractorId) {
+    // Require contractor scoping to avoid unbounded cross-tenant reads.
     return null;
   }
 
@@ -103,7 +110,7 @@ async function loadProjectState(projectId?: string): Promise<SharedProjectState 
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: project, error } = await (supabase as any)
+  const query = (supabase as any)
     .from('projects')
     .select(`
       id,
@@ -132,7 +139,9 @@ async function loadProjectState(projectId?: string): Promise<SharedProjectState 
       )
     `)
     .eq('id', projectId)
-    .single();
+    .eq('contractor_id', contractorId);
+
+  const { data: project, error } = await query.single();
 
   if (error || !project) {
     console.error('[loadProjectState] Failed to load project:', error);
@@ -212,10 +221,14 @@ async function loadProjectState(projectId?: string): Promise<SharedProjectState 
   return state;
 }
 
-async function loadSessionExtractedData(
-  sessionId?: string
-): Promise<ExtractedProjectData | null> {
-  if (!sessionId) return null;
+async function loadSessionExtractedData({
+  sessionId,
+  contractorId,
+}: {
+  sessionId?: string;
+  contractorId?: string;
+}): Promise<ExtractedProjectData | null> {
+  if (!sessionId || !contractorId) return null;
   const supabase = await createClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -223,6 +236,8 @@ async function loadSessionExtractedData(
     .from('chat_sessions')
     .select('extracted_data')
     .eq('id', sessionId)
+    // Scope session reads to the authenticated contractor (defense in depth).
+    .eq('contractor_id', contractorId)
     .single();
 
   if (error || !session) {
@@ -325,7 +340,10 @@ export function createChatToolExecutors({
 
   return {
     extractProjectData: async (args) => {
-      const sessionData = await loadSessionExtractedData(toolContext.sessionId);
+      const sessionData = await loadSessionExtractedData({
+        sessionId: toolContext.sessionId,
+        contractorId: toolContext.contractorId,
+      });
       let mergedState = createEmptyProjectState();
       mergedState = mergeProjectState(mergedState, mapExtractedDataToState(sessionData || undefined));
       mergedState = mergeProjectState(mergedState, mapExtractedDataToState(args));
@@ -362,7 +380,10 @@ export function createChatToolExecutors({
       }
       contentGenerationAttempted = true;
 
-      const projectState = await loadProjectState(toolContext.projectId);
+      const projectState = await loadProjectState({
+        projectId: toolContext.projectId,
+        contractorId: toolContext.contractorId,
+      });
       if (!projectState) {
         return {
           success: false,
@@ -431,7 +452,10 @@ export function createChatToolExecutors({
       }
       layoutCompositionAttempted = true;
 
-      const projectState = await loadProjectState(toolContext.projectId);
+      const projectState = await loadProjectState({
+        projectId: toolContext.projectId,
+        contractorId: toolContext.contractorId,
+      });
       if (!projectState) {
         return {
           blocks: [],
@@ -450,7 +474,10 @@ export function createChatToolExecutors({
       return result;
     },
     checkPublishReady: async (args) => {
-      const projectState = await loadProjectState(toolContext.projectId);
+      const projectState = await loadProjectState({
+        projectId: toolContext.projectId,
+        contractorId: toolContext.contractorId,
+      });
       if (!projectState) {
         return {
           ready: false,
@@ -570,7 +597,8 @@ export function createChatToolExecutors({
           field: args.field,
           value: args.value,
           reason: args.reason,
-          error: `Failed to update profile: ${error.message}`,
+          // Avoid leaking internal error details to the client.
+          error: 'Failed to update profile. Please try again.',
         };
       }
 
