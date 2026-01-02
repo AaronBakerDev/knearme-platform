@@ -18,7 +18,7 @@
  * @see /docs/09-agent/multi-agent-architecture.md
  */
 
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { google } from '@ai-sdk/google';
 import { isGoogleAIEnabled, AI_MODELS } from '@/lib/ai/providers';
@@ -182,11 +182,35 @@ PROJECT TYPES (use exact slugs):
 - custom-masonry: Custom/unique masonry projects
 - other: Anything that doesn't fit above
 
+DEDUPLICATION RULES (CRITICAL):
+1. PREFER SPECIFIC over generic - if "reclaimed Denver common brick" is mentioned, do NOT also add "brick"
+2. NO SUBSTRINGS - if "flashing installation" is a technique, do NOT also add "flashing" separately
+3. NO CROSS-CONTAMINATION - items should appear in only ONE list, not both materials AND techniques
+
+MATERIALS vs TECHNIQUES - STRICT SEPARATION:
+MATERIALS are physical substances used in construction:
+  - Brick types: "reclaimed brick", "Denver common brick", "firebrick", etc.
+  - Mortar: "Type S mortar", "lime mortar", "portland cement", etc.
+  - Stone: "limestone", "granite", "flagstone", etc.
+  - Metal: "copper flashing", "stainless steel ties", "lead sheet", etc.
+  - Sealants: "silicone sealant", "waterproofing membrane", etc.
+
+TECHNIQUES are methods/processes/actions:
+  - "tuckpointing", "repointing", "flashing installation", "waterproofing"
+  - "brick replacement", "mortar matching", "crown repair"
+  - "weep hole installation", "joint raking", "pressure washing"
+  - "flashing" when referring to the PROCESS of installing flashing
+
+When "flashing" is mentioned:
+  - If discussing installing or replacing flashing → add "flashing installation" to TECHNIQUES only
+  - If discussing "copper flashing" or "lead flashing" as a material → add to MATERIALS only
+  - NEVER add bare "flashing" to both lists
+
 IMPORTANT:
 - customerProblem: Should capture WHY the customer called (the issue/need)
 - solutionApproach: Should capture HOW the contractor solved it
-- materials: Be specific (e.g., "reclaimed red brick" not just "brick")
-- techniques: Use proper masonry terminology
+- materials: Be specific (e.g., "reclaimed red brick" not just "brick"), NO overlap with techniques
+- techniques: Use proper masonry terminology, NO overlap with materials
 - location: Always extract city and state when possible`;
 
 // ============================================================================
@@ -237,6 +261,9 @@ export async function extractStory(
 
 /**
  * Perform AI-powered extraction using Gemini.
+ *
+ * Uses generateText with Output.object for structured extraction.
+ * @see https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data
  */
 async function performAIExtraction(
   message: string,
@@ -251,17 +278,152 @@ ${message}`
     : `MESSAGE TO EXTRACT FROM:
 ${message}`;
 
-  const { object } = await generateObject({
+  const { output: object } = await generateText({
     model: google(AI_MODELS.generation),
-    schema: ExtractionSchema,
+    output: Output.object({ schema: ExtractionSchema }),
     system: EXTRACTION_SYSTEM_PROMPT,
     prompt: contextPrompt,
     maxOutputTokens: 2048, // Increased from 1000 - structured response needs room for all fields
     temperature: 0.2, // Low temperature for consistent extraction
   });
 
+  // Handle null output (schema validation failure)
+  if (!object) {
+    return {
+      confidence: {},
+    };
+  }
+
   return object;
 }
+
+// ============================================================================
+// Deduplication Helpers
+// ============================================================================
+
+/**
+ * Known terms that are ALWAYS techniques (processes/actions), never materials.
+ * Used to resolve ambiguous terms like "flashing" or "waterproofing".
+ */
+const TECHNIQUE_TERMS = new Set([
+  'flashing',
+  'waterproofing',
+  'tuckpointing',
+  'repointing',
+  'sealing',
+  'restoration',
+  'rebuild',
+  'repair',
+  'installation',
+  'replacement',
+  'matching',
+  'raking',
+  'cleaning',
+  'washing',
+]);
+
+/**
+ * Check if term A is a generic/substring version of term B.
+ *
+ * Returns true if B is more specific than A, meaning A should be removed.
+ *
+ * Examples:
+ * - isGenericOf("brick", "reclaimed Denver common brick") → true
+ * - isGenericOf("flashing", "flashing installation") → true
+ * - isGenericOf("chimney", "chimney rebuild") → true
+ */
+function isGenericOf(generic: string, specific: string): boolean {
+  const g = generic.toLowerCase().trim();
+  const s = specific.toLowerCase().trim();
+
+  // Can't be generic of itself
+  if (g === s) return false;
+
+  // If specific contains generic as a word boundary match
+  // "brick" is generic of "reclaimed brick" but not "brickwork"
+  const wordBoundaryPattern = new RegExp(`\\b${escapeRegex(g)}\\b`, 'i');
+  return wordBoundaryPattern.test(s) && s.length > g.length;
+}
+
+/**
+ * Escape special regex characters in a string.
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Deduplicate a list of terms by removing generic versions when specific exists.
+ *
+ * Examples:
+ * - ["brick", "reclaimed Denver common brick"] → ["reclaimed Denver common brick"]
+ * - ["flashing", "flashing installation"] → ["flashing installation"]
+ * - ["mortar", "Type S mortar", "lime mortar"] → ["Type S mortar", "lime mortar"]
+ */
+function deduplicateTerms(terms: string[]): string[] {
+  if (terms.length <= 1) return terms;
+
+  const result: string[] = [];
+
+  for (const term of terms) {
+    // Check if this term is a generic version of any other term in the list
+    const isGenericOfAnother = terms.some(
+      (other) => other !== term && isGenericOf(term, other)
+    );
+
+    if (!isGenericOfAnother) {
+      result.push(term);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Remove overlapping terms between materials and techniques.
+ *
+ * When a term appears in both lists, it's moved to the appropriate list
+ * based on whether it's a process/action (technique) or substance (material).
+ *
+ * @returns Cleaned materials and techniques arrays
+ */
+function separateMaterialsAndTechniques(
+  materials: string[],
+  techniques: string[]
+): { materials: string[]; techniques: string[] } {
+  const cleanMaterials: string[] = [];
+  const cleanTechniques = [...techniques];
+
+  for (const material of materials) {
+    const lowerMaterial = material.toLowerCase();
+
+    // Check if this is actually a technique term
+    const isTechniqueTerm = TECHNIQUE_TERMS.has(lowerMaterial) ||
+      Array.from(TECHNIQUE_TERMS).some((t) => lowerMaterial.includes(t));
+
+    if (isTechniqueTerm) {
+      // Move to techniques if not already there
+      const alreadyInTechniques = cleanTechniques.some(
+        (t) => t.toLowerCase() === lowerMaterial
+      );
+      if (!alreadyInTechniques) {
+        cleanTechniques.push(material);
+      }
+    } else {
+      cleanMaterials.push(material);
+    }
+  }
+
+  // Also deduplicate within each list
+  return {
+    materials: deduplicateTerms(cleanMaterials),
+    techniques: deduplicateTerms(cleanTechniques),
+  };
+}
+
+// ============================================================================
+// Extraction Processing
+// ============================================================================
 
 /**
  * Process extraction output into StoryExtractionResult.
@@ -306,27 +468,34 @@ function processExtraction(
   }
 
   // Merge arrays (don't overwrite, add new items)
+  let rawMaterials: string[] = existingState?.materials || [];
+  let rawTechniques: string[] = existingState?.techniques || [];
+
   if (extraction.materials && extraction.materials.length > 0) {
-    const existingMaterials = existingState?.materials || [];
     const newMaterials = extraction.materials.filter(
-      (m) => !existingMaterials.includes(m)
+      (m) => !rawMaterials.some((existing) => existing.toLowerCase() === m.toLowerCase())
     );
-    state.materials = [...existingMaterials, ...newMaterials];
+    rawMaterials = [...rawMaterials, ...newMaterials];
     confidence.materials = extraction.confidence?.materials ?? 0.8;
-  } else {
-    state.materials = existingState?.materials || [];
   }
 
   if (extraction.techniques && extraction.techniques.length > 0) {
-    const existingTechniques = existingState?.techniques || [];
     const newTechniques = extraction.techniques.filter(
-      (t) => !existingTechniques.includes(t)
+      (t) => !rawTechniques.some((existing) => existing.toLowerCase() === t.toLowerCase())
     );
-    state.techniques = [...existingTechniques, ...newTechniques];
+    rawTechniques = [...rawTechniques, ...newTechniques];
     confidence.techniques = extraction.confidence?.techniques ?? 0.8;
-  } else {
-    state.techniques = existingState?.techniques || [];
   }
+
+  // Apply intelligent deduplication:
+  // 1. Remove generic terms when specific exists (e.g., "brick" when "reclaimed Denver brick" exists)
+  // 2. Move technique terms from materials to techniques (e.g., "flashing")
+  // 3. Remove substring duplicates (e.g., "flashing" when "flashing installation" exists)
+  const { materials: cleanMaterials, techniques: cleanTechniques } =
+    separateMaterialsAndTechniques(rawMaterials, rawTechniques);
+
+  state.materials = cleanMaterials;
+  state.techniques = cleanTechniques;
 
   if (extraction.location) {
     const parsed = parseLocationString(extraction.location);
@@ -424,12 +593,10 @@ function extractWithoutAI(
   const foundMaterials = materialKeywords.filter((m) =>
     lowerMessage.includes(m)
   );
+  let rawMaterials: string[] = existingState?.materials || [];
   if (foundMaterials.length > 0) {
-    const existingMaterials = existingState?.materials || [];
-    state.materials = Array.from(new Set([...existingMaterials, ...foundMaterials]));
+    rawMaterials = Array.from(new Set([...rawMaterials, ...foundMaterials]));
     confidence.materials = 0.6;
-  } else {
-    state.materials = existingState?.materials || [];
   }
 
   // Technique detection
@@ -440,13 +607,18 @@ function extractWithoutAI(
   const foundTechniques = techniqueKeywords.filter((t) =>
     lowerMessage.includes(t)
   );
+  let rawTechniques: string[] = existingState?.techniques || [];
   if (foundTechniques.length > 0) {
-    const existingTechniques = existingState?.techniques || [];
-    state.techniques = Array.from(new Set([...existingTechniques, ...foundTechniques]));
+    rawTechniques = Array.from(new Set([...rawTechniques, ...foundTechniques]));
     confidence.techniques = 0.6;
-  } else {
-    state.techniques = existingState?.techniques || [];
   }
+
+  // Apply intelligent deduplication (same as AI extraction path)
+  const { materials: cleanMaterials, techniques: cleanTechniques } =
+    separateMaterialsAndTechniques(rawMaterials, rawTechniques);
+
+  state.materials = cleanMaterials;
+  state.techniques = cleanTechniques;
 
   // Location detection (basic city/state patterns)
   const locationMatch = message.match(

@@ -187,14 +187,25 @@ rm -rf .next && npm run dev
 
 ### 6. Duplicate/Redundant Material Extraction
 **Severity**: MEDIUM
-**Location**: `extractProjectData` tool / story-extractor agent
+**Status**: ✅ FIXED
+**Location**: `src/lib/agents/story-extractor.ts`
 
 **Symptoms**:
 - Materials list includes both generic and specific: "brick" AND "reclaimed Denver common brick"
 - "flashing" appears as both material AND technique
 - "flashing installation" and "flashing" both in techniques list
 
-**Expected**: Deduplication or preference for specific over generic terms.
+**Fix Applied**:
+1. Updated AI extraction prompt with explicit deduplication rules and material/technique separation guidance
+2. Added `deduplicateTerms()` helper that removes generic terms when specific exists
+3. Added `separateMaterialsAndTechniques()` helper that moves technique terms (flashing, waterproofing, etc.) out of materials
+4. Applied same deduplication logic to both AI and non-AI extraction paths
+5. Migrated to new AI SDK pattern (`generateText` + `Output.object`)
+
+**Key Changes**:
+- `TECHNIQUE_TERMS` constant defines terms that are always techniques (flashing, waterproofing, etc.)
+- `isGenericOf()` checks if one term is a generic version of another
+- Both helpers applied after merging to ensure clean output
 
 ---
 
@@ -257,7 +268,7 @@ rm -rf .next && npm run dev
 3. ~~**Chat Scroll Jumping** - Janky UX during tool calls~~ ✅ FIXED
 4. ~~**Preview Overlay on Desktop** - Quick fix, high annoyance~~ ✅ FIXED (2026-01-02 - `isMobile` check added)
 5. ~~**Chunk Loading Errors** - May need build investigation~~ ⚡ KNOWN ISSUE (dev mode only - see workaround above)
-6. **Duplicate Extraction** - Agent prompt/logic improvement
+6. ~~**Duplicate Extraction** - Agent prompt/logic improvement~~ ✅ FIXED (2026-01-02 - deduplication helpers added)
 7. **Stale Quick Actions** - UI state management fix
 
 ### Historical Error Cards (Cosmetic)
