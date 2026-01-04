@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bell, BellOff, BellRing, Info, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button, Badge, Alert, AlertDescription } from '@/components/ui';
 import {
   getExistingPushSubscription,
   isPushSupported,

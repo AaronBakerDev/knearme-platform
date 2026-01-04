@@ -8,14 +8,10 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, MapPin, Hammer } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Badge, Button, Card, CardContent } from '@/components/ui';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getServiceTypes } from '@/lib/data/services';
-import { SERVICE_CONTENT } from '@/lib/constants/service-content';
-import type { ServiceId } from '@/lib/constants/services';
+import { getServiceCatalog } from '@/lib/services';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
@@ -84,9 +80,9 @@ async function getTopCities(limit: number = 18): Promise<CityCard[]> {
 }
 
 export default async function ContractorsLandingPage() {
-  // Fetch service types from database and cities in parallel
-  const [serviceTypes, cities] = await Promise.all([
-    getServiceTypes(),
+  // Fetch service catalog and cities in parallel
+  const [services, cities] = await Promise.all([
+    getServiceCatalog(),
     getTopCities(),
   ]);
 
@@ -95,17 +91,12 @@ export default async function ContractorsLandingPage() {
     { name: 'Businesses', url: '/businesses' },
   ];
 
-  // Build service cards from database, fallback to SERVICE_CONTENT for rich descriptions
-  const serviceCards = serviceTypes.map((serviceType) => {
-    const serviceId = serviceType.service_id as ServiceId;
-    const content = SERVICE_CONTENT[serviceId];
-
-    return {
-      slug: serviceType.url_slug,
-      label: serviceType.label || content?.label || serviceId,
-      shortDescription: serviceType.short_description || content?.shortDescription || '',
-    };
-  });
+  // Build service cards from catalog (already merged with fallback)
+  const serviceCards = services.map((service) => ({
+    slug: service.urlSlug,
+    label: service.label,
+    shortDescription: service.shortDescription,
+  }));
 
   return (
     <div className="min-h-screen bg-background">

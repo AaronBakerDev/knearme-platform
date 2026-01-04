@@ -16,9 +16,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, CheckCircle2, ChevronRight, SkipForward } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Progress } from '@/components/ui';
 import { VoiceRecorder } from './VoiceRecorder';
 import { cn } from '@/lib/utils';
 

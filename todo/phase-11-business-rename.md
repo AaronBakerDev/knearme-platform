@@ -179,6 +179,10 @@ Migration `030_agentic_schema.sql` was never applied to production.
 | business_name | name | Renamed |
 | profile_slug | slug | Renamed |
 | city, state, city_slug | city, state, city_slug | Kept + added to `location` JSONB |
+| address | address | Added in 032; not backfilled in 033 (defaults to NULL) |
+| postal_code | postal_code | Added in 032; not backfilled in 033 (defaults to NULL) |
+| phone | phone | Added in 032; not backfilled in 033 (defaults to NULL) |
+| website | website | Added in 032; not backfilled in 033 (defaults to NULL) |
 | services | services | Array, also in `understanding.specialties` |
 | service_areas | service_areas | Array, also in `location.service_areas` |
 | description | description | Same |
@@ -205,20 +209,22 @@ Migration `030_agentic_schema.sql` was never applied to production.
 
 ### Tasks
 - [x] Create migration file with table/column renames or data migration.
-- [x] Rename `contractor_id` → `business_id` in: `projects`, `push_subscriptions`, `voice_usage`.
+- [x] Add `business_id` alongside `contractor_id` in: `projects`, `push_subscriptions`, `voice_usage` (chat_sessions conditional).
 - [x] Rename constraints and indexes.
 - [x] Update foreign key relationships.
 
 ### Migration Applied: 2026-01-02
 
-**Migrations run:**
-1. `business_rename_migration` - Renamed directory businesses table
-2. `create_businesses_table` - Created new 27-column businesses table
-3. `migrate_contractors_to_businesses` - Copied 10 contractor records
-4. `add_business_id_columns` - Added business_id to projects (71), push_subscriptions, voice_usage
-5. `businesses_triggers_and_functions` - Created updated_at trigger + helper functions
-6. `businesses_rls_policies` - 4 RLS policies (view/update/insert own, public view published)
-7. `update_new_user_trigger` - New signups create both contractor + business records
+**Migration file:** `supabase/migrations/033_business_rename_migration.sql`
+
+**Steps in migration:**
+1. Rename directory `businesses` → `_deprecated_directory_businesses`
+2. Create new 27-column `businesses` table
+3. Migrate 10 contractor records to businesses
+4. Add `business_id` to `projects`, `push_subscriptions`, `voice_usage` (and `chat_sessions` when `contractor_id` exists)
+5. Create updated_at trigger + helper functions
+6. Create 4 RLS policies (view/update/insert own, public view published)
+7. Update `knearme_handle_new_user` trigger (create contractor + business records)
 
 ### Verification Results
 
@@ -268,8 +274,8 @@ Migration `030_agentic_schema.sql` was never applied to production.
 ### Files Created/Modified
 - `src/app/api/businesses/me/route.ts` — New canonical endpoint (GET/PATCH)
 - `src/app/api/businesses/[slug]/route.ts` — Public profile by slug
-- `src/app/(contractor)/projects/[id]/page.tsx` — Updated fetch
-- `src/app/(contractor)/profile/edit/page.tsx` — Updated fetch + field mapping
+- `src/app/(dashboard)/projects/[id]/page.tsx` — Updated fetch (renamed in 11.9)
+- `src/app/(dashboard)/profile/edit/page.tsx` — Updated fetch + field mapping (renamed in 11.9)
 - `src/components/chat/ProjectEditFormPanel.tsx` — Updated fetch
 
 ### TypeScript Fixes Required
@@ -281,12 +287,12 @@ During build verification, fixed pre-existing errors:
 Old `/api/contractors/*` routes kept temporarily for:
 1. Any external integrations that may depend on them
 2. Gradual migration safety
-3. Will be removed in Sub-Sprint 11.12 (QA & Cutover)
+3. Removal deferred; still kept after 11.12 for backward compatibility
 
 ### Acceptance
 - [x] All API calls use `/api/businesses/*`.
 - [x] Build passes (`npm run build`).
-- [x] Old routes kept for backward compat (removed in 11.12).
+- [x] Old routes kept for backward compat (removal deferred; still present).
 
 ---
 
@@ -299,7 +305,7 @@ Old `/api/contractors/*` routes kept temporarily for:
 | # | Issue | Severity | File | Line(s) |
 |---|-------|----------|------|---------|
 | CR-1 | Asymmetric sync between dual tables | **High** | `/api/contractors/me/route.ts` | 180-206 |
-| CR-2 | Missing index on `chat_sessions.business_id` | Moderate | Migration 033 | ~220 |
+| CR-2 | Missing indexes on `business_id` columns (push_subscriptions, voice_usage; projects index only) | Moderate | Migration 033 | ~185-206 |
 | CR-3 | `SECURITY DEFINER` unnecessary on helper fn | Moderate | Migration 033 | 245-254 |
 | CR-4 | Hardcoded nulls in contractor fallback | Moderate | `/api/businesses/[slug]/route.ts` | 109-110 |
 | CR-5 | Race condition in slug uniqueness | Low | `/api/businesses/me/route.ts` | 76-104 |
@@ -350,20 +356,28 @@ contractorUpdates.profile_photo_url = updates.profile_photo_url;
 
 **Impact:** Data drift during transition period. Users editing via legacy endpoint lose data in new table.
 
+**Status:** Superseded in 11.5.2 — contractors→businesses sync removed when businesses became source of truth.
+
 ---
 
-### CR-2: Missing Index on chat_sessions.business_id
+### CR-2: Missing Indexes on business_id Columns
 
-**Problem:** Migration adds `business_id` column to `chat_sessions` but doesn't create an index.
+**Problem:** Migration 033 adds `business_id` to `push_subscriptions` and `voice_usage` but only indexes `projects`. The `chat_sessions` block is conditional and did not run in this DB (no `contractor_id` column).
 
-**Evidence:** Migration line ~220 adds column but no `CREATE INDEX` follows.
+**Evidence:** Migration 033 creates `idx_projects_business_id` but no indexes for `push_subscriptions.business_id` or `voice_usage.business_id`.
 
-**Impact:** Performance degradation on queries like "get all chats for business".
+**Impact:** Performance degradation on business-scoped queries (projects/subscriptions/voice usage).
 
-**Fix:** Add migration:
+**Fix:** Add migration (034):
 ```sql
-CREATE INDEX IF NOT EXISTS idx_chat_sessions_business_id
-  ON public.chat_sessions(business_id);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_business_id
+  ON public.push_subscriptions(business_id);
+
+CREATE INDEX IF NOT EXISTS idx_voice_usage_business_id
+  ON public.voice_usage(business_id);
+
+CREATE INDEX IF NOT EXISTS idx_projects_business_id
+  ON public.projects(business_id);
 ```
 
 ---
@@ -408,32 +422,32 @@ website: null,  // ❌ Should be: contractor.website
 
 ### Tasks
 
-- [x] **CR-1**: Add missing sync fields to `/api/contractors/me/route.ts` (HIGH)
+- [x] **CR-1**: Add missing sync fields to `/api/contractors/me/route.ts` (HIGH; superseded by CT-3 in 11.5.2)
 - [x] **CR-2**: Create migration `034_code_review_fixes.sql` (combined with CR-3)
 - [x] **CR-3**: Fix SECURITY DEFINER in `034_code_review_fixes.sql`
 - [x] **CR-4**: Fix hardcoded nulls in `/api/businesses/[slug]/route.ts`
-- [ ] **CR-5**: (Optional) Add retry logic for slug conflicts — deferred to 11.12
+- [ ] **CR-5**: (Optional) Add retry logic for slug conflicts — deferred to backlog (not implemented in 11.12)
 
 ### Files Modified (2026-01-02)
 
 | File | Change |
 |------|--------|
-| `supabase/migrations/034_code_review_fixes.sql` | Created — adds indexes, fixes SECURITY DEFINER |
+| `supabase/migrations/034_code_review_fixes.sql` | Created — adds business_id indexes, fixes SECURITY DEFINER |
 | `src/app/api/businesses/[slug]/route.ts` | Fixed hardcoded nulls (lines 110-111) |
-| `src/app/api/contractors/me/route.ts` | Added full sync parity (lines 180-274) |
+| `src/app/api/contractors/me/route.ts` | Added full sync parity (lines 180-274; later removed in 11.5.2) |
 
 ### Acceptance
 
-- [x] Both sync directions update identical fields
-- [x] `chat_sessions.business_id` has index (in migration)
+- [x] Contractors→businesses sync parity added, then removed in 11.5.2 (businesses is source of truth)
+- [x] `business_id` indexes added for `projects`, `push_subscriptions`, `voice_usage` (chat_sessions not present)
 - [x] `business_has_published_project` uses `SECURITY INVOKER` (in migration)
 - [x] Contractor fallback returns actual phone/website values
 
-### Next Steps
+### Follow-through (Completed)
 
-1. Apply migration `034_code_review_fixes.sql` to Supabase
-2. Deploy code changes
-3. Continue with Sub-Sprint 11.6 (TypeScript Types)
+- [x] Applied migration `034_code_review_fixes.sql` (2026-01-02)
+- [x] Deployed code changes
+- [x] Continued with Sub-Sprint 11.6 (TypeScript Types)
 
 ---
 
@@ -474,9 +488,10 @@ website: null,  // ❌ Should be: contractor.website
 | BE-5 | `src/app/api/businesses/me/route.ts` | Empty PATCH not rejected |
 | BE-6 | `src/app/api/businesses/me/route.ts` | Sync errors swallowed |
 | PB-2 | `src/app/api/businesses/[slug]/route.ts` | Only checks name, not city/state for "complete" |
-| CR-1 | Migration 033 | city/state stored in both columns AND JSONB |
-| CR-2 | Migration 033 | No validation queries before COMMIT |
-| CR-3 | Migration 033 | Race if concurrent insert during UPDATE |
+| MIG-1 | Migration 033 | city/state stored in both columns AND JSONB |
+| MIG-2 | Migration 033 | No validation queries before COMMIT |
+| MIG-3 | Migration 033 | Race if concurrent insert during UPDATE |
+| MIG-4 | Migration 033 | NAP fields (address/postal_code/phone/website) not backfilled from contractors |
 
 ### Tasks
 
@@ -530,7 +545,7 @@ This allows gradual migration through Sub-Sprints 11.7-11.9 without breaking cha
 ### Files Using Deprecated Types (17 files)
 These will be migrated in subsequent sub-sprints:
 - `/api/contractors/*` routes (11.5 kept for backward compat)
-- `(contractor)` route group pages (11.9)
+- `(dashboard)` route group pages (renamed from `(contractor)` in 11.9)
 - `lib/api/auth.ts`, `lib/data/services.ts` (11.7)
 - `components/chat/*` (11.8)
 - `(public)` pages with contractor lookups (11.10)
@@ -604,7 +619,7 @@ Updated AI prompt terminology for universal portfolio vision:
 
 ### Completed Tasks
 - [x] Renamed `ContractorMobileNav` → `DashboardMobileNav` with deprecation alias
-- [x] Updated `(contractor)/layout.tsx` to query from `businesses` table
+- [x] Updated `(dashboard)/layout.tsx` to query from `businesses` table (renamed in 11.9)
 - [x] Updated `ProjectPublicPreview` to use `business` prop (with backward-compat `contractor` prop)
 - [x] Updated chat component interfaces (`ChatWizard`, `CanvasPanel`, `PreviewOverlay`, `LivePortfolioCanvas`) to use `business` prop
 - [x] Updated `ProjectEditFormArtifact` and `ProjectEditFormPanel` to use `businessId`
@@ -615,7 +630,7 @@ Updated AI prompt terminology for universal portfolio vision:
 | File | Change |
 |------|--------|
 | `src/components/navigation/ContractorMobileNav.tsx` | Renamed to `DashboardMobileNav`, added deprecation alias |
-| `src/app/(contractor)/layout.tsx` | Queries `businesses` table, uses `DashboardMobileNav` |
+| `src/app/(dashboard)/layout.tsx` | Queries `businesses` table, uses `DashboardMobileNav` (renamed in 11.9) |
 | `src/components/portfolio/ProjectPublicPreview.tsx` | Uses `business` prop with backward compat |
 | `src/components/chat/LivePortfolioCanvas.tsx` | Updated `publicPreview` interface |
 | `src/components/chat/ChatWizard.tsx` | Updated `publicPreview` interface |
@@ -623,7 +638,7 @@ Updated AI prompt terminology for universal portfolio vision:
 | `src/components/chat/PreviewOverlay.tsx` | Updated `publicPreview` interface |
 | `src/components/chat/artifacts/ProjectEditFormArtifact.tsx` | Uses `businessId` prop |
 | `src/components/chat/ProjectEditFormPanel.tsx` | Uses `businessId` state |
-| `src/app/(contractor)/projects/[id]/page.tsx` | Uses `business` state |
+| `src/app/(dashboard)/projects/[id]/page.tsx` | Uses `business` state (renamed in 11.9) |
 
 ### Acceptance
 - [x] Build passes (`npm run build` ✅)

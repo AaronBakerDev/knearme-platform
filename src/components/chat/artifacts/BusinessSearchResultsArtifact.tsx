@@ -7,7 +7,7 @@
  */
 
 import { useCallback, type KeyboardEvent } from 'react';
-import { Star, MapPin, Phone, Building2, Check } from 'lucide-react';
+import { Star, MapPin, Phone, Building2, Check, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -24,36 +24,63 @@ function BusinessCard({
   business,
   onSelect,
   index,
+  isSelected,
+  isDimmed,
+  isDisabled,
 }: {
   business: DiscoveredBusiness;
   onSelect: () => void;
   index: number;
+  /** This card was clicked and is being processed */
+  isSelected: boolean;
+  /** Dim this card when another selection is processing */
+  isDimmed: boolean;
+  /** Disable interactions while processing */
+  isDisabled: boolean;
 }) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
+      if (isDisabled) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         onSelect();
       }
     },
-    [onSelect]
+    [onSelect, isDisabled]
   );
+
+  const handleClick = useCallback(() => {
+    if (isDisabled) return;
+    onSelect();
+  }, [onSelect, isDisabled]);
 
   return (
     <Card
       className={cn(
         'group',
-        'cursor-pointer transition-all duration-200 ease-out',
-        'hover:border-primary/50 hover:bg-muted/30 hover:scale-[1.01] hover:shadow-md',
+        'transition-all duration-200 ease-out',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-        'animate-fade-in'
+        'animate-fade-in',
+        // Selected state: highlighted border and ring
+        isSelected && 'border-primary/60 ring-2 ring-primary/25 bg-primary/5 shadow-sm',
+        // Disabled state: muted, no pointer
+        isDisabled && 'cursor-not-allowed pointer-events-none',
+        // Dim unselected cards while processing
+        isDimmed && 'opacity-60',
+        // Normal interactive state (only when not disabled)
+        !isDisabled && [
+          'cursor-pointer',
+          'hover:border-primary/50 hover:bg-muted/30 hover:scale-[1.01] hover:shadow-md',
+        ]
       )}
       style={{ animationDelay: `${index * 0.1}s` }}
-      onClick={onSelect}
+      onClick={handleClick}
       onKeyDown={handleKeyDown}
-      tabIndex={0}
+      tabIndex={isDisabled ? -1 : 0}
       role="button"
       aria-label={`Select ${business.name}${business.address ? ` at ${business.address}` : ''}`}
+      aria-disabled={isDisabled || undefined}
+      aria-busy={isSelected || undefined}
     >
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
@@ -97,9 +124,26 @@ function BusinessCard({
             )}
           </div>
 
-          <div className="flex items-center gap-1 text-primary text-xs font-medium bg-primary/10 px-2.5 py-1 rounded-full transition-colors group-hover:bg-primary/20">
-            <Check className="h-3 w-3" />
-            <span>That&apos;s us</span>
+          {/* Status badge: shows loading spinner when selected, "That's us" otherwise */}
+          <div
+            className={cn(
+              'flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors',
+              isSelected
+                ? 'text-primary bg-primary/20'
+                : 'text-primary bg-primary/10 group-hover:bg-primary/20'
+            )}
+          >
+            {isSelected ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>Confirming...</span>
+              </>
+            ) : (
+              <>
+                <Check className="h-3 w-3" />
+                <span>That&apos;s us</span>
+              </>
+            )}
           </div>
         </div>
       </CardContent>
@@ -114,25 +158,39 @@ export function BusinessSearchResultsArtifact({
 }: BusinessSearchResultsArtifactProps) {
   if (!data?.results?.length) return null;
 
+  // When a business is selected, keep results visible and lock interactions
+  const selectedId = data.selectedId;
+  const isProcessingSelection = Boolean(selectedId);
+
   return (
     <div className={cn('space-y-3 animate-fade-in', className)}>
       <p className="text-sm text-muted-foreground text-center">
         {data.prompt ?? 'Which one is yours?'}
       </p>
 
-      {data.results.map((business, idx) => (
-        <BusinessCard
-          key={business.googlePlaceId || `${business.name}-${idx}`}
-          business={business}
-          index={idx}
-          onSelect={() => onAction?.({ type: 'selectBusiness', payload: business })}
-        />
-      ))}
+      {data.results.map((business, idx) => {
+        const isThisBusinessSelected = isProcessingSelection && business.googlePlaceId === selectedId;
+        const isDimmed = isProcessingSelection && !isThisBusinessSelected;
+        const isDisabled = isProcessingSelection;
+
+        return (
+          <BusinessCard
+            key={business.googlePlaceId || `${business.name}-${idx}`}
+            business={business}
+            index={idx}
+            onSelect={() => onAction?.({ type: 'selectBusiness', payload: business })}
+            isSelected={isThisBusinessSelected}
+            isDimmed={isDimmed}
+            isDisabled={isDisabled}
+          />
+        );
+      })}
 
       <Button
         variant="ghost"
         className="w-full text-muted-foreground hover:text-foreground"
         onClick={() => onAction?.({ type: 'noneOfThese' })}
+        disabled={isProcessingSelection}
       >
         None of these are my business
       </Button>

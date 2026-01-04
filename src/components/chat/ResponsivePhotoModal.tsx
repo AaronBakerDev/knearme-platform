@@ -16,18 +16,10 @@
 
 import { ReactNode } from 'react';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Button
+} from '@/components/ui';
 import { useIsDesktop } from '@/hooks/useMediaQuery';
 
 interface ResponsivePhotoModalProps {

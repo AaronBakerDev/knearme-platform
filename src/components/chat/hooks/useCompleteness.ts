@@ -219,21 +219,3 @@ export function useCompleteness(
   );
 }
 
-// Legacy export for backwards compatibility during migration
-// TODO: Remove after Phase 2 cleanup
-export interface ContentQualityResult {
-  meetsQuality: boolean;
-  issues: string[];
-}
-
-/**
- * @deprecated Quality checking is now informational only.
- * The model decides quality, not character counts.
- */
-export function checkContentQuality(_data: ExtractedProjectData): ContentQualityResult {
-  // Always returns true - model decides quality
-  return {
-    meetsQuality: true,
-    issues: [],
-  };
-}

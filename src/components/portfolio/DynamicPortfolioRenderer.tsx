@@ -42,9 +42,7 @@ import type {
   MaterialsListBlock,
   DividerBlock,
 } from '@/lib/design/semantic-blocks';
-import { SafeImage } from '@/components/ui/safe-image';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { SafeImage, Button, Card, CardContent } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
 // =============================================================================
@@ -75,12 +73,8 @@ interface BlockRendererProps {
   onCtaClick?: (action: 'contact' | 'view-more' | 'share') => void;
 }
 
-// =============================================================================
-// Shimmer Placeholder
-// =============================================================================
-
-const SHIMMER_PLACEHOLDER =
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB2aWV3Qm94PSIwIDAgMSAxIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlNWU3ZWIiLz48L3N2Zz4=';
+// Note: SafeImage component automatically provides shimmer placeholder via
+// its default blurDataURL prop - no need to specify it on each usage.
 
 // =============================================================================
 // Main Component
@@ -316,7 +310,6 @@ function HeroSectionRenderer({
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 1200px"
               priority
-              blurDataURL={SHIMMER_PLACEHOLDER}
             />
           </div>
         );
@@ -338,7 +331,6 @@ function HeroSectionRenderer({
                   className="object-cover"
                   sizes="(max-width: 768px) 33vw, 400px"
                   priority={idx === 0}
-                  blurDataURL={SHIMMER_PLACEHOLDER}
                 />
               </div>
             ))}
@@ -360,7 +352,6 @@ function HeroSectionRenderer({
                 className="object-cover"
                 sizes="(max-width: 768px) 50vw, 600px"
                 priority
-                blurDataURL={SHIMMER_PLACEHOLDER}
               />
             </div>
             <div className={cn('relative aspect-[4/3]', classes.image)}>
@@ -370,7 +361,6 @@ function HeroSectionRenderer({
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 50vw, 600px"
-                blurDataURL={SHIMMER_PLACEHOLDER}
               />
             </div>
           </div>
@@ -431,7 +421,6 @@ function BeforeAfterRenderer({
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 896px"
-            blurDataURL={SHIMMER_PLACEHOLDER}
           />
         </div>
 
@@ -446,7 +435,6 @@ function BeforeAfterRenderer({
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 896px"
-            blurDataURL={SHIMMER_PLACEHOLDER}
           />
         </div>
 
@@ -575,7 +563,6 @@ function ImageGalleryRenderer({
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 896px"
-            blurDataURL={SHIMMER_PLACEHOLDER}
           />
 
           {galleryImages.length > 1 && (
@@ -643,7 +630,6 @@ function ImageGalleryRenderer({
               block.layout === 'masonry' ? 'w-full h-auto rounded-lg' : ''
             )}
             sizes="(max-width: 768px) 50vw, 300px"
-            blurDataURL={SHIMMER_PLACEHOLDER}
           />
           {block.captions?.[img.id] && (
             <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/60 text-white text-xs">
@@ -680,7 +666,6 @@ function TestimonialRenderer({
                   fill
                   className="object-cover"
                   sizes="64px"
-                  blurDataURL={SHIMMER_PLACEHOLDER}
                 />
               </div>
             </div>
@@ -818,7 +803,6 @@ function ProcessStepRenderer({
               fill
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 600px"
-              blurDataURL={SHIMMER_PLACEHOLDER}
             />
           </div>
         )}

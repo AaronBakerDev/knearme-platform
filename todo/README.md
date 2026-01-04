@@ -1,9 +1,9 @@
 # KnearMe Portfolio — Implementation Tasks
 
-> **Current Phase:** Maintenance Mode
-> **Last Completed:** Phase 11 — Business Rename
+> **Current Phase:** Phase 13 — Test Coverage Sprint
+> **Last Completed:** Phase 12 — Service Catalog Migration
 > **Last Updated:** 2026-01-02
-> **Next Up:** Phase 12 — Service Catalog Migration (backlog)
+> **Next Up:** Phase 14 — Agent Polish (low priority)
 
 ## Phase Overview
 
@@ -15,12 +15,19 @@
 | 9 | Philosophy Alignment | ✅ Chat-only complete, infrastructure scrapped |
 | 10 | Parallel Agent Architecture | ✅ Complete (polish items deferred) |
 | 11 | Full Rename: Contractors → Businesses | ✅ Complete (2026-01-02) |
+| 12 | Service Catalog Migration | ✅ Complete (2026-01-02) |
+
+### Current Phase
+
+| Phase | Focus | Status |
+|------:|-------|--------|
+| [Phase 13](./phase-13-test-coverage.md) | Test Coverage Sprint | 🔄 In Progress |
 
 ### Upcoming Phases
 
 | Phase | Focus | Status |
 |------:|-------|--------|
-| [Phase 12](./phase-12-service-catalog-migration.md) | Service Catalog Migration | 📋 Backlog |
+| [Phase 14](./phase-14-agent-polish.md) | Agent Architecture Polish | 📋 Low Priority |
 
 ### Phase 11 Summary (Completed)
 

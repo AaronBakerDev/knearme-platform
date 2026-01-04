@@ -12,9 +12,7 @@
 import { useMemo, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { FileText } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
+import { Input, Textarea, Button } from '@/components/ui';
 import { RichTextEditor } from '@/components/edit/RichTextEditor';
 import { cn } from '@/lib/utils';
 import type { ContentEditorData } from '@/types/artifacts';

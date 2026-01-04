@@ -199,7 +199,7 @@ export async function spawnSubagent<T extends SubagentType>(
       ? DesignAgentResult
       : QualityAgentResult
 > {
-  const startTime = Date.now();
+  const _startTime = Date.now();
 
   // Type alias for the unwrapped return type (async function auto-wraps in Promise)
   type SubagentResultType = T extends 'story'

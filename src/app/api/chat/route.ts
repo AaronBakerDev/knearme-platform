@@ -256,7 +256,7 @@ export async function POST(request: Request) {
       return new Response(JSON.stringify({ error: 'No valid messages provided' }), { status: 400 });
     }
 
-    const { projectId, sessionId, toolChoice } = parsed.data;
+    const { projectId, sessionId, toolChoice: _toolChoice } = parsed.data;
 
     // Best-effort in-memory rate limit to slow abuse on authenticated accounts.
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();

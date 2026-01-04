@@ -20,15 +20,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Menu, Home, Plus, User, Settings, LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+  Button,
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+  Avatar, AvatarFallback
+} from "@/components/ui";
 
 interface DashboardMobileNavProps {
   businessName: string | null;

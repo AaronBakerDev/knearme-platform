@@ -19,7 +19,7 @@ import Link from "next/link";
  * Override default HTML elements with styled React components.
  * These apply to all MDX content rendered in the app.
  */
-export function useMDXComponents(components: MDXComponents): MDXComponents {
+export function getMDXComponents(components: MDXComponents): MDXComponents {
   return {
     // Headings with proper semantic structure
     // Note: Omitting ref from spread to avoid React 19 type incompatibility

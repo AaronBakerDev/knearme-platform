@@ -20,9 +20,7 @@ import Image from 'next/image';
 import { MapPin, Calendar, Wrench, ArrowLeft, Phone, Globe } from 'lucide-react';
 import sanitizeHtml from 'sanitize-html';
 import { createAdminClient } from '@/lib/supabase/server';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Badge, Card, CardContent, Button } from '@/components/ui';
 import { PhotoGallery } from '@/components/portfolio/PhotoGallery';
 import { DescriptionBlocks } from '@/components/portfolio/DescriptionBlocks';
 import { DynamicPortfolioRenderer, type PortfolioImage } from '@/components/portfolio/DynamicPortfolioRenderer';
@@ -36,11 +34,11 @@ import {
   schemaToString,
 } from '@/lib/seo/structured-data';
 import { getPublicUrl } from '@/lib/storage/upload';
-import { sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
+import { sanitizeDescriptionBlocks, hasHtmlTags } from '@/lib/content/description-blocks';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { slugify } from '@/lib/utils/slugify';
 import { isDemoSlug, getDemoProject, getAllDemoProjects, type DemoProject } from '@/lib/data/demo-projects';
-import type { Project, Contractor, ProjectImage } from '@/types/database';
+import type { Project, Business, ProjectImage } from '@/types/database';
 
 type PageParams = {
   params: Promise<{
@@ -99,16 +97,12 @@ export async function generateStaticParams() {
 
 // Type for project with nested relations
 type ProjectWithRelations = Project & {
-  contractor: Contractor;
+  business: Business;
   project_images: ProjectImage[];
   portfolio_layout?: unknown; // JSONB column for AI-generated layouts
 };
 
 const ALLOWED_DESCRIPTION_TAGS = ['p', 'strong', 'em', 'ul', 'ol', 'li', 'br'];
-
-function hasHtmlTags(text: string): boolean {
-  return /<\/?[a-z][\s\S]*>/i.test(text);
-}
 
 function renderDescription(description: string | null | undefined, blocks: unknown) {
   const parsedBlocks = sanitizeDescriptionBlocks(blocks);
@@ -231,7 +225,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     .from('projects')
     .select(`
       *,
-      contractor:contractors(business_name, city, state),
+      business:businesses(name, city, state),
       project_images!project_images_project_id_fkey(storage_path, alt_text, display_order)
     `)
     .eq('slug', slug)
@@ -240,7 +234,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 
   // Type assertion for the query result
   type ProjectWithImages = Project & {
-    contractor: Partial<Contractor>;
+    business: Partial<Business>;
     project_images: Array<{ storage_path: string; alt_text: string | null; display_order: number }>;
   };
   const project = data as ProjectWithImages | null;
@@ -251,7 +245,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     };
   }
 
-  const contractor = project.contractor;
+  const business = project.business;
 
   // Get cover image URL for OG/Twitter (first image by display_order)
   const sortedImages = [...(project.project_images || [])].sort(
@@ -263,7 +257,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     : undefined;
 
   return {
-    title: project.seo_title || `${project.title} | ${contractor?.business_name}`,
+    title: project.seo_title || `${project.title} | ${business?.name}`,
     description: project.seo_description || project.description?.slice(0, 160),
     keywords: project.tags?.join(', '),
     openGraph: {
@@ -385,7 +379,7 @@ export default async function ProjectPage({ params }: PageParams) {
       .from('projects')
       .select(`
         *,
-        contractor:contractors(*),
+        business:businesses(*),
         project_images!project_images_project_id_fkey(*)
       `)
       .eq('slug', slug)
@@ -400,7 +394,7 @@ export default async function ProjectPage({ params }: PageParams) {
       notFound();
     }
 
-    const contractor = project.contractor;
+    const business = project.business;
     const images = project.project_images.sort(
       (a, b) => a.display_order - b.display_order
     );
@@ -434,7 +428,7 @@ export default async function ProjectPage({ params }: PageParams) {
       portfolio_layout: parsedLayout,
       city: project.city || '',
       neighborhood: project.neighborhood ?? undefined,
-      state: project.state ?? contractor.state ?? '',
+      state: project.state ?? business.state ?? '',
       project_type: project.project_type || '',
       tags: project.tags || [],
       materials: project.materials || [],
@@ -443,18 +437,18 @@ export default async function ProjectPage({ params }: PageParams) {
       published_at: project.published_at,
     };
     contractorData = {
-      id: contractor.id,
-      profile_slug: contractor.profile_slug || contractor.id,
-      business_name: contractor.business_name || '',
-      city: contractor.city || '',
-      city_slug: contractor.city_slug || '',
-      state: contractor.state || '',
-      services: contractor.services || [],
-      profile_photo_url: contractor.profile_photo_url ?? undefined,
-      address: contractor.address ?? null,
-      postal_code: contractor.postal_code ?? null,
-      phone: contractor.phone ?? null,
-      website: contractor.website ?? null,
+      id: business.id,
+      profile_slug: business.slug || business.id,
+      business_name: business.name || '',
+      city: business.city || '',
+      city_slug: business.city_slug || '',
+      state: business.state || '',
+      services: business.services || [],
+      profile_photo_url: business.profile_photo_url ?? undefined,
+      address: business.address ?? null,
+      postal_code: business.postal_code ?? null,
+      phone: business.phone ?? null,
+      website: business.website ?? null,
     };
     imagesData = images.map((img) => ({
       id: img.id,
@@ -464,7 +458,7 @@ export default async function ProjectPage({ params }: PageParams) {
       height: img.height || undefined,
     }));
 
-    projectSchema = generateProjectSchema(project, contractor, images);
+    projectSchema = generateProjectSchema(project, business, images);
 
     // Fetch related projects
     relatedProjects = await fetchRelatedProjects(supabase, {

@@ -1,30 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-  navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+  Button,
+  NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink,
+  NavigationMenuList, NavigationMenuTrigger, navigationMenuTriggerStyle,
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger
+} from "@/components/ui";
 import { Menu, Hammer, BookOpen, Building2, Calculator, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -80,14 +64,14 @@ function NavItem({
 
 export function SiteHeaderClient({ isAuthenticated, hasCompleteProfile }: SiteHeaderClientProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [authState, setAuthState] = useState({
-    isAuthenticated,
-    hasCompleteProfile,
-  });
-
-  useEffect(() => {
-    setAuthState({ isAuthenticated, hasCompleteProfile });
-  }, [isAuthenticated, hasCompleteProfile]);
+  const baseAuthState = useMemo(
+    () => ({ isAuthenticated, hasCompleteProfile }),
+    [isAuthenticated, hasCompleteProfile]
+  );
+  const [sessionAuthState, setSessionAuthState] = useState<{
+    isAuthenticated: boolean;
+    hasCompleteProfile: boolean;
+  } | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -96,20 +80,32 @@ export function SiteHeaderClient({ isAuthenticated, hasCompleteProfile }: SiteHe
     const resolveProfileCompletion = async (userId: string) => {
       // Type assertion needed due to RLS type inference issues
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: contractor, error } = await (supabase as any)
-        .from("contractors")
-        .select("business_name, city, services")
+      const { data: business, error } = await (supabase as any)
+        .from("businesses")
+        .select("name, city, state, services, address, phone")
         .eq("auth_user_id", userId)
         .maybeSingle();
 
       if (error) {
-        console.error("[SiteHeader] Failed to load contractor profile:", error);
+        console.error("[SiteHeader] Failed to load business profile:", error);
         return false;
       }
 
-      const profile = contractor as { business_name?: string; city?: string; services?: string[] } | null;
+      const profile = business as {
+        name?: string;
+        city?: string;
+        state?: string;
+        services?: string[];
+        address?: string;
+        phone?: string;
+      } | null;
       return Boolean(
-        profile?.business_name && profile?.city && profile?.services?.length
+        profile?.name &&
+          profile?.city &&
+          profile?.state &&
+          profile?.services?.length &&
+          profile?.address &&
+          profile?.phone
       );
     };
 
@@ -119,7 +115,7 @@ export function SiteHeaderClient({ isAuthenticated, hasCompleteProfile }: SiteHe
       if (!isMounted) return;
 
       if (!session) {
-        setAuthState({ isAuthenticated: false, hasCompleteProfile: false });
+        setSessionAuthState({ isAuthenticated: false, hasCompleteProfile: false });
         return;
       }
 
@@ -127,7 +123,7 @@ export function SiteHeaderClient({ isAuthenticated, hasCompleteProfile }: SiteHe
 
       if (!isMounted) return;
 
-      setAuthState({ isAuthenticated: true, hasCompleteProfile });
+      setSessionAuthState({ isAuthenticated: true, hasCompleteProfile });
     };
 
     syncSession();
@@ -137,7 +133,7 @@ export function SiteHeaderClient({ isAuthenticated, hasCompleteProfile }: SiteHe
         if (!isMounted) return;
 
         if (!session) {
-          setAuthState({ isAuthenticated: false, hasCompleteProfile: false });
+          setSessionAuthState({ isAuthenticated: false, hasCompleteProfile: false });
           return;
         }
 
@@ -145,7 +141,7 @@ export function SiteHeaderClient({ isAuthenticated, hasCompleteProfile }: SiteHe
 
         if (!isMounted) return;
 
-        setAuthState({ isAuthenticated: true, hasCompleteProfile });
+        setSessionAuthState({ isAuthenticated: true, hasCompleteProfile });
       }
     );
 
@@ -155,6 +151,7 @@ export function SiteHeaderClient({ isAuthenticated, hasCompleteProfile }: SiteHe
     };
   }, []);
 
+  const authState = sessionAuthState ?? baseAuthState;
   const primaryCta = authState.isAuthenticated
     ? authState.hasCompleteProfile
       ? { href: "/dashboard", label: "Go to Dashboard" }

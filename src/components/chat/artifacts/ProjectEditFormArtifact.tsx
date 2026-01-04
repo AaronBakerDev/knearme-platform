@@ -18,19 +18,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { Save, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+  Button, Input, Textarea,
+  Tabs, TabsContent, TabsList, TabsTrigger,
+  Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage
+} from '@/components/ui';
 import { TagEditor } from '@/components/edit/TagEditor';
 import { ChipEditor } from '@/components/edit/ChipEditor';
 import { SortableImageGrid } from '@/components/edit/SortableImageGrid';

@@ -92,6 +92,13 @@ interface RenderableToolPart {
   errorText?: string;
 }
 
+interface SourcePart {
+  type: 'source-url';
+  sourceId: string;
+  url: string;
+  title?: string;
+}
+
 /**
  * Check if a part is a tool part (has tool- prefix and required fields).
  */
@@ -167,6 +174,25 @@ function getGenericToolParts(message: UIMessage): RenderableToolPart[] {
     }
   }
   return toolParts;
+}
+
+/**
+ * Extract source URL parts from a UIMessage for grounding display.
+ */
+function getSourceParts(message: UIMessage): SourcePart[] {
+  if (!message.parts || !Array.isArray(message.parts)) {
+    return [];
+  }
+
+  return message.parts.filter((part): part is SourcePart => {
+    if (!part || typeof part !== 'object') return false;
+    const obj = part as Record<string, unknown>;
+    return (
+      obj.type === 'source-url' &&
+      typeof obj.url === 'string' &&
+      typeof obj.sourceId === 'string'
+    );
+  });
 }
 
 /**
@@ -345,6 +371,7 @@ export function ChatMessages({
           const text = getMessageText(message);
           const artifactParts = getArtifactToolParts(message);
           const genericParts = getGenericToolParts(message);
+          const sourceParts = getSourceParts(message);
 
           // Skip completely empty messages (no text, no tools)
           if (!text && artifactParts.length === 0 && genericParts.length === 0) return null;
@@ -394,6 +421,29 @@ export function ChatMessages({
                   />
                 );
               })()}
+
+              {/* Grounding sources (if provided) */}
+              {message.role === 'assistant' && sourceParts.length > 0 && (
+                <div className="rounded-lg border border-muted/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground/80">
+                    Sources
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {sourceParts.map((source) => (
+                      <li key={source.sourceId}>
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="underline underline-offset-2 hover:text-foreground"
+                        >
+                          {source.title ?? source.url}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Artifact parts (specialized tool rendering) */}
               {artifactParts.map((part, index) => (

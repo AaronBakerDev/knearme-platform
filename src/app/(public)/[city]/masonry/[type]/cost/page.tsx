@@ -15,12 +15,10 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { MapPin } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/server'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent, Badge, Button } from '@/components/ui'
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs'
 import { MasonryCostEstimatorWidget } from '@/components/tools/MasonryCostEstimatorWidget'
-import { MASONRY_SERVICES, type ServiceId } from '@/lib/constants/services'
+import { getServiceById } from '@/lib/services'
 
 type PageParams = {
   params: Promise<{
@@ -66,7 +64,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 export default async function CityMasonryCostPage({ params }: PageParams) {
   const { city, type } = await params
 
-  const service = MASONRY_SERVICES.find((s) => s.id === type)
+  const service = await getServiceById(type)
   if (!service) notFound()
 
   // Ensure the city exists; otherwise 404. We only need the slug check.
@@ -85,8 +83,8 @@ export default async function CityMasonryCostPage({ params }: PageParams) {
     { name: 'Home', url: '/' },
     { name: cityName, url: `/${city}` },
     { name: 'Masonry', url: `/${city}/masonry` },
-    { name: service.label, url: `/${city}/masonry/${service.id}` },
-    { name: 'Cost', url: `/${city}/masonry/${service.id}/cost` },
+    { name: service.label, url: `/${city}/masonry/${service.serviceId}` },
+    { name: 'Cost', url: `/${city}/masonry/${service.serviceId}/cost` },
   ]
 
   return (
@@ -127,7 +125,7 @@ export default async function CityMasonryCostPage({ params }: PageParams) {
           </Card>
 
           {/* Embedded estimator */}
-          <MasonryCostEstimatorWidget initialServiceId={service.id as ServiceId} />
+          <MasonryCostEstimatorWidget initialServiceId={service.serviceId} />
 
           <Card className='border-0 shadow-sm'>
             <CardContent className='p-6 md:p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4'>
@@ -139,10 +137,10 @@ export default async function CityMasonryCostPage({ params }: PageParams) {
               </div>
               <div className='flex flex-wrap gap-3'>
                 <Button asChild className='rounded-full'>
-                  <Link href={`/${city}/masonry/${service.id}#find-contractors`}>Find local pros</Link>
+                  <Link href={`/${city}/masonry/${service.serviceId}#find-contractors`}>Find local pros</Link>
                 </Button>
                 <Button asChild variant='outline' className='rounded-full'>
-                  <Link href={`/${city}/masonry/${service.id}`}>See projects</Link>
+                  <Link href={`/${city}/masonry/${service.serviceId}`}>See projects</Link>
                 </Button>
               </div>
             </CardContent>

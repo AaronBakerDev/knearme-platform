@@ -80,10 +80,20 @@ export * from './subagents';
 export {
   runDiscoveryAgent,
   createEmptyDiscoveryState,
+  buildDiscoverySystemPrompt,
   isDiscoveryComplete,
   getMissingDiscoveryFields,
   getDiscoveryGreeting,
+  processDiscoveryToolCalls,
+  discoveryTools,
   type DiscoveryState,
   type DiscoveryResult,
   type DiscoveryContext,
 } from './discovery';
+
+export {
+  runWebSearchAgent,
+  type WebSearchAgentInput,
+  type WebSearchAgentResult,
+  type WebSearchSource,
+} from './web-search';

@@ -44,6 +44,7 @@ const DEFAULT_ERRORS: Record<ArtifactType, string> = {
   validateForPublish: 'Could not validate publish readiness.',
   generatePortfolioContent: 'Could not generate portfolio content.',
   showBusinessSearchResults: 'Could not search for business.',
+  showProfileReveal: 'Could not show profile reveal.',
   composePortfolioLayout: 'Could not compose portfolio layout.',
   checkPublishReady: 'Could not check publish readiness.',
 };

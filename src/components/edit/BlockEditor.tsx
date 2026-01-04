@@ -2,16 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Button, Input, Textarea,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui';
 import { cn } from '@/lib/utils';
 import {
   blocksToPlainText,

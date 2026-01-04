@@ -13,7 +13,7 @@
  * @see /docs/philosophy/implementation-roadmap.md - Phase 0: Foundation
  */
 
-import type { ExtractedProjectData, GeneratedContent } from './chat-types';
+import type { ExtractedProjectData } from './chat-types';
 import type { SharedProjectState } from '@/lib/agents/types';
 
 // =============================================================================

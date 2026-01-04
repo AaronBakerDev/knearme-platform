@@ -21,21 +21,17 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Loader2, Eye, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+  Button, Badge,
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
+} from '@/components/ui';
 import { ChatWizard } from '@/components/chat';
 import { ProjectEditFormArtifact } from '@/components/chat/artifacts/ProjectEditFormArtifact';
 import { PublishSuccessModal } from '@/components/publish/PublishSuccessModal';
 import { useCompleteness } from '@/components/chat/hooks';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { resolveProjectImageUrl } from '@/lib/storage/project-images';
-import type { Business, Contractor, ProjectWithImages, ProjectImage } from '@/types/database';
+import type { Business, ProjectWithImages, ProjectImage } from '@/types/database';
 import type { RelatedProject } from '@/lib/data/projects';
 import type { ExtractedProjectData } from '@/lib/chat/chat-types';
 

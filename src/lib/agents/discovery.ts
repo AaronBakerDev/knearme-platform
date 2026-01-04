@@ -20,7 +20,7 @@
  * @see /docs/philosophy/implementation-roadmap.md - Phase 1 requirements
  */
 
-import { generateText, tool } from 'ai';
+import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 import { getChatModel, isGoogleAIEnabled } from '@/lib/ai/providers';
 import { searchBusinesses, type DiscoveredBusiness } from '@/lib/tools/business-discovery';
@@ -30,6 +30,11 @@ import {
   createCorrelationContext,
   type CorrelationContext,
 } from '@/lib/observability/agent-logger';
+import {
+  runWebSearchAgent,
+  type WebSearchAgentResult,
+  type WebSearchSource,
+} from './web-search';
 
 // =============================================================================
 // Types
@@ -98,8 +103,8 @@ export interface DiscoveryResult {
   /** Whether to show search results in UI */
   showSearchResults?: boolean;
 
-  /** Whether user requested fallback to form */
-  requestedFallback?: boolean;
+  /** Grounding sources to display alongside the response */
+  sources?: WebSearchSource[];
 
   /** Whether onboarding is complete */
   isComplete?: boolean;
@@ -139,10 +144,11 @@ const DISCOVERY_PERSONA = `You are a friendly, curious onboarding assistant help
 - Celebrate what makes them unique
 
 **Your Tools:**
-- Use \`searchBusiness\` when you know their business name and location to find their Google listing
+- Use \`showBusinessSearchResults\` when you know their business name and location to find their Google listing
+- If business lookup fails or returns no matches, use \`webSearchBusiness\` to find their business online
 - Use \`confirmBusiness\` when they select or confirm a business from search results
 - Use \`saveProfile\` when you have enough information to complete their profile
-- Use \`requestFallback\` if they explicitly ask to use a form instead
+- Use \`showProfileReveal\` IMMEDIATELY after saveProfile to show a celebratory summary of their business
 
 **Required Information:**
 You need to gather (in order of importance):
@@ -164,19 +170,20 @@ Nice to have:
 - When you have a name and general location, search to see if they're on Google
 - If you find matches, present them conversationally (not as a numbered list)
 - Confirm their info and fill in any gaps through natural conversation
-- When complete, let them know they're all set
+- When complete: call saveProfile, then IMMEDIATELY call showProfileReveal with a celebratory message
+- The reveal is the "wow" moment—make them feel proud of their business!
 
 **Important:**
 - Never mention DataForSEO, APIs, or technical details
 - Frame search results as "I found your business on Google" not "search returned"
-- If they seem frustrated or want to skip ahead, offer the form fallback
+- If they seem frustrated, be patient and supportive—help them through the process
 - Keep responses concise—this isn't an interrogation`;
 
 // =============================================================================
 // Tool Schemas
 // =============================================================================
 
-const searchBusinessSchema = z.object({
+const showBusinessSearchResultsSchema = z.object({
   businessName: z.string().describe('The business name to search for'),
   location: z.string().describe('City and state/province (e.g., "Denver, CO")'),
 });
@@ -204,8 +211,22 @@ const saveProfileSchema = z.object({
   serviceAreas: z.array(z.string()).optional().describe('Service areas'),
 });
 
-const requestFallbackSchema = z.object({
-  reason: z.string().optional().describe('Why they want to switch'),
+const webSearchBusinessSchema = z.object({
+  businessName: z.string().describe('Business name to search for'),
+  location: z.string().optional().describe('City and state/province (e.g., "Denver, CO")'),
+});
+
+const showProfileRevealSchema = z.object({
+  businessName: z.string().describe('The business name'),
+  address: z.string().describe('Full street address'),
+  city: z.string().describe('City'),
+  state: z.string().describe('State/province code'),
+  phone: z.string().optional().describe('Phone number'),
+  website: z.string().optional().describe('Website URL'),
+  services: z.array(z.string()).describe('List of services offered'),
+  rating: z.number().optional().describe('Google rating (1-5)'),
+  reviewCount: z.number().optional().describe('Number of Google reviews'),
+  celebrationMessage: z.string().describe('A short, enthusiastic message celebrating the business (1-2 sentences)'),
 });
 
 // =============================================================================
@@ -225,6 +246,7 @@ interface SearchBusinessResult {
     category: string | null;
     googlePlaceId: string | null;
     googleCid: string | null;
+    coordinates: { lat: number; lng: number } | null;
   }>;
   error?: boolean;
 }
@@ -258,10 +280,23 @@ interface SaveProfileResult {
   };
 }
 
-interface RequestFallbackResult {
-  fallbackRequested: boolean;
-  reason?: string;
+interface ProfileRevealResult {
+  revealed: boolean;
+  profile: {
+    businessName: string;
+    address: string;
+    city: string;
+    state: string;
+    phone?: string;
+    website?: string;
+    services: string[];
+    rating?: number;
+    reviewCount?: number;
+    celebrationMessage: string;
+  };
 }
+
+type WebSearchBusinessResult = WebSearchAgentResult;
 
 // =============================================================================
 // Tool Definitions
@@ -270,8 +305,8 @@ interface RequestFallbackResult {
 /**
  * Execute search business
  */
-async function executeSearchBusiness(
-  params: z.infer<typeof searchBusinessSchema>
+async function executeShowBusinessSearchResults(
+  params: z.infer<typeof showBusinessSearchResultsSchema>
 ): Promise<SearchBusinessResult> {
   try {
     const results = await searchBusinesses(params.businessName, params.location, 5);
@@ -297,6 +332,7 @@ async function executeSearchBusiness(
         category: r.category,
         googlePlaceId: r.googlePlaceId,
         googleCid: r.googleCid,
+        coordinates: r.coordinates ?? null,
       })),
     };
   } catch (error) {
@@ -353,22 +389,10 @@ async function executeSaveProfile(
   };
 }
 
-/**
- * Execute request fallback
- */
-async function executeRequestFallback(
-  params: z.infer<typeof requestFallbackSchema>
-): Promise<RequestFallbackResult> {
-  return {
-    fallbackRequested: true,
-    reason: params.reason,
-  };
-}
-
-const searchBusinessTool = tool({
+const showBusinessSearchResultsTool = tool({
   description: 'Search for a business by name and location to find their Google listing',
-  inputSchema: searchBusinessSchema,
-  execute: executeSearchBusiness,
+  inputSchema: showBusinessSearchResultsSchema,
+  execute: executeShowBusinessSearchResults,
 });
 
 const confirmBusinessTool = tool({
@@ -383,11 +407,53 @@ const saveProfileTool = tool({
   execute: executeSaveProfile,
 });
 
-const requestFallbackTool = tool({
-  description: 'User wants to use the traditional form instead of conversation',
-  inputSchema: requestFallbackSchema,
-  execute: executeRequestFallback,
+const webSearchBusinessTool = tool({
+  description: 'Use web search to find a business online when listing lookup fails',
+  inputSchema: webSearchBusinessSchema,
+  execute: async (params) => {
+    const query = params.location
+      ? `${params.businessName} ${params.location}`
+      : params.businessName;
+    return runWebSearchAgent({ query });
+  },
 });
+
+/**
+ * Execute profile reveal - shows a celebratory summary after profile is saved
+ */
+async function executeShowProfileReveal(
+  params: z.infer<typeof showProfileRevealSchema>
+): Promise<ProfileRevealResult> {
+  return {
+    revealed: true,
+    profile: {
+      businessName: params.businessName,
+      address: params.address,
+      city: params.city,
+      state: params.state,
+      phone: params.phone,
+      website: params.website,
+      services: params.services,
+      rating: params.rating,
+      reviewCount: params.reviewCount,
+      celebrationMessage: params.celebrationMessage,
+    },
+  };
+}
+
+const showProfileRevealTool = tool({
+  description: 'Show a celebratory profile summary after saving. Call this AFTER saveProfile to reveal what was gathered and celebrate the business.',
+  inputSchema: showProfileRevealSchema,
+  execute: executeShowProfileReveal,
+});
+
+export const discoveryTools = {
+  showBusinessSearchResults: showBusinessSearchResultsTool,
+  confirmBusiness: confirmBusinessTool,
+  saveProfile: saveProfileTool,
+  webSearchBusiness: webSearchBusinessTool,
+  showProfileReveal: showProfileRevealTool,
+};
 
 // =============================================================================
 // Discovery Agent
@@ -462,11 +528,10 @@ export async function runDiscoveryAgent(
   // Check AI availability
   if (!isGoogleAIEnabled()) {
     return {
-      message: "I'm having trouble connecting right now. Would you like to use the form instead?",
+      message: "I'm having trouble connecting right now. Please try again in a moment.",
       state: context.currentState
         ? { ...createEmptyDiscoveryState(), ...context.currentState }
         : createEmptyDiscoveryState(),
-      requestedFallback: true,
     };
   }
 
@@ -497,44 +562,98 @@ export async function runDiscoveryAgent(
         model: getChatModel(),
         system: `${DISCOVERY_PERSONA}\n\n${stateContext}`,
         messages,
-        tools: {
-          searchBusiness: searchBusinessTool,
-          confirmBusiness: confirmBusinessTool,
-          saveProfile: saveProfileTool,
-          requestFallback: requestFallbackTool,
-        },
-        // Single-step tool execution - conversation turns handle the flow
+        tools: discoveryTools,
+        // Allow multiple steps so the agent can handle tool calls and respond.
+        stopWhen: stepCountIs(3),
       });
     });
 
     // Process tool calls and build updated state
-    const updatedState = processToolCalls(currentState, result.toolResults);
-
-    // Check for fallback request
-    const fallbackRequested = result.toolResults?.some(
-      (tr) => tr.toolName === 'requestFallback' && (tr as { result?: RequestFallbackResult }).result?.fallbackRequested
-    );
+    const updatedState = processDiscoveryToolCalls(currentState, result.toolResults);
 
     // Check for profile save (completion)
     const profileSaved = result.toolResults?.some(
-      (tr) => tr.toolName === 'saveProfile' && (tr as { result?: SaveProfileResult }).result?.saved
+      (tr) => tr.toolName === 'saveProfile' && (tr as { output?: SaveProfileResult }).output?.saved
     );
 
     // Update completeness
     updatedState.isComplete = isDiscoveryComplete(updatedState);
     updatedState.missingFields = getMissingDiscoveryFields(updatedState);
 
+    let responseText = result.text;
+    const toolNames = new Set(result.toolResults?.map((tr) => tr.toolName) || []);
+    let responseSources = extractWebSearchSources(result.toolResults);
+    const dataForSeoFailed = result.toolResults?.some((tr) => {
+      if (tr.toolName !== 'showBusinessSearchResults') return false;
+      const searchResult = tr.output as SearchBusinessResult | undefined;
+      return Boolean(searchResult?.error);
+    });
+    const usedWebSearch = toolNames.has('webSearchBusiness');
+
+    if (dataForSeoFailed && !usedWebSearch) {
+      const searchNote = [
+        'The DataForSEO business lookup failed.',
+        'Use webSearchBusiness to find the business online instead.',
+        'Summarize what you found and ask the next best question.',
+      ].join(' ');
+
+      const searchResult = await withCircuitBreaker('discovery', async () => {
+        return generateText({
+          model: getChatModel(),
+          system: `${DISCOVERY_PERSONA}\n\n${stateContext}\n\n**Search Note:** ${searchNote}`,
+          messages,
+          tools: {
+            webSearchBusiness: webSearchBusinessTool,
+          },
+          toolChoice: { type: 'tool', toolName: 'webSearchBusiness' },
+          stopWhen: stepCountIs(3),
+        });
+      });
+
+      if (searchResult.text && searchResult.text.trim().length > 0) {
+        responseText = searchResult.text;
+      }
+
+      searchResult.toolResults?.forEach((tr) => toolNames.add(tr.toolName));
+      const fallbackSources = extractWebSearchSources(searchResult.toolResults);
+      if (fallbackSources.length > 0) {
+        responseSources = fallbackSources;
+      }
+    }
+
+    const shouldRetry = !responseText || responseText.trim().length === 0;
+
+    if (shouldRetry) {
+      const retryNote = [
+        'The previous step returned no user-facing response.',
+        'Continue the conversation without calling tools.',
+        'Ask the next most useful question in one short sentence.',
+      ].join(' ');
+
+      const retryResult = await withCircuitBreaker('discovery', async () => {
+        return generateText({
+          model: getChatModel(),
+          system: `${DISCOVERY_PERSONA}\n\n${stateContext}\n\n**Retry Note:** ${retryNote}`,
+          messages,
+          toolChoice: 'none',
+          stopWhen: stepCountIs(1),
+        });
+      });
+
+      responseText = retryResult.text;
+    }
+
     logger.complete({
-      responseLength: result.text.length,
-      toolsUsed: result.toolResults?.map((tr) => tr.toolName) || [],
+      responseLength: responseText.length,
+      toolsUsed: Array.from(toolNames),
       isComplete: updatedState.isComplete,
     });
 
     return {
-      message: result.text,
+      message: responseText,
       state: updatedState,
       showSearchResults: updatedState.searchResults && updatedState.searchResults.length > 0,
-      requestedFallback: fallbackRequested,
+      sources: responseSources,
       isComplete: profileSaved || updatedState.isComplete,
     };
   } catch (error) {
@@ -542,9 +661,8 @@ export async function runDiscoveryAgent(
 
     return {
       message:
-        "I'm having a bit of trouble right now. Would you like to try the form instead? I can transfer what we've talked about so far.",
+        "I'm having a bit of trouble right now. Let's try that again—what were you saying?",
       state: currentState as DiscoveryState,
-      requestedFallback: true,
     };
   }
 }
@@ -552,6 +670,22 @@ export async function runDiscoveryAgent(
 // =============================================================================
 // Helpers
 // =============================================================================
+
+function extractWebSearchSources(toolResults?: DiscoveryToolResult[]): WebSearchSource[] {
+  if (!toolResults) return [];
+  for (const result of toolResults) {
+    if (result.toolName !== 'webSearchBusiness') continue;
+    const output = result.output as WebSearchBusinessResult | undefined;
+    if (output?.sources && output.sources.length > 0) {
+      return output.sources;
+    }
+  }
+  return [];
+}
+
+export function buildDiscoverySystemPrompt(state: Partial<DiscoveryState>): string {
+  return `${DISCOVERY_PERSONA}\n\n${buildStateContext(state)}`;
+}
 
 /**
  * Build context string from current state for the system prompt
@@ -599,30 +733,37 @@ function buildStateContext(state: Partial<DiscoveryState>): string {
 /**
  * Tool result with proper typing
  */
-interface TypedToolResult {
+interface DiscoveryToolResult {
   toolName: string;
-  result?: unknown;
+  output?: unknown;
 }
 
 /**
  * Process tool results and update state
  */
-function processToolCalls(
+export function processDiscoveryToolCalls(
   currentState: Partial<DiscoveryState>,
-  toolResults?: TypedToolResult[]
+  toolResults?: DiscoveryToolResult[]
 ): DiscoveryState {
   const state: DiscoveryState = {
     ...createEmptyDiscoveryState(),
     ...currentState,
   };
 
-  if (!toolResults) return state;
+  if (!toolResults || toolResults.length === 0) {
+    state.searchResults = undefined;
+    return state;
+  }
+
+  let hasSearchResults = false;
 
   for (const tr of toolResults) {
     switch (tr.toolName) {
+      case 'showBusinessSearchResults':
       case 'searchBusiness': {
-        const result = tr.result as SearchBusinessResult | undefined;
+        const result = tr.output as SearchBusinessResult | undefined;
         if (result?.found && result.results) {
+          hasSearchResults = true;
           state.searchResults = result.results.map((r) => ({
             name: r.name,
             address: r.address,
@@ -640,7 +781,7 @@ function processToolCalls(
       }
 
       case 'confirmBusiness': {
-        const result = tr.result as ConfirmBusinessResult | undefined;
+        const result = tr.output as ConfirmBusinessResult | undefined;
         if (result?.confirmed && result.data) {
           if (result.data.googlePlaceId) state.googlePlaceId = result.data.googlePlaceId;
           if (result.data.businessName) state.businessName = result.data.businessName;
@@ -667,7 +808,7 @@ function processToolCalls(
       }
 
       case 'saveProfile': {
-        const result = tr.result as SaveProfileResult | undefined;
+        const result = tr.output as SaveProfileResult | undefined;
         if (result?.saved && result.profile) {
           if (result.profile.businessName) state.businessName = result.profile.businessName;
           if (result.profile.address) state.address = result.profile.address;
@@ -683,6 +824,10 @@ function processToolCalls(
         break;
       }
     }
+  }
+
+  if (!hasSearchResults) {
+    state.searchResults = undefined;
   }
 
   return state;

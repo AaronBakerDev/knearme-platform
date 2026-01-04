@@ -22,9 +22,10 @@ import {
   Maximize2,
   Minimize2,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Button, Tabs, TabsList, TabsTrigger,
+  Tooltip, TooltipContent, TooltipTrigger
+} from '@/components/ui';
 import { LivePortfolioCanvas } from './LivePortfolioCanvas';
 import { cn } from '@/lib/utils';
 import type { ProjectPreviewData } from './hooks/useProjectData';

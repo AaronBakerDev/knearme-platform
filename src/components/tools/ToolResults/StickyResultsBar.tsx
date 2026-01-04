@@ -2,13 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { ChevronUp, ChevronDown, Share2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
+  Button,
+  Sheet, SheetContent, SheetHeader, SheetTitle
+} from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 export interface StickyResultsBarProps {

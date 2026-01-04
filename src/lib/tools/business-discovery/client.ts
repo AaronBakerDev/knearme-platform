@@ -19,9 +19,6 @@ import type {
   GoogleReviewsResult,
   DiscoveredBusiness,
   DiscoveredProfileData,
-  US_STATE_NAMES,
-  CANADA_PROVINCE_NAMES,
-  COUNTRY_NAMES,
 } from './types';
 
 const BASE_URL = 'https://api.dataforseo.com/v3';

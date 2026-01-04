@@ -1,5 +1,8 @@
 # Repository Guidelines
 
+## ExecPlans
+When writing complex features or significant refactors, use an ExecPlan (see `PLANS.md` at the repository root). Start from `EXECPLAN_TEMPLATE.md` and keep the plan updated as a living document.
+
 ## Project Structure & Modules
 - App entry and routing live in `src/app`, with feature routes under folders like `(auth)`, `(contractor)`, and `(public)`.
 - Reusable UI and feature components are in `src/components` (for example `src/components/portfolio`, `src/components/forms`, `src/components/ui`).

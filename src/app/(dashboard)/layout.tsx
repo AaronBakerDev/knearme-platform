@@ -1,15 +1,10 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Button, Avatar, AvatarFallback,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
+} from '@/components/ui';
 import { PushNotificationPrompt } from '@/components/pwa/PushNotificationPrompt';
 import { AppProgressBar } from '@/components/navigation/app-progress-bar';
 import { DashboardMobileNav } from '@/components/navigation/ContractorMobileNav';

@@ -2,10 +2,10 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowRight, CheckCircle2, Mail, Shield } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import {
+  Button, Badge, Separator,
+  Card, CardContent, CardDescription, CardHeader, CardTitle
+} from '@/components/ui';
 import { PushNotificationSettings } from '@/components/settings/PushNotificationSettings';
 
 export default async function SettingsPage() {

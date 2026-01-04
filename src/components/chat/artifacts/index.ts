@@ -12,6 +12,7 @@ export { ProjectDataCard } from './ProjectDataCard';
 export { ImageGalleryArtifact } from './ImageGalleryArtifact';
 export { ContentEditor } from './ContentEditor';
 export { BusinessSearchResultsArtifact } from './BusinessSearchResultsArtifact';
+export { ProfileRevealArtifact } from './ProfileRevealArtifact';
 
 // Shared components
 export { ArtifactSkeleton } from './shared/ArtifactSkeleton';

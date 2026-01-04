@@ -612,7 +612,12 @@ export interface ValidateForPublishOutput {
  * @see /src/lib/chat/tools-runtime.ts updateContractorProfile executor
  */
 const contractorProfileStringFields = [
+  // Business-first fields
+  'name',
+  'slug',
+  // Legacy contractor fields (still accepted for compatibility)
   'business_name',
+  'profile_slug',
   'address',
   'postal_code',
   'phone',
@@ -682,6 +687,123 @@ export interface UpdateContractorProfileOutput {
   reason?: string;
   error?: string;
 }
+
+// ============================================================================
+// MCP Portfolio Tool Schemas (Shared)
+// ============================================================================
+
+export const createProjectDraftSchema = z.object({
+  title: z.string().optional(),
+  project_type: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  summary: z.string().optional(),
+  challenge: z.string().optional(),
+  solution: z.string().optional(),
+  results: z.string().optional(),
+  outcome_highlights: z.array(z.string()).optional(),
+});
+
+export const addProjectMediaSchema = z
+  .object({
+    project_id: z.string().uuid(),
+    files: z
+      .array(
+        z.object({
+          file_id: z.string(),
+          filename: z.string(),
+          content_type: z.string(),
+          image_type: z.enum(['before', 'after', 'progress', 'detail']).optional(),
+          alt_text: z.string().optional(),
+          display_order: z.number().int().min(0).optional(),
+          width: z.number().int().positive().optional(),
+          height: z.number().int().positive().optional(),
+        })
+      )
+      .min(1)
+      .max(10)
+      .optional(),
+    images: z
+      .array(
+        z.object({
+          url: z.string().url(),
+          filename: z.string().optional(),
+          image_type: z.enum(['before', 'after', 'progress', 'detail']).optional(),
+          alt_text: z.string().optional(),
+        })
+      )
+      .min(1)
+      .max(10)
+      .optional(),
+  })
+  .refine((data) => (data.files && data.files.length > 0) || (data.images && data.images.length > 0), {
+    message: 'files or images required',
+  });
+
+export const reorderProjectMediaSchema = z.object({
+  project_id: z.string().uuid(),
+  image_ids: z.array(z.string().uuid()),
+});
+
+export const setProjectHeroMediaSchema = z.object({
+  project_id: z.string().uuid(),
+  hero_image_id: z.string().uuid(),
+});
+
+export const setProjectMediaLabelsSchema = z.object({
+  project_id: z.string().uuid(),
+  labels: z.array(
+    z.object({
+      image_id: z.string().uuid(),
+      image_type: z.enum(['before', 'after', 'progress', 'detail']).nullable().optional(),
+      alt_text: z.string().nullable().optional(),
+    })
+  ),
+});
+
+export const updateProjectSectionsSchema = z.object({
+  project_id: z.string().uuid(),
+  summary: z.string().optional(),
+  challenge: z.string().optional(),
+  solution: z.string().optional(),
+  results: z.string().optional(),
+  outcome_highlights: z.array(z.string()).optional(),
+});
+
+export const updateProjectMetaSchema = z.object({
+  project_id: z.string().uuid(),
+  title: z.string().optional(),
+  project_type: z.string().optional(),
+  neighborhood: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  duration: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  materials: z.array(z.string()).optional(),
+  techniques: z.array(z.string()).optional(),
+  seo_title: z.string().optional(),
+  seo_description: z.string().optional(),
+});
+
+export const finalizeProjectSchema = z.object({
+  project_id: z.string().uuid(),
+});
+
+/** Alias for publish_project tool (same schema as finalize) */
+export const publishProjectSchema = finalizeProjectSchema;
+
+/** Alias for unpublish_project tool (same schema as finalize) */
+export const unpublishProjectSchema = finalizeProjectSchema;
+
+export const listContractorProjectsSchema = z.object({
+  status: z.enum(['draft', 'published', 'archived']).optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+  offset: z.number().int().min(0).optional(),
+});
+
+export const getProjectStatusSchema = z.object({
+  project_id: z.string().uuid(),
+});
 
 // ============================================================================
 // Tool Result Types (for artifact rendering)

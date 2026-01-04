@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET, POST } from './route';
-import { runDiscoveryAgent, getDiscoveryGreeting, createEmptyDiscoveryState } from '@/lib/agents';
-import { isAgenticOnboardingEnabled } from '@/lib/config/feature-flags';
+import { streamText } from 'ai';
+import { getDiscoveryGreeting, createEmptyDiscoveryState } from '@/lib/agents';
+import { getChatModel, isGoogleAIEnabled } from '@/lib/ai/providers';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 type DbTable = Record<string, unknown>;
@@ -139,18 +140,26 @@ vi.mock('@/lib/supabase/server', () => ({
   createAdminClient: vi.fn(),
 }));
 
-vi.mock('@/lib/config/feature-flags', () => ({
-  isAgenticOnboardingEnabled: vi.fn(),
-}));
-
 vi.mock('@/lib/agents', async () => {
   const actual = await vi.importActual<typeof import('@/lib/agents')>('@/lib/agents');
   return {
     ...actual,
-    runDiscoveryAgent: vi.fn(),
     getDiscoveryGreeting: vi.fn(),
   };
 });
+
+vi.mock('ai', async () => {
+  const actual = await vi.importActual<typeof import('ai')>('ai');
+  return {
+    ...actual,
+    streamText: vi.fn(),
+  };
+});
+
+vi.mock('@/lib/ai/providers', () => ({
+  getChatModel: vi.fn(),
+  isGoogleAIEnabled: vi.fn(),
+}));
 
 describe('Onboarding API', () => {
   let db: MockDb;
@@ -178,16 +187,29 @@ describe('Onboarding API', () => {
     (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(client);
     (createAdminClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(admin);
 
-    (isAgenticOnboardingEnabled as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
     (getDiscoveryGreeting as unknown as ReturnType<typeof vi.fn>).mockReturnValue('Hello there');
+    (isGoogleAIEnabled as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (getChatModel as unknown as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (streamText as unknown as ReturnType<typeof vi.fn>).mockImplementation(({ onFinish }) => {
+      onFinish?.({
+        text: 'Thanks! What services do you offer?',
+        toolResults: [],
+      } as unknown as { text: string });
+      return {
+        toUIMessageStreamResponse: () => new Response(null, { status: 200 }),
+      };
+    });
   });
 
   it('creates a single onboarding conversation on GET', async () => {
+    // GET creates a business if one doesn't exist, so we don't need to pre-populate
+
     const response = await GET();
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.isEnabled).toBe(true);
+    // Route returns hasCompleteProfile (false since business_name is null)
+    expect(data.hasCompleteProfile).toBe(false);
     expect(data.messages.length).toBe(1);
     expect(data.messages[0].content).toBe('Hello there');
     expect(db.conversations.length).toBe(1);
@@ -219,17 +241,6 @@ describe('Onboarding API', () => {
       summary: null,
     });
 
-    (runDiscoveryAgent as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      message: 'Thanks! What services do you offer?',
-      state: {
-        ...createEmptyDiscoveryState(),
-        businessName: 'Acme Masonry',
-      },
-      showSearchResults: false,
-      requestedFallback: false,
-      isComplete: false,
-    });
-
     const request = new Request('http://localhost/api/onboarding', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -237,17 +248,9 @@ describe('Onboarding API', () => {
     });
 
     const response = await POST(request);
-    const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.message).toBe('Thanks! What services do you offer?');
     expect(db.conversations.length).toBe(1);
     expect((db.conversations[0].messages as DbTable[]).length).toBe(3);
-    expect(runDiscoveryAgent).toHaveBeenCalledWith(
-      'My business is Acme Masonry',
-      expect.objectContaining({
-        messages: [{ role: 'assistant', content: 'Hello there' }],
-      })
-    );
   });
 });

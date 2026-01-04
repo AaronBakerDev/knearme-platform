@@ -1,10 +1,15 @@
 /**
  * MCP Tool Definitions and Handlers.
  *
+ * Tool schemas are centralized in tool-schemas.ts and converted to JSON Schema
+ * format using zod-to-json-schema for MCP protocol compatibility.
+ *
+ * @see /src/lib/chat/tool-schemas.ts - Single source of truth for Zod schemas
  * @see /docs/chatgpt-apps-sdk/MCP_CONTRACTOR_INTERFACE.md
  */
 
 import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import {
   PortfolioClient,
   getMissingPublishFields,
@@ -27,107 +32,20 @@ import type {
   ListContractorProjectsOutput,
   GetProjectStatusOutput,
 } from './types';
-
-// ============================================================================
-// TOOL SCHEMAS
-// ============================================================================
-
-export const createProjectDraftSchema = z.object({
-  title: z.string().optional(),
-  project_type: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  summary: z.string().optional(),
-  challenge: z.string().optional(),
-  solution: z.string().optional(),
-  results: z.string().optional(),
-  outcome_highlights: z.array(z.string()).optional(),
-});
-
-export const addProjectMediaSchema = z.object({
-  project_id: z.string().uuid(),
-  files: z.array(
-    z.object({
-      file_id: z.string(),
-      filename: z.string(),
-      content_type: z.string(),
-      image_type: z.enum(['before', 'after', 'progress', 'detail']).optional(),
-      alt_text: z.string().optional(),
-      display_order: z.number().int().min(0).optional(),
-      width: z.number().int().positive().optional(),
-      height: z.number().int().positive().optional(),
-    })
-  ).min(1).max(10).optional(),
-  images: z.array(
-    z.object({
-      url: z.string().url(),
-      filename: z.string().optional(),
-      image_type: z.enum(['before', 'after', 'progress', 'detail']).optional(),
-      alt_text: z.string().optional(),
-    })
-  ).min(1).max(10).optional(),
-}).refine((data) => (data.files && data.files.length > 0) || (data.images && data.images.length > 0), {
-  message: 'files or images required',
-});
-
-export const reorderProjectMediaSchema = z.object({
-  project_id: z.string().uuid(),
-  image_ids: z.array(z.string().uuid()),
-});
-
-export const setProjectHeroMediaSchema = z.object({
-  project_id: z.string().uuid(),
-  hero_image_id: z.string().uuid(),
-});
-
-export const setProjectMediaLabelsSchema = z.object({
-  project_id: z.string().uuid(),
-  labels: z.array(
-    z.object({
-      image_id: z.string().uuid(),
-      image_type: z.enum(['before', 'after', 'progress', 'detail']).nullable().optional(),
-      alt_text: z.string().nullable().optional(),
-    })
-  ),
-});
-
-export const updateProjectSectionsSchema = z.object({
-  project_id: z.string().uuid(),
-  summary: z.string().optional(),
-  challenge: z.string().optional(),
-  solution: z.string().optional(),
-  results: z.string().optional(),
-  outcome_highlights: z.array(z.string()).optional(),
-});
-
-export const updateProjectMetaSchema = z.object({
-  project_id: z.string().uuid(),
-  title: z.string().optional(),
-  project_type: z.string().optional(),
-  neighborhood: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  duration: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  materials: z.array(z.string()).optional(),
-  techniques: z.array(z.string()).optional(),
-  seo_title: z.string().optional(),
-  seo_description: z.string().optional(),
-});
-
-export const finalizeProjectSchema = z.object({
-  project_id: z.string().uuid(),
-});
-
-export const listContractorProjectsSchema = z.object({
-  status: z.enum(['draft', 'published', 'archived']).optional(),
-  limit: z.number().int().min(1).max(50).optional(),
-  offset: z.number().int().min(0).optional(),
-});
-
-export const getProjectStatusSchema = z.object({
-  project_id: z.string().uuid(),
-});
+import {
+  addProjectMediaSchema,
+  createProjectDraftSchema,
+  finalizeProjectSchema,
+  getProjectStatusSchema,
+  listContractorProjectsSchema,
+  publishProjectSchema,
+  reorderProjectMediaSchema,
+  setProjectHeroMediaSchema,
+  setProjectMediaLabelsSchema,
+  unpublishProjectSchema,
+  updateProjectMetaSchema,
+  updateProjectSectionsSchema,
+} from '@/lib/chat/tool-schemas';
 
 // ============================================================================
 // TOOL DEFINITIONS
@@ -141,13 +59,15 @@ type ToolHints = {
   openWorldHint?: boolean;
 };
 
-function buildToolMeta(options: {
+type ToolMeta = {
   invoking: string;
   invoked: string;
   hints?: ToolHints;
   widgetAccessible?: boolean;
   visibility?: 'private';
-}) {
+};
+
+function buildToolMeta(options: ToolMeta) {
   return {
     'openai/outputTemplate': TOOL_OUTPUT_TEMPLATE,
     'openai/toolInvocation/invoking': options.invoking,
@@ -158,293 +78,133 @@ function buildToolMeta(options: {
   };
 }
 
+/**
+ * Convert a Zod schema to JSON Schema format for MCP protocol.
+ * Strips $schema and removes definitions to keep the schema compact.
+ *
+ * Note: Using 'any' cast due to Zod 4.x / zod-to-json-schema 3.x type mismatch.
+ * The runtime behavior is correct; only the types are incompatible.
+ */
+function toJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const jsonSchema = zodToJsonSchema(schema as any, { target: 'openApi3' });
+  const rest = { ...(jsonSchema as Record<string, unknown>) };
+  delete rest.$schema;
+  delete rest.definitions;
+  return rest;
+}
+
+/**
+ * Tool definition factory for consistent structure.
+ */
+function defineTool(config: {
+  name: string;
+  title: string;
+  description: string;
+  schema: z.ZodTypeAny;
+  meta: ToolMeta;
+}) {
+  return {
+    name: config.name,
+    title: config.title,
+    description: config.description,
+    _meta: buildToolMeta(config.meta),
+    inputSchema: toJsonSchema(config.schema),
+  };
+}
+
 export const toolDefinitions = [
-  {
+  defineTool({
     name: 'create_project_draft',
     title: 'Create Project Draft',
     description: 'Create a new draft case-study project. Returns project ID and missing fields.',
-    _meta: buildToolMeta({
-      invoking: 'Creating a new project draft…',
-      invoked: 'Draft created.',
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Optional project title' },
-        project_type: { type: 'string', description: 'Type of project (e.g., chimney rebuild)' },
-        city: { type: 'string', description: 'City where the project is located' },
-        state: { type: 'string', description: 'State where the project is located' },
-        summary: { type: 'string', description: '1-2 sentence hook' },
-        challenge: { type: 'string', description: 'What was the problem' },
-        solution: { type: 'string', description: 'What the contractor did' },
-        results: { type: 'string', description: 'Outcome or impact' },
-        outcome_highlights: { type: 'array', items: { type: 'string' }, description: '2-4 bullet outcomes' },
-      },
-      required: [],
-    },
-  },
-  {
+    schema: createProjectDraftSchema,
+    meta: { invoking: 'Creating a new project draft…', invoked: 'Draft created.' },
+  }),
+  defineTool({
     name: 'add_project_media',
     title: 'Add Project Media',
     description: 'Add images to a project draft. Prefer ChatGPT file IDs; URL imports are supported as a fallback.',
-    _meta: buildToolMeta({
-      invoking: 'Adding project images…',
-      invoked: 'Images queued for upload.',
-      hints: { openWorldHint: true },
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: {
-        project_id: { type: 'string', description: 'Project UUID' },
-        files: {
-          type: 'array',
-          description: 'Array of ChatGPT file uploads (1-10 files)',
-          items: {
-            type: 'object',
-            properties: {
-              file_id: { type: 'string', description: 'ChatGPT file ID' },
-              filename: { type: 'string', description: 'Original filename' },
-              content_type: { type: 'string', description: 'MIME type (e.g., image/jpeg)' },
-              image_type: { type: 'string', enum: ['before', 'after', 'progress', 'detail'], description: 'Image classification' },
-              alt_text: { type: 'string', description: 'Alt text for accessibility' },
-              display_order: { type: 'number', description: 'Optional display order index' },
-              width: { type: 'number', description: 'Image width in pixels' },
-              height: { type: 'number', description: 'Image height in pixels' },
-            },
-            required: ['file_id', 'filename', 'content_type'],
-          },
-        },
-        images: {
-          type: 'array',
-          description: 'Fallback: import images by URL (1-10 images)',
-          items: {
-            type: 'object',
-            properties: {
-              url: { type: 'string', description: 'URL of the image to download' },
-              filename: { type: 'string', description: 'Optional filename' },
-              image_type: { type: 'string', enum: ['before', 'after', 'progress', 'detail'], description: 'Image classification' },
-              alt_text: { type: 'string', description: 'Alt text for accessibility' },
-            },
-            required: ['url'],
-          },
-        },
-      },
-      required: ['project_id'],
-    },
-  },
-  {
+    schema: addProjectMediaSchema,
+    meta: { invoking: 'Adding project images…', invoked: 'Images queued for upload.', hints: { openWorldHint: true } },
+  }),
+  defineTool({
     name: 'reorder_project_media',
     title: 'Reorder Project Media',
     description: 'Reorder project images.',
-    _meta: buildToolMeta({
-      invoking: 'Reordering images…',
-      invoked: 'Images reordered.',
-      widgetAccessible: true,
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: {
-        project_id: { type: 'string' },
-        image_ids: { type: 'array', items: { type: 'string' } },
-      },
-      required: ['project_id', 'image_ids'],
-    },
-  },
-  {
+    schema: reorderProjectMediaSchema,
+    meta: { invoking: 'Reordering images…', invoked: 'Images reordered.', widgetAccessible: true },
+  }),
+  defineTool({
     name: 'set_project_hero_media',
     title: 'Set Project Hero Image',
     description: 'Set the hero image for a project.',
-    _meta: buildToolMeta({
-      invoking: 'Setting hero image…',
-      invoked: 'Hero image updated.',
-      widgetAccessible: true,
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: {
-        project_id: { type: 'string' },
-        hero_image_id: { type: 'string' },
-      },
-      required: ['project_id', 'hero_image_id'],
-    },
-  },
-  {
+    schema: setProjectHeroMediaSchema,
+    meta: { invoking: 'Setting hero image…', invoked: 'Hero image updated.', widgetAccessible: true },
+  }),
+  defineTool({
     name: 'set_project_media_labels',
     title: 'Set Project Media Labels',
     description: 'Label images as before/after/progress/detail and add alt text.',
-    _meta: buildToolMeta({
-      invoking: 'Updating image labels…',
-      invoked: 'Image labels updated.',
-      widgetAccessible: true,
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: {
-        project_id: { type: 'string' },
-        labels: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              image_id: { type: 'string' },
-              image_type: { type: 'string', enum: ['before', 'after', 'progress', 'detail'] },
-              alt_text: { type: 'string' },
-            },
-            required: ['image_id'],
-          },
-        },
-      },
-      required: ['project_id', 'labels'],
-    },
-  },
-  {
+    schema: setProjectMediaLabelsSchema,
+    meta: { invoking: 'Updating image labels…', invoked: 'Image labels updated.', widgetAccessible: true },
+  }),
+  defineTool({
     name: 'update_project_sections',
     title: 'Update Project Sections',
     description: 'Update narrative sections: summary, challenge, solution, results.',
-    _meta: buildToolMeta({
-      invoking: 'Updating project sections…',
-      invoked: 'Project sections updated.',
-      widgetAccessible: true,
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: {
-        project_id: { type: 'string' },
-        summary: { type: 'string' },
-        challenge: { type: 'string' },
-        solution: { type: 'string' },
-        results: { type: 'string' },
-        outcome_highlights: { type: 'array', items: { type: 'string' } },
-      },
-      required: ['project_id'],
-    },
-  },
-  {
+    schema: updateProjectSectionsSchema,
+    meta: { invoking: 'Updating project sections…', invoked: 'Project sections updated.', widgetAccessible: true },
+  }),
+  defineTool({
     name: 'update_project_meta',
     title: 'Update Project Metadata',
     description: 'Update project metadata: title, type, location, duration, tags, SEO.',
-    _meta: buildToolMeta({
-      invoking: 'Updating project details…',
-      invoked: 'Project details updated.',
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: {
-        project_id: { type: 'string' },
-        title: { type: 'string' },
-        project_type: { type: 'string' },
-        neighborhood: { type: 'string' },
-        city: { type: 'string' },
-        state: { type: 'string' },
-        duration: { type: 'string' },
-        tags: { type: 'array', items: { type: 'string' } },
-        materials: { type: 'array', items: { type: 'string' } },
-        techniques: { type: 'array', items: { type: 'string' } },
-        seo_title: { type: 'string' },
-        seo_description: { type: 'string' },
-      },
-      required: ['project_id'],
-    },
-  },
-  {
+    schema: updateProjectMetaSchema,
+    meta: { invoking: 'Updating project details…', invoked: 'Project details updated.' },
+  }),
+  defineTool({
     name: 'publish_project',
     title: 'Publish Project',
     description: 'Publish the project. Requires all mandatory fields. Ask for confirmation first.',
-    _meta: buildToolMeta({
-      invoking: 'Publishing project…',
-      invoked: 'Project published.',
-      hints: { destructiveHint: true },
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: { project_id: { type: 'string' } },
-      required: ['project_id'],
-    },
-  },
-  {
+    schema: publishProjectSchema,
+    meta: { invoking: 'Publishing project…', invoked: 'Project published.', hints: { destructiveHint: true } },
+  }),
+  defineTool({
     name: 'unpublish_project',
     title: 'Unpublish Project',
     description: 'Revert a published project to draft status.',
-    _meta: buildToolMeta({
-      invoking: 'Reverting project to draft…',
-      invoked: 'Project reverted to draft.',
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: { project_id: { type: 'string' } },
-      required: ['project_id'],
-    },
-  },
-  {
+    schema: unpublishProjectSchema,
+    meta: { invoking: 'Reverting project to draft…', invoked: 'Project reverted to draft.' },
+  }),
+  defineTool({
     name: 'list_projects',
     title: 'List Projects',
     description: "List the contractor's projects. Can filter by status.",
-    _meta: buildToolMeta({
-      invoking: 'Fetching projects…',
-      invoked: 'Projects loaded.',
-      hints: { readOnlyHint: true },
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: {
-        status: { type: 'string', enum: ['draft', 'published', 'archived'] },
-        limit: { type: 'number' },
-        offset: { type: 'number' },
-      },
-      required: [],
-    },
-  },
-  {
+    schema: listContractorProjectsSchema,
+    meta: { invoking: 'Fetching projects…', invoked: 'Projects loaded.', hints: { readOnlyHint: true } },
+  }),
+  defineTool({
     name: 'list_contractor_projects',
     title: 'List Contractor Projects (Legacy)',
     description: "List the contractor's projects. Can filter by status.",
-    _meta: buildToolMeta({
-      invoking: 'Fetching projects…',
-      invoked: 'Projects loaded.',
-      hints: { readOnlyHint: true },
-      visibility: 'private',
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: {
-        status: { type: 'string', enum: ['draft', 'published', 'archived'] },
-        limit: { type: 'number' },
-        offset: { type: 'number' },
-      },
-      required: [],
-    },
-  },
-  {
+    schema: listContractorProjectsSchema,
+    meta: { invoking: 'Fetching projects…', invoked: 'Projects loaded.', hints: { readOnlyHint: true }, visibility: 'private' },
+  }),
+  defineTool({
     name: 'get_project_status',
     title: 'Get Project Status',
     description: 'Get project status including images and missing fields.',
-    _meta: buildToolMeta({
-      invoking: 'Fetching project status…',
-      invoked: 'Project status loaded.',
-      hints: { readOnlyHint: true },
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: { project_id: { type: 'string' } },
-      required: ['project_id'],
-    },
-  },
-  {
+    schema: getProjectStatusSchema,
+    meta: { invoking: 'Fetching project status…', invoked: 'Project status loaded.', hints: { readOnlyHint: true } },
+  }),
+  defineTool({
     name: 'finalize_project',
     title: 'Finalize Project (Legacy)',
     description: 'Publish the project. Requires all mandatory fields. Ask for confirmation first.',
-    _meta: buildToolMeta({
-      invoking: 'Publishing project…',
-      invoked: 'Project published.',
-      hints: { destructiveHint: true },
-      visibility: 'private',
-    }),
-    inputSchema: {
-      type: 'object',
-      properties: { project_id: { type: 'string' } },
-      required: ['project_id'],
-    },
-  },
+    schema: finalizeProjectSchema,
+    meta: { invoking: 'Publishing project…', invoked: 'Project published.', hints: { destructiveHint: true }, visibility: 'private' },
+  }),
 ];
 
 // ============================================================================

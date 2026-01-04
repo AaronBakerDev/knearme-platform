@@ -21,19 +21,31 @@ export const getAuthStatus = cache(async (): Promise<AuthStatus> => {
 
   // Type assertion needed due to RLS type inference issues
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: contractor, error: contractorError } = await (supabase as any)
-    .from('contractors')
-    .select('business_name, city, services')
+  const { data: business, error: businessError } = await (supabase as any)
+    .from('businesses')
+    .select('name, city, state, services, address, phone')
     .eq('auth_user_id', user.id)
     .maybeSingle();
 
-  if (contractorError) {
-    console.error('[getAuthStatus] Failed to load contractor profile:', contractorError);
+  if (businessError) {
+    console.error('[getAuthStatus] Failed to load business profile:', businessError);
   }
 
-  const profile = contractor as { business_name?: string; city?: string; services?: string[] } | null;
+  const profile = business as {
+    name?: string;
+    city?: string;
+    state?: string;
+    services?: string[];
+    address?: string;
+    phone?: string;
+  } | null;
   const hasCompleteProfile = Boolean(
-    profile?.business_name && profile?.city && profile?.services?.length
+    profile?.name &&
+      profile?.city &&
+      profile?.state &&
+      profile?.services?.length &&
+      profile?.address &&
+      profile?.phone
   );
 
   return { isAuthenticated: true, hasCompleteProfile };

@@ -18,9 +18,9 @@
  * @see /docs/philosophy/agentic-first-experience.md - Design philosophy
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { UIMessage } from 'ai';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport, type UIMessage } from 'ai';
 import { Button } from '@/components/ui/button';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatSurface } from '@/components/chat/ChatSurface';
@@ -28,6 +28,7 @@ import { Mic, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { DiscoveredBusiness } from '@/lib/tools/business-discovery';
+import type { ProfileRevealData } from '@/types/artifacts';
 
 // =============================================================================
 // Types
@@ -47,12 +48,10 @@ function toUIMessage(message: Message): UIMessage {
   };
 }
 
-function buildUIMessage(role: 'user' | 'assistant', content: string): UIMessage {
-  return {
-    id: `${role}-${Date.now()}`,
-    role,
-    parts: [{ type: 'text', text: content }],
-  };
+function isToolPart(part: unknown): part is { type: string } {
+  if (!part || typeof part !== 'object') return false;
+  const obj = part as { type?: unknown };
+  return typeof obj.type === 'string' && obj.type.startsWith('tool-');
 }
 
 interface OnboardingChatProps {
@@ -65,15 +64,34 @@ interface OnboardingChatProps {
 // =============================================================================
 
 export function OnboardingChat({ className }: OnboardingChatProps) {
-  const router = useRouter();
-  const [messages, setMessages] = useState<UIMessage[]>([]);
+  const initialMessages = useMemo<UIMessage[]>(() => [], []);
+  const stableChatId = useRef(
+    `onboarding-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+  const { messages, sendMessage, status, setMessages } = useChat({
+    id: stableChatId.current,
+    messages: initialMessages,
+    transport: new DefaultChatTransport({
+      api: '/api/onboarding',
+    }),
+  });
   const [searchResults, setSearchResults] = useState<DiscoveredBusiness[]>([]);
+  const [searchPrompt, setSearchPrompt] = useState<string | undefined>();
   const [searchResultsKey, setSearchResultsKey] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  // Track which business card was selected (for loading state UI)
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
+  // Profile reveal data (shown after profile is saved)
+  const [profileReveal, setProfileReveal] = useState<ProfileRevealData | null>(null);
+  const [profileRevealKey, setProfileRevealKey] = useState(0);
+  const hasSentMessageRef = useRef(false);
+  const processedWebSearchToolCalls = useRef<Set<string>>(new Set());
+  const lastProcessedMessageIdRef = useRef<string | null>(null);
+  const hasCompletedRef = useRef(false);
+
+  const isLoading = status === 'streaming' || status === 'submitted';
 
   // Fetch initial conversation on mount
   useEffect(() => {
@@ -88,10 +106,6 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
 
         const data = await res.json();
 
-        if (data.conversationId) {
-          setConversationId(data.conversationId);
-        }
-
         if (Array.isArray(data.messages) && data.messages.length > 0) {
           setMessages(
             data.messages.map((msg: Message) => toUIMessage(msg))
@@ -100,7 +114,13 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
 
         if (data.state?.searchResults && data.state.searchResults.length > 0) {
           setSearchResults(data.state.searchResults);
+          setSearchPrompt(undefined);
           setSearchResultsKey((prev) => prev + 1);
+          setSelectedBusinessId(null);
+        } else {
+          setSearchResults([]);
+          setSearchPrompt(undefined);
+          setSelectedBusinessId(null);
         }
       } catch (error) {
         console.error('Failed to fetch onboarding conversation:', error);
@@ -113,62 +133,145 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
     fetchConversation();
   }, []);
 
+  useEffect(() => {
+    if (status !== 'ready') return;
+    if (!hasSentMessageRef.current) return;
+
+    const lastAssistant = [...messages].reverse().find((message) => message.role === 'assistant');
+    if (!lastAssistant || lastAssistant.id === lastProcessedMessageIdRef.current) return;
+
+    lastProcessedMessageIdRef.current = lastAssistant.id;
+    const parts = Array.isArray(lastAssistant.parts) ? lastAssistant.parts : [];
+
+    const searchPart = parts.find((part) => {
+      if (!isToolPart(part)) return false;
+      return (
+        part.type === 'tool-showBusinessSearchResults' &&
+        (part as { state?: string }).state === 'output-available'
+      );
+    }) as { output?: { results?: DiscoveredBusiness[]; prompt?: string } } | undefined;
+
+    const searchResultsOutput = searchPart?.output?.results;
+    if (searchResultsOutput && searchResultsOutput.length > 0) {
+      setSearchResults(searchResultsOutput);
+      setSearchPrompt(searchPart?.output?.prompt);
+      setSearchResultsKey((prev) => prev + 1);
+    } else {
+      setSearchResults([]);
+      setSearchPrompt(undefined);
+    }
+
+    setSelectedBusinessId(null);
+
+    // Check for profile reveal artifact
+    const profileRevealPart = parts.find((part) => {
+      if (!isToolPart(part)) return false;
+      return (
+        part.type === 'tool-showProfileReveal' &&
+        (part as { state?: string }).state === 'output-available'
+      );
+    }) as { output?: { profile?: ProfileRevealData } } | undefined;
+
+    if (profileRevealPart?.output?.profile) {
+      setProfileReveal(profileRevealPart.output.profile);
+      setProfileRevealKey((prev) => prev + 1);
+      setSearchResults([]); // Clear search results when reveal shows
+      if (!hasCompletedRef.current) {
+        hasCompletedRef.current = true;
+        toast.success('Profile setup complete!');
+      }
+    }
+
+    // Fallback: if saveProfile completed but no reveal, still mark complete (but don't redirect)
+    const saveProfilePart = parts.find((part) => {
+      if (!isToolPart(part)) return false;
+      return (
+        part.type === 'tool-saveProfile' &&
+        (part as { state?: string }).state === 'output-available'
+      );
+    }) as { output?: { saved?: boolean } } | undefined;
+
+    if (saveProfilePart?.output?.saved && !hasCompletedRef.current && !profileRevealPart) {
+      // Only show toast if we don't have a reveal (reveal has its own celebration)
+      hasCompletedRef.current = true;
+      toast.success('Profile setup complete!');
+    }
+  }, [messages, status]);
+
+  useEffect(() => {
+    if (status !== 'ready') return;
+
+    let didUpdate = false;
+    const nextMessages = messages.map((message) => {
+      if (message.role !== 'assistant' || !Array.isArray(message.parts)) return message;
+
+      const hasSourceParts = message.parts.some((part) => {
+        if (!part || typeof part !== 'object') return false;
+        return (part as { type?: string }).type === 'source-url';
+      });
+
+      if (hasSourceParts) return message;
+
+      const webSearchPart = message.parts.find((part) => {
+        if (!isToolPart(part)) return false;
+        return (
+          part.type === 'tool-webSearchBusiness' &&
+          (part as { state?: string }).state === 'output-available'
+        );
+      }) as {
+        toolCallId?: string;
+        output?: { sources?: Array<{ url?: string; title?: string }> };
+      } | undefined;
+
+      if (!webSearchPart?.toolCallId) return message;
+      if (processedWebSearchToolCalls.current.has(webSearchPart.toolCallId)) return message;
+
+      const sources = webSearchPart.output?.sources;
+      if (!sources || sources.length === 0) return message;
+
+      const sourceParts = sources
+        .filter((source) => source?.url)
+        .map((source, index) => ({
+          type: 'source-url' as const,
+          sourceId: `${webSearchPart.toolCallId}-${index}`,
+          url: source.url as string,
+          title: source.title,
+        }));
+
+      if (sourceParts.length === 0) return message;
+
+      processedWebSearchToolCalls.current.add(webSearchPart.toolCallId);
+      didUpdate = true;
+
+      return {
+        ...message,
+        parts: [...message.parts, ...sourceParts],
+      };
+    });
+
+    if (didUpdate) {
+      setMessages(nextMessages);
+    }
+  }, [messages, status, setMessages]);
+
   /**
    * Send a message to the Discovery Agent
    */
-  const sendMessage = useCallback(
+  const handleSendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || isLoading) return;
-
-      const userMessage = buildUIMessage('user', text);
-
-      setMessages((prev) => [...prev, userMessage]);
-      setInputValue('');
-      setIsLoading(true);
-      setSearchResults([]); // Clear previous search results
+      hasSentMessageRef.current = true;
+      setSelectedBusinessId(null);
 
       try {
-        const res = await fetch('/api/onboarding', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: text,
-            conversationId,
-          }),
-        });
-
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Failed to send message');
-        }
-
-        const data = await res.json();
-
-        // Add assistant response
-        if (data.message) {
-          setMessages((prev) => [...prev, buildUIMessage('assistant', data.message)]);
-        }
-
-        // Show search results if present
-        if (data.state?.searchResults && data.state.searchResults.length > 0) {
-          setSearchResults(data.state.searchResults);
-          setSearchResultsKey((prev) => prev + 1);
-        }
-
-        // Handle completion
-        if (data.isComplete) {
-          toast.success('Profile setup complete!');
-          router.push('/dashboard');
-          router.refresh();
-        }
+        await sendMessage({ text });
       } catch (error) {
         console.error('Failed to send message:', error);
         toast.error('Something went wrong. Please try again.');
-      } finally {
-        setIsLoading(false);
+        setSelectedBusinessId(null);
       }
     },
-    [conversationId, isLoading, router]
+    [sendMessage, isLoading]
   );
 
   /**
@@ -176,21 +279,25 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
    */
   const handleSelectBusiness = useCallback(
     (business: DiscoveredBusiness) => {
+      // Mark this card as selected (shows loading state on the card)
+      setSelectedBusinessId(business.googlePlaceId ?? null);
+
       // Send a message confirming the selection
       const confirmMessage = business.address
         ? `Yes, that's my business - ${business.name} at ${business.address}`
         : `Yes, that's us - ${business.name}`;
-      sendMessage(confirmMessage);
+      handleSendMessage(confirmMessage);
     },
-    [sendMessage]
+    [handleSendMessage]
   );
 
   /**
    * Handle "none of these" selection
    */
   const handleNoneOfThese = useCallback(() => {
-    sendMessage("None of these are my business. Let me tell you more about it.");
-  }, [sendMessage]);
+    setSelectedBusinessId(null);
+    handleSendMessage("None of these are my business. Let me tell you more about it.");
+  }, [handleSendMessage]);
 
   const handleArtifactAction = useCallback(
     (action: { type: string; payload?: unknown }) => {
@@ -206,24 +313,57 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
   );
 
   const displayMessages = useMemo(() => {
-    if (searchResults.length === 0) return messages;
+    const cleanedMessages = messages
+      .map((message) => {
+        if (!Array.isArray(message.parts)) return message;
+        const filteredParts = message.parts.filter((part) => !isToolPart(part));
+        if (filteredParts.length === 0) return null;
+        return { ...message, parts: filteredParts };
+      })
+      .filter(Boolean) as UIMessage[];
 
-    const toolMessage: UIMessage = {
-      id: `onboarding-search-${searchResultsKey}`,
-      role: 'assistant',
-      parts: [
-        {
-          type: 'tool-showBusinessSearchResults',
-          state: 'output-available',
-          toolCallId: `onboarding-search-${searchResultsKey}`,
-          input: { query: '' }, // Required by UIMessagePart type
-          output: { results: searchResults },
-        },
-      ],
-    };
+    const artifactMessages: UIMessage[] = [];
 
-    return [...messages, toolMessage];
-  }, [messages, searchResults, searchResultsKey]);
+    // Add search results artifact if present
+    if (searchResults.length > 0) {
+      artifactMessages.push({
+        id: `onboarding-search-${searchResultsKey}`,
+        role: 'assistant',
+        parts: [
+          {
+            type: 'tool-showBusinessSearchResults',
+            state: 'output-available',
+            toolCallId: `onboarding-search-${searchResultsKey}`,
+            input: { query: '' },
+            output: {
+              results: searchResults,
+              prompt: searchPrompt,
+              selectedId: selectedBusinessId ?? undefined,
+            },
+          },
+        ],
+      });
+    }
+
+    // Add profile reveal artifact if present (shown after profile is saved)
+    if (profileReveal) {
+      artifactMessages.push({
+        id: `onboarding-reveal-${profileRevealKey}`,
+        role: 'assistant',
+        parts: [
+          {
+            type: 'tool-showProfileReveal',
+            state: 'output-available',
+            toolCallId: `onboarding-reveal-${profileRevealKey}`,
+            input: {},
+            output: profileReveal,
+          },
+        ],
+      });
+    }
+
+    return [...cleanedMessages, ...artifactMessages];
+  }, [messages, searchResults, searchPrompt, searchResultsKey, selectedBusinessId, profileReveal, profileRevealKey]);
 
   /**
    * Retry initialization
@@ -298,7 +438,7 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
               <ChatInput
                 value={inputValue}
                 onChange={setInputValue}
-                onSend={sendMessage}
+                onSend={handleSendMessage}
                 isLoading={isLoading}
                 placeholder="Type your response..."
                 enableVoice={true}

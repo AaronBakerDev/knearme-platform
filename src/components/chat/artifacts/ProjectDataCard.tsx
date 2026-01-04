@@ -22,8 +22,7 @@ import {
   Check,
   X,
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Input, Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { formatProjectLocation } from '@/lib/utils/location';
 import type { ExtractedProjectData } from '@/lib/chat/chat-types';

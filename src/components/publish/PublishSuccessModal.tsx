@@ -15,14 +15,9 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+  Button, Input
+} from '@/components/ui'
 import {
   CheckCircle2,
   Copy,

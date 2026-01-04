@@ -10,12 +10,11 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, ShieldAlert, CheckCircle2, Droplets } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import {
+  Card, CardContent, CardHeader, CardTitle,
+  Label, Input, Badge, Button,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui'
 import { cn } from '@/lib/utils'
 import {
   scoreChimneyWaterIntrusion,

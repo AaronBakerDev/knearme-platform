@@ -18,9 +18,7 @@
 
 import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Badge } from '@/components/ui'
 import {
   CheckCircle2,
   XCircle,
@@ -167,11 +165,11 @@ function generateChecklist(project: ProjectData, imageCount: number): ChecklistI
 function StatusIcon({ status }: { status: ChecklistItem['status'] }) {
   switch (status) {
     case 'complete':
-      return <CheckCircle2 className="h-5 w-5 text-green-500" />
+      return <CheckCircle2 data-testid="status-complete" className="h-5 w-5 text-green-500" />
     case 'warning':
-      return <AlertCircle className="h-5 w-5 text-amber-500" />
+      return <AlertCircle data-testid="status-warning" className="h-5 w-5 text-amber-500" />
     case 'incomplete':
-      return <XCircle className="h-5 w-5 text-destructive" />
+      return <XCircle data-testid="status-incomplete" className="h-5 w-5 text-destructive" />
   }
 }
 
@@ -227,6 +225,8 @@ export function PublishChecklist({
           {requiredChecks.map((item) => (
             <div
               key={item.id}
+              data-testid={`checklist-item-${item.id}`}
+              data-status={item.status}
               className={cn(
                 'flex items-center justify-between p-3 rounded-lg border',
                 item.status === 'complete' && 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900',
@@ -261,6 +261,8 @@ export function PublishChecklist({
           {optionalChecks.map((item) => (
             <div
               key={item.id}
+              data-testid={`checklist-item-${item.id}`}
+              data-status={item.status}
               className={cn(
                 'flex items-center justify-between p-3 rounded-lg border',
                 item.status === 'complete' && 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900',

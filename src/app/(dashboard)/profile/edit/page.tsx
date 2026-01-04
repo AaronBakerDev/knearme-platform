@@ -19,12 +19,16 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
+  Button,
+  Input,
+  Textarea,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Badge,
   Form,
   FormControl,
   FormDescription,
@@ -32,18 +36,23 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { toast } from 'sonner';
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { REGIONS, MASONRY_SERVICES } from '@/lib/constants/services';
+} from '@/components/ui';
+import { toast } from 'sonner';
+import { REGIONS } from '@/lib/constants/services';
 import { slugify } from '@/lib/utils/slugify';
-import type { Contractor } from '@/types/database';
+import type { Contractor as _Contractor } from '@/types/database';
+
+/** Service option from API */
+interface ServiceOption {
+  id: string;
+  label: string;
+  icon: string;
+}
 
 
 
@@ -64,6 +73,7 @@ export default function ProfileEditPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [newServiceArea, setNewServiceArea] = useState('');
+  const [availableServices, setAvailableServices] = useState<ServiceOption[]>([]);
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -80,16 +90,27 @@ export default function ProfileEditPage() {
     },
   });
 
-  // Fetch current profile
+  // Fetch current profile and available services
   useEffect(() => {
-    async function fetchProfile() {
+    async function fetchData() {
       try {
-        const res = await fetch('/api/businesses/me');
-        const data = await res.json();
+        // Fetch profile and services in parallel
+        const [profileRes, servicesRes] = await Promise.all([
+          fetch('/api/businesses/me'),
+          fetch('/api/services?trade=masonry'),
+        ]);
 
+        // Handle services
+        if (servicesRes.ok) {
+          const servicesData = await servicesRes.json();
+          setAvailableServices(servicesData.services || []);
+        }
+
+        // Handle profile
+        const data = await profileRes.json();
         // Support both new (business) and legacy (contractor) response shapes
         const profile = data.business || data.contractor;
-        if (res.ok && profile) {
+        if (profileRes.ok && profile) {
           form.reset({
             business_name: profile.name || profile.business_name || '',
             profile_slug: profile.slug || profile.profile_slug || slugify(profile.name || profile.business_name || ''),
@@ -101,13 +122,13 @@ export default function ProfileEditPage() {
           });
         }
       } catch (error) {
-        console.error('Failed to fetch profile:', error);
+        console.error('Failed to fetch data:', error);
       } finally {
         setIsLoading(false);
       }
     }
 
-    fetchProfile();
+    fetchData();
   }, [form]);
 
   // Handle form submission
@@ -316,7 +337,7 @@ export default function ProfileEditPage() {
                       Select all the services you provide
                     </FormDescription>
                     <div className="grid gap-2 sm:grid-cols-2 mt-2">
-                      {MASONRY_SERVICES.map((service) => {
+                      {availableServices.map((service) => {
                         const isSelected = field.value.includes(service.id);
                         return (
                           <Button

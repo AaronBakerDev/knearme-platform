@@ -15,14 +15,10 @@
 
 import { useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+  Badge, Button, Input,
+  Collapsible, CollapsibleContent, CollapsibleTrigger
+} from '@/components/ui'
 import { X, Plus, ChevronDown, ChevronUp } from 'lucide-react'
 
 /**

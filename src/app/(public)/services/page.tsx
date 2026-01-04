@@ -22,16 +22,13 @@ import {
   Clock,
   CheckCircle2,
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, Badge, Button } from '@/components/ui';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
-import { SERVICE_CONTENT } from '@/lib/constants/service-content';
-import { getServiceTypes } from '@/lib/data/services';
+import { getServiceCatalog } from '@/lib/services';
 import { createAdminClient } from '@/lib/supabase/server';
-import type { ServiceId } from '@/lib/constants/services';
+import { SERVICE_ICONS, PAGE_META } from '@/lib/constants/page-descriptions';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
+const SITE_URL = PAGE_META.siteUrl;
 
 export const metadata: Metadata = {
   title: 'Masonry Services | Find Local Contractors | KnearMe',
@@ -61,7 +58,7 @@ export const metadata: Metadata = {
  * Service card data with stats.
  */
 interface ServiceCardData {
-  id: ServiceId;
+  id: string;
   urlSlug: string;
   label: string;
   shortDescription: string;
@@ -122,46 +119,28 @@ async function getServiceStats(): Promise<Map<string, ServiceStats>> {
   return stats;
 }
 
-/**
- * Service icon mapping for visual variety.
- */
-const SERVICE_ICONS: Record<string, string> = {
-  'chimney-repair': '🏠',
-  tuckpointing: '🧱',
-  'brick-repair': '🔨',
-  'stone-masonry': '🪨',
-  'foundation-repair': '🏗️',
-  'historic-restoration': '🏛️',
-  'masonry-waterproofing': '💧',
-  'efflorescence-removal': '✨',
-};
+// SERVICE_ICONS imported from @/lib/constants/page-descriptions
 
 export default async function ServicesIndexPage() {
-  // Fetch service types from database and stats in parallel
-  const [serviceTypes, stats] = await Promise.all([
-    getServiceTypes(),
+  // Fetch service catalog and stats in parallel
+  const [services, stats] = await Promise.all([
+    getServiceCatalog(),
     getServiceStats(),
   ]);
 
-  // Build service cards from database + SERVICE_CONTENT
-  const serviceCards: ServiceCardData[] = [];
+  // Build service cards from catalog (already merged with fallback content)
+  const serviceCards: ServiceCardData[] = services.map((service) => {
+    const serviceStats = stats.get(service.serviceId) || { projectCount: 0, cityCount: 0 };
 
-  serviceTypes.forEach((serviceType) => {
-    const serviceId = serviceType.service_id as ServiceId;
-    const content = SERVICE_CONTENT[serviceId];
-
-    // Use database data, fallback to SERVICE_CONTENT for rich content
-    const serviceStats = stats.get(serviceId) || { projectCount: 0, cityCount: 0 };
-
-    serviceCards.push({
-      id: serviceId,
-      urlSlug: serviceType.url_slug,
-      label: serviceType.label || content?.label || serviceId,
-      shortDescription: serviceType.short_description || content?.shortDescription || '',
-      keywords: content?.keywords.slice(0, 3) || [],
+    return {
+      id: service.serviceId,
+      urlSlug: service.urlSlug,
+      label: service.label,
+      shortDescription: service.shortDescription,
+      keywords: service.keywords.slice(0, 3),
       projectCount: serviceStats.projectCount,
       cityCount: serviceStats.cityCount,
-    });
+    };
   });
 
   // Sort by project count descending

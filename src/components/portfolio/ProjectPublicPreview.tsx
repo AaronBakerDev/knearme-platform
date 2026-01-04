@@ -11,9 +11,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import DOMPurify from 'dompurify';
 import { ArrowLeft, Calendar, ChevronRight, Home, MapPin, Wrench } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Badge, Card, CardContent, Button } from '@/components/ui';
 import { PhotoGallery } from '@/components/portfolio/PhotoGallery';
 import { DescriptionBlocksClient } from '@/components/portfolio/DescriptionBlocksClient';
 import { RelatedProjects } from '@/components/seo/RelatedProjects';
@@ -22,7 +20,7 @@ import { formatProjectLocation } from '@/lib/utils/location';
 import { cn } from '@/lib/utils';
 import type { Project, Business, Contractor, ProjectImage } from '@/types/database';
 import type { RelatedProject } from '@/lib/data/projects';
-import { sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
+import { sanitizeDescriptionBlocks, hasHtmlTags } from '@/lib/content/description-blocks';
 
 type PreviewImage = ProjectImage & { url?: string };
 
@@ -147,10 +145,6 @@ function renderBreadcrumbs(items: BreadcrumbItem[]) {
       </nav>
     </>
   );
-}
-
-function hasHtmlTags(text: string): boolean {
-  return /<\/?[a-z][\s\S]*>/i.test(text);
 }
 
 function renderDescription(description: string, blocks: unknown) {
