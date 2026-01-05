@@ -8,14 +8,57 @@
  */
 
 import { NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
+import { logger } from '@/lib/logging';
+import type { Database, Json } from '@/types/database';
 
 /**
  * Session mode is a legacy field retained for backwards compatibility.
  * Sessions are now shared across all chat entry points.
  */
 type ChatSessionMode = 'create' | 'edit';
+
+type ChatSessionRow = {
+  id: string;
+  project_id: string | null;
+  contractor_id: string;
+  title: string | null;
+  phase: string | null;
+  mode: ChatSessionMode | null;
+  extracted_data: Json | null;
+  created_at: string;
+  updated_at: string | null;
+};
+
+type ChatSessionInsert = {
+  id?: string;
+  project_id?: string | null;
+  contractor_id: string;
+  title?: string | null;
+  phase?: string | null;
+  mode?: ChatSessionMode | null;
+  extracted_data?: Json | null;
+  created_at?: string;
+  updated_at?: string | null;
+};
+
+type ChatSessionUpdate = Partial<ChatSessionInsert>;
+
+type ChatDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      chat_sessions: {
+        Row: ChatSessionRow;
+        Insert: ChatSessionInsert;
+        Update: ChatSessionUpdate;
+      };
+    };
+  };
+};
+
+type ChatSupabaseClient = SupabaseClient<ChatDatabase>;
 
 /**
  * GET /api/chat/sessions
@@ -35,15 +78,14 @@ export async function GET(request: Request) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Parse query parameters
     const url = new URL(request.url);
     const projectId = url.searchParams.get('project_id');
 
     // Build query - filter by contractor (RLS handles this too, but explicit is better)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query = (supabase as any)
+    let query = supabase
       .from('chat_sessions')
       .select(`
         id,
@@ -74,13 +116,13 @@ export async function GET(request: Request) {
     const { data: sessions, error } = await query;
 
     if (error) {
-      console.error('[GET /api/chat/sessions] Error:', error);
+      logger.error('[GET /api/chat/sessions] Error', { error });
       throw error;
     }
 
     return NextResponse.json({ sessions: sessions || [] });
   } catch (error) {
-    console.error('[GET /api/chat/sessions] Error:', error);
+    logger.error('[GET /api/chat/sessions] Error', { error });
     return NextResponse.json(
       { error: 'Failed to fetch chat sessions' },
       { status: 500 }
@@ -124,11 +166,10 @@ export async function POST(request: Request) {
     // Legacy field kept for compatibility; always create unified sessions.
     const sessionMode: ChatSessionMode = 'create';
 
-    const supabase = await createClient();
+    const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Create the session with mode
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: session, error } = await (supabase as any)
+    const { data: session, error } = await supabase
       .from('chat_sessions')
       .insert({
         project_id,
@@ -142,13 +183,13 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
-      console.error('[POST /api/chat/sessions] Error:', error);
+      logger.error('[POST /api/chat/sessions] Error', { error });
       throw error;
     }
 
     return NextResponse.json({ session }, { status: 201 });
   } catch (error) {
-    console.error('[POST /api/chat/sessions] Error:', error);
+    logger.error('[POST /api/chat/sessions] Error', { error });
     return NextResponse.json(
       { error: 'Failed to create chat session' },
       { status: 500 }

@@ -19,6 +19,8 @@ import { buildStoragePath, generateUniqueFilename } from '@/lib/storage/upload';
 import { copyDraftImagesToPublic } from '@/lib/storage/upload.server';
 import { resolveProjectImageUrl } from '@/lib/storage/project-images';
 import { createAdminClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
+import type { Project, ProjectImage, ProjectImageInsert, ProjectUpdate } from '@/types/database';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -108,27 +110,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const adminClient = createAdminClient();
 
     // Verify project ownership
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: project, error: projectError } = await (supabase as any)
+    const { data: project, error: projectError } = await supabase
       .from('projects')
       .select('id, hero_image_id, status')
       .eq('id', projectId)
       .eq('contractor_id', contractor.id)
       .single();
 
-    const typedProject = project as {
-      id: string;
-      hero_image_id: string | null;
-      status: string | null;
-    } | null;
+    const typedProject = project as Pick<Project, 'id' | 'hero_image_id' | 'status'> | null;
 
     if (projectError || !typedProject) {
       return apiError('NOT_FOUND', 'Project not found');
     }
 
     // Get current image count for display_order
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { count: existingCount } = await (supabase as any)
+    const { count: existingCount } = await supabase
       .from('project_images')
       .select('*', { count: 'exact', head: true })
       .eq('project_id', projectId);
@@ -190,45 +186,46 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           });
 
         if (uploadError) {
-          console.error('[from-url] Storage upload error:', uploadError);
+          logger.error('[from-url] Storage upload error', { error: uploadError, url: img.url });
           errors.push({ url: img.url, error: uploadError.message });
           continue;
         }
 
         // Create database record
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: imageRecord, error: insertError } = await (supabase as any)
+        const insertPayload: ProjectImageInsert = {
+          project_id: projectId,
+          storage_path: storagePath,
+          image_type: img.image_type ?? null,
+          alt_text: img.alt_text ?? null,
+          display_order: currentOrder++,
+        };
+        const { data: imageRecord, error: insertError } = await supabase
           .from('project_images')
-          .insert({
-            project_id: projectId,
-            storage_path: storagePath,
-            image_type: img.image_type ?? null,
-            alt_text: img.alt_text ?? null,
-            display_order: currentOrder++,
-          })
+          .insert(insertPayload)
           .select('id')
           .single();
 
         if (insertError) {
-          console.error('[from-url] DB insert error:', insertError);
+          logger.error('[from-url] DB insert error', { error: insertError, url: img.url });
           // Try to clean up the uploaded file
           await adminClient.storage.from('project-images-draft').remove([storagePath]);
           errors.push({ url: img.url, error: insertError.message });
           continue;
         }
 
+        const imageRecordData = imageRecord as Pick<ProjectImage, 'id'>;
         if (isPublished) {
           const { errors } = await copyDraftImagesToPublic([storagePath]);
           if (errors.length > 0) {
-            console.warn('[from-url] Failed to copy to public:', errors);
+            logger.warn('[from-url] Failed to copy to public', { errors });
           }
         }
 
         uploadedImages.push({
-          id: imageRecord.id,
+          id: imageRecordData.id,
           url: resolveProjectImageUrl({
             projectId,
-            imageId: imageRecord.id,
+            imageId: imageRecordData.id,
             storagePath,
             isPublished,
           }),
@@ -238,16 +235,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         // Set hero image if this is the first image and no hero is set
         if (!typedProject.hero_image_id && uploadedImages.length === 1) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
+          const heroUpdate: ProjectUpdate = { hero_image_id: imageRecordData.id };
+          await supabase
             .from('projects')
-            .update({ hero_image_id: imageRecord.id })
+            .update(heroUpdate)
             .eq('id', projectId)
             .eq('contractor_id', contractor.id);
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('[from-url] Error processing image:', img.url, err);
+        logger.error('[from-url] Error processing image', { error: err, url: img.url });
         errors.push({ url: img.url, error: message });
       }
     }

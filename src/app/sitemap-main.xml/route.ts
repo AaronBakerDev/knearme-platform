@@ -16,16 +16,43 @@
  * @see /src/app/sitemap.ts (old implementation - being replaced)
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getServiceTypeSlugs } from '@/lib/data/services';
 import { getAllArticles } from '@/lib/content/mdx';
 import { LIVE_TOOLS } from '@/lib/tools/catalog';
+import { logger } from '@/lib/logging';
+import type { Database } from '@/types/database';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600; // 1 hour
+
+interface ReviewArticleRow {
+  slug: string;
+  generated_at: string;
+  status: string;
+}
+
+type ReviewArticleInsert = ReviewArticleRow;
+type ReviewArticleUpdate = Partial<ReviewArticleRow>;
+
+type SitemapDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      review_articles: {
+        Row: ReviewArticleRow;
+        Insert: ReviewArticleInsert;
+        Update: ReviewArticleUpdate;
+        Relationships: [];
+      };
+    };
+  };
+};
+
+type SitemapSupabaseClient = SupabaseClient<SitemapDatabase>;
 
 /**
  * Generates sitemap entry XML for a single URL
@@ -89,17 +116,15 @@ export async function GET() {
 
     // Dynamic content from database (if service role key is available)
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      const supabase = createAdminClient();
+      const supabase = createAdminClient() as SitemapSupabaseClient;
 
       // Review articles from database (Learning center)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: reviewArticles } = await (supabase as any)
+      const { data: reviewArticles } = await supabase
         .from('review_articles')
         .select('slug, generated_at')
         .eq('status', 'published');
 
-      type ReviewArticle = { slug: string; generated_at: string };
-      const reviewList = (reviewArticles || []) as ReviewArticle[];
+      const reviewList = reviewArticles ?? [];
 
       reviewList.forEach((article) => {
         urls.push(
@@ -113,8 +138,7 @@ export async function GET() {
       });
 
       // Published projects
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: projects } = await (supabase as any)
+      const { data: projects } = await supabase
         .from('projects')
         .select('slug, city_slug, project_type_slug, updated_at, published_at')
         .eq('status', 'published')
@@ -129,7 +153,7 @@ export async function GET() {
         updated_at: string | null;
         published_at: string | null;
       };
-      const projectsList = (projects || []) as SitemapProject[];
+      const projectsList = (projects ?? []) as SitemapProject[];
 
       projectsList.forEach((project) => {
         const lastmod = new Date(project.updated_at || project.published_at!);
@@ -144,8 +168,7 @@ export async function GET() {
       });
 
       // Businesses with published projects (contractors table)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: contractors } = await (supabase as any)
+      const { data: contractors } = await supabase
         .from('contractors')
         .select(`
           id,
@@ -164,7 +187,7 @@ export async function GET() {
         city_slug: string;
         updated_at: string;
       };
-      const contractorsList = (contractors || []) as SitemapContractor[];
+      const contractorsList = (contractors ?? []) as SitemapContractor[];
 
       // Deduplicate contractors (join may return duplicates)
       const uniqueContractors = new Map<string, SitemapContractor>();
@@ -245,7 +268,7 @@ ${urls.join('\n')}
       },
     });
   } catch (error) {
-    console.error('[sitemap-main.xml] Error generating sitemap:', error);
+    logger.error('[sitemap-main.xml] Error generating sitemap', { error });
 
     // Return minimal sitemap on error
     const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>

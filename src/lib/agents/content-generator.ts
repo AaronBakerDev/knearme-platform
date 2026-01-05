@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { getGenerationModel, isGoogleAIEnabled, OUTPUT_LIMITS } from '@/lib/ai/providers';
 import { formatProjectLocation } from '@/lib/utils/location';
 import type { SharedProjectState, ContentGenerationResult } from './types';
+import { logger } from '@/lib/logging';
 
 // ============================================================================
 // Schema
@@ -249,7 +250,7 @@ export async function generateContent(
     return result;
   } catch (error) {
     const parsed = parseGenerationError(error);
-    console.error('[ContentGenerator] Error:', parsed.error);
+    logger.error('[ContentGenerator] Error', { error: parsed.error });
     return parsed;
   }
 }

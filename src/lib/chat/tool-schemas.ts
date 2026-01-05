@@ -59,7 +59,7 @@ export const extractProjectDataSchema = z.object({
   materials_mentioned: z
     .array(z.string())
     .optional()
-    .describe('Materials mentioned (if any)'),
+    .describe('Materials mentioned (if provided)'),
   techniques_mentioned: z
     .array(z.string())
     .optional()
@@ -71,11 +71,11 @@ export const extractProjectDataSchema = z.object({
   city: z
     .string()
     .optional()
-    .describe('Recommended: City where project was done. Extract from any location mention.'),
+    .describe('Recommended: City where project was done. Extract from location mentions.'),
   state: z
     .string()
     .optional()
-    .describe('Recommended: State or province abbreviation (e.g., "CO", "ON", "CA"). Extract from any location mention.'),
+    .describe('Recommended: State or province abbreviation (e.g., "CO", "ON", "CA"). Extract from location mentions.'),
   location: z
     .string()
     .optional()
@@ -206,7 +206,7 @@ export const suggestQuickActionsSchema = z.object({
         label: z.string().describe('Short label for the chip'),
         type: z
           .string()
-          .describe('Action type (use existing UI types when possible, but any relevant action is allowed)'),
+          .describe('Action type (use existing UI types when possible; other relevant actions are allowed)'),
         value: z.string().optional().describe('Prefilled text for insert-type actions'),
       })
     )
@@ -295,7 +295,7 @@ export interface ProcessParallelOutput {
   };
   /** Combined duration of all agents */
   durationMs: number;
-  /** Error if any agent failed */
+  /** Error if an agent failed */
   error?: string;
 }
 

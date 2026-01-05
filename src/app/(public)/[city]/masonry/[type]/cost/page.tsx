@@ -19,6 +19,7 @@ import { Card, CardContent, Badge, Button } from '@/components/ui'
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs'
 import { MasonryCostEstimatorWidget } from '@/components/tools/MasonryCostEstimatorWidget'
 import { getServiceById } from '@/lib/services'
+import { formatCityName, formatServiceName, getCanonicalUrl } from '@/lib/constants/page-descriptions'
 
 type PageParams = {
   params: Promise<{
@@ -27,27 +28,10 @@ type PageParams = {
   }>
 }
 
-function formatCityName(citySlug: string): string {
-  const parts = citySlug.split('-')
-  if (parts.length < 2) return citySlug
-
-  const state = parts.pop()?.toUpperCase() || ''
-  const city = parts.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
-  return `${city}, ${state}`
-}
-
-function formatServiceName(typeSlug: string): string {
-  return typeSlug
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { city, type } = await params
   const cityName = formatCityName(city)
   const serviceName = formatServiceName(type)
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com'
 
   const title = `${serviceName} Cost in ${cityName} | Masonry Repair Estimator`
   const description = `See typical ${serviceName.toLowerCase()} costs in ${cityName}. Use our fast estimator to get a planning-level range and learn what drives price.`
@@ -56,7 +40,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     title,
     description,
     alternates: {
-      canonical: `${siteUrl}/${city}/masonry/${type}/cost`,
+      canonical: getCanonicalUrl(`/${city}/masonry/${type}/cost`),
     },
   }
 }
@@ -150,4 +134,3 @@ export default async function CityMasonryCostPage({ params }: PageParams) {
     </div>
   )
 }
-

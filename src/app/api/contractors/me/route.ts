@@ -9,11 +9,13 @@
 
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { slugify } from '@/lib/utils/slugify';
-import type { Contractor } from '@/types/database';
+import { logger } from '@/lib/logging';
+import type { Contractor, Database } from '@/types/database';
 
 /**
  * Validation schema for updating contractor profile.
@@ -43,8 +45,7 @@ const updateContractorSchema = z.object({
  * 3. Return baseSlug if available, otherwise baseSlug-(max+1)
  */
 async function findUniqueProfileSlug(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient<Database>,
   baseSlug: string,
   contractorId: string
 ): Promise<string> {
@@ -57,7 +58,7 @@ async function findUniqueProfileSlug(
     .limit(100);
 
   if (error) {
-    console.error('[findUniqueProfileSlug] Query error:', error);
+    logger.error('[findUniqueProfileSlug] Query error', { error });
     // Fallback to random suffix on error
     return `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
   }
@@ -104,7 +105,7 @@ export async function GET() {
     }
 
     const { contractor } = auth;
-    const supabase = await createClient();
+    const supabase = (await createClient()) as SupabaseClient<Database>;
 
     // Get project counts for stats
     const { count: totalProjects } = await supabase
@@ -156,7 +157,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const updates = parsed.data;
-    const supabase = await createClient();
+    const supabase = (await createClient()) as SupabaseClient<Database>;
 
     // Build update payload
     const updatePayload: Partial<Contractor> = { ...updates };
@@ -190,8 +191,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Update contractor
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: updated, error } = await (supabase as any)
+    const { data: updated, error } = await supabase
       .from('contractors')
       .update(updatePayload)
       .eq('id', contractor.id)
@@ -199,7 +199,7 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('[PATCH /api/contractors/me] Update error:', error);
+      logger.error('[PATCH /api/contractors/me] Update error', { error });
       return handleApiError(error);
     }
 

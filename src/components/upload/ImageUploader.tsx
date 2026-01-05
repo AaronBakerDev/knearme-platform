@@ -22,6 +22,7 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { compressImage, COMPRESSION_PRESETS, createPreviewUrl } from '@/lib/images/compress';
 import { validateFile } from '@/lib/storage/upload';
+import { logger } from '@/lib/logging';
 
 export interface UploadedImage {
   id: string;
@@ -181,7 +182,7 @@ export function ImageUploader({
           // Sync to public bucket if project is published (server decides)
           fetch(`/api/projects/${projectId}/images/${image.id}/sync`, {
             method: 'POST',
-          }).catch((err) => console.warn('[ImageUploader] Sync failed:', err));
+          }).catch((err) => logger.warn('[ImageUploader] Sync failed', { error: err }));
 
           setPendingUploads((prev) =>
             prev.map((p) => (p.id === pending.id ? { ...p, progress: 100 } : p))
@@ -206,7 +207,7 @@ export function ImageUploader({
           URL.revokeObjectURL(pending.previewUrl);
           setPendingUploads((prev) => prev.filter((p) => p.id !== pending.id));
         } catch (err) {
-          console.error('[ImageUploader] Upload error:', err);
+          logger.error('[ImageUploader] Upload error', { error: err });
           const errorMessage = err instanceof Error ? err.message : 'Upload failed';
 
           setPendingUploads((prev) =>
@@ -272,7 +273,7 @@ export function ImageUploader({
 
       onImagesChange(images.filter((img) => img.id !== imageId));
     } catch (err) {
-      console.error('[ImageUploader] Delete error:', err);
+      logger.error('[ImageUploader] Delete error', { error: err });
     }
   };
 

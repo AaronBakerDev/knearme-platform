@@ -14,11 +14,12 @@
  * @see /.claude/skills/agent-builder/references/architectures.md
  */
 
-import { generateText, Output, type UserModelMessage, type TextPart, type ImagePart } from 'ai';
+import { generateText, Output, type FlexibleSchema, type UserModelMessage, type TextPart, type ImagePart } from 'ai';
 import { google } from '@ai-sdk/google';
 import { AI_MODELS, isGoogleAIEnabled } from '@/lib/ai/providers';
 import type { ProjectImageState } from '../types';
 import { downloadProjectImage } from '@/lib/storage/upload.server';
+import { logger } from '@/lib/logging';
 import type {
   SubagentType,
   SubagentContext,
@@ -102,7 +103,9 @@ async function buildMultimodalMessage(
         });
         continue;
       }
-      console.warn('[buildMultimodalMessage] Draft image download failed:', downloadResult.error);
+      logger.warn('[buildMultimodalMessage] Draft image download failed', {
+        error: downloadResult.error,
+      });
     }
 
     if (img.url && !img.url.startsWith('/api/')) {
@@ -184,7 +187,7 @@ const SUBAGENT_REGISTRY = {
  * });
  *
  * if (result.success) {
- *   console.log('Narrative:', result.narrative);
+ *   logger.info('Narrative', { narrative: result.narrative });
  * }
  * ```
  */
@@ -239,33 +242,23 @@ export async function spawnSubagent<T extends SubagentType>(
     // We always use the messages format; buildMultimodalMessage handles
     // text-only vs text+images automatically.
     //
-    // TYPE SAFETY NOTE: We cast to `any` because TypeScript can't narrow the union
-    // of Zod schemas (STORY_AGENT_SCHEMA | DESIGN_AGENT_SCHEMA | QUALITY_AGENT_SCHEMA)
-    // based on the `type` parameter. This is a compile-time limitation only.
-    //
-    // RUNTIME SAFETY: The Zod schema still validates the AI output at runtime.
-    // If the schema changes or the AI returns invalid data, Zod will reject it
-    // and `result` will be null (handled below).
-    //
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const schemaTyped = config.schema as any;
+    // TYPE SAFETY NOTE: TypeScript can't narrow the union of Zod schemas
+    // based on the `type` parameter, so we cast to the expected flexible schema.
+    const schemaTyped = config.schema as FlexibleSchema<SubagentResultType>;
 
     // Story Agent gets images passed for vision understanding; others get text only
     const images = type === 'story' ? context.images : undefined;
 
-    const generateTextOptions = {
+    // Call generateText with structured output
+    const { output: result } = await generateText({
       model: google(options.model ?? AI_MODELS.generation),
-      output: Output.object({ schema: schemaTyped }),
+      output: Output.object<SubagentResultType>({ schema: schemaTyped }),
       system: config.prompt,
       messages: [await buildMultimodalMessage(userPrompt, images)],
       maxOutputTokens,
       temperature,
       abortSignal: controller.signal,
-    };
-
-    // Call generateText with structured output
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { output: result } = await generateText(generateTextOptions) as { output: any };
+    });
 
     // Handle null result (schema validation failure)
     if (!result) {
@@ -276,19 +269,18 @@ export async function spawnSubagent<T extends SubagentType>(
       ) as SubagentResultType;
     }
 
-    // Add success metadata - cast result to expected shape since we used any for schema
-    const typedResult = result as { confidence?: number };
+    const confidence = Number.isFinite(result.confidence) ? result.confidence : 0.5;
 
-    // Confidence is required in all schemas, so missing = schema mismatch
-    // Use conservative default (0.5) and warn for debugging
-    if (typedResult.confidence === undefined) {
-      console.warn(`[spawnSubagent] ${type} agent did not return confidence score - using fallback`);
+    if (!Number.isFinite(result.confidence)) {
+      logger.warn('[spawnSubagent] Missing confidence score, using fallback', {
+        subagent: type,
+      });
     }
 
     const enrichedResult = {
       ...result,
       success: true,
-      confidence: typedResult.confidence ?? 0.5, // Conservative fallback
+      confidence, // Conservative fallback
     };
 
     return enrichedResult as SubagentResultType;
@@ -298,7 +290,10 @@ export async function spawnSubagent<T extends SubagentType>(
       error instanceof Error &&
       (error.message.includes('429') || error.message.includes('rate limit'));
 
-    console.warn(`[spawnSubagent] ${type} agent failed:`, error instanceof Error ? error.message : error);
+    logger.warn('[spawnSubagent] Subagent failed', {
+      subagent: type,
+      error,
+    });
 
     return createErrorResult(
       type,
@@ -398,9 +393,10 @@ export async function spawnParallel(
 
   const results = await Promise.all(promises);
 
-  console.log(
-    `[SpawnParallel] Completed ${requests.length} subagents in ${Date.now() - startTime}ms`
-  );
+  logger.info('[SpawnParallel] Completed subagents', {
+    count: requests.length,
+    durationMs: Date.now() - startTime,
+  });
 
   return results;
 }

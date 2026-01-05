@@ -16,7 +16,8 @@ import { apiError, apiSuccess, apiCreated, handleApiError } from '@/lib/api/erro
 import { slugify } from '@/lib/utils/slugify';
 import { composeProjectDescription } from '@/lib/projects/compose-description';
 import { trackProjectCreated } from '@/lib/observability/kpi-events';
-import type { Project, ProjectWithImages } from '@/types/database';
+import { logger } from '@/lib/logging';
+import type { Project, ProjectInsert, ProjectWithImages } from '@/types/database';
 
 /**
  * Validation schema for creating a project.
@@ -56,11 +57,14 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuthUnified();
     if (isAuthError(auth)) {
-      console.error('[GET /api/projects] Auth failed:', auth.type, auth.message);
+      logger.warn('[GET /api/projects] Auth failed', {
+        type: auth.type,
+        message: auth.message,
+      });
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
 
-    console.log('[GET /api/projects] Auth success:', {
+    logger.info('[GET /api/projects] Auth success', {
       contractorId: auth.contractor.id,
       businessName: auth.contractor.business_name,
       authMethod: auth.authMethod,
@@ -78,8 +82,7 @@ export async function GET(request: NextRequest) {
 
     // Build query - RLS automatically filters to this contractor
     // Use explicit relationship hint due to hero_image_id FK ambiguity
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query = (supabase as any)
+    let query = supabase
       .from('projects')
       .select('*, project_images!project_images_project_id_fkey(*)', { count: 'exact' })
       .eq('contractor_id', contractor.id)
@@ -94,7 +97,7 @@ export async function GET(request: NextRequest) {
     const { data, error, count } = await query;
 
     if (error) {
-      console.error('[GET /api/projects] Query error:', error);
+      logger.error('[GET /api/projects] Query error', { error });
       return handleApiError(error);
     }
 
@@ -184,32 +187,35 @@ export async function POST(request: NextRequest) {
     const supabase = await getAuthClient(auth);
 
     // Create the project - RLS ensures contractor_id matches auth
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: project, error } = await (supabase as any)
+    const insertPayload: ProjectInsert = {
+      contractor_id: contractor.id,
+      // During migration, business_id matches contractor.id (see related route ownership check).
+      business_id: contractor.id,
+      title: title ?? null,
+      description: descriptionValue,
+      description_manual: descriptionManual,
+      project_type: project_type ?? null,
+      project_type_slug: projectTypeSlug,
+      city: projectCity,
+      state: projectState,
+      city_slug: citySlug,
+      slug: uniqueSlug,
+      status: 'draft',
+      summary: summary ?? null,
+      challenge: challenge ?? null,
+      solution: solution ?? null,
+      results: results ?? null,
+      outcome_highlights: outcome_highlights ?? null,
+    };
+
+    const { data: project, error } = await supabase
       .from('projects')
-      .insert({
-        contractor_id: contractor.id,
-        title: title ?? null,
-        description: descriptionValue,
-        description_manual: descriptionManual,
-        project_type: project_type ?? null,
-        project_type_slug: projectTypeSlug,
-        city: projectCity,
-        state: projectState,
-        city_slug: citySlug,
-        slug: uniqueSlug,
-        status: 'draft',
-        summary: summary ?? null,
-        challenge: challenge ?? null,
-        solution: solution ?? null,
-        results: results ?? null,
-        outcome_highlights: outcome_highlights ?? null,
-      })
+      .insert(insertPayload)
       .select('*')
       .single();
 
     if (error) {
-      console.error('[POST /api/projects] Insert error:', error);
+      logger.error('[POST /api/projects] Insert error', { error });
       return handleApiError(error);
     }
 
@@ -218,7 +224,7 @@ export async function POST(request: NextRequest) {
     trackProjectCreated({
       contractorId: contractor.id,
       projectId: project.id,
-    }).catch((err) => console.error('[KPI] trackProjectCreated failed:', err));
+    }).catch((err) => logger.error('[KPI] trackProjectCreated failed', { error: err }));
 
     // Return with empty images array to match ProjectWithImages type
     const projectWithImages: ProjectWithImages = {

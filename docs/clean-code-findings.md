@@ -1,165 +1,131 @@
 # Clean Code Findings (Heuristic Scan)
 
-Date: 2026-01-03
-Last targeted update: 2026-01-04 (contractor profile refactor + service-type page extraction)
-Scope: `src/**/*.{ts,tsx,js,jsx}`
+Date: 2026-01-05
+Last targeted update: 2026-01-05 04:43Z (ExecPlan complete)
+Scope: `src/**/*.{ts,tsx}`
 
 This is a heuristic scan for likely clean-code risks. Items below are based on:
 - Large files (likely violating Single Responsibility / readability)
 - Lint/TypeScript suppressions (`eslint-disable`, `@ts-ignore`, etc.)
 - TODO/FIXME markers
-- Approximate nesting depth, branch density, and duplication (see notes)
+- Console logs (production risk)
+- Explicit `any` usage
 
 If you want stricter criteria (e.g., max lines per file or max suppressions), tell me and I will re-run with those thresholds.
 
-## Refactor Status (2026-01-04)
-Status: Active - 600-699 bucket shrinking.
+## Refactor Status (2026-01-05 04:43Z rebaseline)
+Status: Complete - Milestone 5 done, ExecPlan complete.
 
-- Core monolith remains: `src/components/chat/ChatWizard.tsx` is still 2800+ lines with deep state/prop drilling.
-- Large-file hotspots are still concentrated in chat, agents, and public page routes (see size outliers).
-- Suppressions remain heavy in API routes and chat context tools, increasing hidden defect risk.
-- Duplication hotspots persist in auth forms and service/masonry page templates.
-- Large content-only files (for example `src/lib/constants/service-content.ts`) are low-risk and can be deprioritized.
-- Contractor profile page refactor: UI sections extracted to `src/components/portfolio/ContractorProfileSections.tsx`; page now ~341 lines.
-- City service-type page: service descriptions moved to `src/lib/seo/service-type-descriptions.ts`; page now ~585 lines.
-- Learning Center article page: removed hooks suppression by switching to `getMDXComponents`.
-- Learning Center article page: extracted layout sections to `src/components/content/ArticleSections.tsx` (page now ~382 lines).
-- Structured data: `schemaToString` now escapes HTML-sensitive characters to prevent JSON-LD script injection.
-- Semantic blocks split into schema + utilities (`semantic-blocks.schema.ts`, `semantic-blocks.utils.ts`) to keep the public barrel small.
-- Test cleanup: `src/lib/api/auth.test.ts` now uses shared Supabase mocks; `src/lib/data/services.test.ts` now uses shared query-chain helpers.
-- Publish checklist tests: consolidated renders and word fixtures (`src/components/publish/PublishChecklist.test.tsx`).
-- Structured data split into modules under `src/lib/seo/structured-data/` to keep the barrel small and avoid 600+ line files.
+- Largest monolith remains `src/components/chat/ChatWizard.tsx` (1,383 lines).
+- 9 files are >=700 lines under `src` (see size outliers).
+- Suppressions: 0 occurrences across 0 files.
+- Explicit `any`: 32 occurrences across 32 files (text/copy mentions).
+- TODO/FIXME markers: 0; console.* occurrences: 28 across 18 files (comment/doc examples + logging sink).
+- City masonry hubs and auth pages now sit below 500 lines after shared helpers/components.
+- State-transfer mapping logic now uses extracted helpers with tests to reduce branch density.
 
-Note: Lists below reflect the 2026-01-03 heuristic scan unless explicitly updated above.
-
-## Manual Investigation Findings (2026-01-03)
-
-### Validated Risks
-- **Monolithic Component**: `src/components/chat/ChatWizard.tsx` (2800+ lines). Violates SRP, has complex state, inline business logic, and extensive prop drilling to `ChatSurface`, `ChatInput`, etc.
-- **Duplication**: `src/app/(auth)/signup/page.tsx` contains significant form field boilerplate (Input/Label/Error patterns).
-
-### Explicit `any` Usage
-- `src/app/api/businesses/me/route.ts` (supabase client)
-- `src/lib/chat/context-loader.ts` (supabase client)
-- `src/lib/data/projects.ts` (supabase client)
-- `src/lib/agents/subagents/spawn.ts` (return type casting)
-
-### Console Logs (Production Risks)
-- `src/app/(public)/[city]/masonry/[type]/page.tsx` (and similar dynamic routes): debug/skipping logic.
-- `src/app/api/projects/route.ts`: auth success logging.
-- `src/app/api/projects/[id]/publish/route.ts`: warning logging.
-
-### Low Risk / Data Files
-- `src/lib/constants/service-content.ts`: Large file (1300+ lines) but contains content definitions, not code complexity.
+## Exceptions (intentional consolidations)
+- `src/lib/supabase/typed-queries.ts` (1,091) — centralized typed Supabase query wrappers.
+- `src/lib/chat/tool-schemas.ts` (873) — consolidated tool schema definitions.
+- `src/types/database.ts` (724) — generated database types.
+- `src/lib/constants/service-content/repair.ts` (638) — content-only catalog (low logic density).
 
 ## High-risk size outliers (700+ lines)
-- `src/components/chat/ChatWizard.tsx` (2878) - **CONFIRMED MONOLITH**
-- `src/lib/mcp/tools.ts` (1006)
-- `src/components/chat/hooks/useLiveVoiceSession.ts` (947)
-- `src/components/portfolio/DynamicPortfolioRenderer.tsx` (928)
-- `src/lib/agents/story-extractor.ts` (888)
-- `src/lib/chat/tools-runtime.ts` (871)
-- `src/app/(public)/services/[type]/page.tsx` (788)
-- `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx` (788)
-- `src/lib/chat/tool-schemas.ts` (751)
-- `src/types/database.ts` (724)
-- `src/lib/agents/orchestrator.ts` (711)
+- `src/components/chat/ChatWizard.tsx` (1,383)
+- `src/lib/supabase/typed-queries.ts` (1,091) — exception
+- `src/lib/chat/tool-schemas.ts` (873) — exception
+- `src/app/api/onboarding/route.ts` (794)
+- `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx` (786)
+- `src/app/(public)/services/[type]/page.tsx` (769)
+- `src/components/chat/hooks/useLiveVoiceSession.ts` (766)
+- `src/types/database.ts` (724) — exception
 - `src/app/api/chat/route.ts` (704)
 
 ## Large files (600-699 lines)
-- `src/app/(public)/contractors/[city]/[slug]/page.tsx` (668)
-- `src/app/(public)/[city]/masonry/[type]/page.tsx` (665)
-- `src/lib/agents/discovery.ts` (656)
-- `src/lib/api/auth.test.ts` (652)
-- `src/lib/data/services.test.ts` (623)
-- `src/app/api/onboarding/route.ts` (616)
-- `src/app/(public)/learn/[slug]/page.tsx` (612)
-- `src/components/publish/PublishChecklist.test.tsx` (611)
-- `src/lib/design/semantic-blocks.ts` (608)
-- `src/lib/seo/structured-data.ts` (605)
+- `src/lib/constants/service-content/repair.ts` (638)
+- `src/lib/chat/tool-executors.ts` (624)
 
 ## Large files (500-599 lines)
-- `src/lib/tools/business-discovery/client.ts` (588)
+- `src/lib/tools/business-discovery/client.ts` (596)
 - `src/components/upload/ImageUploader.test.tsx` (581)
-- `src/components/chat/artifacts/ProjectEditFormArtifact.tsx` (578)
+- `src/components/chat/artifacts/ProjectEditFormArtifact.tsx` (570)
 - `src/components/chat/hooks/useInlineImages.ts` (569)
-- `src/lib/testing/supabase-mock.ts` (553)
+- `src/lib/api/auth.test.ts` (563)
+- `src/lib/testing/supabase-mock.ts` (557)
 - `src/hooks/useVoiceRecording.ts` (550)
 - `src/components/chat/ChatInput.tsx` (548)
-- `src/lib/agents/subagents/spawn.ts` (537)
-- `src/app/api/ai/generate-content/route.ts` (523)
+- `src/lib/agents/subagents/spawn.ts` (533)
+- `src/lib/chat/context-loader.ts` (521)
+- `src/components/tools/ToolWidgetBase.tsx` (518)
+- `src/lib/data/services.test.ts` (513)
 - `src/lib/agents/__tests__/quality-checker.test.ts` (511)
 - `src/components/chat/artifacts/ImageGalleryArtifact.tsx` (505)
 - `src/lib/agents/ui-composer.ts` (504)
+- `src/components/chat/ChatMessages.tsx` (503)
 
 ## Large files (400-499 lines)
+- `src/app/(public)/[city]/masonry/[type]/page.tsx` (488)
 - `src/lib/design/tokens.ts` (478)
 - `src/lib/data/demo-projects.ts` (478)
-- `src/app/api/projects/[id]/images/route.ts` (476)
-- `src/lib/api/auth.ts` (471)
+- `src/app/api/ai/generate-content/route.ts` (478)
+- `src/components/edit/SortableImageGrid.test.tsx` (470)
+- `src/lib/content/mdx.ts` (469)
+- `src/lib/api/auth.ts` (468)
 - `src/lib/voice/voice-telemetry.ts` (465)
 - `src/lib/observability/agent-logger.ts` (463)
-- `src/components/chat/LivePortfolioCanvas.tsx` (461)
-- `src/app/(public)/[city]/masonry/page.tsx` (458)
+- `src/components/chat/LivePortfolioCanvas.tsx` (462)
 - `src/lib/chat/chat-prompts.ts` (454)
-- `src/lib/content/mdx.ts` (453)
-- `src/components/chat/ChatMessages.tsx` (453)
-- `src/lib/chat/context-loader.ts` (450)
+- `src/components/onboarding/OnboardingChat.tsx` (453)
 - `src/lib/observability/tracing.ts` (442)
-- `src/components/edit/BlockEditor.tsx` (439)
-- `src/app/(dashboard)/profile/edit/page.tsx` (438)
+- `src/app/(dashboard)/profile/edit/page.tsx` (440)
 - `src/lib/chat/state-transfer.ts` (437)
-- `src/app/(dashboard)/projects/page.tsx` (434)
+- `src/components/edit/BlockEditor.tsx` (433)
 - `src/components/upload/ImageUploader.tsx` (431)
-- `src/components/marketing/SiteHeaderClient.tsx` (426)
-- `src/app/(public)/services/page.tsx` (422)
-- `src/components/chat/artifacts/ContentEditor.tsx` (419)
-- `src/components/edit/SortableImageGrid.test.tsx` (414)
+- `src/components/chat/handlers/useContentActions.ts` (431)
+- `src/components/publish/PublishChecklist.test.tsx` (426)
+- `src/app/api/projects/[id]/images/route.ts` (426)
+- `src/components/portfolio/ContractorProfileSections.tsx` (425)
+- `src/lib/chat/memory.ts` (423)
+- `src/components/marketing/SiteHeaderClient.tsx` (423)
+- `src/app/(dashboard)/projects/page.tsx` (420)
+- `src/components/chat/artifacts/ContentEditor.tsx` (417)
 - `src/components/interview/VoiceRecorder.tsx` (413)
+- `src/lib/constants/service-content/construction.ts` (411)
 - `src/lib/agents/content-generator.ts` (411)
-- `src/lib/data/services.ts` (408)
-- `src/app/(auth)/login/page.tsx` (403)
-- `src/app/(dashboard)/projects/[id]/page.tsx` (400)
+- `src/app/(public)/services/page.tsx` (409)
+- `src/lib/data/services.ts` (405)
 
-## Lint/TypeScript suppressions (>= 3 occurrences)
-These are likely masking typing or rule violations and can hide bugs.
+## Lint/TypeScript suppressions
+Total: 0 occurrences across 0 files.
 
-- `src/app/api/onboarding/route.ts` (13)
-- `src/app/api/projects/[id]/images/route.ts` (12)
-- `src/app/api/ai/generate-content/route.ts` (11)
-- `src/lib/chat/context-loader.ts` (6)
-- `src/app/api/businesses/me/route.ts` (6)
-- `src/lib/chat/tools-runtime.ts` (5)
-- `src/lib/chat/memory.ts` (5)
-- `src/app/api/projects/[id]/route.ts` (5)
-- `src/app/api/projects/[id]/publish/route.ts` (5)
-- `src/app/api/ai/analyze-images/route.ts` (5)
-- `src/lib/voice/usage-tracking.ts` (4)
-- `src/lib/data/services.ts` (4)
-- `src/lib/api/auth.ts` (4)
-- `src/app/api/projects/[id]/images/from-url/route.ts` (4)
-- `src/app/api/chat/sessions/[id]/route.ts` (4)
-- `src/app/api/chat/sessions/[id]/messages/route.ts` (4)
-- `src/app/api/businesses/[slug]/route.ts` (4)
-- `src/lib/oauth/auth-code-store.ts` (3)
-- `src/lib/content/mdx.ts` (3)
-- `src/lib/chat/prompt-context.ts` (3)
-- `src/lib/chat/context-compactor.ts` (3)
-- `src/app/sitemap-main.xml/route.ts` (3)
-- `src/app/api/projects/[id]/images/validate/route.ts` (3)
-- `src/app/api/chat/sessions/by-project/[projectId]/route.ts` (3)
-- `src/app/api/ai/transcribe/route.ts` (3)
-- `src/app/api/ai/summarize-conversation/route.ts` (3)
+## Explicit `any` usage
+Total: 32 occurrences across 32 files.
+
+Files with >= 6 occurrences:
+None. Remaining references are in copy/comments with a max count of 1 per file.
 
 ## TODOs (cleanup indicators)
-Note: TODOs 1-2 were resolved on 2026-01-04; remaining TODOs are tracking legitimate ongoing work.
+None. Remaining follow-ups are tracked in `docs/clean-code-progress.md`.
 
-- `src/lib/chat/tool-executors.ts` (line 223) - // TODO: Phase 10 migration - currently calls both Design Agent and legacy composer.
-  - Status: Keep - Design Agent produces different block format than legacy composer; migration requires UI updates
-- `src/lib/chat/tool-executors.ts` (line 323) - // TODO: Remove this once all callers use Quality Agent format
-  - Status: Keep - Quality Agent schema differs from CheckPublishReadyOutput; consumers depend on legacy format
-- `src/lib/mcp/tools.ts` (line 544) - // TODO: Replace hardcoded '/masonry/' with dynamic trade segment when routes are restructured
-  - Status: Keep - Requires trade_slug column in projects schema and route restructuring
+## Console logs (production risks)
+Total: 28 occurrences across 18 files.
+
+Top files by count:
+- `src/lib/observability/agent-logger.ts` (7)
+- `src/app/api/tools/export-pdf/README.md` (2)
+- `src/lib/agents/content-generator.ts` (2)
+- `src/lib/agents/quality-checker.ts` (2)
+- `src/lib/ai/transcription.ts` (2)
+- `src/components/chat/hooks/useDropZone.ts` (1)
+- `src/components/chat/hooks/useKeyboardNavigation.ts` (1)
+- `src/components/portfolio/DynamicPortfolioRenderer.tsx` (1)
+- `src/components/tools/ToolPDF/EmailCaptureDialog.tsx` (1)
+- `src/components/tools/ToolPDF/INTEGRATION_EXAMPLE.md` (1)
+
+Exception note: remaining console references are comment/doc examples plus the logging sink in `src/lib/observability/agent-logger.ts`.
+
+## Legacy heuristic scans (2026-01-03 snapshot)
+The sections below (deep nesting, branch density, duplication) were not rebaselined in Milestone 1.
 
 ## Deep nesting (top 15 by max brace depth)
 - `src/lib/tools/business-discovery/client.ts` (depth 9)

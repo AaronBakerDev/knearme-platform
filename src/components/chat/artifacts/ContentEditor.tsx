@@ -76,13 +76,13 @@ export function ContentEditor({ data, onAction, className, isSaving }: ContentEd
   const [seoTitle, setSeoTitle] = useState(data.seo_title || '');
   const [seoDescription, setSeoDescription] = useState(data.seo_description || '');
 
-  // Task B2: Track if user has made any edits
+  // Task B2: Track if user has made edits
   const [hasEdited, setHasEdited] = useState(false);
 
   const editable = data.editable !== false;
   const canRegenerate = editable && Boolean(onAction);
 
-  // Task B2: Track edits on any field change
+  // Task B2: Track edits on field change
   const handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setTitle(event.target.value);
     setHasEdited(true);

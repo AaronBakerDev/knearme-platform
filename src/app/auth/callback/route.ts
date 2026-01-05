@@ -33,8 +33,7 @@ export async function GET(request: Request) {
         // For new OAuth users, create a contractor record if one doesn't exist
         if (!contractor) {
           const adminClient = createAdminClient();
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (adminClient as any)
+          await adminClient
             .from('contractors')
             .insert({
               auth_user_id: user.id,

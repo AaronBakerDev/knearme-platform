@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react';
+import { logger } from '@/lib/logging';
 
 interface UseAutoSummarizeOptions {
   /** The session ID to summarize */
@@ -100,12 +101,12 @@ export function useAutoSummarize({
 
       if (response.ok) {
         hasBeenSummarizedRef.current = true;
-        console.log('[AutoSummarize] Session summarized successfully');
+        logger.info('[AutoSummarize] Session summarized successfully');
       } else {
-        console.error('[AutoSummarize] Summarization failed:', response.status);
+        logger.error('[AutoSummarize] Summarization failed', { status: response.status });
       }
     } catch (error) {
-      console.error('[AutoSummarize] Summarization error:', error);
+      logger.error('[AutoSummarize] Summarization error', { error });
     } finally {
       isSummarizingRef.current = false;
     }
@@ -128,9 +129,9 @@ export function useAutoSummarize({
     const sent = navigator.sendBeacon(url, data);
     if (sent) {
       hasBeenSummarizedRef.current = true;
-      console.log('[AutoSummarize] Beacon sent for summarization');
+      logger.info('[AutoSummarize] Beacon sent for summarization');
     } else {
-      console.warn('[AutoSummarize] Beacon failed to send');
+      logger.warn('[AutoSummarize] Beacon failed to send');
     }
   }, [sessionId, enabled, minMessages]);
 
@@ -144,7 +145,7 @@ export function useAutoSummarize({
 
     if (sessionId && enabled && inactivityTimeout > 0) {
       inactivityTimerRef.current = setTimeout(() => {
-        console.log('[AutoSummarize] Inactivity timeout reached');
+        logger.info('[AutoSummarize] Inactivity timeout reached');
         void summarize();
       }, inactivityTimeout);
     }

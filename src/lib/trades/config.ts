@@ -2,7 +2,7 @@
  * Trade Configuration System
  *
  * Provides vocabulary and defaults for contractor trades.
- * The system defaults to GENERIC_CONFIG, which works for any business.
+ * The system defaults to GENERIC_CONFIG, which works for all businesses.
  * Trade-specific configs (like MASONRY_CONFIG) are optional enhancements
  * that provide richer vocabulary for content generation.
  *
@@ -140,7 +140,7 @@ export const MASONRY_CONFIG: TradeConfig = {
 
 /**
  * Generic trade configuration.
- * THIS IS THE DEFAULT - works for any business type.
+ * THIS IS THE DEFAULT - works for all business types.
  * The model will infer materials, techniques, and terminology from context.
  * Intentionally minimal to let structure emerge from actual projects.
  */

@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Twitter, Facebook, Linkedin, Mail, Link2, Check, Share2 } from 'lucide-react';
+import { logger } from '@/lib/logging';
 
 interface SocialShareProps {
   /** URL to share (defaults to current page) */
@@ -70,7 +71,7 @@ export function SocialShare({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      logger.error('[SocialShare] Failed to copy', { error: err });
     }
   };
 
@@ -86,7 +87,7 @@ export function SocialShare({
       } catch (err) {
         // User cancelled or error - silently handle
         if ((err as Error).name !== 'AbortError') {
-          console.error('Share failed:', err);
+          logger.error('[SocialShare] Share failed', { error: err });
         }
       }
     }

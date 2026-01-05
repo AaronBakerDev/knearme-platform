@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireAuthUnified, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { copyDraftImagesToPublic } from '@/lib/storage/upload.server';
+import { logger } from '@/lib/logging';
 
 type RouteParams = { params: Promise<{ id: string; imageId: string }> };
 
@@ -17,8 +18,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Verify ownership and get project status + storage path
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: image, error } = await (supabase as any)
+    const { data: image, error } = await supabase
       .from('project_images')
       .select(
         `
@@ -49,7 +49,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
 
     const { errors } = await copyDraftImagesToPublic([imageData.storage_path]);
     if (errors.length > 0) {
-      console.warn('[POST /api/projects/[id]/images/[imageId]/sync] Copy warnings:', errors);
+      logger.warn('[POST /api/projects/[id]/images/[imageId]/sync] Copy warnings', { errors });
     }
 
     return apiSuccess({ synced: errors.length === 0 });

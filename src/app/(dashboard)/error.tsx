@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { AlertTriangle, RefreshCw, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { logger } from '@/lib/logging';
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -20,7 +21,7 @@ interface ErrorProps {
 
 export default function ContractorError({ error, reset }: ErrorProps) {
   useEffect(() => {
-    console.error('[Contractor Section Error]', error);
+    logger.error('[Contractor Section Error]', { error });
   }, [error]);
 
   return (

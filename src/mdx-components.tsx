@@ -142,18 +142,20 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
       // Skip if no src
       if (!src) return null;
 
-      const imageClassName = ['rounded-lg w-full', className].filter(Boolean).join(' ');
+      const imageClassName = ['rounded-lg w-full h-auto', className].filter(Boolean).join(' ');
 
-      // External images use regular img tag
+      // External images use Next Image with unoptimized fallback
       if (src.startsWith("http")) {
         return (
           <span className="block my-6">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={src}
               alt={alt || ""}
+              width={800}
+              height={450}
+              sizes="100vw"
               className={imageClassName}
-              loading="lazy"
+              unoptimized
               {...props}
             />
             {alt && (
@@ -173,7 +175,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
             alt={alt || ""}
             width={800}
             height={450}
-            className={['rounded-lg w-full h-auto', className].filter(Boolean).join(' ')}
+            className={imageClassName}
             {...props}
           />
           {alt && (

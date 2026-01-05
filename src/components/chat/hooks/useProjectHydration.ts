@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { UIMessage } from 'ai';
 import type { ExtractedProjectData, ChatPhase } from '@/lib/chat/chat-types';
 import type { ProjectState } from '@/lib/chat/project-state';
@@ -12,6 +12,7 @@ import { getAdaptiveOpeningMessage } from '@/lib/chat/chat-prompts';
 import { extractSideEffectToolCallIds } from '@/lib/chat/wizard-utils';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { resolveProjectImageUrl } from '@/lib/storage/project-images';
+import { logger } from '@/lib/logging';
 
 interface UseProjectHydrationParams {
   projectId: string | null;
@@ -58,6 +59,11 @@ export function useProjectHydration({
     // Edit mode or has projectId: show loading until session loads
     return true;
   });
+  const uploadedImagesRef = useRef(uploadedImages);
+
+  useEffect(() => {
+    uploadedImagesRef.current = uploadedImages;
+  }, [uploadedImages]);
 
   /**
    * Load session and project data on mount.
@@ -275,7 +281,7 @@ export function useProjectHydration({
                   description: context.projectData.description,
                   status: 'draft', // Create mode is always draft
                 },
-                uploadedImages
+                uploadedImagesRef.current
               );
               setProjectState(derivedState);
 
@@ -291,7 +297,7 @@ export function useProjectHydration({
           // New session keeps the welcome message already set by useChat
         }
       } catch (err) {
-        console.error('[ChatWizard] Failed to load session:', err);
+        logger.error('[ChatWizard] Failed to load session', { error: err });
         // Issue #4: Set persistent error with retry capability
         setError(
           isEditMode
@@ -313,10 +319,23 @@ export function useProjectHydration({
     }
 
     loadSession();
-  // Note: We intentionally don't include uploadedImages in deps to avoid re-running
-  // the effect when images change. The derivation uses current state at load time.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, isEditMode, mode, setMessages]);
+  }, [
+    projectId,
+    isEditMode,
+    mode,
+    setUploadedImages,
+    setProjectState,
+    setPhase,
+    setCanvasSize,
+    setExtractedData,
+    setMessages,
+    setSessionId,
+    setError,
+    setCanRetry,
+    processedSideEffectToolCalls,
+    savedMessageIds,
+    lastMessageCount,
+  ]);
 
   return { isLoadingSession, setIsLoadingSession };
 }

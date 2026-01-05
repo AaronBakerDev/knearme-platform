@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { logger } from '@/lib/logging';
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -61,8 +62,8 @@ function buildGitHubIssueUrl(error: Error & { digest?: string }): string {
 
 export default function GlobalError({ error, reset }: ErrorProps) {
   useEffect(() => {
-    // Log the error to console in development
-    console.error('[Global Error]', error);
+    // Log the error in development for diagnostics
+    logger.error('[Global Error]', { error });
 
     // In production, you'd send this to an error tracking service
     // e.g., Sentry, LogRocket, etc.

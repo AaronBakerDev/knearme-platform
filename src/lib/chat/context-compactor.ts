@@ -12,15 +12,44 @@
  * @see /src/app/api/ai/summarize-conversation/route.ts for API endpoint
  */
 
-import { createClient } from '@/lib/supabase/server';
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
 import type { UIMessage } from 'ai';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
+import type { Database } from '@/types/database';
 import type { ProjectContextData } from './context-loader';
 
 // ============================================
 // Types
 // ============================================
+
+type ChatSessionRow = {
+  id: string;
+  message_count: number | null;
+  session_summary: string | null;
+};
+
+type ChatSessionUpdate = {
+  message_count?: number | null;
+  session_summary?: string | null;
+  updated_at?: string | null;
+};
+
+type ChatDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      chat_sessions: {
+        Row: ChatSessionRow;
+        Update: ChatSessionUpdate;
+        Insert: ChatSessionRow;
+      };
+    };
+  };
+};
+
+type ChatSupabaseClient = SupabaseClient<ChatDatabase>;
 
 /**
  * Summary result from compaction.
@@ -94,7 +123,7 @@ export async function compactConversation(
       estimatedTokens: Math.ceil(parsed.summary.length / 4), // Rough estimate
     };
   } catch (error) {
-    console.error('[ContextCompactor] Failed to generate summary:', error);
+    logger.error('[ContextCompactor] Failed to generate summary', { error });
     // Return a basic fallback summary
     return {
       summary: `Previous conversation about ${projectData.project_type || 'project'} in ${projectData.city || 'unknown location'}. ${messages.length} messages exchanged.`,
@@ -117,11 +146,10 @@ export async function saveConversationSummary(
   sessionId: string,
   summary: string
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as ChatSupabaseClient;
 
   // Update project with summary
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: projectError } = await (supabase as any)
+  const { error: projectError } = await supabase
     .from('projects')
     .update({
       conversation_summary: summary,
@@ -130,15 +158,14 @@ export async function saveConversationSummary(
     .eq('id', projectId);
 
   if (projectError) {
-    console.error(
-      '[ContextCompactor] Failed to save project summary:',
-      projectError
-    );
+    logger.error('[ContextCompactor] Failed to save project summary', {
+      error: projectError,
+      projectId,
+    });
   }
 
   // Update session with summary
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: sessionError } = await (supabase as any)
+  const { error: sessionError } = await supabase
     .from('chat_sessions')
     .update({
       session_summary: summary,
@@ -147,10 +174,10 @@ export async function saveConversationSummary(
     .eq('id', sessionId);
 
   if (sessionError) {
-    console.error(
-      '[ContextCompactor] Failed to save session summary:',
-      sessionError
-    );
+    logger.error('[ContextCompactor] Failed to save session summary', {
+      error: sessionError,
+      sessionId,
+    });
   }
 }
 
@@ -161,10 +188,9 @@ export async function saveConversationSummary(
  * @returns True if compaction is recommended
  */
 export async function needsCompaction(sessionId: string): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as ChatSupabaseClient;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: session, error } = await (supabase as any)
+  const { data: session, error } = await supabase
     .from('chat_sessions')
     .select('message_count, session_summary')
     .eq('id', sessionId)

@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { DiscoveredBusiness } from '@/lib/tools/business-discovery';
 import type { ProfileRevealData } from '@/types/artifacts';
+import { logger } from '@/lib/logging';
 
 // =============================================================================
 // Types
@@ -123,7 +124,7 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
           setSelectedBusinessId(null);
         }
       } catch (error) {
-        console.error('Failed to fetch onboarding conversation:', error);
+      logger.error('[OnboardingChat] Failed to fetch onboarding conversation', { error });
         setInitError(error instanceof Error ? error.message : 'Failed to start onboarding');
       } finally {
         setIsInitializing(false);
@@ -266,7 +267,7 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
       try {
         await sendMessage({ text });
       } catch (error) {
-        console.error('Failed to send message:', error);
+        logger.error('[OnboardingChat] Failed to send message', { error });
         toast.error('Something went wrong. Please try again.');
         setSelectedBusinessId(null);
       }

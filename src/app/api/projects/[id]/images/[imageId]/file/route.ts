@@ -17,8 +17,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Verify ownership and fetch storage path
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: image, error } = await (supabase as any)
+    const { data: image, error } = await supabase
       .from('project_images')
       .select(
         `

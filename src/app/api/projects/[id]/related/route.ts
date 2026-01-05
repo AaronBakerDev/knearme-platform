@@ -25,33 +25,40 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const supabase = createAdminClient();
 
     // Load project for ownership + related context
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: project, error } = await (supabase as any)
+    const { data: project, error } = await supabase
       .from('projects')
       .select('id, business_id, city_slug, project_type_slug')
       .eq('id', id)
       .single();
 
-    if (error || !project) {
+    type ProjectContext = {
+      id: string;
+      business_id: string;
+      city_slug: string | null;
+      project_type_slug: string | null;
+    };
+    const projectData = project as ProjectContext | null;
+
+    if (error || !projectData) {
       return apiError('NOT_FOUND', 'Project not found');
     }
 
     // Check ownership via business_id (same UUID as contractor during migration)
-    if (project.business_id !== auth.contractor.id) {
+    if (projectData.business_id !== auth.contractor.id) {
       return apiError('FORBIDDEN', 'Not authorized to view related projects');
     }
 
-    if (!project.city_slug || !project.project_type_slug) {
+    if (!projectData.city_slug || !projectData.project_type_slug) {
       return apiSuccess({ projects: [] });
     }
 
     const related = await fetchRelatedProjects(
       supabase,
       {
-        id: project.id,
-        business_id: project.business_id,
-        city_slug: project.city_slug,
-        project_type_slug: project.project_type_slug,
+        id: projectData.id,
+        business_id: projectData.business_id,
+        city_slug: projectData.city_slug,
+        project_type_slug: projectData.project_type_slug,
       },
       6
     );

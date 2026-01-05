@@ -27,6 +27,7 @@ import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 import { getServiceCatalog } from '@/lib/services';
 import { createAdminClient } from '@/lib/supabase/server';
 import { SERVICE_ICONS, PAGE_META } from '@/lib/constants/page-descriptions';
+import { logger } from '@/lib/logging';
 
 const SITE_URL = PAGE_META.siteUrl;
 
@@ -80,18 +81,17 @@ async function getServiceStats(): Promise<Map<string, ServiceStats>> {
   const supabase = createAdminClient();
   const stats = new Map<string, ServiceStats>();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('projects')
     .select('project_type_slug, city_slug')
     .eq('status', 'published');
 
   if (error) {
-    console.error('[getServiceStats] Error:', error);
+    logger.error('[getServiceStats] Error', { error });
     return stats;
   }
 
-  type ProjectRow = { project_type_slug: string; city_slug: string };
+  type ProjectRow = { project_type_slug: string | null; city_slug: string | null };
   const projects = (data || []) as ProjectRow[];
 
   // Aggregate stats per service type

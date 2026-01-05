@@ -14,6 +14,7 @@
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 import { isGoogleAIEnabled } from './providers';
+import { logger } from '@/lib/logging';
 
 /**
  * Result of transcribing audio.
@@ -119,7 +120,7 @@ export async function transcribeAudio(
     };
   } catch (error) {
     const aiError = parseTranscriptionError(error);
-    console.error('[transcribeAudio] Error:', aiError);
+    logger.error('[transcribeAudio] Error', { error: aiError });
     return { error: aiError.message, retryable: aiError.retryable };
   }
 }
@@ -149,7 +150,7 @@ export async function transcribeAudioFromUrl(
     const blob = await response.blob();
     return transcribeAudio(blob, _filename);
   } catch (error) {
-    console.error('[transcribeAudioFromUrl] Fetch error:', error);
+    logger.error('[transcribeAudioFromUrl] Fetch error', { error });
     return {
       error: 'Failed to download audio for transcription',
       retryable: true,

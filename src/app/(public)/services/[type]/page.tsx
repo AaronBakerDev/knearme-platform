@@ -43,6 +43,11 @@ import {
   generateServiceHowToSchema,
   schemaToString,
 } from '@/lib/seo/structured-data';
+import {
+  buildOpenGraphMeta,
+  buildTwitterMeta,
+  selectCoverImage,
+} from '@/lib/seo/metadata-helpers';
 import { getPublicUrl } from '@/lib/storage/upload';
 import {
   getCitiesByServiceType,
@@ -52,7 +57,7 @@ import {
 } from '@/lib/data/services';
 import { getServiceBySlug, getServiceSlugs, getServiceCatalog } from '@/lib/services';
 import { RelatedArticles } from '@/components/content/RelatedArticles';
-import { SERVICE_ICONS } from '@/lib/constants/page-descriptions';
+import { SERVICE_ICONS, getCanonicalUrl } from '@/lib/constants/page-descriptions';
 
 type PageParams = {
   params: Promise<{
@@ -85,8 +90,6 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 
   const serviceId = service.serviceId;
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
-
   // Fetch cover image from most recent project for OG
   const supabase = createAdminClient();
   const { data: projectData } = await supabase
@@ -103,42 +106,36 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   };
   const project = projectData as ProjectWithImages | null;
 
-  let imageUrl: string | undefined;
-  let imageAlt: string | undefined;
-
-  if (project?.project_images?.length) {
-    const sortedImages = [...project.project_images].sort(
-      (a, b) => a.display_order - b.display_order
-    );
-    const coverImage = sortedImages[0];
-    if (coverImage) {
-      imageUrl = getPublicUrl('project-images', coverImage.storage_path);
-      imageAlt = coverImage.alt_text || `${service.label} project example`;
-    }
-  }
+  const coverImage = selectCoverImage(project?.project_images);
+  const imageUrl = coverImage
+    ? getPublicUrl('project-images', coverImage.storage_path)
+    : undefined;
+  const imageAlt = coverImage?.alt_text || `${service.label} project example`;
 
   const title = `${service.label}: Complete Guide, Costs & Local Contractors | KnearMe`;
   const description = `Everything you need to know about ${service.label.toLowerCase()}: what it is, when you need it, typical costs, and how to find qualified contractors in your area.`;
+  const canonicalUrl = getCanonicalUrl(`/services/${type}`);
+  const openGraphTitle = `${service.label} Guide & Contractors`;
 
   return {
     title,
     description,
     keywords: service.keywords.join(', '),
-    openGraph: {
-      title: `${service.label} Guide & Contractors`,
+    openGraph: buildOpenGraphMeta({
+      title: openGraphTitle,
       description,
       type: 'article',
-      url: `${siteUrl}/services/${type}`,
-      images: imageUrl ? [{ url: imageUrl, alt: imageAlt }] : [],
-    },
-    twitter: {
-      card: imageUrl ? 'summary_large_image' : 'summary',
+      url: canonicalUrl,
+      imageUrl,
+      imageAlt,
+    }),
+    twitter: buildTwitterMeta({
       title,
       description,
-      images: imageUrl ? [imageUrl] : [],
-    },
+      imageUrl,
+    }),
     alternates: {
-      canonical: `${siteUrl}/services/${type}`,
+      canonical: canonicalUrl,
     },
   };
 }

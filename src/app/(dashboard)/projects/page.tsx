@@ -24,6 +24,7 @@ import {
   Alert, AlertDescription
 } from '@/components/ui';
 import { resolveProjectImageUrl } from '@/lib/storage/project-images';
+import { logger } from '@/lib/logging';
 import type { ProjectWithImages } from '@/types/database';
 
 type ProjectStatus = 'all' | 'draft' | 'published' | 'archived';
@@ -69,12 +70,12 @@ export default function ProjectsPage() {
             data?.error?.message ||
             data?.message ||
             `Error ${res.status}: Failed to load projects`;
-          console.error('[Projects Page] API Error:', res.status, data);
+          logger.error('[Projects Page] API Error', { status: res.status, data });
           setError(errorMessage);
           setProjects([]);
         }
       } catch (err) {
-        console.error('[Projects Page] Fetch error:', err);
+        logger.error('[Projects Page] Fetch error', { error: err });
         setError('Network error: Failed to connect to server');
         setProjects([]);
       } finally {
@@ -98,7 +99,7 @@ export default function ProjectsPage() {
         setProjects((prev) => prev.filter((p) => p.id !== deleteProject.id));
       }
     } catch (error) {
-      console.error('Failed to delete project:', error);
+      logger.error('[Projects Page] Failed to delete project', { error });
     } finally {
       setDeleteProject(null);
     }
@@ -119,7 +120,7 @@ export default function ProjectsPage() {
         );
       }
     } catch (error) {
-      console.error('Failed to toggle publish:', error);
+      logger.error('[Projects Page] Failed to toggle publish', { error });
     }
   }
 
@@ -142,11 +143,11 @@ export default function ProjectsPage() {
         const data = await res.json().catch(() => null);
         const message =
           data?.error?.message || data?.message || 'Failed to update project status';
-        console.error('[Projects Page] Archive error:', message);
+        logger.error('[Projects Page] Archive error', { message });
         setError(message);
       }
     } catch (error) {
-      console.error('Failed to update project status:', error);
+      logger.error('[Projects Page] Failed to update project status', { error });
       setError('Network error: Failed to update project status');
     }
   }

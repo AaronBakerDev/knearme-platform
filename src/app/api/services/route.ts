@@ -12,6 +12,7 @@
 
 import { NextResponse } from 'next/server';
 import { getServiceCatalog, getServicesByTrade } from '@/lib/services';
+import { logger } from '@/lib/logging';
 
 export async function GET(request: Request) {
   try {
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ services: options });
   } catch (error) {
-    console.error('[GET /api/services] Error:', error);
+    logger.error('[GET /api/services] Error', { error });
     return NextResponse.json(
       { error: 'Failed to fetch services' },
       { status: 500 }

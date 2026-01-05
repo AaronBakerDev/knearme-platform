@@ -15,48 +15,11 @@ import { z } from 'zod';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
+import { logger } from '@/lib/logging';
 import { slugify } from '@/lib/utils/slugify';
+import type { BusinessUpdate, ContractorUpdate, Json } from '@/types/database';
 
-/**
- * Business profile from the businesses table.
- * Matches migration 033 schema with all fields.
- */
-interface Business {
-  id: string;
-  auth_user_id: string | null;
-  email: string | null;
-  name: string | null;
-  slug: string | null;
-  profile_photo_url: string | null;
-  // Location fields
-  city: string | null;
-  state: string | null;
-  city_slug: string | null;
-  address: string | null;
-  postal_code: string | null;
-  phone: string | null;
-  website: string | null;
-  // Service fields
-  services: string[] | null;
-  service_areas: string[] | null;
-  description: string | null;
-  // Plan
-  plan_tier: 'free' | 'pro';
-  // Agentic JSONB
-  location: Record<string, unknown> | null;
-  understanding: Record<string, unknown> | null;
-  context: Record<string, unknown> | null;
-  discovered_data: Record<string, unknown> | null;
-  // Google integration
-  google_place_id: string | null;
-  google_cid: string | null;
-  onboarding_method: string | null;
-  // Migration link
-  legacy_contractor_id: string | null;
-  // Timestamps
-  created_at: string;
-  updated_at: string;
-}
+type AdminClient = ReturnType<typeof createAdminClient>;
 
 /**
  * Validation schema for updating business profile.
@@ -91,8 +54,7 @@ const updateBusinessSchema = z.object({
  * 3. Return baseSlug if available, otherwise baseSlug-(max+1)
  */
 async function findUniqueSlug(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: AdminClient,
   baseSlug: string,
   businessId: string
 ): Promise<string> {
@@ -105,7 +67,7 @@ async function findUniqueSlug(
     .limit(100);
 
   if (error) {
-    console.error('[findUniqueSlug] Query error:', error);
+    logger.error('[findUniqueSlug] Query error', { error });
     // Fallback to random suffix on error
     return `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
   }
@@ -116,9 +78,9 @@ async function findUniqueSlug(
   }
 
   // Build set of taken slugs for O(1) lookup
-  const slugStrings = existingSlugs
-    .map((row: { slug: string | null }) => row.slug)
-    .filter((s: string | null): s is string => typeof s === 'string');
+  const slugStrings = (existingSlugs ?? [])
+    .map((row) => row.slug)
+    .filter((s): s is string => typeof s === 'string');
   const takenSlugs = new Set<string>(slugStrings);
 
   // If base slug is available, use it
@@ -155,8 +117,7 @@ export async function GET() {
     const supabase = await createClient();
 
     // Get business profile
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: business, error: businessError } = await (supabase as any)
+    const { data: business, error: businessError } = await supabase
       .from('businesses')
       .select('*')
       .eq('auth_user_id', user.id)
@@ -164,8 +125,7 @@ export async function GET() {
 
     if (businessError || !business) {
       // Fallback: check if there's a contractor record we can use
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: contractor } = await (supabase as any)
+      const { data: contractor } = await supabase
         .from('contractors')
         .select('*')
         .eq('auth_user_id', user.id)
@@ -200,22 +160,20 @@ export async function GET() {
       return apiError('NOT_FOUND', 'Business profile not found');
     }
 
-    const typedBusiness = business as Business;
-
     // Get project counts for stats (use business_id)
     const { count: totalProjects } = await supabase
       .from('projects')
       .select('*', { count: 'exact', head: true })
-      .eq('business_id', typedBusiness.id);
+      .eq('business_id', business.id);
 
     const { count: publishedProjects } = await supabase
       .from('projects')
       .select('*', { count: 'exact', head: true })
-      .eq('business_id', typedBusiness.id)
+      .eq('business_id', business.id)
       .eq('status', 'published');
 
     return apiSuccess({
-      business: typedBusiness,
+      business,
       stats: {
         total_projects: totalProjects ?? 0,
         published_projects: publishedProjects ?? 0,
@@ -257,8 +215,7 @@ export async function PATCH(request: NextRequest) {
     const adminClient = createAdminClient();
 
     // Get current business
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: currentBusiness, error: fetchError } = await (supabase as any)
+    const { data: currentBusiness, error: fetchError } = await supabase
       .from('businesses')
       .select('*')
       .eq('auth_user_id', user.id)
@@ -268,11 +225,11 @@ export async function PATCH(request: NextRequest) {
       return apiError('NOT_FOUND', 'Business profile not found');
     }
 
-    const business = currentBusiness as Business;
+    const business = currentBusiness;
 
     // Build update payload
-    const updatePayload: Partial<Business> = { ...updates };
-    delete (updatePayload as { slug?: string }).slug; // Handle slug separately
+    const updatePayload: BusinessUpdate = { ...updates } as BusinessUpdate;
+    delete updatePayload.slug; // Handle slug separately
 
     // Regenerate city_slug if city or state changed
     const newCity = updates.city ?? business.city;
@@ -287,20 +244,20 @@ export async function PATCH(request: NextRequest) {
     // Update location JSONB if city/state/service_areas changed
     if (updates.city || updates.state || updates.service_areas) {
       updatePayload.location = {
-        ...(business.location || {}),
+        ...(business.location as Json || {}),
         city: newCity,
         state: newState,
         city_slug: updatePayload.city_slug || business.city_slug,
         service_areas: updates.service_areas ?? business.service_areas,
-      };
+      } as Json;
     }
 
     // Update understanding JSONB if services changed
     if (updates.services) {
       updatePayload.understanding = {
-        ...(business.understanding || {}),
+        ...(business.understanding as Json || {}),
         specialties: updates.services,
-      };
+      } as Json;
     }
 
     // Generate or update slug from name or provided slug
@@ -321,8 +278,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Update business
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: updated, error } = await (supabase as any)
+    const { data: updated, error } = await supabase
       .from('businesses')
       .update(updatePayload)
       .eq('id', business.id)
@@ -330,14 +286,14 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('[PATCH /api/businesses/me] Update error:', error);
+      logger.error('[PATCH /api/businesses/me] Update error', { error });
       return handleApiError(error);
     }
 
     // Sync to legacy contractors table for backward compatibility
     if (business.legacy_contractor_id) {
       try {
-        const contractorUpdates: Record<string, unknown> = {};
+        const contractorUpdates: ContractorUpdate = {};
         if (typeof updates.name !== 'undefined') {
           contractorUpdates.business_name = updates.name;
         }
@@ -367,14 +323,13 @@ export async function PATCH(request: NextRequest) {
         }
 
         if (Object.keys(contractorUpdates).length > 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (adminClient as any)
+          await adminClient
             .from('contractors')
             .update(contractorUpdates)
             .eq('id', business.legacy_contractor_id);
         }
       } catch (syncError) {
-        console.warn('[PATCH /api/businesses/me] Contractor sync skipped:', syncError);
+        logger.warn('[PATCH /api/businesses/me] Contractor sync skipped', { error: syncError });
       }
     }
 

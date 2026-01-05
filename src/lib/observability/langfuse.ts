@@ -14,6 +14,7 @@
 
 import { LangfuseExporter } from 'langfuse-vercel';
 import type { AttributeValue } from '@opentelemetry/api';
+import { logger } from '@/lib/logging';
 
 // ============================================================================
 // Environment Validation
@@ -194,10 +195,10 @@ export async function shutdownLangfuse(): Promise<void> {
 // Log status at module load (development only)
 if (process.env.NODE_ENV === 'development') {
   if (isLangfuseEnabled()) {
-    console.log('[Langfuse] Observability enabled (OpenTelemetry mode via langfuse-vercel)');
+    logger.info('[Langfuse] Observability enabled (OpenTelemetry mode via langfuse-vercel)');
   } else if (process.env.LANGFUSE_ENABLED === 'false') {
-    console.log('[Langfuse] Explicitly disabled via LANGFUSE_ENABLED=false');
+    logger.info('[Langfuse] Explicitly disabled via LANGFUSE_ENABLED=false');
   } else {
-    console.log('[Langfuse] Not configured - set LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY to enable');
+    logger.info('[Langfuse] Not configured - set LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY to enable');
   }
 }

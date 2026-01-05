@@ -17,6 +17,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { logger } from '@/lib/logging';
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -52,7 +53,7 @@ export default function NewProjectPage() {
         // Redirect to unified workspace
         router.replace(`/projects/${projectId}`);
       } catch (err) {
-        console.error('[NewProjectPage] Failed to create project:', err);
+        logger.error('[NewProjectPage] Failed to create project', { error: err });
         setError(err instanceof Error ? err.message : 'Failed to create project');
         setIsCreating(false);
       }

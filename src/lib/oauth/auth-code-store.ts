@@ -10,8 +10,11 @@
  * @see /docs/chatgpt-apps-sdk/AUTH_STATE_SECURITY.md
  */
 
-import { createAdminClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
+import type { Database } from '@/types/database';
 
 /**
  * Authorization code data.
@@ -53,6 +56,54 @@ export type AuthorizationCodeInput = Omit<AuthorizationCode, 'code' | 'expires_a
  */
 const CODE_LIFETIME_SECONDS = 300;
 
+type AuthCodeRow = {
+  code: string;
+  client_id: string;
+  redirect_uri: string;
+  user_id: string;
+  contractor_id: string;
+  email: string;
+  code_challenge: string;
+  code_challenge_method: 'S256' | 'plain';
+  state: string | null;
+  scopes: string[];
+  expires_at: string;
+  used: boolean;
+};
+
+type AuthCodeInsert = {
+  code: string;
+  client_id: string;
+  redirect_uri: string;
+  user_id: string;
+  contractor_id: string;
+  email: string;
+  code_challenge: string;
+  code_challenge_method: 'S256' | 'plain';
+  state?: string | null;
+  scopes: string[];
+  expires_at: string;
+  used: boolean;
+};
+
+type AuthCodeUpdate = {
+  used?: boolean;
+};
+
+type OAuthDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      oauth_authorization_codes: {
+        Row: AuthCodeRow;
+        Insert: AuthCodeInsert;
+        Update: AuthCodeUpdate;
+      };
+    };
+  };
+};
+
+type OAuthSupabaseClient = SupabaseClient<OAuthDatabase>;
+
 /**
  * Generate a cryptographically secure authorization code.
  *
@@ -88,9 +139,7 @@ export async function storeAuthorizationCode(
   const code = generateAuthorizationCode();
   const expires_at = Math.floor(Date.now() / 1000) + CODE_LIFETIME_SECONDS;
 
-  // Note: oauth_authorization_codes is not in generated types (new table)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminClient() as any;
+  const supabase = createAdminClient() as OAuthSupabaseClient;
 
   const { error } = await supabase
     .from('oauth_authorization_codes')
@@ -110,7 +159,7 @@ export async function storeAuthorizationCode(
     });
 
   if (error) {
-    console.error('[OAuth] Failed to store auth code:', error);
+    logger.error('[OAuth] Failed to store auth code', { error });
     throw new Error('Failed to store authorization code');
   }
 
@@ -129,25 +178,7 @@ export async function storeAuthorizationCode(
 export async function consumeAuthorizationCode(
   code: string
 ): Promise<AuthorizationCode | null> {
-  // Note: oauth_authorization_codes is not in generated types (new table)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminClient() as any;
-
-  // Define expected row shape
-  type AuthCodeRow = {
-    code: string;
-    client_id: string;
-    redirect_uri: string;
-    user_id: string;
-    contractor_id: string;
-    email: string;
-    code_challenge: string;
-    code_challenge_method: string;
-    state: string | null;
-    scopes: string[];
-    expires_at: string;
-    used: boolean;
-  };
+  const supabase = createAdminClient() as OAuthSupabaseClient;
 
   // Fetch the code
   const { data, error } = await supabase
@@ -156,16 +187,16 @@ export async function consumeAuthorizationCode(
     .eq('code', code)
     .single();
 
-  const row = data as AuthCodeRow | null;
+  const row = data ?? null;
 
   if (error || !row) {
-    console.warn('[OAuth] Auth code not found:', code.slice(0, 8) + '...');
+    logger.warn('[OAuth] Auth code not found', { codePrefix: code.slice(0, 8) });
     return null;
   }
 
   // Check if already used
   if (row.used) {
-    console.warn('[OAuth] Auth code already used:', code.slice(0, 8) + '...');
+    logger.warn('[OAuth] Auth code already used', { codePrefix: code.slice(0, 8) });
     // Security: delete all codes for this user (potential attack)
     await supabase
       .from('oauth_authorization_codes')
@@ -177,7 +208,7 @@ export async function consumeAuthorizationCode(
   // Check expiration
   const expiresAt = new Date(row.expires_at).getTime() / 1000;
   if (expiresAt < Date.now() / 1000) {
-    console.warn('[OAuth] Auth code expired:', code.slice(0, 8) + '...');
+    logger.warn('[OAuth] Auth code expired', { codePrefix: code.slice(0, 8) });
     // Clean up expired code
     await supabase
       .from('oauth_authorization_codes')
@@ -193,7 +224,7 @@ export async function consumeAuthorizationCode(
     .eq('code', code);
 
   if (updateError) {
-    console.error('[OAuth] Failed to mark code as used:', updateError);
+    logger.error('[OAuth] Failed to mark code as used', { error: updateError });
     return null;
   }
 
@@ -219,9 +250,7 @@ export async function consumeAuthorizationCode(
  * Should be called periodically (e.g., via cron) to prevent table bloat.
  */
 export async function cleanupExpiredCodes(): Promise<number> {
-  // Note: oauth_authorization_codes is not in generated types (new table)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminClient() as any;
+  const supabase = createAdminClient() as OAuthSupabaseClient;
 
   const { count, error } = await supabase
     .from('oauth_authorization_codes')
@@ -230,7 +259,7 @@ export async function cleanupExpiredCodes(): Promise<number> {
     .select('*', { count: 'exact', head: true });
 
   if (error) {
-    console.error('[OAuth] Failed to cleanup expired codes:', error);
+    logger.error('[OAuth] Failed to cleanup expired codes', { error });
     return 0;
   }
 

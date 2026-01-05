@@ -30,9 +30,7 @@ export async function POST(request: NextRequest) {
     const { endpoint, p256dh_key, auth_key, user_agent } = parsed.data;
     const supabase = await createClient();
 
-    // Type assertion needed due to RLS type inference issues with new tables
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('push_subscriptions')
       .upsert(
         {

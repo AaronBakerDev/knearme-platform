@@ -14,6 +14,7 @@
  */
 
 import { activateKillSwitch } from '@/lib/config/feature-flags';
+import { logger } from '@/lib/logging';
 
 // =============================================================================
 // Types
@@ -132,7 +133,9 @@ function updateCircuitState(breaker: CircuitBreakerState): void {
     if (elapsed >= breaker.config.timeout) {
       breaker.state = 'HALF_OPEN';
       breaker.metrics.successes = 0;
-      console.info(`[Circuit Breaker] Transitioning to HALF_OPEN after ${Math.round(elapsed / 1000)}s`);
+      logger.info('[Circuit Breaker] Transitioning to HALF_OPEN', {
+        elapsedSeconds: Math.round(elapsed / 1000),
+      });
     }
   }
 }
@@ -140,7 +143,10 @@ function updateCircuitState(breaker: CircuitBreakerState): void {
 function openCircuit(breaker: CircuitBreakerState, agent: AgentType): void {
   breaker.state = 'OPEN';
   breaker.openedAt = new Date();
-  console.error(`[Circuit Breaker] ${agent} circuit OPENED after ${breaker.metrics.failures} failures`);
+  logger.error('[Circuit Breaker] Circuit opened', {
+    agent,
+    failures: breaker.metrics.failures,
+  });
 
   // Check if we should trigger kill switch
   const openCount = Array.from(circuitBreakers.values()).filter(
@@ -148,9 +154,7 @@ function openCircuit(breaker: CircuitBreakerState, agent: AgentType): void {
   ).length;
 
   if (openCount >= 3) {
-    console.error(
-      `[Circuit Breaker] ${openCount} circuits open, activating kill switch`
-    );
+    logger.error('[Circuit Breaker] Activating kill switch', { openCount });
     activateKillSwitch(
       `${openCount} agent circuits open: ${getOpenCircuits().join(', ')}`,
       'circuit_breaker'
@@ -168,7 +172,7 @@ function closeCircuit(breaker: CircuitBreakerState, agent: AgentType): void {
     lastSuccess: null,
     windowStart: new Date(),
   };
-  console.info(`[Circuit Breaker] ${agent} circuit CLOSED`);
+  logger.info('[Circuit Breaker] Circuit closed', { agent });
 }
 
 // =============================================================================
@@ -233,7 +237,9 @@ export function recordFailure(agent: AgentType, error: Error): void {
   breaker.metrics.failures++;
   breaker.metrics.lastFailure = new Date();
 
-  console.warn(`[Circuit Breaker] ${agent} failure: ${error.message}`, {
+  logger.warn('[Circuit Breaker] Agent failure', {
+    agent,
+    error: error.message,
     failures: breaker.metrics.failures,
     threshold: breaker.config.failureThreshold,
     state: breaker.state,

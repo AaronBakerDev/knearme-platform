@@ -25,6 +25,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
 import type { Business, Project, ProjectImage } from '@/types/database';
 
 /**
@@ -87,7 +88,7 @@ export async function getServiceTypes(forceRefresh = false): Promise<ServiceType
     .order('sort_order', { ascending: true });
 
   if (error) {
-    console.error('[getServiceTypes] Error:', error);
+    logger.error('[getServiceTypes] Error', { error });
     // Return cached data on error if available, otherwise empty array
     return serviceTypesCache || [];
   }
@@ -175,8 +176,7 @@ export async function getCitiesByServiceType(
 ): Promise<CityWithProjects[]> {
   const supabase = createAdminClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('projects')
     .select('city_slug, city, business:businesses(state)')
     .eq('project_type_slug', serviceTypeSlug)
@@ -185,7 +185,7 @@ export async function getCitiesByServiceType(
     .not('city', 'is', null);
 
   if (error) {
-    console.error('[getCitiesByServiceType] Error:', error);
+    logger.error('[getCitiesByServiceType] Error', { error, serviceTypeSlug });
     return [];
   }
 
@@ -234,8 +234,7 @@ export async function getFeaturedProjectsByService(
 ): Promise<ProjectWithDetails[]> {
   const supabase = createAdminClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('projects')
     .select(`
       *,
@@ -248,7 +247,7 @@ export async function getFeaturedProjectsByService(
     .limit(limit);
 
   if (error) {
-    console.error('[getFeaturedProjectsByService] Error:', error);
+    logger.error('[getFeaturedProjectsByService] Error', { error, serviceTypeSlug });
     return [];
   }
 
@@ -282,15 +281,14 @@ export async function getProjectCountByService(
 ): Promise<number> {
   const supabase = createAdminClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { count, error } = await (supabase as any)
+  const { count, error } = await supabase
     .from('projects')
     .select('*', { count: 'exact', head: true })
     .eq('project_type_slug', serviceTypeSlug)
     .eq('status', 'published');
 
   if (error) {
-    console.error('[getProjectCountByService] Error:', error);
+    logger.error('[getProjectCountByService] Error', { error, serviceTypeSlug });
     return 0;
   }
 
@@ -309,15 +307,14 @@ export async function getBusinessCountByService(
 ): Promise<number> {
   const supabase = createAdminClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('projects')
     .select('business_id')
     .eq('project_type_slug', serviceTypeSlug)
     .eq('status', 'published');
 
   if (error) {
-    console.error('[getBusinessCountByService] Error:', error);
+    logger.error('[getBusinessCountByService] Error', { error, serviceTypeSlug });
     return 0;
   }
 

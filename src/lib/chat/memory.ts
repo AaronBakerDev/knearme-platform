@@ -15,7 +15,63 @@
  * @see /supabase/migrations/XXX_add_memory_columns.sql
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
+import type { Database } from '@/types/database';
+
+type ChatSessionRow = {
+  id: string;
+  project_id: string | null;
+  session_summary: string | null;
+  key_facts: KeyFact[] | null;
+  created_at: string;
+};
+
+type ChatSessionInsert = {
+  id?: string;
+  project_id?: string | null;
+  session_summary?: string | null;
+  key_facts?: KeyFact[] | null;
+  created_at?: string;
+};
+
+type ChatSessionUpdate = {
+  session_summary?: string | null;
+  key_facts?: KeyFact[] | null;
+  updated_at?: string | null;
+};
+
+type ProjectRow = Database['public']['Tables']['projects']['Row'] & {
+  ai_memory: ProjectMemory | null;
+};
+
+type ProjectInsert = Database['public']['Tables']['projects']['Insert'] & {
+  ai_memory?: ProjectMemory | null;
+};
+
+type ProjectUpdate = Database['public']['Tables']['projects']['Update'] & {
+  ai_memory?: ProjectMemory | null;
+};
+
+type ChatDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      chat_sessions: {
+        Row: ChatSessionRow;
+        Insert: ChatSessionInsert;
+        Update: ChatSessionUpdate;
+      };
+      projects: {
+        Row: ProjectRow;
+        Insert: ProjectInsert;
+        Update: ProjectUpdate;
+      };
+    };
+  };
+};
+
+type ChatSupabaseClient = SupabaseClient<ChatDatabase>;
 
 /**
  * A key fact extracted from conversation.
@@ -81,10 +137,9 @@ export async function saveSessionSummary(
   summary: string,
   keyFacts: KeyFact[]
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as ChatSupabaseClient;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('chat_sessions')
     .update({
       session_summary: summary,
@@ -94,7 +149,10 @@ export async function saveSessionSummary(
     .eq('id', sessionId);
 
   if (error) {
-    console.error('[Memory] Failed to save session summary:', error);
+    logger.error('[Memory] Failed to save session summary', {
+      error,
+      sessionId,
+    });
     throw error;
   }
 }
@@ -114,18 +172,20 @@ export async function updateProjectMemory(
   newFacts: KeyFact[],
   preferences?: Partial<ProjectMemory['preferences']>
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as ChatSupabaseClient;
 
   // Get existing memory
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: project, error: fetchError } = await (supabase as any)
+  const { data: project, error: fetchError } = await supabase
     .from('projects')
     .select('ai_memory')
     .eq('id', projectId)
     .single();
 
   if (fetchError) {
-    console.error('[Memory] Failed to fetch project memory:', fetchError);
+    logger.error('[Memory] Failed to fetch project memory', {
+      error: fetchError,
+      projectId,
+    });
     throw fetchError;
   }
 
@@ -150,14 +210,16 @@ export async function updateProjectMemory(
   };
 
   // Save updated memory
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateError } = await (supabase as any)
+  const { error: updateError } = await supabase
     .from('projects')
     .update({ ai_memory: updatedMemory })
     .eq('id', projectId);
 
   if (updateError) {
-    console.error('[Memory] Failed to update project memory:', updateError);
+    logger.error('[Memory] Failed to update project memory', {
+      error: updateError,
+      projectId,
+    });
     throw updateError;
   }
 }
@@ -182,11 +244,10 @@ export async function buildSessionContext(
   projectId: string,
   limit = 5
 ): Promise<SessionContext> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as ChatSupabaseClient;
 
   // Get previous sessions with summaries (most recent first)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: sessions, error: sessionsError } = await (supabase as any)
+  const { data: sessions, error: sessionsError } = await supabase
     .from('chat_sessions')
     .select('id, session_summary, key_facts, created_at')
     .eq('project_id', projectId)
@@ -195,7 +256,10 @@ export async function buildSessionContext(
     .limit(limit);
 
   if (sessionsError) {
-    console.error('[Memory] Failed to fetch previous sessions:', sessionsError);
+    logger.error('[Memory] Failed to fetch previous sessions', {
+      error: sessionsError,
+      projectId,
+    });
     // Return empty context on error rather than failing
     return {
       previousSummaries: [],
@@ -206,8 +270,7 @@ export async function buildSessionContext(
   }
 
   // Get project memory
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: project, error: projectError } = await (supabase as any)
+  const { data: project, error: projectError } = await supabase
     .from('projects')
     .select('ai_memory')
     .eq('id', projectId)
@@ -215,7 +278,10 @@ export async function buildSessionContext(
 
   if (projectError && projectError.code !== 'PGRST116') {
     // PGRST116 = no rows (project not found) - that's OK
-    console.error('[Memory] Failed to fetch project memory:', projectError);
+    logger.error('[Memory] Failed to fetch project memory', {
+      error: projectError,
+      projectId,
+    });
   }
 
   // Collect summaries and facts
@@ -227,7 +293,7 @@ export async function buildSessionContext(
       previousSummaries.push(session.session_summary);
     }
     if (session.key_facts && Array.isArray(session.key_facts)) {
-      allKeyFacts.push(...(session.key_facts as KeyFact[]));
+      allKeyFacts.push(...session.key_facts);
     }
   }
 

@@ -34,6 +34,7 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { SERVICE_CONTENT, type ServiceContent as FallbackContent } from '@/lib/constants/service-content';
 import { getUrlSlugForService, getIconForService } from './slug-mappings';
+import { logger } from '@/lib/logging';
 
 /**
  * Unified service type combining database and fallback content.
@@ -167,7 +168,7 @@ export async function getServiceCatalog(forceRefresh = false): Promise<CatalogSe
     .order('sort_order', { ascending: true });
 
   if (error) {
-    console.error('[getServiceCatalog] Database error:', error);
+    logger.error('[getServiceCatalog] Database error', { error });
     // Fall back to SERVICE_CONTENT on error
     return getFallbackCatalog();
   }
@@ -176,7 +177,7 @@ export async function getServiceCatalog(forceRefresh = false): Promise<CatalogSe
 
   // If database is empty, use fallback
   if (dbServices.length === 0) {
-    console.log('[getServiceCatalog] No database services, using fallback');
+    logger.info('[getServiceCatalog] No database services, using fallback');
     catalogCache = getFallbackCatalog();
     cacheTimestamp = now;
     return catalogCache;

@@ -42,6 +42,7 @@ import {
   type DiscoveryState,
 } from '@/lib/agents';
 import { getChatModel, isGoogleAIEnabled } from '@/lib/ai/providers';
+import { logger } from '@/lib/logging';
 import type { Database, Json } from '@/types/database';
 
 // Allow responses up to 30 seconds
@@ -180,7 +181,7 @@ async function requireOnboardingAuth(): Promise<OnboardingAuth | { error: string
     } else {
       // If we got an unexpected error from the user-scoped client, surface it.
       if (contractorResult.error && contractorResult.error.code && contractorResult.error.code !== 'PGRST116') {
-        console.error('Failed to load contractor:', contractorResult.error);
+        logger.error('Failed to load contractor', { error: contractorResult.error });
         return { error: 'Failed to load profile', status: 500 };
       }
 
@@ -195,20 +196,20 @@ async function requireOnboardingAuth(): Promise<OnboardingAuth | { error: string
           const fallbackResult = await selectContractorByAuthUserId(adminClient, user.id);
 
           if (!fallbackResult.data) {
-            console.error('Failed to create contractor:', createError);
+            logger.error('Failed to create contractor', { error: createError });
             return { error: 'Failed to initialize profile', status: 500 };
           }
 
           contractor = fallbackResult.data;
           hasNapColumns = fallbackResult.hasNapColumns;
         } else {
-          console.error('Failed to create contractor:', createError);
+          logger.error('Failed to create contractor', { error: createError });
           return { error: 'Failed to initialize profile', status: 500 };
         }
       } else {
         const createdResult = await selectContractorByAuthUserId(adminClient, user.id);
         if (!createdResult.data) {
-          console.error('Failed to load contractor after creation');
+          logger.error('Failed to load contractor after creation');
           return { error: 'Failed to initialize profile', status: 500 };
         }
         contractor = createdResult.data;
@@ -234,7 +235,7 @@ async function requireOnboardingAuth(): Promise<OnboardingAuth | { error: string
     existingBusinessError?.code &&
     existingBusinessError.code !== 'PGRST116'
   ) {
-    console.error('Failed to load business:', existingBusinessError);
+    logger.error('Failed to load business', { error: existingBusinessError });
     return { error: 'Failed to load profile', status: 500 };
   }
 
@@ -245,7 +246,7 @@ async function requireOnboardingAuth(): Promise<OnboardingAuth | { error: string
       await selectBusinessByContractorId(adminClient, contractorData.id);
 
     if (legacyError?.code && legacyError.code !== 'PGRST116') {
-      console.error('Failed to load business by legacy contractor:', legacyError);
+      logger.error('Failed to load business by legacy contractor', { error: legacyError });
       return { error: 'Failed to load profile', status: 500 };
     }
 
@@ -257,7 +258,7 @@ async function requireOnboardingAuth(): Promise<OnboardingAuth | { error: string
       await selectBusinessByPrimaryId(adminClient, contractorData.id);
 
     if (primaryError?.code && primaryError.code !== 'PGRST116') {
-      console.error('Failed to load business by ID:', primaryError);
+      logger.error('Failed to load business by ID', { error: primaryError });
       return { error: 'Failed to load profile', status: 500 };
     }
 
@@ -280,7 +281,7 @@ async function requireOnboardingAuth(): Promise<OnboardingAuth | { error: string
       );
 
       if (updateError) {
-        console.error('Failed to sync business auth fields:', updateError);
+        logger.error('Failed to sync business auth fields', { error: updateError });
       }
     }
   }
@@ -307,14 +308,14 @@ async function requireOnboardingAuth(): Promise<OnboardingAuth | { error: string
         );
 
         if (!fallbackBusiness) {
-          console.error('Failed to create business:', businessError);
+          logger.error('Failed to create business', { error: businessError });
           return { error: 'Failed to initialize business', status: 500 };
         }
 
         business = fallbackBusiness;
         businessId = fallbackBusiness.id;
       } else {
-        console.error('Failed to create business:', businessError);
+        logger.error('Failed to create business', { error: businessError });
         return { error: 'Failed to initialize business', status: 500 };
       }
     } else {
@@ -323,7 +324,7 @@ async function requireOnboardingAuth(): Promise<OnboardingAuth | { error: string
   }
 
   if (!businessId) {
-    console.error('Failed to resolve business for onboarding.');
+    logger.error('Failed to resolve business for onboarding.');
     return { error: 'Failed to initialize business', status: 500 };
   }
 
@@ -471,7 +472,7 @@ async function getOrCreateOnboardingConversation(
   }
 
   if (error && error.code !== 'PGRST116') {
-    console.error('Failed to load onboarding conversation:', error);
+    logger.error('Failed to load onboarding conversation', { error });
     throw new Error('Failed to load onboarding conversation');
   }
 
@@ -491,7 +492,7 @@ async function getOrCreateOnboardingConversation(
   );
 
   if (createError || !created) {
-    console.error('Failed to create onboarding conversation:', createError);
+    logger.error('Failed to create onboarding conversation', { error: createError });
     throw new Error('Failed to initialize onboarding conversation');
   }
 
@@ -591,7 +592,7 @@ export async function POST(request: Request) {
         );
 
         if (updateError) {
-          console.error('Failed to update onboarding conversation:', updateError);
+          logger.error('Failed to update onboarding conversation', { error: updateError });
         }
 
         // If profile is complete, save to database
@@ -614,7 +615,7 @@ export async function POST(request: Request) {
 
     return result.toUIMessageStreamResponse({ sendSources: true });
   } catch (error) {
-    console.error('Onboarding error:', error);
+    logger.error('Onboarding error', { error });
     return NextResponse.json(
       { error: 'Something went wrong. Please try again.' },
       { status: 500 }
@@ -702,11 +703,11 @@ async function saveOnboardingProfile(params: {
       );
 
       if (fallbackBusinessError) {
-        console.error('Failed to update business profile:', fallbackBusinessError);
+        logger.error('Failed to update business profile', { error: fallbackBusinessError });
         throw new Error('Failed to save profile');
       }
     } else {
-      console.error('Failed to update business profile:', businessError);
+      logger.error('Failed to update business profile', { error: businessError });
       throw new Error('Failed to save profile');
     }
   }
@@ -746,13 +747,13 @@ async function saveOnboardingProfile(params: {
     );
 
     if (fallbackError) {
-      console.error('Failed to sync contractor profile:', fallbackError);
+      logger.error('Failed to sync contractor profile', { error: fallbackError });
     }
     return;
   }
 
   if (error) {
-    console.error('Failed to sync contractor profile:', error);
+    logger.error('Failed to sync contractor profile', { error });
   }
 }
 
@@ -787,7 +788,7 @@ export async function GET() {
       isNew,
     });
   } catch (error) {
-    console.error('Onboarding status error:', error);
+    logger.error('Onboarding status error', { error });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

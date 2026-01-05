@@ -7,13 +7,13 @@ export const CONSTRUCTION_SERVICE_CONTENT = {
     shortDescription:
       'Custom stone masonry including natural stone walls, veneer installation, and decorative stonework.',
     longDescription: `
-      <p>Stone masonry represents the pinnacle of the mason's craft, combining natural beauty with exceptional durability. From rustic fieldstone walls to precision-cut architectural stone, professional stone work adds lasting value and distinctive character to any property.</p>
+      <p>Stone masonry represents the pinnacle of the mason's craft, combining natural beauty with exceptional durability. From rustic fieldstone walls to precision-cut architectural stone, professional stone work adds lasting value and distinctive character to every property.</p>
 
       <p>Modern stone masonry includes both structural stone construction and stone veneer applications. While full-depth stone walls remain popular for retaining walls and high-end construction, manufactured and natural stone veneers provide the beauty of stone at reduced weight and cost.</p>
 
       <p>Professional stone masons work with a wide variety of materials including limestone, sandstone, granite, slate, and manufactured stone products. Each material has unique characteristics that affect cutting, setting, and long-term maintenance requirements.</p>
 
-      <p>Stone veneer installation requires careful surface preparation, proper waterproofing, and attention to expansion joints and flashing details. When properly installed, stone veneer can last decades with minimal maintenance while transforming the appearance of any structure.</p>
+      <p>Stone veneer installation requires careful surface preparation, proper waterproofing, and attention to expansion joints and flashing details. When properly installed, stone veneer can last decades with minimal maintenance while transforming the appearance of the structure.</p>
 
       <p>Whether you're building a new stone feature, repairing existing stonework, or adding stone veneer to an existing structure, working with experienced stone masons ensures proper material selection, installation techniques, and long-term durability.</p>
     `,
@@ -191,7 +191,7 @@ export const CONSTRUCTION_SERVICE_CONTENT = {
     longDescription: `
       <p>While distinct from traditional masonry, concrete work often falls within the skill set of masonry contractors. From driveways and patios to foundations and decorative elements, quality concrete work requires proper preparation, mixing, and finishing.</p>
 
-      <p>Modern decorative concrete options include stamped patterns, exposed aggregate, colored concrete, and polished finishes. These techniques transform utilitarian concrete into attractive surfaces that complement any property.</p>
+      <p>Modern decorative concrete options include stamped patterns, exposed aggregate, colored concrete, and polished finishes. These techniques transform utilitarian concrete into attractive surfaces that complement a wide range of properties.</p>
 
       <p>Professional concrete work addresses both new construction and repair of existing concrete. Crack repair, resurfacing, and replacement are common services that extend the life of concrete surfaces.</p>
     `,

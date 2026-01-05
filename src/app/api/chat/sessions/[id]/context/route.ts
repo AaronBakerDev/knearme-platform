@@ -16,6 +16,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
 import { loadConversationContext } from '@/lib/chat/context-loader';
+import { logger } from '@/lib/logging';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -66,7 +67,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       totalMessageCount: context.totalMessageCount,
     });
   } catch (error) {
-    console.error('[LoadContext] Error:', error);
+    logger.error('[LoadContext] Error', { error });
     return NextResponse.json(
       { error: 'Failed to load conversation context' },
       { status: 500 }

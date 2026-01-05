@@ -38,6 +38,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { UploadedImage } from '@/lib/chat/chat-types';
+import { logger } from '@/lib/logging';
 import { compressImage, COMPRESSION_PRESETS, createPreviewUrl } from '@/lib/images/compress';
 import { validateFile } from '@/lib/storage/upload';
 
@@ -114,7 +115,7 @@ export interface UseInlineImagesReturn {
    * Calls DELETE API to remove from storage and database.
    */
   removeImage: (imageId: string) => Promise<void>;
-  /** True if any uploads are in progress */
+  /** True if uploads are in progress */
   isUploading: boolean;
   /** Most recent error (null if no error) */
   error: Error | null;
@@ -327,7 +328,7 @@ export function useInlineImages({
       // Sync to public bucket if project is published (server decides)
       fetch(`/api/projects/${currentProjectId}/images/${image.id}/sync`, {
         method: 'POST',
-      }).catch((err) => console.warn('[useInlineImages] Sync failed:', err));
+      }).catch((err) => logger.warn('[useInlineImages] Sync failed', { error: err }));
 
       updatePendingProgress(pendingId, 100);
 
@@ -428,7 +429,7 @@ export function useInlineImages({
 
       const results = await Promise.all(uploadPromises);
 
-      // Check for any failures - type guard to narrow to failed results
+      // Check for failures - type guard to narrow to failed results
       const failures = results.filter(
         (r): r is { success: false; error: string } => !r.success
       );

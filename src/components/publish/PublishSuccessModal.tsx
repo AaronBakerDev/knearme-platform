@@ -18,6 +18,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
   Button, Input
 } from '@/components/ui'
+import { logger } from '@/lib/logging'
 import {
   CheckCircle2,
   Copy,
@@ -102,7 +103,7 @@ export function PublishSuccessModal({
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
-      console.error('Failed to copy:', err)
+      logger.error('[PublishSuccessModal] Failed to copy', { error: err })
     }
   }
 

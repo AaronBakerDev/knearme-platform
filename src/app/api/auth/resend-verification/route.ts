@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { logger } from '@/lib/logging';
 
 /**
  * Resend verification email to unverified accounts.
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
     if (error) {
       // Don't expose whether the email exists for security
       // Return success even if email doesn't exist or is already verified
-      console.error('Resend verification error:', error.message);
+      logger.error('Resend verification error', { error: error.message });
 
       // Only return error for rate limiting
       if (error.message.includes('rate limit')) {
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.error('Resend verification error:', error);
+    logger.error('Resend verification error', { error });
     return NextResponse.json(
       { error: 'Failed to resend verification email' },
       { status: 500 }

@@ -11,6 +11,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { subscribeEmail, LoopsApiError } from '@/lib/email/loops'
+import { logger } from '@/lib/logging'
 
 /**
  * Request validation schema
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
       contactId: result.id,
     })
   } catch (error) {
-    console.error('Email subscription error:', error)
+    logger.error('Email subscription error', { error })
 
     // Handle Loops API errors
     if (error instanceof LoopsApiError) {
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
       error instanceof Error &&
       error.message.includes('LOOPS_API_KEY')
     ) {
-      console.error('LOOPS_API_KEY not configured')
+      logger.error('LOOPS_API_KEY not configured')
       return NextResponse.json(
         {
           success: false,

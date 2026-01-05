@@ -24,6 +24,7 @@ import {
 import { InterviewQuestionsSchema, GeneratedContentSchema } from './schemas';
 import type { ImageAnalysisResult } from './image-analysis';
 import { withRetry, AI_RETRY_OPTIONS } from './retry';
+import { logger } from '@/lib/logging';
 
 /**
  * Interview question with context.
@@ -101,7 +102,9 @@ export async function generateInterviewQuestions(
 
     return object.questions;
   } catch (error) {
-    console.error('[generateInterviewQuestions] Error:', parseContentError(error));
+    logger.error('[generateInterviewQuestions] Error', {
+      error: parseContentError(error),
+    });
     return DEFAULT_INTERVIEW_QUESTIONS;
   }
 }
@@ -160,9 +163,10 @@ export async function generatePortfolioContent(
   );
 
   if (!tokenValidation.valid) {
-    console.warn(
-      `[generatePortfolioContent] Token limit exceeded: ${tokenValidation.estimated} > ${tokenValidation.limit}`
-    );
+    logger.warn('[generatePortfolioContent] Token limit exceeded', {
+      estimated: tokenValidation.estimated,
+      limit: tokenValidation.limit,
+    });
     return {
       error: tokenValidation.message || 'Interview content too large for AI processing',
       retryable: false,
@@ -205,7 +209,7 @@ export async function generatePortfolioContent(
     };
   } catch (error) {
     const aiError = parseContentError(error);
-    console.error('[generatePortfolioContent] Error:', aiError);
+    logger.error('[generatePortfolioContent] Error', { error: aiError });
     return { error: aiError.message, retryable: aiError.retryable };
   }
 }
@@ -264,7 +268,7 @@ Please regenerate the content incorporating this feedback while maintaining SEO 
     };
   } catch (error) {
     const aiError = parseContentError(error);
-    console.error('[regenerateWithFeedback] Error:', aiError);
+    logger.error('[regenerateWithFeedback] Error', { error: aiError });
     return { error: aiError.message, retryable: aiError.retryable };
   }
 }

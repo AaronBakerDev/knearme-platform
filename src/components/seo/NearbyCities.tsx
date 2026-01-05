@@ -16,6 +16,8 @@
 import Link from 'next/link';
 import { MapPin, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
 
 export type CityInfo = {
   /** City slug for URL (e.g., "denver-co") */
@@ -194,8 +196,7 @@ export function NearbyCities({
  * @param limit - Maximum number of cities to return
  */
 export async function fetchCitiesWithProjects(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient<Database>,
   serviceTypeSlug?: string,
   limit: number = 20
 ): Promise<CityInfo[]> {

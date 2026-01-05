@@ -135,8 +135,7 @@ export async function POST(request: NextRequest) {
       try {
         // Type assertion needed: parsedArgs.data is typed as unknown due to union of schemas,
         // but it's validated by the schema lookup for this specific tool
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const output = await executor(parsedArgs.data as any);
+        const output = await executor(parsedArgs.data as Parameters<typeof executor>[0]);
         results.push({
           id: call.id ?? `${call.name}-${index}`,
           name: call.name,

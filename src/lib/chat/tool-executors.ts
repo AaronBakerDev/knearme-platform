@@ -48,6 +48,8 @@ import {
   mapStateToExtractedData,
 } from '@/lib/chat/project-state-loader';
 import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
+import type { Database } from '@/types/database';
 
 export type ToolExecutors = {
   extractProjectData: (args: ExtractedProjectData) => Promise<ExtractProjectDataOutput>;
@@ -81,6 +83,9 @@ export type ToolExecutors = {
   /** Phase 10: Parallel Story + Design agent execution */
   processParallel: (args: ProcessParallelInput) => Promise<ProcessParallelOutput>;
 };
+
+type BusinessUpdate = Database['public']['Tables']['businesses']['Update'];
+type ContractorUpdate = Database['public']['Tables']['contractors']['Update'];
 
 export function createChatToolExecutors({
   toolContext,
@@ -133,7 +138,9 @@ export function createChatToolExecutors({
 
       // Log delegation errors but don't fail - return best available state
       if (result.error) {
-        console.warn('[extractProjectData] Story Agent delegation failed:', result.error.message);
+        logger.warn('[extractProjectData] Story Agent delegation failed', {
+          error: result.error,
+        });
       }
 
       return mapStateToExtractedData(result.state);
@@ -220,9 +227,9 @@ export function createChatToolExecutors({
         };
       }
 
-      // TODO: Phase 10 migration - currently calls both Design Agent and legacy composer.
+      // Phase 10 migration: currently calls both Design Agent and legacy composer.
       // Design Agent provides heroImageId selection, legacy provides DescriptionBlock[].
-      // Future: align Design Agent schema with DescriptionBlock[] to eliminate legacy call.
+      // Align Design Agent schema with DescriptionBlock[] to eliminate legacy call.
       // @see /src/lib/agents/subagents/design-agent.ts
 
       // Use Design Agent delegation (Phase 10 - Subagent Architecture)
@@ -239,7 +246,9 @@ export function createChatToolExecutors({
 
       // Log delegation errors but don't fail - we'll fall back to legacy
       if (orchestratorResult.error) {
-        console.warn('[composePortfolioLayout] Design Agent delegation failed:', orchestratorResult.error.message);
+        logger.warn('[composePortfolioLayout] Design Agent delegation failed', {
+          error: orchestratorResult.error,
+        });
       }
 
       // Legacy composePortfolioLayout produces DescriptionBlock[] format for BlockEditor
@@ -316,11 +325,12 @@ export function createChatToolExecutors({
 
       // Log delegation errors but don't fail - we'll use legacy checkQuality
       if (orchestratorResult.error) {
-        console.warn('[checkPublishReady] Quality Agent delegation failed:', orchestratorResult.error.message);
+        logger.warn('[checkPublishReady] Quality Agent delegation failed', {
+          error: orchestratorResult.error,
+        });
       }
 
-      // Also run legacy checkQuality for backwards-compatible response format
-      // TODO: Remove this once all callers use Quality Agent format
+      // Legacy checkQuality keeps the response format stable until callers adopt Quality Agent output.
       const result = checkQuality(orchestratorResult.state);
       const summary = formatQualityCheckSummary(result);
       const priority = getTopPriority(result);
@@ -377,7 +387,9 @@ export function createChatToolExecutors({
       // This ensures only allowed fields can be updated, even if TypeScript types are bypassed
       const ALLOWED_FIELDS: readonly string[] = contractorProfileFields;
       if (!ALLOWED_FIELDS.includes(args.field)) {
-        console.error(`[updateContractorProfile] Invalid field attempted: ${args.field}`);
+        logger.error('[updateContractorProfile] Invalid field attempted', {
+          field: args.field,
+        });
         return {
           success: false,
           field: args.field,
@@ -414,21 +426,26 @@ export function createChatToolExecutors({
         };
       }
 
-      const businessFieldMapping: Record<string, string> = {
+      const businessFieldMapping: Partial<Record<ContractorProfileField, keyof BusinessUpdate>> = {
         business_name: 'name',
         profile_slug: 'slug',
       };
-      const businessField = businessFieldMapping[args.field] || args.field;
+      const businessField =
+        businessFieldMapping[args.field] ?? (args.field as keyof BusinessUpdate);
 
       // Update businesses table (primary)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any)
+      const businessUpdate = { [businessField]: args.value } as BusinessUpdate;
+      const { error } = await supabase
         .from('businesses')
-        .update({ [businessField]: args.value })
+        .update(businessUpdate)
         .eq('id', toolContext.businessId);
 
       if (error) {
-        console.error('[updateContractorProfile] Failed to update businesses:', error);
+        logger.error('[updateContractorProfile] Failed to update businesses', {
+          error,
+          businessId: toolContext.businessId,
+          field: businessField,
+        });
         return {
           success: false,
           field: args.field,
@@ -441,26 +458,25 @@ export function createChatToolExecutors({
 
       // Also sync to contractors table for backward compatibility
       // Map business field names to contractor field names
-      const fieldMapping: Record<string, string> = {
+      const fieldMapping: Partial<Record<keyof BusinessUpdate, keyof ContractorUpdate>> = {
         name: 'business_name',
         slug: 'profile_slug',
-        // Most fields have same names in both tables
       };
-      const contractorField = fieldMapping[businessField] || businessField;
+      const contractorField =
+        fieldMapping[businessField] ?? (businessField as keyof ContractorUpdate);
 
       // Get the legacy_contractor_id to sync
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: business } = await (supabase as any)
+      const { data: business } = await supabase
         .from('businesses')
         .select('legacy_contractor_id')
         .eq('id', toolContext.businessId)
         .single();
 
       if (business?.legacy_contractor_id) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        const contractorUpdate = { [contractorField]: args.value } as ContractorUpdate;
+        await supabase
           .from('contractors')
-          .update({ [contractorField]: args.value })
+          .update(contractorUpdate)
           .eq('id', business.legacy_contractor_id);
         // Don't fail if contractor sync fails - businesses is the source of truth
       }

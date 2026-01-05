@@ -15,7 +15,10 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import readingTime from "reading-time";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logging";
+import type { Database } from "@/types/database";
 
 /**
  * Article frontmatter schema.
@@ -137,7 +140,7 @@ export function getArticleBySlug(slug: string): Article | null {
       readingTime: stats,
     };
   } catch (error) {
-    console.error(`[getArticleBySlug] Error loading article ${slug}:`, error);
+    logger.error(`[getArticleBySlug] Error loading article ${slug}`, { error });
     return null;
   }
 }
@@ -170,7 +173,7 @@ export function getAllArticles(): ArticleMeta[] {
           },
         };
       } catch (error) {
-        console.error(`[getAllArticles] Error parsing ${filename}:`, error);
+        logger.error(`[getAllArticles] Error parsing ${filename}`, { error });
         return null;
       }
     })
@@ -313,6 +316,24 @@ interface ReviewArticleRow {
   generated_at: string;
 }
 
+type ReviewArticleInsert = ReviewArticleRow;
+type ReviewArticleUpdate = Partial<ReviewArticleRow>;
+
+type ReviewDatabase = Database & {
+  public: Database["public"] & {
+    Tables: Database["public"]["Tables"] & {
+      review_articles: {
+        Row: ReviewArticleRow;
+        Insert: ReviewArticleInsert;
+        Update: ReviewArticleUpdate;
+        Relationships: [];
+      };
+    };
+  };
+};
+
+type ReviewSupabaseClient = SupabaseClient<ReviewDatabase>;
+
 /**
  * Transform a database review article row to the Article format.
  *
@@ -375,10 +396,8 @@ function transformReviewArticleToMeta(row: ReviewArticleRow): ArticleMeta {
  */
 export async function getReviewArticleBySlug(slug: string): Promise<Article | null> {
   try {
-    const supabase = createAdminClient();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
+    const supabase = createAdminClient() as ReviewSupabaseClient;
+    const { data, error } = await supabase
       .from("review_articles")
       .select("*")
       .eq("slug", slug)
@@ -389,9 +408,11 @@ export async function getReviewArticleBySlug(slug: string): Promise<Article | nu
       return null;
     }
 
-    return transformReviewArticleToArticle(data as ReviewArticleRow);
+    return transformReviewArticleToArticle(data);
   } catch (error) {
-    console.error(`[getReviewArticleBySlug] Error loading article ${slug}:`, error);
+    logger.error(`[getReviewArticleBySlug] Error loading article ${slug}`, {
+      error,
+    });
     return null;
   }
 }
@@ -403,24 +424,21 @@ export async function getReviewArticleBySlug(slug: string): Promise<Article | nu
  */
 export async function getAllReviewArticles(): Promise<ArticleMeta[]> {
   try {
-    const supabase = createAdminClient();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
+    const supabase = createAdminClient() as ReviewSupabaseClient;
+    const { data, error } = await supabase
       .from("review_articles")
       .select("*")
       .eq("status", "published")
       .order("generated_at", { ascending: false });
 
     if (error) {
-      console.error("[getAllReviewArticles] Database error:", error);
+      logger.error("[getAllReviewArticles] Database error", { error });
       return [];
     }
 
-    const rows = (data || []) as ReviewArticleRow[];
-    return rows.map(transformReviewArticleToMeta);
+    return (data || []).map(transformReviewArticleToMeta);
   } catch (error) {
-    console.error("[getAllReviewArticles] Error loading articles:", error);
+    logger.error("[getAllReviewArticles] Error loading articles", { error });
     return [];
   }
 }
@@ -432,22 +450,20 @@ export async function getAllReviewArticles(): Promise<ArticleMeta[]> {
  */
 export async function getAllReviewArticleSlugs(): Promise<string[]> {
   try {
-    const supabase = createAdminClient();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
+    const supabase = createAdminClient() as ReviewSupabaseClient;
+    const { data, error } = await supabase
       .from("review_articles")
       .select("slug")
       .eq("status", "published");
 
     if (error) {
-      console.error("[getAllReviewArticleSlugs] Database error:", error);
+      logger.error("[getAllReviewArticleSlugs] Database error", { error });
       return [];
     }
 
-    return (data || []).map((row: { slug: string }) => row.slug);
+    return (data || []).map((row) => row.slug);
   } catch (error) {
-    console.error("[getAllReviewArticleSlugs] Error loading slugs:", error);
+    logger.error("[getAllReviewArticleSlugs] Error loading slugs", { error });
     return [];
   }
 }

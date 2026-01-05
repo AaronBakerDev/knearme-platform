@@ -2,6 +2,7 @@
  * Shared project/session state loaders for chat tooling.
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ExtractedProjectData } from '@/lib/chat/chat-types';
 import {
   checkReadyForImages,
@@ -11,6 +12,43 @@ import {
 import { formatProjectLocation } from '@/lib/utils/location';
 import { createClient } from '@/lib/supabase/server';
 import { resolveProjectImageUrl } from '@/lib/storage/project-images';
+import { logger } from '@/lib/logging';
+import type { Database, Json } from '@/types/database';
+
+type ProjectRow = Database['public']['Tables']['projects']['Row'];
+type ProjectImageRow = Database['public']['Tables']['project_images']['Row'];
+
+type ProjectImageSummary = Pick<
+  ProjectImageRow,
+  'id' | 'storage_path' | 'image_type' | 'alt_text' | 'display_order'
+>;
+
+type ProjectWithImages = ProjectRow & {
+  project_images: ProjectImageSummary[];
+};
+
+type ChatSessionRow = {
+  id: string;
+  business_id: string;
+  extracted_data: Json | null;
+};
+
+type ChatSessionInsert = ChatSessionRow;
+type ChatSessionUpdate = Partial<ChatSessionRow>;
+
+type ChatDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      chat_sessions: {
+        Row: ChatSessionRow;
+        Insert: ChatSessionInsert;
+        Update: ChatSessionUpdate;
+      };
+    };
+  };
+};
+
+type ChatSupabaseClient = SupabaseClient<ChatDatabase>;
 
 export async function loadProjectState({
   projectId,
@@ -24,16 +62,15 @@ export async function loadProjectState({
     return null;
   }
 
-  let supabase;
+  let supabase: ChatSupabaseClient;
   try {
-    supabase = await createClient();
+    supabase = (await createClient()) as ChatSupabaseClient;
   } catch (err) {
-    console.error('[loadProjectState] Failed to create Supabase client:', err);
+    logger.error('[loadProjectState] Failed to create Supabase client', { error: err });
     return null;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const query = (supabase as any)
+  const query = supabase
     .from('projects')
     .select(`
       id,
@@ -67,22 +104,27 @@ export async function loadProjectState({
   const { data: project, error } = await query.single();
 
   if (error || !project) {
-    console.error('[loadProjectState] Failed to load project:', error);
+    logger.error('[loadProjectState] Failed to load project', { error });
     return null;
   }
 
-  const aiContext = project.ai_context as Record<string, unknown> | null;
-  const images = project.project_images || [];
-  const heroImageId =
-    (project as { hero_image_id?: string | null }).hero_image_id ?? images[0]?.id;
-  const isPublished = project.status === 'published';
+  const typedProject = project as ProjectWithImages;
+  const aiContext =
+    typedProject.ai_context &&
+    typeof typedProject.ai_context === 'object' &&
+    !Array.isArray(typedProject.ai_context)
+      ? (typedProject.ai_context as Record<string, unknown>)
+      : null;
+  const images = typedProject.project_images ?? [];
+  const heroImageId = typedProject.hero_image_id ?? images[0]?.id;
+  const isPublished = typedProject.status === 'published';
 
   const imagesWithUrls = images.map((img: {
     id: string;
     storage_path: string;
-    image_type?: string;
-    alt_text?: string;
-    display_order?: number;
+    image_type: ProjectImageRow['image_type'];
+    alt_text: string | null;
+    display_order: number | null;
   }) => ({
     id: img.id,
     url: resolveProjectImageUrl({
@@ -93,60 +135,61 @@ export async function loadProjectState({
     }),
     storagePath: img.storage_path,
     bucket: 'project-images-draft' as const,
-    imageType: img.image_type as 'before' | 'after' | 'progress' | 'detail' | undefined,
-    altText: img.alt_text,
-    displayOrder: img.display_order || 0,
+    imageType: img.image_type ?? undefined,
+    altText: img.alt_text ?? undefined,
+    displayOrder: img.display_order ?? 0,
   }));
 
   const readyForImages = checkReadyForImages({
-    projectType: project.project_type || undefined,
+    projectType: typedProject.project_type || undefined,
     customerProblem:
       (aiContext?.customer_problem as string) ||
-      (project.challenge as string | null) ||
+      typedProject.challenge ||
       undefined,
     solutionApproach:
       (aiContext?.solution_approach as string) ||
-      (project.solution as string | null) ||
+      typedProject.solution ||
       undefined,
-    materials: project.materials || [],
+    materials: typedProject.materials || [],
   });
 
   const state: SharedProjectState = {
     ...createEmptyProjectState(),
-    projectType: project.project_type || undefined,
-    projectTypeSlug: project.project_type_slug || undefined,
-    city: project.city || undefined,
-    state: project.state || undefined,
-    location: formatProjectLocation({ city: project.city, state: project.state }) || undefined,
-    title: project.title || undefined,
-    description: project.description || undefined,
-    seoTitle: project.seo_title || undefined,
-    seoDescription: project.seo_description || undefined,
-    materials: project.materials || [],
-    techniques: project.techniques || [],
+    projectType: typedProject.project_type || undefined,
+    projectTypeSlug: typedProject.project_type_slug || undefined,
+    city: typedProject.city || undefined,
+    state: typedProject.state || undefined,
+    location:
+      formatProjectLocation({ city: typedProject.city, state: typedProject.state }) || undefined,
+    title: typedProject.title || undefined,
+    description: typedProject.description || undefined,
+    seoTitle: typedProject.seo_title || undefined,
+    seoDescription: typedProject.seo_description || undefined,
+    materials: typedProject.materials || [],
+    techniques: typedProject.techniques || [],
     tags: [],
     customerProblem:
       (aiContext?.customer_problem as string) ||
-      (project.challenge as string | null) ||
+      typedProject.challenge ||
       undefined,
     solutionApproach:
       (aiContext?.solution_approach as string) ||
-      (project.solution as string | null) ||
+      typedProject.solution ||
       undefined,
     duration:
       (aiContext?.duration as string) ||
-      (project.duration as string | null) ||
+      typedProject.duration ||
       undefined,
     proudOf: (aiContext?.proud_of as string) || undefined,
     images: imagesWithUrls,
     heroImageId,
     readyForImages,
     readyForContent: Boolean(
-      project.project_type &&
+      typedProject.project_type &&
       images.length > 0 &&
       heroImageId
     ),
-    readyToPublish: project.status === 'published',
+    readyToPublish: typedProject.status === 'published',
     needsClarification: [],
     clarifiedFields: [],
   };
@@ -162,10 +205,9 @@ export async function loadSessionExtractedData({
   businessId?: string;
 }): Promise<ExtractedProjectData | null> {
   if (!sessionId || !businessId) return null;
-  const supabase = await createClient();
+  const supabase = (await createClient()) as ChatSupabaseClient;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: session, error } = await (supabase as any)
+  const { data: session, error } = await supabase
     .from('chat_sessions')
     .select('extracted_data')
     .eq('id', sessionId)
@@ -174,7 +216,7 @@ export async function loadSessionExtractedData({
     .single();
 
   if (error || !session) {
-    console.warn('[loadSessionExtractedData] Failed to load session:', error);
+    logger.warn('[loadSessionExtractedData] Failed to load session', { error });
     return null;
   }
 

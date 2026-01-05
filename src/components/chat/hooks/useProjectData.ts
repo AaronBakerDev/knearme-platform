@@ -62,7 +62,7 @@ export interface ProjectPreviewData {
 
 /**
  * Format project type slug into human-readable text.
- * Uses a simple title-case fallback for any slug.
+ * Uses a simple title-case fallback for unknown slugs.
  */
 function formatProjectType(slug: string | undefined): string | null {
   if (!slug) return null;
@@ -118,11 +118,11 @@ function selectHeroImages(
   }
 
   // Default priority: results first, then context
-  // This is a sensible default for any portfolio - show your best work first
+  // This is a sensible default for most portfolios - show your best work first
   // Agent can override via customPriority for specific business types
   const priorityOrder = customPriority ?? [
     'after',      // Result of transformational work
-    'hero',       // Featured/best shot (any business)
+    'hero',       // Featured/best shot (general use)
     'featured',   // Highlighted by agent
     'detail',     // Close-up/specific element
     'progress',   // Work in action

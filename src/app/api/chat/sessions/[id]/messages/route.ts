@@ -7,13 +7,72 @@
  */
 
 import { NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
 import { estimateTokens, estimateMessageTokens } from '@/lib/chat/context-loader';
+import { logger } from '@/lib/logging';
+import type { Database, Json } from '@/types/database';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
+
+type MessageParts = NonNullable<Parameters<typeof estimateMessageTokens>[1]>;
+
+type IncomingMessage = {
+  role?: 'user' | 'assistant' | 'system';
+  content?: string;
+  parts?: MessageParts;
+  metadata?: Record<string, unknown> | null;
+};
+
+type ChatSessionRow = {
+  id: string;
+  message_count: number | null;
+  estimated_tokens: number | null;
+};
+
+type ChatSessionUpdate = {
+  message_count?: number | null;
+  estimated_tokens?: number | null;
+  updated_at?: string | null;
+};
+
+type ChatMessageRow = {
+  id: string;
+  session_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  metadata: Json | null;
+  created_at: string;
+};
+
+type ChatMessageInsert = {
+  session_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  metadata?: Json | null;
+};
+
+type ChatDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      chat_sessions: {
+        Row: ChatSessionRow;
+        Update: ChatSessionUpdate;
+        Insert: ChatSessionRow;
+      };
+      chat_messages: {
+        Row: ChatMessageRow;
+        Update: Partial<ChatMessageRow>;
+        Insert: ChatMessageInsert;
+      };
+    };
+  };
+};
+
+type ChatSupabaseClient = SupabaseClient<ChatDatabase>;
 
 /**
  * POST /api/chat/sessions/[id]/messages
@@ -32,7 +91,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const body = await request.json();
+    const body = (await request.json()) as IncomingMessage;
     const { role, content, parts, metadata } = body;
     const contentValue = typeof content === 'string' ? content : '';
     const hasParts = Array.isArray(parts) && parts.length > 0;
@@ -51,11 +110,10 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Verify session exists and belongs to user (RLS will handle this)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: session, error: sessionError } = await (supabase as any)
+    const { data: session, error: sessionError } = await supabase
       .from('chat_sessions')
       .select('id, message_count, estimated_tokens')
       .eq('id', sessionId)
@@ -68,26 +126,28 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Insert message with full parts array stored in metadata for tool call visibility
-    // Parts include text, tool-call, and tool-result types from Vercel AI SDK
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: message, error } = await (supabase as any)
+    const fallbackParts: MessageParts = [{ type: 'text', text: contentValue }];
+    const messageMetadata = {
+      ...(metadata ?? {}),
+      // Store full parts array if provided, otherwise create text-only parts
+      parts: hasParts ? parts : fallbackParts,
+    } as Json;
+
+    const insertPayload: ChatMessageInsert = {
+      session_id: sessionId,
+      role,
+      content: contentValue,
+      metadata: messageMetadata,
+    };
+
+    const { data: message, error } = await supabase
       .from('chat_messages')
-      .insert({
-        session_id: sessionId,
-        role,
-        content: contentValue,
-        metadata: {
-          ...(metadata || {}),
-          // Store full parts array if provided, otherwise create text-only parts
-          parts: parts || [{ type: 'text', text: content }],
-        },
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
     if (error) {
-      console.error('[POST /api/chat/sessions/[id]/messages] Error:', error);
+      logger.error('[POST /api/chat/sessions/[id]/messages] Error', { error });
       throw error;
     }
 
@@ -100,26 +160,28 @@ export async function POST(request: Request, { params }: RouteParams) {
     const newEstimatedTokens =
       (session.estimated_tokens ?? estimateTokens(session.message_count ?? 0, true, false)) +
       messageTokens;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: updateError } = await (supabase as any)
+
+    const updates: ChatSessionUpdate = {
+      message_count: newCount,
+      estimated_tokens: newEstimatedTokens,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: updateError } = await supabase
       .from('chat_sessions')
-      .update({
-        message_count: newCount,
-        estimated_tokens: newEstimatedTokens,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq('id', sessionId);
 
     if (updateError) {
-      console.error(
-        '[POST /api/chat/sessions/[id]/messages] Failed to update message count:',
-        updateError
-      );
+      logger.error('[POST /api/chat/sessions/[id]/messages] Failed to update message count', {
+        error: updateError,
+        sessionId,
+      });
     }
 
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {
-    console.error('[POST /api/chat/sessions/[id]/messages] Error:', error);
+    logger.error('[POST /api/chat/sessions/[id]/messages] Error', { error });
     return NextResponse.json(
       { error: 'Failed to add message' },
       { status: 500 }
@@ -144,11 +206,10 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Get messages ordered by creation time
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: messages, error } = await (supabase as any)
+    const { data: messages, error } = await supabase
       .from('chat_messages')
       .select('id, role, content, metadata, created_at')
       .eq('session_id', sessionId)
@@ -160,7 +221,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ messages: messages || [] });
   } catch (error) {
-    console.error('[GET /api/chat/sessions/[id]/messages] Error:', error);
+    logger.error('[GET /api/chat/sessions/[id]/messages] Error', { error });
     return NextResponse.json(
       { error: 'Failed to fetch messages' },
       { status: 500 }

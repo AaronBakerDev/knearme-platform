@@ -14,7 +14,8 @@ import { composeProjectDescription } from '@/lib/projects/compose-description';
 import { trackProjectPublished } from '@/lib/observability/kpi-events';
 import { getPublishedProjectLimit, normalizePlanTier } from '@/lib/billing/plan-limits';
 import { copyDraftImagesToPublic, removePublicImages } from '@/lib/storage/upload.server';
-import type { ProjectWithImages } from '@/types/database';
+import { logger } from '@/lib/logging';
+import type { Project, ProjectUpdate, ProjectWithImages } from '@/types/database';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -52,37 +53,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const force = searchParams.get('force') === 'true';
 
     // Get project with images to validate
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: project, error: fetchError } = await (supabase as any)
+    const { data: project, error: fetchError } = await supabase
       .from('projects')
       .select('*, project_images!project_images_project_id_fkey(*)')
       .eq('id', id)
       .eq('contractor_id', contractor.id)
       .single();
 
-    // Type assertion for project with images
-    type ProjectData = {
-      id: string;
-      title?: string | null;
-      description?: string | null;
-      project_type?: string | null;
-      project_type_slug?: string | null;
-      city?: string | null;
-      state?: string | null;
-      hero_image_id?: string | null;
-      description_manual?: boolean | null;
-      summary?: string | null;
-      challenge?: string | null;
-      solution?: string | null;
-      results?: string | null;
-      outcome_highlights?: string[] | null;
-      status: string;
-      seo_title?: string | null;
-      seo_description?: string | null;
-      created_at?: string | null;
-      project_images?: Array<Record<string, unknown>>;
-    };
-    const projectData = project as ProjectData | null;
+    const projectData = project as ProjectWithImages | null;
 
     if (fetchError || !projectData) {
       return apiError('NOT_FOUND', 'Project not found');
@@ -93,8 +71,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     let planLimitMessage: string | null = null;
 
     if (publishedProjectLimit !== null) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { count, error: countError } = await (supabase as any)
+      const { count, error: countError } = await supabase
         .from('projects')
         .select('id', { count: 'exact', head: true })
         .eq('contractor_id', contractor.id)
@@ -102,7 +79,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         .neq('id', id);
 
       if (countError) {
-        console.error('[POST /api/projects/[id]/publish] Count error:', countError);
+        logger.error('[POST /api/projects/[id]/publish] Count error', {
+          error: countError,
+          projectId: id,
+        });
         return handleApiError(countError);
       }
 
@@ -143,11 +123,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!projectData.hero_image_id && projectData.project_images && projectData.project_images.length > 0) {
       // Auto-assign hero image from the first image (by display_order if available)
       const sortedImages = [...projectData.project_images].sort((a, b) => {
-        const orderA = (a as { display_order?: number }).display_order ?? 0;
-        const orderB = (b as { display_order?: number }).display_order ?? 0;
+        const orderA = a.display_order ?? 0;
+        const orderB = b.display_order ?? 0;
         return orderA - orderB;
       });
-      projectData.hero_image_id = (sortedImages[0] as { id?: string }).id ?? null;
+      projectData.hero_image_id = sortedImages[0]?.id ?? null;
     }
     if (!projectData.hero_image_id) {
       warnings.push('Project has no hero image');
@@ -170,7 +150,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // PHILOSOPHY: Warn, don't block. Unless force=false and warnings exist.
     // Model explains warnings; user can override with force=true.
     if (warnings.length > 0 && !force) {
-      console.log('[POST /api/projects/[id]/publish] Warnings (blocking):', warnings);
+      logger.warn('[POST /api/projects/[id]/publish] Warnings (blocking)', { warnings, projectId: id });
       return apiError('VALIDATION_ERROR', 'Project has warnings. Use force=true to publish anyway.', {
         warnings,
         canForce: true,
@@ -179,7 +159,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Log warnings but proceed when force=true
     if (warnings.length > 0) {
-      console.log('[POST /api/projects/[id]/publish] Publishing with warnings:', warnings);
+      logger.warn('[POST /api/projects/[id]/publish] Publishing with warnings', { warnings, projectId: id });
     }
 
     const shouldComposeDescription = !projectData.description && !projectData.description_manual;
@@ -201,7 +181,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       projectData.seo_description ??
       (descriptionForSeo ? descriptionForSeo.slice(0, 157) + '...' : '');
 
-    const updatePayload: Record<string, unknown> = {
+    const updatePayload: ProjectUpdate = {
       status: 'published',
       published_at: new Date().toISOString(),
       seo_title: seoTitle,
@@ -216,8 +196,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update to published
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: published, error: updateError } = await (supabase as any)
+    const { data: published, error: updateError } = await supabase
       .from('projects')
       .update(updatePayload)
       .eq('id', id)
@@ -226,18 +205,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .single();
 
     if (updateError) {
-      console.error('[POST /api/projects/[id]/publish] Update error:', updateError);
+      logger.error('[POST /api/projects/[id]/publish] Update error', { error: updateError, projectId: id });
       return handleApiError(updateError);
     }
 
     // Copy draft images to public bucket
     if (projectData.project_images && projectData.project_images.length > 0) {
       const storagePaths = projectData.project_images
-        .map((img) => (img as { storage_path?: string }).storage_path)
+        .map((img) => img.storage_path)
         .filter(Boolean) as string[];
       const { errors } = await copyDraftImagesToPublic(storagePaths);
       if (errors.length > 0) {
-        console.warn('[POST /api/projects/[id]/publish] Image copy warnings:', errors);
+        logger.warn('[POST /api/projects/[id]/publish] Image copy warnings', {
+          errors,
+          projectId: id,
+        });
       }
     }
 
@@ -249,7 +231,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         projectId: id,
         createdAt: projectData.created_at,
         publishedAt: new Date(),
-      }).catch((err) => console.error('[KPI] trackProjectPublished failed:', err));
+      }).catch((err) => logger.error('[KPI] trackProjectPublished failed', { error: err }));
     }
 
     // Include warnings in response so model can inform user
@@ -280,16 +262,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Verify project exists and is published
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: project, error: fetchError } = await (supabase as any)
+    const { data: project, error: fetchError } = await supabase
       .from('projects')
       .select('id, status')
       .eq('id', id)
       .eq('contractor_id', contractor.id)
       .single();
 
-    // Type assertion
-    const projectData = project as { id: string; status: string } | null;
+    const projectData = project as Pick<Project, 'id' | 'status'> | null;
 
     if (fetchError || !projectData) {
       return apiError('NOT_FOUND', 'Project not found');
@@ -300,8 +280,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Revert to draft
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: unpublished, error: updateError } = await (supabase as any)
+    const { data: unpublished, error: updateError } = await supabase
       .from('projects')
       .update({
         status: 'draft',
@@ -313,7 +292,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .single();
 
     if (updateError) {
-      console.error('[DELETE /api/projects/[id]/publish] Update error:', updateError);
+      logger.error('[DELETE /api/projects/[id]/publish] Update error', { error: updateError, projectId: id });
       return handleApiError(updateError);
     }
 
@@ -325,7 +304,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     if (publicStoragePaths.length > 0) {
       const { errors } = await removePublicImages(publicStoragePaths);
       if (errors.length > 0) {
-        console.warn('[DELETE /api/projects/[id]/publish] Public image cleanup warnings:', errors);
+        logger.warn('[DELETE /api/projects/[id]/publish] Public image cleanup warnings', {
+          errors,
+          projectId: id,
+        });
       }
     }
 

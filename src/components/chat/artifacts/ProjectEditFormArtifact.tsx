@@ -29,6 +29,7 @@ import { SortableImageGrid } from '@/components/edit/SortableImageGrid';
 import { ImageUploader } from '@/components/upload/ImageUploader';
 import { UploadProgress } from '@/components/ui/upload-progress';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logging';
 import { BlockEditor } from '@/components/edit/BlockEditor';
 import {
   blocksToHtml,
@@ -132,7 +133,7 @@ export function ProjectEditFormArtifact({
         onImagesChange?.();
       }
     } catch (error) {
-      console.error('Failed to refresh images:', error);
+      logger.error('[Project Edit] Failed to refresh images', { error });
     }
   }, [projectId, onImagesChange]);
 
@@ -173,7 +174,7 @@ export function ProjectEditFormArtifact({
         toast.error(error.message || 'Failed to save changes');
       }
     } catch (error) {
-      console.error('Failed to save:', error);
+      logger.error('[Project Edit] Failed to save', { error });
       toast.error('Failed to save changes');
     } finally {
       setIsSaving(false);
@@ -200,7 +201,7 @@ export function ProjectEditFormArtifact({
         toast.error('Failed to reorder images');
       }
     } catch (error) {
-      console.error('Failed to reorder:', error);
+      logger.error('[Project Edit] Failed to reorder', { error });
       await refreshImages();
       toast.error('Failed to reorder images');
     }
@@ -224,7 +225,7 @@ export function ProjectEditFormArtifact({
         toast.error('Failed to delete image');
       }
     } catch (error) {
-      console.error('Failed to delete:', error);
+      logger.error('[Project Edit] Failed to delete', { error });
       toast.error('Failed to delete image');
     }
   }

@@ -9,6 +9,7 @@
  */
 
 import { google } from '@ai-sdk/google';
+import { logger } from '@/lib/logging';
 
 // ============================================================================
 // Environment Validation
@@ -26,7 +27,7 @@ export function isAIEnabled(): boolean {
 
 // Log warnings at module load
 if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-  console.warn('[AI Providers] GOOGLE_GENERATIVE_AI_API_KEY not set - AI features disabled');
+  logger.warn('[AI Providers] GOOGLE_GENERATIVE_AI_API_KEY not set - AI features disabled');
 }
 
 // ============================================================================

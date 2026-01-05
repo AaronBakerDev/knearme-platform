@@ -9,8 +9,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   checkReadyForImages,
+  countWords,
   extractStory,
+  getExtractionProgress,
   getMissingFields,
+  normalizeProjectType,
 } from '../story-extractor';
 import type { SharedProjectState } from '../types';
 
@@ -85,6 +88,43 @@ describe('StoryExtractor', () => {
 
       expect(missing).not.toContain('city');
       expect(missing).not.toContain('state');
+    });
+  });
+
+  describe('countWords', () => {
+    it('counts words and ignores extra whitespace', () => {
+      expect(countWords('  quick   brown  fox  ')).toBe(3);
+      expect(countWords('')).toBe(0);
+    });
+  });
+
+  describe('normalizeProjectType', () => {
+    it('normalizes fuzzy project type phrases', () => {
+      expect(normalizeProjectType('Kitchen Remodel')).toBe('remodel');
+      expect(normalizeProjectType('Custom Work')).toBe('custom-work');
+    });
+
+    it('falls back to other for unknown types', () => {
+      expect(normalizeProjectType('Unicorn Sculpture')).toBe('other');
+    });
+  });
+
+  describe('getExtractionProgress', () => {
+    it('treats location parsing as completed city/state', () => {
+      const progress = getExtractionProgress({
+        projectType: 'remodel',
+        customerProblem: 'Old layout.',
+        solutionApproach: 'Rebuilt the space.',
+        materials: ['tile'],
+        techniques: ['grouting'],
+        duration: '3 days',
+        proudOf: 'Precision work.',
+        location: 'Denver, CO',
+      });
+
+      expect(progress.percentComplete).toBe(100);
+      expect(progress.incomplete).not.toContain('city');
+      expect(progress.incomplete).not.toContain('state');
     });
   });
 

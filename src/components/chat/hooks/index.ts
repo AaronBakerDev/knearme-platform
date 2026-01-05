@@ -26,6 +26,7 @@ export { useProjectHydration } from './useProjectHydration';
 export { useUIState } from './useUIState';
 export { useQuickActions } from './useQuickActions';
 export type { QuickActionItem, QuickActionType } from './useQuickActions';
+export { useGeneratedContentSaver } from './useGeneratedContentSaver';
 export { useVoiceModeManager } from './useVoiceModeManager';
 export { useLiveVoiceSession } from './useLiveVoiceSession';
 

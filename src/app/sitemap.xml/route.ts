@@ -11,6 +11,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logging';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
 export const dynamic = 'force-dynamic';
@@ -46,7 +47,7 @@ ${sitemapUrls
       },
     });
   } catch (error) {
-    console.error('[sitemap.xml] Error generating sitemap index:', error);
+    logger.error('[sitemap.xml] Error generating sitemap index', { error });
 
     // Return minimal sitemap on error
     const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>

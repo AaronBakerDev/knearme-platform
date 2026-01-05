@@ -12,6 +12,8 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
+import type { VoiceUsage, VoiceUsageInsert, VoiceUsageUpdate } from '@/types/database';
 
 export type VoiceMode = 'voice_text' | 'voice_voice';
 
@@ -45,23 +47,23 @@ export async function startVoiceSession(params: {
 }): Promise<string | null> {
   const supabase = await createClient();
 
-  // Type assertion needed due to manually maintained types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const insertPayload: VoiceUsageInsert = {
+    user_id: params.userId,
+    // DB column is still contractor_id, uses business ID value
+    contractor_id: params.businessId ?? null,
+    session_id: params.sessionId ?? null,
+    mode: params.mode,
+    started_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
     .from('voice_usage')
-    .insert({
-      user_id: params.userId,
-      // DB column is still contractor_id, uses business ID value
-      contractor_id: params.businessId ?? null,
-      session_id: params.sessionId ?? null,
-      mode: params.mode,
-      started_at: new Date().toISOString(),
-    })
+    .insert(insertPayload)
     .select('id')
     .single();
 
   if (error) {
-    console.error('[VoiceUsage] Failed to start session:', error);
+    logger.error('[VoiceUsage] Failed to start session', { error });
     return null;
   }
 
@@ -77,36 +79,36 @@ export async function startVoiceSession(params: {
 export async function endVoiceSession(usageId: string): Promise<void> {
   const supabase = await createClient();
 
-  // Type assertion needed due to manually maintained types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   // First get the start time to calculate duration
-  const { data: record } = await sb
+  const { data: record } = await supabase
     .from('voice_usage')
     .select('started_at')
     .eq('id', usageId)
     .single();
 
-  if (!record) {
-    console.error('[VoiceUsage] Session not found:', usageId);
+  const usageRecord = record as Pick<VoiceUsage, 'started_at'> | null;
+
+  if (!usageRecord) {
+    logger.error('[VoiceUsage] Session not found', { usageId });
     return;
   }
 
   const endedAt = new Date();
-  const startedAt = new Date(record.started_at);
+  const startedAt = new Date(usageRecord.started_at);
   const durationSeconds = Math.round((endedAt.getTime() - startedAt.getTime()) / 1000);
 
-  const { error } = await sb
+  const updatePayload: VoiceUsageUpdate = {
+    ended_at: endedAt.toISOString(),
+    duration_seconds: durationSeconds,
+  };
+
+  const { error } = await supabase
     .from('voice_usage')
-    .update({
-      ended_at: endedAt.toISOString(),
-      duration_seconds: durationSeconds,
-    })
+    .update(updatePayload)
     .eq('id', usageId);
 
   if (error) {
-    console.error('[VoiceUsage] Failed to end session:', error);
+    logger.error('[VoiceUsage] Failed to end session', { error, usageId });
   }
 }
 
@@ -125,9 +127,7 @@ export async function getMonthlyUsage(userId: string, mode?: VoiceMode): Promise
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  // Type assertion needed due to manually maintained types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any)
+  let query = supabase
     .from('voice_usage')
     .select('duration_seconds')
     .eq('user_id', userId)
@@ -141,11 +141,12 @@ export async function getMonthlyUsage(userId: string, mode?: VoiceMode): Promise
   const { data, error } = await query;
 
   if (error) {
-    console.error('[VoiceUsage] Failed to get monthly usage:', error);
+    logger.error('[VoiceUsage] Failed to get monthly usage', { error, userId, mode });
     return 0;
   }
 
-  return data?.reduce((sum: number, r: { duration_seconds: number | null }) => sum + (r.duration_seconds || 0), 0) ?? 0;
+  const rows = (data ?? []) as Array<Pick<VoiceUsage, 'duration_seconds'>>;
+  return rows.reduce((sum, row) => sum + (row.duration_seconds ?? 0), 0);
 }
 
 /**
@@ -163,9 +164,7 @@ export async function getMonthlySessionCount(userId: string, mode?: VoiceMode): 
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  // Type assertion needed due to manually maintained types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any)
+  let query = supabase
     .from('voice_usage')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
@@ -178,7 +177,7 @@ export async function getMonthlySessionCount(userId: string, mode?: VoiceMode): 
   const { count, error } = await query;
 
   if (error) {
-    console.error('[VoiceUsage] Failed to get session count:', error);
+    logger.error('[VoiceUsage] Failed to get session count', { error, userId, mode });
     return 0;
   }
 

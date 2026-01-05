@@ -21,6 +21,7 @@ import {
   requestNotificationPermission,
   subscribeAndPersist,
 } from '@/lib/notifications';
+import { logger } from '@/lib/logging';
 
 const DISMISS_KEY = 'knearme-push-dismissed';
 const DISMISS_DURATION_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
@@ -114,7 +115,7 @@ export function PushNotificationPrompt({ eligible = true }: PushNotificationProm
       await subscribeAndPersist();
       setIsVisible(false);
     } catch (error) {
-      console.error('[Push] Subscription failed', error);
+      logger.error('[PushNotificationPrompt] Subscription failed', { error });
     } finally {
       setIsWorking(false);
     }

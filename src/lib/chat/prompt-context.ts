@@ -7,10 +7,13 @@
  * @see /src/lib/chat/context-shared.ts for type definitions
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { BusinessProfileContext, ProjectContextData, ImageContextData } from '@/lib/chat/context-shared';
 import type { ExtractedProjectData } from '@/lib/chat/chat-types';
 import { createClient } from '@/lib/supabase/server';
 import { buildSessionContext, formatMemoryForPrompt } from '@/lib/chat/memory';
+import { logger } from '@/lib/logging';
+import type { Business, Database, Project, ProjectImage } from '@/types/database';
 
 function normalizeText(value?: string | null, maxLength = 200): string | null {
   if (!value) return null;
@@ -19,6 +22,25 @@ function normalizeText(value?: string | null, maxLength = 200): string | null {
   if (trimmed.length <= maxLength) return trimmed;
   return `${trimmed.slice(0, Math.max(0, maxLength - 3))}...`;
 }
+
+type ChatSessionRow = {
+  id: string;
+  session_summary: string | null;
+};
+
+type ChatDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      chat_sessions: {
+        Row: ChatSessionRow;
+        Insert: ChatSessionRow;
+        Update: Partial<ChatSessionRow>;
+      };
+    };
+  };
+};
+
+type ChatSupabaseClient = SupabaseClient<ChatDatabase>;
 
 export async function loadPromptContext({
   projectId,
@@ -36,17 +58,15 @@ export async function loadPromptContext({
   businessProfile: BusinessProfileContext | null;
   memory: string | null;
 }> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as ChatSupabaseClient;
   let projectData: ProjectContextData | null = null;
   let summary: string | null = null;
   let memory: string | null = null;
 
   if (projectId) {
     // Load project with images in parallel
-    // RLS type handling - see CLAUDE.md for pattern explanation
-    /* eslint-disable @typescript-eslint/no-explicit-any */
     const [projectResult, imagesResult] = await Promise.all([
-      (supabase as any)
+      supabase
         .from('projects')
         .select(
           `
@@ -67,25 +87,21 @@ export async function loadPromptContext({
         .eq('id', projectId)
         .single(),
       // Fetch images separately to get metadata for agent context
-      (supabase as any)
+      supabase
         .from('project_images')
         .select('id, image_type, alt_text, display_order')
         .eq('project_id', projectId)
         .order('display_order', { ascending: true }),
     ]);
-    /* eslint-enable @typescript-eslint/no-explicit-any */
 
-    const project = projectResult.data;
-    const images = imagesResult.data || [];
+    const project = projectResult.data as Project | null;
+    const images = (imagesResult.data || []) as Array<
+      Pick<ProjectImage, 'id' | 'image_type' | 'alt_text' | 'display_order'>
+    >;
 
     if (!projectResult.error && project) {
       // Map images to context format
-      const imageContextData: ImageContextData[] = images.map((img: {
-        id: string;
-        image_type: 'before' | 'after' | 'progress' | 'detail' | null;
-        alt_text: string | null;
-        display_order: number;
-      }) => ({
+      const imageContextData: ImageContextData[] = images.map((img) => ({
         id: img.id,
         imageType: img.image_type,
         altText: img.alt_text,
@@ -112,8 +128,7 @@ export async function loadPromptContext({
   }
 
   if (!summary && includeSummary && sessionId) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: session, error } = await (supabase as any)
+    const { data: session, error } = await supabase
       .from('chat_sessions')
       .select('session_summary')
       .eq('id', sessionId)
@@ -126,21 +141,24 @@ export async function loadPromptContext({
   let businessProfile: BusinessProfileContext | null = null;
   if (businessId) {
     // Load from businesses table (primary source)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: business, error } = await (supabase as any)
+    const { data: business, error } = await supabase
       .from('businesses')
       .select('name, city, state, services, service_areas, description')
       .eq('id', businessId)
       .single();
 
     if (!error && business) {
-      const differentiator = normalizeText(business.description, 180);
+      const businessData = business as Pick<
+        Business,
+        'name' | 'city' | 'state' | 'services' | 'service_areas' | 'description'
+      >;
+      const differentiator = normalizeText(businessData.description, 180);
       businessProfile = {
-        businessName: business.name ?? null,
-        services: business.services ?? null,
-        serviceAreas: business.service_areas ?? null,
-        city: business.city ?? null,
-        state: business.state ?? null,
+        businessName: businessData.name ?? null,
+        services: businessData.services ?? null,
+        serviceAreas: businessData.service_areas ?? null,
+        city: businessData.city ?? null,
+        state: businessData.state ?? null,
         differentiators: differentiator ? [differentiator] : null,
       };
     }
@@ -152,7 +170,7 @@ export async function loadPromptContext({
       const memoryContext = formatMemoryForPrompt(context);
       memory = memoryContext || null;
     } catch (error) {
-      console.warn('[PromptContext] Failed to load memory context:', error);
+      logger.warn('[PromptContext] Failed to load memory context', { error });
     }
   }
 

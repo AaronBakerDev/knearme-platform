@@ -17,20 +17,28 @@
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Building2, Wrench, ArrowRight, Hammer, Calendar } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/server';
-import { Badge, Button, Card, CardContent } from '@/components/ui';
-import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
+import { Badge, Button } from '@/components/ui';
+import { PublicBreadcrumbHeader } from '@/components/seo/PublicBreadcrumbHeader';
+import { ProjectGridCard } from '@/components/seo/ProjectGridCard';
+import { ServiceProviderCard } from '@/components/seo/ServiceProviderCard';
 import {
   generateProjectListSchema,
   generateServiceSchema,
   schemaToString,
 } from '@/lib/seo/structured-data';
+import {
+  buildOpenGraphMeta,
+  buildTwitterMeta,
+  selectCoverImage,
+} from '@/lib/seo/metadata-helpers';
 import { SERVICE_TYPE_DESCRIPTIONS } from '@/lib/seo/service-type-descriptions';
 import { getPublicUrl } from '@/lib/storage/upload';
 import { getServiceById } from '@/lib/services';
+import { formatCityName, formatServiceName, getCanonicalUrl } from '@/lib/constants/page-descriptions';
+import { logger } from '@/lib/logging';
 import type { Business, Project, ProjectImage } from '@/types/database';
 
 type PageParams = {
@@ -60,39 +68,12 @@ async function getServiceInfo(typeSlug: string): Promise<{ id: string; label: st
 }
 
 /**
- * Format service type slug to display name.
- * @example "chimney-repair" -> "Chimney Repair"
- */
-function formatServiceName(typeSlug: string): string {
-  return typeSlug
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-/**
- * Extract city name from slug for display.
- * @example "denver-co" -> "Denver, CO"
- */
-function formatCityName(citySlug: string): string {
-  const parts = citySlug.split('-');
-  if (parts.length < 2) return citySlug;
-
-  const state = parts.pop()?.toUpperCase() || '';
-  const city = parts
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-
-  return `${city}, ${state}`;
-}
-
-/**
  * Generate static params for pre-rendering service type pages.
  * Generates for all city + service type combinations with published projects.
  */
 export async function generateStaticParams() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.log('[generateStaticParams] Skipping: SUPABASE_SERVICE_ROLE_KEY not configured');
+    logger.info('[generateStaticParams] Skipping: SUPABASE_SERVICE_ROLE_KEY not configured');
     return [];
   }
 
@@ -121,7 +102,7 @@ export async function generateStaticParams() {
       return { city, type };
     });
   } catch (error) {
-    console.error('[generateStaticParams] Error fetching combinations:', error);
+    logger.error('[generateStaticParams] Error fetching combinations', { error });
     return [];
   }
 }
@@ -134,7 +115,6 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   const { city, type } = await params;
   const cityName = formatCityName(city);
   const serviceInfo = await getServiceInfo(type);
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
   const supabase = createAdminClient();
 
   // Fetch first published project's cover image for OG
@@ -153,20 +133,11 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   };
   const project = projectData as ProjectWithImages | null;
 
-  // Get cover image URL from first project
-  let imageUrl: string | undefined;
-  let imageAlt: string | undefined;
-
-  if (project?.project_images?.length) {
-    const sortedImages = [...project.project_images].sort(
-      (a, b) => a.display_order - b.display_order
-    );
-    const coverImage = sortedImages[0];
-    if (coverImage) {
-      imageUrl = getPublicUrl('project-images', coverImage.storage_path);
-      imageAlt = coverImage.alt_text || `${serviceInfo.label} project in ${cityName}`;
-    }
-  }
+  const coverImage = selectCoverImage(project?.project_images);
+  const imageUrl = coverImage
+    ? getPublicUrl('project-images', coverImage.storage_path)
+    : undefined;
+  const imageAlt = coverImage?.alt_text || `${serviceInfo.label} project in ${cityName}`;
 
   const title = `${serviceInfo.label} in ${cityName} | Projects & Contractors`;
 
@@ -183,26 +154,26 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     `${type} near me`,
     `${serviceInfo.label.toLowerCase()} services`,
   ].join(', ');
+  const canonicalUrl = getCanonicalUrl(`/${city}/masonry/${type}`);
 
   return {
     title,
     description,
     keywords,
-    openGraph: {
+    openGraph: buildOpenGraphMeta({
       title,
       description,
-      type: 'website',
-      url: `${siteUrl}/${city}/masonry/${type}`,
-      images: imageUrl ? [{ url: imageUrl, alt: imageAlt }] : [],
-    },
-    twitter: {
-      card: imageUrl ? 'summary_large_image' : 'summary',
+      url: canonicalUrl,
+      imageUrl,
+      imageAlt,
+    }),
+    twitter: buildTwitterMeta({
       title,
       description,
-      images: imageUrl ? [imageUrl] : [],
-    },
+      imageUrl,
+    }),
     alternates: {
-      canonical: `${siteUrl}/${city}/masonry/${type}`,
+      canonical: canonicalUrl,
     },
   };
 }
@@ -229,7 +200,7 @@ export default async function ServiceTypePage({ params }: PageParams) {
     .limit(50);
 
   if (projectsError) {
-    console.error('[ServiceTypePage] Error fetching projects:', projectsError);
+    logger.error('[ServiceTypePage] Error fetching projects', { error: projectsError });
   }
 
   // Type assertion for query result
@@ -245,15 +216,10 @@ export default async function ServiceTypePage({ params }: PageParams) {
   }
 
   // Add cover image to each project
-  const projectsWithDetails: ProjectWithDetails[] = projects.map((project) => {
-    const sortedImages = project.project_images.sort(
-      (a, b) => a.display_order - b.display_order
-    );
-    return {
-      ...project,
-      cover_image: sortedImages[0],
-    };
-  });
+  const projectsWithDetails: ProjectWithDetails[] = projects.map((project) => ({
+    ...project,
+    cover_image: selectCoverImage(project.project_images) ?? undefined,
+  }));
 
   // Get unique businesses who have done this type of work
   const businessesMap = new Map<string, Business>();
@@ -354,11 +320,7 @@ export default async function ServiceTypePage({ params }: PageParams) {
 
       <div className="min-h-screen bg-background">
         {/* Header with Breadcrumbs */}
-        <header className="border-b">
-          <div className="container mx-auto px-4 py-4">
-            <Breadcrumbs items={breadcrumbItems} />
-          </div>
-        </header>
+        <PublicBreadcrumbHeader items={breadcrumbItems} />
 
         <main className="container mx-auto px-4 py-8">
           {/* Hero Section */}
@@ -413,45 +375,13 @@ export default async function ServiceTypePage({ params }: PageParams) {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {businesses.slice(0, 4).map((business) => (
-                  <Link
+                  <ServiceProviderCard
                     key={business.id}
                     href={`/businesses/${business.city_slug}/${business.slug || business.id}`}
-                    className="group"
-                  >
-                    <Card className="shadow-sm hover:shadow-md transition-all duration-200 border-0 bg-card">
-                      <CardContent className="p-4 flex items-center gap-4">
-                        {/* Business Photo */}
-                        <div className="relative w-14 h-14 rounded-full overflow-hidden flex-shrink-0 bg-muted ring-2 ring-background shadow-sm">
-                          {business.profile_photo_url ? (
-                            <Image
-                              src={business.profile_photo_url}
-                              alt={business.name || 'Business'}
-                              fill
-                              className="object-cover"
-                              sizes="56px"
-                              placeholder="blur"
-                              blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB2aWV3Qm94PSIwIDAgMSAxIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlNWU3ZWIiLz48L3N2Zz4="
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-bold text-lg">
-                              {business.name?.charAt(0) || 'B'}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium truncate group-hover:text-primary transition-colors">
-                            {business.name}
-                          </h3>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {business.services?.slice(0, 2).join(', ')}
-                          </p>
-                        </div>
-
-                        <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                      </CardContent>
-                    </Card>
-                  </Link>
+                    name={business.name || 'Business'}
+                    photoUrl={business.profile_photo_url}
+                    subtitle={business.services?.slice(0, 2).join(', ') || ''}
+                  />
                 ))}
               </div>
               {businesses.length > 4 && (
@@ -504,55 +434,31 @@ export default async function ServiceTypePage({ params }: PageParams) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {projectsWithDetails.map((project) => (
-                <Link
+                <ProjectGridCard
                   key={project.id}
                   href={`/${project.city_slug}/masonry/${project.project_type_slug}/${project.slug}`}
-                  className="group"
-                >
-                  <Card className="overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 h-full border-0 bg-card">
-                    {/* Project Image */}
-                    <div className="relative aspect-video bg-muted overflow-hidden">
-                      {project.cover_image ? (
-                        <Image
-                          src={getPublicUrl('project-images', project.cover_image.storage_path)}
-                          alt={project.cover_image.alt_text || project.title || 'Project'}
-                          fill
-                          className="object-cover transition-transform duration-300 group-hover:scale-105"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          placeholder="blur"
-                          blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB2aWV3Qm94PSIwIDAgMSAxIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlNWU3ZWIiLz48L3N2Zz4="
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                          <Building2 className="h-12 w-12" />
-                        </div>
-                      )}
-                      {/* Hover overlay */}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
-                    </div>
-
-                    <CardContent className="p-4">
-                      <h3 className="font-semibold line-clamp-2 mb-2 group-hover:text-primary transition-colors">
-                        {project.title}
-                      </h3>
-
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span className="truncate">
-                          by {project.business?.name || 'Unknown'}
+                  title={project.title || 'Project'}
+                  imageUrl={project.cover_image
+                    ? getPublicUrl('project-images', project.cover_image.storage_path)
+                    : undefined}
+                  imageAlt={project.cover_image?.alt_text || project.title}
+                  meta={(
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span className="truncate">
+                        by {project.business?.name || 'Unknown'}
+                      </span>
+                      {project.published_at && (
+                        <span className="flex items-center gap-1 text-xs flex-shrink-0 ml-2">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(project.published_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            year: 'numeric',
+                          })}
                         </span>
-                        {project.published_at && (
-                          <span className="flex items-center gap-1 text-xs flex-shrink-0 ml-2">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(project.published_at).toLocaleDateString('en-US', {
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                      )}
+                    </div>
+                  )}
+                />
               ))}
             </div>
           </div>

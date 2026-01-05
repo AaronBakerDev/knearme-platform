@@ -4,7 +4,7 @@
  * ClarificationCard artifact.
  *
  * Displays when the AI is uncertain about something and needs clarification.
- * Shows the question, confidence level, current value (if any), and
+ * Shows the question, confidence level, current value (if present), and
  * alternative options the user can select.
  *
  * Features:
@@ -164,7 +164,7 @@ export function ClarificationCard({
         </p>
       )}
 
-      {/* Current value (if any) */}
+      {/* Current value (if present) */}
       {currentValue && (
         <div className="mb-3 pl-11">
           <p className="text-xs text-muted-foreground mb-1">Current understanding:</p>

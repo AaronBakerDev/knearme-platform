@@ -17,6 +17,8 @@ import { createClient } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { resolveProjectImageUrl } from '@/lib/storage/project-images';
+import { logger } from '@/lib/logging';
+import type { Project, ProjectImage } from '@/types/database';
 
 /**
  * Contractor dashboard - Craftsman Workshop aesthetic.
@@ -83,8 +85,7 @@ export default async function DashboardPage() {
   const draftCount = draftCountRes.count ?? 0;
 
   // Get projects with images
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: projectsData, error: projectsError, count: totalCount } = await (supabase as any)
+  const { data: projectsData, error: projectsError, count: totalCount } = await supabase
     .from('projects')
     .select('*, project_images!project_images_project_id_fkey(id, storage_path, image_type, display_order)', { count: 'exact' })
     .eq('contractor_id', contractor.id)
@@ -92,21 +93,10 @@ export default async function DashboardPage() {
     .limit(6);
 
   if (projectsError) {
-    console.error('[Dashboard] Projects query error:', JSON.stringify(projectsError, null, 2));
+    logger.error('[Dashboard] Projects query error', { error: projectsError });
   }
 
-  type ProjectImage = {
-    id: string;
-    storage_path: string;
-    image_type: string;
-    display_order: number;
-  };
-  type ProjectRow = {
-    id: string;
-    title: string | null;
-    project_type: string | null;
-    city: string | null;
-    status: string;
+  type ProjectRow = Pick<Project, 'id' | 'title' | 'project_type' | 'city' | 'status'> & {
     project_images: ProjectImage[];
   };
   const projects = (projectsData ?? []) as ProjectRow[];

@@ -23,7 +23,8 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { Badge, Card, CardContent, Button } from '@/components/ui';
 import { PhotoGallery } from '@/components/portfolio/PhotoGallery';
 import { DescriptionBlocks } from '@/components/portfolio/DescriptionBlocks';
-import { DynamicPortfolioRenderer, type PortfolioImage } from '@/components/portfolio/DynamicPortfolioRenderer';
+import { DynamicPortfolioRenderer } from '@/components/portfolio/DynamicPortfolioRenderer';
+import type { PortfolioImage } from '@/components/portfolio/types';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 import type { DesignTokens } from '@/lib/design/tokens';
 import type { SemanticBlock } from '@/lib/design/semantic-blocks';
@@ -33,11 +34,18 @@ import {
   generateProjectSchema,
   schemaToString,
 } from '@/lib/seo/structured-data';
+import {
+  buildOpenGraphMeta,
+  buildTwitterMeta,
+  selectCoverImage,
+} from '@/lib/seo/metadata-helpers';
 import { getPublicUrl } from '@/lib/storage/upload';
 import { sanitizeDescriptionBlocks, hasHtmlTags } from '@/lib/content/description-blocks';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { slugify } from '@/lib/utils/slugify';
 import { isDemoSlug, getDemoProject, getAllDemoProjects, type DemoProject } from '@/lib/data/demo-projects';
+import { getCanonicalUrl } from '@/lib/constants/page-descriptions';
+import { logger } from '@/lib/logging';
 import type { Project, Business, ProjectImage } from '@/types/database';
 
 type PageParams = {
@@ -64,7 +72,7 @@ export async function generateStaticParams() {
   // Skip DB static generation if service role key is missing
   // Next.js will use ISR/dynamic rendering instead
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.log('[generateStaticParams] Skipping DB projects: SUPABASE_SERVICE_ROLE_KEY not configured');
+    logger.info('[generateStaticParams] Skipping DB projects: SUPABASE_SERVICE_ROLE_KEY not configured');
     return demoParams;
   }
 
@@ -90,7 +98,7 @@ export async function generateStaticParams() {
 
     return [...demoParams, ...dbParams];
   } catch (error) {
-    console.error('[generateStaticParams] Error fetching projects:', error);
+    logger.error('[generateStaticParams] Error fetching projects', { error });
     return demoParams;
   }
 }
@@ -191,30 +199,33 @@ function buildDemoProjectSchema(demoProject: DemoProject): Record<string, unknow
  */
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { city, type, slug } = await params;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
+  const canonicalUrl = getCanonicalUrl(`/${city}/masonry/${type}/${slug}`);
 
   // Check for demo project first
   if (isDemoSlug(slug)) {
     const demoProject = getDemoProject(city, type, slug);
     if (demoProject) {
       const coverImage = demoProject.images[0];
+      const imageUrl = coverImage?.url;
+      const imageAlt = coverImage?.alt_text;
+
       return {
         title: `${demoProject.seo_title} | Example Project`,
         description: demoProject.seo_description,
         keywords: demoProject.tags?.join(', '),
-        openGraph: {
+        openGraph: buildOpenGraphMeta({
           title: `${demoProject.title} | Example Project`,
           description: demoProject.seo_description,
           type: 'article',
-          url: `${siteUrl}/${city}/masonry/${type}/${slug}`,
-          images: coverImage ? [{ url: coverImage.url, alt: coverImage.alt_text }] : [],
-        },
-        twitter: {
-          card: 'summary_large_image',
+          url: canonicalUrl,
+          imageUrl,
+          imageAlt,
+        }),
+        twitter: buildTwitterMeta({
           title: `${demoProject.title} | Example Project`,
           description: demoProject.seo_description,
-          images: coverImage ? [coverImage.url] : [],
-        },
+          imageUrl,
+        }),
       };
     }
   }
@@ -247,11 +258,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 
   const business = project.business;
 
-  // Get cover image URL for OG/Twitter (first image by display_order)
-  const sortedImages = [...(project.project_images || [])].sort(
-    (a, b) => a.display_order - b.display_order
-  );
-  const coverImage = sortedImages[0];
+  const coverImage = selectCoverImage(project.project_images);
   const imageUrl = coverImage
     ? getPublicUrl('project-images', coverImage.storage_path)
     : undefined;
@@ -260,23 +267,21 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     title: project.seo_title || `${project.title} | ${business?.name}`,
     description: project.seo_description || project.description?.slice(0, 160),
     keywords: project.tags?.join(', '),
-    openGraph: {
+    openGraph: buildOpenGraphMeta({
       title: project.title || 'Masonry Project',
-      description: project.seo_description || project.description?.slice(0, 160),
+      description: project.seo_description || project.description?.slice(0, 160) || '',
       type: 'article',
-      url: `${siteUrl}/${project.city_slug}/masonry/${project.project_type_slug}/${project.slug}`,
-      images: imageUrl
-        ? [{ url: imageUrl, alt: coverImage?.alt_text || project.title || 'Project image' }]
-        : [],
-    },
-    twitter: {
-      card: 'summary_large_image',
+      url: canonicalUrl,
+      imageUrl,
+      imageAlt: coverImage?.alt_text || project.title || 'Project image',
+    }),
+    twitter: buildTwitterMeta({
       title: project.title || 'Masonry Project',
-      description: project.seo_description || project.description?.slice(0, 160),
-      images: imageUrl ? [imageUrl] : [],
-    },
+      description: project.seo_description || project.description?.slice(0, 160) || '',
+      imageUrl,
+    }),
     alternates: {
-      canonical: `${siteUrl}/${project.city_slug}/masonry/${project.project_type_slug}/${project.slug}`,
+      canonical: canonicalUrl,
     },
   };
 }

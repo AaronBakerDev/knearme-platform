@@ -19,7 +19,7 @@ import type { ImageAnalysisResult } from './image-analysis';
 /**
  * System prompt for image analysis.
  * Used with Gemini 3.0 Flash to detect project details from photos.
- * Trade-agnostic: works for any contractor type.
+ * Trade-agnostic: works for all contractor types.
  */
 export const IMAGE_ANALYSIS_PROMPT = `You are an expert consultant analyzing project photos for a contractor portfolio website.
 
@@ -33,7 +33,7 @@ Your task is to identify and extract details from construction/trade project ima
 
 4. **Condition Assessment**: If this appears to be a before/during/after photo, note the condition and what work was done.
 
-5. **Quality Indicators**: Note any signs of craftsmanship quality (clean work, professional finish, attention to detail, etc.).
+5. **Quality Indicators**: Note signs of craftsmanship quality (clean work, professional finish, attention to detail, etc.).
 
 6. **Alt Text Generation**: For EACH image, generate a descriptive alt text for SEO and accessibility following this format:
    "[What's visible in the image] - [Project context/stage] - [Location/area]"
@@ -57,7 +57,7 @@ Respond in JSON format:
   "image_alt_texts": { "0": "alt text for first image", "1": "alt text for second image" }
 }
 
-Identify the actual type of work shown. Be accurate to the trade - don't assume any particular industry.`;
+Identify the actual type of work shown. Be accurate to the trade - don't assume a particular industry.`;
 
 /**
  * System prompt for generating interview questions.
@@ -193,7 +193,7 @@ export const DEFAULT_INTERVIEW_QUESTIONS = [
   },
   {
     id: 'q3',
-    text: 'Were there any materials, tools, or techniques that mattered?',
+    text: 'Were there materials, tools, or techniques that mattered?',
     purpose: 'Highlights craftsmanship and important details',
   },
   {

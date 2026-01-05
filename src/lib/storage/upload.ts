@@ -9,6 +9,7 @@
  */
 
 import { createClient } from '@/lib/supabase/client';
+import { logger } from '@/lib/logging';
 
 /** Supported storage buckets with their configurations */
 export const STORAGE_BUCKETS = {
@@ -137,7 +138,7 @@ export async function uploadFile(
   });
 
   if (error) {
-    console.error('[uploadFile] Error:', error);
+    logger.error('[uploadFile] Error', { error });
     return { error: error.message };
   }
 
@@ -159,7 +160,7 @@ export async function deleteFile(
   const { error } = await supabase.storage.from(bucket).remove([path]);
 
   if (error) {
-    console.error('[deleteFile] Error:', error);
+    logger.error('[deleteFile] Error', { error });
     return { success: false, error: error.message };
   }
 

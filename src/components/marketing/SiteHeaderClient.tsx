@@ -12,6 +12,7 @@ import {
 import { Menu, Hammer, BookOpen, Building2, Calculator, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { logger } from "@/lib/logging";
 
 /**
  * Service types for navigation dropdown.
@@ -78,16 +79,14 @@ export function SiteHeaderClient({ isAuthenticated, hasCompleteProfile }: SiteHe
     let isMounted = true;
 
     const resolveProfileCompletion = async (userId: string) => {
-      // Type assertion needed due to RLS type inference issues
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: business, error } = await (supabase as any)
+      const { data: business, error } = await supabase
         .from("businesses")
         .select("name, city, state, services, address, phone")
         .eq("auth_user_id", userId)
         .maybeSingle();
 
       if (error) {
-        console.error("[SiteHeader] Failed to load business profile:", error);
+        logger.error("[SiteHeader] Failed to load business profile", { error });
         return false;
       }
 

@@ -6,6 +6,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
 import type { BucketName } from './upload';
 
 /**
@@ -27,7 +28,7 @@ export async function createSignedUploadUrl(
   const { data, error } = await supabase.storage.from(bucket).createSignedUploadUrl(path);
 
   if (error) {
-    console.error('[createSignedUploadUrl] Error:', error);
+    logger.error('[createSignedUploadUrl] Error', { error });
     return { error: error.message };
   }
 
@@ -49,7 +50,7 @@ export async function downloadStorageObject(
   const { data, error } = await supabase.storage.from(bucket).download(path);
 
   if (error) {
-    console.error('[downloadStorageObject] Error:', error);
+    logger.error('[downloadStorageObject] Error', { error });
     return { error: error.message };
   }
 

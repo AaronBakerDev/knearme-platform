@@ -52,8 +52,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get all images for this project
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: images, error } = await (supabase as any)
+    const { data: images, error } = await supabase
       .from('project_images')
       .select('id, storage_path')
       .eq('project_id', projectId);
@@ -78,8 +77,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Map back to image IDs
     const pathToId = new Map(imageRecords.map((img) => [img.storage_path, img.id]));
-    const validIds = result.valid.map((path) => pathToId.get(path)!).filter(Boolean);
-    const orphanedIds = result.invalid.map((path) => pathToId.get(path)!).filter(Boolean);
+    const validIds = result.valid
+      .map((path) => pathToId.get(path) ?? null)
+      .filter((id): id is string => Boolean(id));
+    const orphanedIds = result.invalid
+      .map((path) => pathToId.get(path) ?? null)
+      .filter((id): id is string => Boolean(id));
 
     return apiSuccess({
       total: imageRecords.length,
@@ -125,8 +128,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get all images for this project
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: images, error } = await (supabase as any)
+    const { data: images, error } = await supabase
       .from('project_images')
       .select('id, storage_path')
       .eq('project_id', projectId);
@@ -149,8 +151,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Delete orphaned records
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: deleteError } = await (supabase as any)
+    const { error: deleteError } = await supabase
       .from('project_images')
       .delete()
       .in('id', orphanedIds)

@@ -3,6 +3,7 @@ import type { UIMessage } from 'ai';
 import type { ChatPhase, ExtractedProjectData } from '@/lib/chat/chat-types';
 import { useAutoSummarize } from './useAutoSummarize';
 import { useSaveQueue } from './useSaveQueue';
+import { logger } from '@/lib/logging';
 
 interface UsePersistenceParams {
   projectId: string | null;
@@ -115,7 +116,7 @@ export function usePersistence({
             savedMessageIds.current.add(msg.id);
           }
         } catch (err) {
-          console.error('[ChatWizard] Failed to save message:', err);
+          logger.error('[ChatWizard] Failed to save message', { error: err });
         }
       }
 
@@ -263,12 +264,14 @@ export function usePersistence({
 
         if (response.ok) {
           lastSyncedData.current = dataHash;
-          console.log('[ChatWizard] Synced extracted data to project:', Object.keys(projectUpdate));
+          logger.info('[ChatWizard] Synced extracted data to project', {
+            fields: Object.keys(projectUpdate),
+          });
         } else {
-          console.error('[ChatWizard] Failed to sync extracted data:', response.status);
+          logger.error('[ChatWizard] Failed to sync extracted data', { status: response.status });
         }
       } catch (err) {
-        console.error('[ChatWizard] Error syncing extracted data:', err);
+        logger.error('[ChatWizard] Error syncing extracted data', { error: err });
       }
     }, 1000); // 1 second debounce
 

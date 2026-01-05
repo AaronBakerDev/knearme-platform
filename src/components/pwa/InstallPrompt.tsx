@@ -21,6 +21,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { X, Download, Smartphone, Share } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { logger } from '@/lib/logging';
 
 /**
  * BeforeInstallPromptEvent is not in standard TypeScript lib.
@@ -143,7 +144,7 @@ export function InstallPrompt() {
 
     // Listen for successful install
     const handleAppInstalled = () => {
-      console.log('[PWA] App installed successfully');
+      logger.info('[PWA] App installed successfully');
       setShowBanner(false);
       setDeferredPrompt(null);
       // Could track analytics here
@@ -179,7 +180,7 @@ export function InstallPrompt() {
       // Wait for user response
       const { outcome } = await deferredPrompt.userChoice;
 
-      console.log(`[PWA] Install prompt outcome: ${outcome}`);
+      logger.info('[PWA] Install prompt outcome', { outcome });
 
       if (outcome === 'accepted') {
         // User accepted - banner will hide via appinstalled event
@@ -188,7 +189,7 @@ export function InstallPrompt() {
         recordDismissal();
       }
     } catch (error) {
-      console.error('[PWA] Install prompt error:', error);
+      logger.error('[PWA] Install prompt error', { error });
     } finally {
       setIsInstalling(false);
       setDeferredPrompt(null);

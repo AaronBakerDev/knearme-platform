@@ -10,6 +10,7 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { descriptionBlocksSchema, type DescriptionBlock } from '@/lib/content/description-blocks';
+import { logger } from '@/lib/logging';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { getGenerationModel, isGoogleAIEnabled, OUTPUT_LIMITS } from '@/lib/ai/providers';
 import type { SharedProjectState } from './types';
@@ -227,7 +228,7 @@ export async function composePortfolioLayout(
       missingContext: mergeMissingContext(object.missingContext, detectedMissing),
     };
   } catch (error) {
-    console.error('[LayoutComposer] Error:', error);
+    logger.error('[LayoutComposer] Error', { error });
     return {
       blocks: buildFallbackBlocks(state),
       imageOrder: normalizeImageOrder(undefined, state, options.includeImageOrder),

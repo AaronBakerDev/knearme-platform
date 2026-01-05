@@ -38,6 +38,7 @@ import {
   DesignTokenSchema,
   type DesignTokens,
 } from '@/lib/design/tokens';
+import { logger } from '@/lib/logging';
 import {
   SemanticBlocksSchema,
   type SemanticBlock,
@@ -432,7 +433,7 @@ export async function composeUI(
 ): Promise<UIComposerResult> {
   // Return fallback when AI is unavailable
   if (!isGoogleAIEnabled()) {
-    console.warn('[UIComposer] Google AI not enabled, using fallback layout');
+    logger.warn('[UIComposer] Google AI not enabled, using fallback layout');
     return buildFallbackLayout(state);
   }
 
@@ -498,7 +499,7 @@ export async function composeUI(
       confidence: object.confidence,
     };
   } catch (error) {
-    console.error('[UIComposer] Error composing layout:', error);
+    logger.error('[UIComposer] Error composing layout', { error });
     return buildFallbackLayout(state);
   }
 }

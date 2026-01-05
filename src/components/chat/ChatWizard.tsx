@@ -25,18 +25,15 @@ import { useParams } from 'next/navigation';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage } from 'ai';
-import { Loader2, AlertCircle, Sparkles, X, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { ChatSurface } from './ChatSurface';
-import { ChatInput } from './ChatInput';
 import { ChatPhotoSheet } from './ChatPhotoSheet';
-import { CanvasPanel, type CanvasPanelSize, type CanvasTab } from './CanvasPanel';
-import { VoiceLiveControls, type VoiceTalkMode } from './VoiceLiveControls';
-import { PreviewPill } from './PreviewPill';
-import { PreviewOverlay } from './PreviewOverlay';
-import { CollectedDataPeekBar } from './CollectedDataPeekBar';
-import { QuickActionChips } from './QuickActionChips';
-import { Button } from '@/components/ui/button';
-import { MicPermissionPrompt } from '@/components/voice';
+import type { CanvasPanelSize, CanvasTab } from './CanvasPanel';
+import { type VoiceTalkMode } from './VoiceLiveControls';
+import { ChatBlockingOverlays } from './ChatBlockingOverlays';
+import { ChatInputFooter } from './ChatInputFooter';
+import { ChatPreviewPanels } from './ChatPreviewPanels';
+import { ChatStatusOverlays } from './ChatStatusOverlays';
 import { getOpeningMessage } from '@/lib/chat/chat-prompts';
 import { type ProjectState } from '@/lib/chat/project-state';
 import {
@@ -45,6 +42,7 @@ import {
   useCompleteness,
   usePersistence,
   useProjectHydration,
+  useGeneratedContentSaver,
   useQuickActions,
   useUIState,
   useVoiceModeManager,
@@ -60,10 +58,8 @@ import { usePhotoActions } from './handlers/usePhotoActions';
 import { usePreviewActions } from './handlers/usePreviewActions';
 import { usePublishActions } from './handlers/usePublishActions';
 import type { QuickActionItem, QuickActionType } from './hooks';
-import { SaveIndicator } from './artifacts/shared/SaveStatusBadge';
 import type { UploadedImage } from '@/components/upload/ImageUploader';
 import type { ExtractedProjectData, ChatPhase, GeneratedContent } from '@/lib/chat/chat-types';
-import type { GeneratePortfolioContentOutput } from '@/lib/chat/tool-schemas';
 import {
   coerceQuickActionSuggestions,
   getResponseErrorMessage,
@@ -75,10 +71,8 @@ import {
   type DeepToolChoice,
 } from '@/lib/chat/wizard-utils';
 import { cn } from '@/lib/utils';
-import {
-  buildDescriptionBlocksFromContent,
-} from '@/lib/content/description-blocks.client';
 import { blocksToHtml, sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
+import { logger } from '@/lib/logging';
 import type { Business, Contractor, Project, ProjectImage } from '@/types/database';
 import type { RelatedProject } from '@/lib/data/projects';
 
@@ -173,7 +167,7 @@ export function ChatWizard({
   // PROJECT STATE DERIVATION (Unified Interface)
   // ==========================================================================
   // Instead of explicit mode, derive behavior from project state after loading.
-  // This enables a single chat interface that adapts to any project.
+  // This enables a single chat interface that adapts to every project.
   //
   // Legacy: mode prop is still respected for backward compatibility.
   // When mode is provided, it takes precedence. When not provided, behavior
@@ -327,7 +321,7 @@ export function ChatWizard({
 
   const logPreviewEvent = useCallback((event: string, details?: Record<string, unknown>) => {
     if (process.env.NODE_ENV === 'production') return;
-    console.info('[Preview]', event, details ?? {});
+    logger.info('[Preview]', { event, ...(details ?? {}) });
   }, []);
 
   /**
@@ -713,7 +707,7 @@ export function ChatWizard({
    * before sending the first message. This triggers session creation
    * and enables persistence from the start.
    *
-   * NOTE: All useCallback hooks must be declared BEFORE any conditional returns
+   * NOTE: All useCallback hooks must be declared BEFORE conditional returns
    * to satisfy React's Rules of Hooks (consistent hook order on every render).
    *
    * @see /src/app/(dashboard)/projects/new/page.tsx for ensureProject implementation
@@ -757,7 +751,7 @@ export function ChatWizard({
       try {
         await sendMessageWithContext(text, toolChoice);
       } catch (err) {
-        console.error('[ChatWizard] Send error:', err);
+        logger.error('[ChatWizard] Send error', { error: err });
         setError('Failed to send message. Please try again.');
       }
     },
@@ -792,7 +786,7 @@ export function ChatWizard({
           currentProjectId = await onEnsureProject();
           projectIdRef.current = currentProjectId;
         } catch (err) {
-          console.error('[ChatWizard] Failed to create project:', err);
+          logger.error('[ChatWizard] Failed to create project', { error: err });
           setError('Failed to start project. Please try again.');
           setPhase('conversation');
           return;
@@ -868,7 +862,7 @@ export function ChatWizard({
         });
 
         if (!syncResponse.ok) {
-          console.warn('[ChatWizard] Failed to sync project before generation.');
+          logger.warn('[ChatWizard] Failed to sync project before generation');
         }
       }
 
@@ -886,7 +880,7 @@ export function ChatWizard({
         }
       );
     } catch (err) {
-      console.error('[ChatWizard] Generation error:', err);
+      logger.error('[ChatWizard] Generation error', { error: err });
       setError(err instanceof Error ? err.message : 'Failed to generate content. Please try again.');
       setPhase('conversation');
     }
@@ -902,6 +896,11 @@ export function ChatWizard({
   const handleInsertPrompt = useCallback((text: string) => {
     setInputValue(text);
   }, []);
+
+  const openPreviewOverlay = useCallback(() => {
+    setOverlayTab('preview');
+    setShowPreviewOverlay(true);
+  }, [setOverlayTab, setShowPreviewOverlay]);
 
   const openFormPanel = useCallback(() => {
     if (!hasFormContent) return;
@@ -937,7 +936,7 @@ export function ChatWizard({
                 'composePortfolioLayout'
               );
             } catch (err) {
-              console.error('[ChatWizard] Compose layout error:', err);
+              logger.error('[ChatWizard] Compose layout error', { error: err });
               setError('Failed to compose layout. Please try again.');
             }
           })();
@@ -950,7 +949,7 @@ export function ChatWizard({
                 'checkPublishReady'
               );
             } catch (err) {
-              console.error('[ChatWizard] Publish readiness error:', err);
+              logger.error('[ChatWizard] Publish readiness error', { error: err });
               setError('Failed to check publish readiness. Please try again.');
             }
           })();
@@ -984,71 +983,18 @@ export function ChatWizard({
     ]
   );
 
-  const saveGeneratedContent = useCallback(
-    async (content: GeneratePortfolioContentOutput) => {
-      if (!projectId || !content?.success) return;
-
-      setIsSavingContent(true);
-      setError(null);
-
-      try {
-        const payload: Record<string, unknown> = {
-          title: content.title,
-          description: content.description,
-          description_blocks: buildDescriptionBlocksFromContent({
-            description: content.description,
-            materials: extractedData.materials_mentioned,
-            techniques: extractedData.techniques_mentioned,
-            duration: extractedData.duration,
-            proudOf: extractedData.proud_of,
-          }),
-          seo_title: content.seoTitle || undefined,
-          seo_description: content.seoDescription || undefined,
-          tags: content.tags,
-        };
-
-        if (extractedData.materials_mentioned?.length) {
-          payload.materials = extractedData.materials_mentioned;
-        }
-
-        if (extractedData.techniques_mentioned?.length) {
-          payload.techniques = extractedData.techniques_mentioned;
-        }
-
-        const response = await fetch(`/api/projects/${projectId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          let message = 'Failed to save draft. Please try again.';
-          try {
-            const data = await response.json();
-            if (data?.error?.message) {
-              message = data.error.message;
-            } else if (data?.message) {
-              message = data.message;
-            }
-          } catch {
-            // Ignore JSON parse errors and keep fallback message.
-          }
-          throw new Error(message);
-        }
-
-        setPhase('review');
-        setSuccessMessage('Draft saved to your project.');
-        onProjectUpdate?.();
-        openFormPanel();
-      } catch (err) {
-        console.error('[ChatWizard] Failed to save draft:', err);
-        setError(err instanceof Error ? err.message : 'Failed to save draft. Please try again.');
-      } finally {
-        setIsSavingContent(false);
-      }
-    },
-    [projectId, extractedData, onProjectUpdate, openFormPanel]
-  );
+  useGeneratedContentSaver({
+    projectId,
+    messages,
+    extractedData,
+    processedGeneratedToolCalls,
+    setPhase,
+    setIsSavingContent,
+    setError,
+    setSuccessMessage,
+    openFormPanel,
+    onProjectUpdate,
+  });
 
   /**
    * Update the latest ContentEditor tool part with regenerated content.
@@ -1141,7 +1087,7 @@ export function ChatWizard({
         onProjectUpdate?.();
         return true;
       } catch (err) {
-        console.error('[ChatWizard] Failed to save description blocks:', err);
+        logger.error('[ChatWizard] Failed to save description blocks', { error: err });
         setError('Failed to save description blocks. Please try again.');
         return false;
       } finally {
@@ -1186,7 +1132,7 @@ export function ChatWizard({
         onProjectUpdate?.();
         return true;
       } catch (err) {
-        console.error('[ChatWizard] Failed to reorder images:', err);
+        logger.error('[ChatWizard] Failed to reorder images', { error: err });
         setError(err instanceof Error ? err.message : 'Failed to reorder images.');
         return false;
       } finally {
@@ -1298,43 +1244,6 @@ export function ChatWizard({
     ]
   );
 
-  useEffect(() => {
-    if (!projectId || messages.length === 0) return;
-
-    for (const message of messages) {
-      if (!message.parts || message.parts.length === 0) continue;
-
-      for (const part of message.parts) {
-        if (part.type !== 'tool-generatePortfolioContent') continue;
-        const toolPart = part as {
-          state?: string;
-          toolCallId?: string;
-          output?: unknown;
-        };
-
-        if (toolPart.state !== 'output-available' || !toolPart.output || !toolPart.toolCallId) {
-          continue;
-        }
-
-        if (processedGeneratedToolCalls.current.has(toolPart.toolCallId)) {
-          continue;
-        }
-
-        processedGeneratedToolCalls.current.add(toolPart.toolCallId);
-
-        const output = toolPart.output as GeneratePortfolioContentOutput;
-        if (!output.success) {
-          if (output.error) {
-            setError(output.error);
-          }
-          continue;
-        }
-
-        void saveGeneratedContent(output);
-      }
-    }
-  }, [messages, projectId, saveGeneratedContent]);
-
   // Clear error after 5 seconds (but not if canRetry - those are persistent)
   // Issue #4: Recoverable errors with retry capability should persist
   useEffect(() => {
@@ -1374,61 +1283,16 @@ export function ChatWizard({
       <div className="flex h-full min-h-0">
         {/* ===== CHAT COLUMN ===== */}
         <div className="relative flex-1 min-w-0 flex flex-col h-full min-h-0 lg:border-r lg:border-border/50">
-          {/* Save status indicator - subtle top-right badge */}
-          {!isEditMode && saveStatus !== 'idle' && (
-            <div className="absolute top-3 right-3 z-10">
-              <SaveIndicator status={saveStatus} />
-            </div>
-          )}
-
-          {/* Error display - floating at top center */}
-          {/* Issue #4: Added retry button for recoverable errors */}
-          {error && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 max-w-[360px] w-full px-4">
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm border border-destructive/20 shadow-lg animate-fade-in">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                <span className="flex-1 line-clamp-2">{error}</span>
-                {canRetry && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRetry}
-                    className="ml-2 h-7 px-2 text-xs border-destructive/30 hover:bg-destructive/10"
-                  >
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    Retry
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Success message display */}
-          {successMessage && (
-            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 max-w-[360px] w-full px-4">
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 text-emerald-600 text-sm border border-emerald-500/20 shadow-lg animate-fade-in">
-                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                <span className="line-clamp-2">{successMessage}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Image upload error display */}
-          {imageError && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 max-w-[360px] w-full px-4">
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm border border-destructive/20 shadow-lg animate-fade-in">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                <span className="line-clamp-2">{imageError.message}</span>
-                <button
-                  onClick={clearImageError}
-                  className="ml-auto hover:bg-destructive/20 rounded p-0.5"
-                  aria-label="Dismiss error"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          )}
+          <ChatStatusOverlays
+            isEditMode={isEditMode}
+            saveStatus={saveStatus}
+            error={error}
+            canRetry={canRetry}
+            onRetry={handleRetry}
+            successMessage={successMessage}
+            imageError={imageError}
+            onClearImageError={clearImageError}
+          />
 
           <ChatSurface
             messages={messages}
@@ -1440,188 +1304,70 @@ export function ChatWizard({
             className="flex-1 min-h-0"
             messagesClassName="flex-1 overflow-y-auto"
             footerSlot={
-              <>
-                {/* Peek bar - visible on mobile and tablet, hidden on desktop (which has side canvas) */}
-                <div className="lg:hidden">
-                  <CollectedDataPeekBar
-                    data={projectData}
-                    completeness={completeness}
-                    onExpand={() => {
-                      setOverlayTab('preview');
-                      setShowPreviewOverlay(true);
-                    }}
-                  />
-                </div>
-
-                {/* Fixed bottom input area with gradient fade */}
-                {/* PHILOSOPHY: Always show input - no phase gating */}
-                {/* User can type, upload, or generate at any point */}
-                {phase !== 'analyzing' && phase !== 'generating' && (
-                  <div className="sticky bottom-0 pb-4 pt-3 bg-gradient-to-t from-background via-background/95 to-transparent">
-                    <div className="max-w-[720px] mx-auto px-4">
-                      {/* Quick actions - only show early in conversation */}
-                      {messages.length <= 2 && quickActions.length > 0 && (
-                        <QuickActionChips
-                          actions={quickActions}
-                          onInsertPrompt={handleInsertPrompt}
-                          onAction={handleQuickAction}
-                          disabled={isLoading}
-                          className="mb-3"
-                        />
-                      )}
-
-                      {/* Generate button - above input when ready */}
-                      {/* No phase gate - canGenerate alone decides visibility */}
-                      {canGenerate && (
-                        <Button
-                          onClick={handleGenerate}
-                          disabled={isLoading}
-                          className={cn(
-                            'w-full mb-3 rounded-full h-11',
-                            completeness.visualState === 'ready' && 'animate-glow-pulse'
-                          )}
-                          size="lg"
-                        >
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Generate Portfolio Page
-                        </Button>
-                      )}
-
-                      {showMicPermissionPrompt && (
-                        <MicPermissionPrompt
-                          status={micPermissionStatus}
-                          onRequestPermission={requestMicPermission}
-                          isRequesting={isRequestingMicPermission}
-                          compact
-                          className="mb-2"
-                        />
-                      )}
-
-                      {voiceMode === 'voice_chat' ? (
-                        <VoiceLiveControls
-                          status={liveVoiceSession.status}
-                          isConnected={liveVoiceSession.isConnected}
-                          isContinuousMode={liveVoiceSession.isContinuousMode}
-                          audioLevel={liveVoiceSession.audioLevel}
-                          liveUserTranscript={liveVoiceSession.liveUserTranscript}
-                          liveAssistantTranscript={liveVoiceSession.liveAssistantTranscript}
-                          error={liveVoiceSession.error}
-                          onPressStart={
-                            canStartLiveVoice ? liveVoiceSession.startTalking : requestMicPermission
-                          }
-                          onPressEnd={liveVoiceSession.stopTalking}
-                          onDisconnect={liveVoiceSession.disconnect}
-                          onTalkModeChange={handleTalkModeChange}
-                          onReturnToText={() => setVoiceMode('text')}
-                        />
-                      ) : (
-                        <ChatInput
-                          onSend={handleSendMessage}
-                          onAttachPhotos={handleOpenPhotoSheet}
-                          photoCount={uploadedImages.length}
-                          disabled={isLoading}
-                          isLoading={isLoading}
-                          value={inputValue}
-                          onChange={setInputValue}
-                          placeholder={inputPlaceholder}
-                          enableVoice={enableVoiceInput}
-                          onImageDrop={addImages}
-                          voiceMode={voiceMode}
-                          onVoiceModeChange={voiceChatAvailable ? setVoiceMode : undefined}
-                          voiceChatEnabled={voiceChatAvailable}
-                        />
-                      )}
-                    </div>
-                  </div>
-                )}
-              </>
+              <ChatInputFooter
+                projectData={projectData}
+                completeness={completeness}
+                onExpandPreview={openPreviewOverlay}
+                phase={phase}
+                messagesCount={messages.length}
+                quickActions={quickActions}
+                onInsertPrompt={handleInsertPrompt}
+                onQuickAction={handleQuickAction}
+                canGenerate={canGenerate}
+                onGenerate={handleGenerate}
+                isLoading={isLoading}
+                showMicPermissionPrompt={showMicPermissionPrompt}
+                micPermissionStatus={micPermissionStatus}
+                onRequestMicPermission={requestMicPermission}
+                isRequestingMicPermission={isRequestingMicPermission}
+                voiceMode={voiceMode}
+                liveVoiceSession={liveVoiceSession}
+                canStartLiveVoice={canStartLiveVoice}
+                onTalkModeChange={handleTalkModeChange}
+                onReturnToText={() => setVoiceMode('text')}
+                inputValue={inputValue}
+                onInputChange={setInputValue}
+                inputPlaceholder={inputPlaceholder}
+                onSendMessage={handleSendMessage}
+                onAttachPhotos={handleOpenPhotoSheet}
+                uploadedImageCount={uploadedImages.length}
+                onImageDrop={addImages}
+                enableVoiceInput={enableVoiceInput}
+                voiceChatAvailable={voiceChatAvailable}
+                onVoiceModeChange={setVoiceMode}
+              />
             }
           />
-
-          {/* Loading indicator for analysis/generation - centered overlay */}
-          {(phase === 'analyzing' || phase === 'generating') && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
-              <div className="flex flex-col items-center gap-3 animate-fade-in">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">
-                  {phase === 'analyzing' ? 'Analyzing your photos...' : 'Writing your description...'}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {isSavingContent && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-10">
-              <div className="flex flex-col items-center gap-3 animate-fade-in">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">
-                  Saving your edits...
-                </span>
-              </div>
-            </div>
-          )}
-
-          {isRegenerating && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-10">
-              <div className="flex flex-col items-center gap-3 animate-fade-in">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">
-                  {regeneratingSection
-                    ? `Regenerating ${regeneratingSection}...`
-                    : 'Regenerating content...'}
-                </span>
-              </div>
-            </div>
-          )}
+          <ChatBlockingOverlays
+            phase={phase}
+            isSavingContent={isSavingContent}
+            isRegenerating={isRegenerating}
+            regeneratingSection={regeneratingSection}
+          />
 
         </div>
 
-        {/* ===== CANVAS COLUMN (Desktop only) ===== */}
-        <CanvasPanel
+        <ChatPreviewPanels
           projectId={resolvedProjectId ?? 'new'}
-          data={projectData}
+          projectData={projectData}
           completeness={completeness}
-          highlightFields={previewHints.highlightFields}
-          previewMessage={previewHints.message}
+          previewHints={previewHints}
+          previewTitle={previewTitle}
           publicPreview={publicPreview}
-          titleOverride={previewHints.title}
           portfolioLayout={portfolioLayout}
-          size={canvasSize}
-          onSizeChange={setCanvasSize}
-          activeTab={hasFormContent ? canvasTab : 'preview'}
-          onTabChange={setCanvasTab}
+          canvasSize={canvasSize}
+          onCanvasSizeChange={setCanvasSize}
+          canvasTab={canvasTab}
+          onCanvasTabChange={setCanvasTab}
+          hasFormContent={hasFormContent}
           formContent={formContent}
-          className="hidden lg:flex"
+          showPreviewOverlay={showPreviewOverlay}
+          onPreviewOverlayChange={setShowPreviewOverlay}
+          overlayTab={overlayTab}
+          onOverlayTabChange={setOverlayTab}
+          onOpenPreview={openPreviewOverlay}
         />
       </div>
-
-      {/* ===== TABLET PREVIEW PILL (768-1023px) ===== */}
-      <div className="hidden md:block lg:hidden">
-        <PreviewPill
-          title={previewTitle}
-          percentage={completeness.percentage}
-          onClick={() => {
-            setOverlayTab('preview');
-            setShowPreviewOverlay(true);
-          }}
-        />
-      </div>
-
-      {/* ===== PREVIEW OVERLAY (Tablet + Mobile) ===== */}
-      <PreviewOverlay
-        open={showPreviewOverlay}
-        onOpenChange={setShowPreviewOverlay}
-        data={projectData}
-        completeness={completeness}
-        publicPreview={publicPreview}
-        titleOverride={previewHints.title}
-        portfolioLayout={portfolioLayout}
-        highlightFields={previewHints.highlightFields}
-        previewMessage={previewHints.message}
-        formContent={formContent}
-        activeTab={overlayTab}
-        onTabChange={setOverlayTab}
-      />
 
       {/* Photo sheet (bottom drawer) */}
       <ChatPhotoSheet

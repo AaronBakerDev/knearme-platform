@@ -14,6 +14,7 @@ import { normalizePlanTier } from '@/lib/billing/plan-limits';
 import { getDailyQuotaMinutes, PLAN_LIMITS } from './usage-limits';
 import type { VoiceMode } from './usage-tracking';
 import type { VoiceQuotaResult, DailyUsage } from './usage-limits';
+import { logger } from '@/lib/logging';
 
 /**
  * Get the start of today in UTC for database queries.
@@ -66,8 +67,7 @@ export async function checkVoiceQuota(
   const supabase = await createClient();
 
   // Get contractor's plan tier
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: contractor, error: contractorError } = await (supabase as any)
+  const { data: contractor, error: contractorError } = await supabase
     .from('contractors')
     .select('plan_tier')
     .eq('id', contractorId)
@@ -75,12 +75,13 @@ export async function checkVoiceQuota(
 
   if (contractorError || !contractor) {
     // Default to free tier if contractor not found (shouldn't happen)
-    console.warn('[VoiceQuota] Contractor not found, defaulting to free tier:', contractorId);
+    logger.warn('[VoiceQuota] Contractor not found, defaulting to free tier', {
+      contractorId,
+      error: contractorError,
+    });
   }
 
-  // Type assertion for the query result
-  const contractorData = contractor as { plan_tier?: string | null } | null;
-  const planTier = normalizePlanTier(contractorData?.plan_tier);
+  const planTier = normalizePlanTier(contractor?.plan_tier);
 
   // Get the daily quota for this mode and tier
   const dailyQuotaMinutes = getDailyQuotaMinutes(planTier, mode);
@@ -145,8 +146,7 @@ export async function getUsageToday(userId: string, mode?: VoiceMode): Promise<D
   const supabase = await createClient();
   const startOfDay = getStartOfDayUTC();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any)
+  let query = supabase
     .from('voice_usage')
     .select('duration_seconds')
     .eq('user_id', userId)
@@ -159,7 +159,7 @@ export async function getUsageToday(userId: string, mode?: VoiceMode): Promise<D
   const { data, error } = await query;
 
   if (error) {
-    console.error('[VoiceQuota] Failed to get daily usage:', error);
+    logger.error('[VoiceQuota] Failed to get daily usage', { error });
     return {
       totalMinutes: 0,
       sessions: 0,
@@ -167,9 +167,9 @@ export async function getUsageToday(userId: string, mode?: VoiceMode): Promise<D
     };
   }
 
-  const records = data as Array<{ duration_seconds: number | null }>;
+  const records = data ?? [];
   const totalSeconds = records.reduce(
-    (sum, r) => sum + (r.duration_seconds || 0),
+    (sum, record) => sum + (record.duration_seconds ?? 0),
     0
   );
 

@@ -86,7 +86,7 @@ export const CONVERSATION_SYSTEM_PROMPT = buildConversationPrompt();
  * System prompt for when the AI has gathered enough info.
  * This triggers the image upload prompt.
  */
-export const READY_FOR_IMAGES_PROMPT = `Great work on gathering the project details! Now naturally ask the contractor if they have photos to share. Keep it casual - something like "Got any pics of the finished work?" or "Would love to see some photos if you have them!"`;
+export const READY_FOR_IMAGES_PROMPT = `Great work on gathering the project details! Now naturally ask the contractor if they have photos to share. Keep it casual - something like "Got pics of the finished work?" or "Would love to see some photos if you have them!"`;
 
 /**
  * Opening message to start the conversation.
@@ -118,7 +118,7 @@ export const FOLLOW_UP_PROMPTS = {
   needsMoreDetail: "Tell me a bit more about that - what was the main issue?",
   needsMaterials: "What materials did you end up using?",
   needsSolution: "How'd you tackle it?",
-  askForPhotos: "Got any photos of the work? Would love to see them!",
+  askForPhotos: "Got photos of the work? Would love to see them!",
 };
 
 /**
@@ -390,7 +390,7 @@ export function getAdaptiveOpeningMessage(options: AdaptiveOpeningOptions): stri
     if (title) {
       return `"${title}" is live - anything you want to update?`;
     }
-    return "This project is published - need to make any changes?";
+    return "This project is published - need to make changes?";
   }
 
   // Has content (draft state) - refinement mode
@@ -399,7 +399,7 @@ export function getAdaptiveOpeningMessage(options: AdaptiveOpeningOptions): stri
       title
         ? `Back to work on "${title}" - what needs tweaking?`
         : "Back to polish this one - what do you want to change?",
-      "Ready to update this project? Title, description, photos - I can help with any of it.",
+      "Ready to update this project? Title, description, photos - I can help with all of it.",
       title
         ? `Let's refine "${title}" - what's on your mind?`
         : "Let's make some improvements - what would you like to change?",

@@ -13,6 +13,8 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { transcribeAudio, cleanTranscription } from '@/lib/ai/transcription';
+import { logger } from '@/lib/logging';
+import type { Contractor, InterviewSession, Json } from '@/types/database';
 
 /**
  * Transcription constraints.
@@ -75,14 +77,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Allow incomplete profiles for onboarding transcription
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: contractorData, error: contractorError } = await (supabase as any)
+    const { data: contractorData, error: contractorError } = await supabase
       .from('contractors')
       .select('id, auth_user_id')
       .eq('auth_user_id', user.id)
       .single();
 
-    const contractor = contractorData as { id: string; auth_user_id: string } | null;
+    const contractor = contractorData as Pick<Contractor, 'id' | 'auth_user_id'> | null;
 
     if (contractorError || !contractor) {
       return apiError('UNAUTHORIZED', 'Contractor profile not found.');
@@ -167,31 +168,32 @@ export async function POST(request: NextRequest) {
       }
 
       // Store the Q&A in interview session
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: existingSession } = await (supabase as any)
+      const { data: existingSession } = await supabase
         .from('interview_sessions')
         .select('*')
         .eq('project_id', project_id)
         .single();
 
-      // Type assertion for session data
-      type TranscribeSessionData = {
-        questions?: Array<{
-          id: string;
-          text?: string;
-          purpose?: string;
-          answer?: string;
-          raw_transcription?: string;
-          duration?: number;
-        }>;
-        raw_transcripts?: string[];
+      type TranscribeQuestion = {
+        id: string;
+        text?: string;
+        purpose?: string;
+        answer?: string;
+        raw_transcription?: string;
+        duration?: number;
       };
-      const sessionData = existingSession as TranscribeSessionData | null;
+
+      const sessionData = existingSession as Pick<
+        InterviewSession,
+        'questions' | 'raw_transcripts'
+      > | null;
 
       // Build questions array with this response (preserve order and metadata)
-      const existingQuestions = (sessionData?.questions || []) as TranscribeSessionData['questions'];
-      const hasExisting = existingQuestions?.some((q) => q.id === question_id) ?? false;
-      const updatedQuestions = (existingQuestions || []).map((question) => {
+      const existingQuestions = Array.isArray(sessionData?.questions)
+        ? (sessionData?.questions as TranscribeQuestion[])
+        : [];
+      const hasExisting = existingQuestions.some((q) => q.id === question_id);
+      const updatedQuestions = existingQuestions.map((question) => {
         if (question.id !== question_id) return question;
         return {
           ...question,
@@ -214,24 +216,25 @@ export async function POST(request: NextRequest) {
       }
 
       // Update raw transcripts array
-      const existingTranscripts = sessionData?.raw_transcripts || [];
+      const existingTranscripts = Array.isArray(sessionData?.raw_transcripts)
+        ? sessionData?.raw_transcripts
+        : [];
 
       // Upsert interview session
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: sessionError } = await (supabase as any).from('interview_sessions').upsert(
-        {
-          project_id,
-          questions: updatedQuestions,
-          raw_transcripts: [...existingTranscripts, result.text],
-          status: 'in_progress',
-        },
-        {
+      const sessionPayload = {
+        project_id,
+        questions: updatedQuestions as Json,
+        raw_transcripts: [...existingTranscripts, result.text],
+        status: 'in_progress',
+      };
+      const { error: sessionError } = await supabase
+        .from('interview_sessions')
+        .upsert(sessionPayload, {
           onConflict: 'project_id',
-        }
-      );
+        });
 
       if (sessionError) {
-        console.error('[POST /api/ai/transcribe] Session error:', sessionError);
+        logger.error('[POST /api/ai/transcribe] Session error', { error: sessionError });
         // Don't fail - transcription still succeeded
       }
     }

@@ -88,6 +88,238 @@ export interface ProjectWizardFormData {
 }
 
 // =============================================================================
+// Mapping Helpers
+// =============================================================================
+
+type FieldMapping = {
+  from: string;
+  to: string;
+};
+
+const PROFILE_STRING_FIELDS: FieldMapping[] = [
+  { from: 'business_name', to: 'businessName' },
+  { from: 'city', to: 'city' },
+  { from: 'state', to: 'state' },
+  { from: 'description', to: 'description' },
+];
+
+const PROFILE_FORM_FIELDS: FieldMapping[] = [
+  { from: 'businessName', to: 'business_name' },
+  { from: 'city', to: 'city' },
+  { from: 'state', to: 'state' },
+  { from: 'description', to: 'description' },
+  { from: 'services', to: 'services' },
+  { from: 'serviceAreas', to: 'service_areas' },
+  { from: 'phone', to: 'phone' },
+  { from: 'website', to: 'website' },
+];
+
+const PROJECT_EXTRACTED_FIELDS: FieldMapping[] = [
+  { from: 'project_type', to: 'projectType' },
+  { from: 'customer_problem', to: 'customerProblem' },
+  { from: 'solution_approach', to: 'solutionApproach' },
+  { from: 'materials_mentioned', to: 'materials' },
+  { from: 'techniques_mentioned', to: 'techniques' },
+  { from: 'duration', to: 'duration' },
+  { from: 'location', to: 'location' },
+  { from: 'city', to: 'city' },
+  { from: 'state', to: 'state' },
+  { from: 'challenges', to: 'challenges' },
+  { from: 'proud_of', to: 'proudOf' },
+];
+
+const PROJECT_STATE_FIELDS: FieldMapping[] = [
+  { from: 'title', to: 'title' },
+  { from: 'description', to: 'description' },
+  { from: 'seoTitle', to: 'seoTitle' },
+  { from: 'seoDescription', to: 'seoDescription' },
+  { from: 'tags', to: 'tags' },
+];
+
+const PROJECT_FORM_EXTRACTED_FIELDS: FieldMapping[] = [
+  { from: 'projectType', to: 'project_type' },
+  { from: 'customerProblem', to: 'customer_problem' },
+  { from: 'solutionApproach', to: 'solution_approach' },
+  { from: 'materials', to: 'materials_mentioned' },
+  { from: 'techniques', to: 'techniques_mentioned' },
+  { from: 'duration', to: 'duration' },
+  { from: 'location', to: 'location' },
+  { from: 'city', to: 'city' },
+  { from: 'state', to: 'state' },
+  { from: 'challenges', to: 'challenges' },
+  { from: 'proudOf', to: 'proud_of' },
+];
+
+const PROJECT_FORM_STATE_FIELDS: FieldMapping[] = [
+  { from: 'title', to: 'title' },
+  { from: 'description', to: 'description' },
+  { from: 'seoTitle', to: 'seoTitle' },
+  { from: 'seoDescription', to: 'seoDescription' },
+  { from: 'tags', to: 'tags' },
+];
+
+function mapTruthyValues(
+  source: Record<string, unknown>,
+  mappings: FieldMapping[]
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  for (const { from, to } of mappings) {
+    const value = source[from];
+    if (value) {
+      result[to] = value;
+    }
+  }
+
+  return result;
+}
+
+function mapProfileStringValues(
+  source: Record<string, unknown>,
+  mappings: FieldMapping[]
+): Partial<ProfileWizardFormData> {
+  const result: Partial<ProfileWizardFormData> = {};
+
+  for (const { from, to } of mappings) {
+    const value = source[from];
+    if (value) {
+      (result as Record<string, unknown>)[to] = String(value);
+    }
+  }
+
+  return result;
+}
+
+export function mapDiscoveredProfileFields(
+  discoveredData?: {
+    business_name?: string;
+    address?: string;
+    phone?: string;
+    website?: string;
+    google_place_id?: string;
+    google_cid?: string;
+  }
+): Partial<ProfileWizardFormData> {
+  if (!discoveredData) return {};
+
+  const formData: Partial<ProfileWizardFormData> = {
+    businessName: discoveredData.business_name,
+    phone: discoveredData.phone || undefined,
+    website: discoveredData.website || undefined,
+    googlePlaceId: discoveredData.google_place_id || undefined,
+    googleCid: discoveredData.google_cid || undefined,
+  };
+
+  const location = parseLocationFromAddress(discoveredData.address);
+  if (location) {
+    formData.city = location.city;
+    formData.state = location.state || undefined;
+  }
+
+  return formData;
+}
+
+export function mapExtractedProfileFields(
+  extracted: Record<string, unknown>
+): Partial<ProfileWizardFormData> {
+  const formData = mapProfileStringValues(extracted, PROFILE_STRING_FIELDS);
+  const services = extracted['services'];
+  const serviceAreas = extracted['service_areas'];
+
+  if (Array.isArray(services)) {
+    formData.services = services as string[];
+  }
+
+  if (Array.isArray(serviceAreas)) {
+    formData.serviceAreas = serviceAreas as string[];
+  }
+
+  return formData;
+}
+
+export function mapProfileFormToExtracted(
+  formData: ProfileWizardFormData
+): Record<string, unknown> {
+  return mapTruthyValues(formData as Record<string, unknown>, PROFILE_FORM_FIELDS);
+}
+
+export function mapExtractedProjectFields(
+  extracted: ExtractedProjectData
+): Partial<ProjectWizardFormData> {
+  return mapTruthyValues(
+    extracted as Record<string, unknown>,
+    PROJECT_EXTRACTED_FIELDS
+  ) as Partial<ProjectWizardFormData>;
+}
+
+export function mapProjectImagesToForm(
+  images: SharedProjectState['images']
+): ProjectWizardFormData['images'] {
+  return images.map((img) => ({
+    id: img.id,
+    url: img.url,
+    filename: img.filename,
+    imageType: img.imageType,
+    altText: img.altText,
+    displayOrder: img.displayOrder,
+  }));
+}
+
+export function mapProjectStateToForm(
+  state?: Partial<SharedProjectState>
+): Partial<ProjectWizardFormData> {
+  if (!state) return {};
+
+  const formData = mapTruthyValues(
+    state as Record<string, unknown>,
+    PROJECT_STATE_FIELDS
+  ) as Partial<ProjectWizardFormData>;
+
+  if (state.images) {
+    formData.images = mapProjectImagesToForm(state.images);
+  }
+
+  return formData;
+}
+
+export function mapProjectFormToExtracted(
+  formData: ProjectWizardFormData
+): ExtractedProjectData {
+  return mapTruthyValues(
+    formData as Record<string, unknown>,
+    PROJECT_FORM_EXTRACTED_FIELDS
+  ) as ExtractedProjectData;
+}
+
+export function mapProjectImagesToState(
+  images: NonNullable<ProjectWizardFormData['images']>
+): SharedProjectState['images'] {
+  return images.map((img) => ({
+    id: img.id,
+    url: img.url,
+    filename: img.filename,
+    imageType: img.imageType,
+    altText: img.altText,
+    displayOrder: img.displayOrder,
+  }));
+}
+
+export function mapProjectFormToState(
+  formData: ProjectWizardFormData
+): Partial<SharedProjectState> {
+  const state = mapTruthyValues(
+    formData as Record<string, unknown>,
+    PROJECT_FORM_STATE_FIELDS
+  ) as Partial<SharedProjectState>;
+
+  if (formData.images) {
+    state.images = mapProjectImagesToState(formData.images);
+  }
+
+  return state;
+}
+
+// =============================================================================
 // Conversation → Form (Fallback)
 // =============================================================================
 
@@ -110,45 +342,10 @@ export function conversationToProfileForm(
     google_cid?: string;
   }
 ): ProfileWizardFormData {
-  const formData: ProfileWizardFormData = {};
-
-  // From discovered data (DataForSEO)
-  if (discoveredData) {
-    formData.businessName = discoveredData.business_name;
-    formData.phone = discoveredData.phone || undefined;
-    formData.website = discoveredData.website || undefined;
-    formData.googlePlaceId = discoveredData.google_place_id || undefined;
-    formData.googleCid = discoveredData.google_cid || undefined;
-
-    // Parse city/state from address if available
-    const location = parseLocationFromAddress(discoveredData.address);
-    if (location) {
-      formData.city = location.city;
-      formData.state = location.state || undefined;
-    }
-  }
-
-  // From conversation extraction (overrides if present)
-  if (extracted.business_name) {
-    formData.businessName = String(extracted.business_name);
-  }
-  if (extracted.city) {
-    formData.city = String(extracted.city);
-  }
-  if (extracted.state) {
-    formData.state = String(extracted.state);
-  }
-  if (extracted.description) {
-    formData.description = String(extracted.description);
-  }
-  if (Array.isArray(extracted.services)) {
-    formData.services = extracted.services as string[];
-  }
-  if (Array.isArray(extracted.service_areas)) {
-    formData.serviceAreas = extracted.service_areas as string[];
-  }
-
-  return formData;
+  return {
+    ...mapDiscoveredProfileFields(discoveredData),
+    ...mapExtractedProfileFields(extracted),
+  };
 }
 
 /**
@@ -160,45 +357,10 @@ export function conversationToProjectForm(
   extracted: ExtractedProjectData,
   state?: Partial<SharedProjectState>
 ): ProjectWizardFormData {
-  const formData: ProjectWizardFormData = {};
-
-  // From extracted data
-  if (extracted.project_type) formData.projectType = extracted.project_type;
-  if (extracted.customer_problem)
-    formData.customerProblem = extracted.customer_problem;
-  if (extracted.solution_approach)
-    formData.solutionApproach = extracted.solution_approach;
-  if (extracted.materials_mentioned)
-    formData.materials = extracted.materials_mentioned;
-  if (extracted.techniques_mentioned)
-    formData.techniques = extracted.techniques_mentioned;
-  if (extracted.duration) formData.duration = extracted.duration;
-  if (extracted.location) formData.location = extracted.location;
-  if (extracted.city) formData.city = extracted.city;
-  if (extracted.state) formData.state = extracted.state;
-  if (extracted.challenges) formData.challenges = extracted.challenges;
-  if (extracted.proud_of) formData.proudOf = extracted.proud_of;
-
-  // From shared state (generated content)
-  if (state) {
-    if (state.title) formData.title = state.title;
-    if (state.description) formData.description = state.description;
-    if (state.seoTitle) formData.seoTitle = state.seoTitle;
-    if (state.seoDescription) formData.seoDescription = state.seoDescription;
-    if (state.tags) formData.tags = state.tags;
-    if (state.images) {
-      formData.images = state.images.map((img) => ({
-        id: img.id,
-        url: img.url,
-        filename: img.filename,
-        imageType: img.imageType,
-        altText: img.altText,
-        displayOrder: img.displayOrder,
-      }));
-    }
-  }
-
-  return formData;
+  return {
+    ...mapExtractedProjectFields(extracted),
+    ...mapProjectStateToForm(state),
+  };
 }
 
 // =============================================================================
@@ -213,18 +375,7 @@ export function conversationToProjectForm(
 export function profileFormToConversation(
   formData: ProfileWizardFormData
 ): Record<string, unknown> {
-  const extracted: Record<string, unknown> = {};
-
-  if (formData.businessName) extracted.business_name = formData.businessName;
-  if (formData.city) extracted.city = formData.city;
-  if (formData.state) extracted.state = formData.state;
-  if (formData.description) extracted.description = formData.description;
-  if (formData.services) extracted.services = formData.services;
-  if (formData.serviceAreas) extracted.service_areas = formData.serviceAreas;
-  if (formData.phone) extracted.phone = formData.phone;
-  if (formData.website) extracted.website = formData.website;
-
-  return extracted;
+  return mapProfileFormToExtracted(formData);
 }
 
 /**
@@ -236,43 +387,10 @@ export function projectFormToConversation(formData: ProjectWizardFormData): {
   extracted: ExtractedProjectData;
   state: Partial<SharedProjectState>;
 } {
-  const extracted: ExtractedProjectData = {};
-  const state: Partial<SharedProjectState> = {};
-
-  // Populate extracted data
-  if (formData.projectType) extracted.project_type = formData.projectType;
-  if (formData.customerProblem)
-    extracted.customer_problem = formData.customerProblem;
-  if (formData.solutionApproach)
-    extracted.solution_approach = formData.solutionApproach;
-  if (formData.materials) extracted.materials_mentioned = formData.materials;
-  if (formData.techniques)
-    extracted.techniques_mentioned = formData.techniques;
-  if (formData.duration) extracted.duration = formData.duration;
-  if (formData.location) extracted.location = formData.location;
-  if (formData.city) extracted.city = formData.city;
-  if (formData.state) extracted.state = formData.state;
-  if (formData.challenges) extracted.challenges = formData.challenges;
-  if (formData.proudOf) extracted.proud_of = formData.proudOf;
-
-  // Populate state (generated content)
-  if (formData.title) state.title = formData.title;
-  if (formData.description) state.description = formData.description;
-  if (formData.seoTitle) state.seoTitle = formData.seoTitle;
-  if (formData.seoDescription) state.seoDescription = formData.seoDescription;
-  if (formData.tags) state.tags = formData.tags;
-  if (formData.images) {
-    state.images = formData.images.map((img) => ({
-      id: img.id,
-      url: img.url,
-      filename: img.filename,
-      imageType: img.imageType,
-      altText: img.altText,
-      displayOrder: img.displayOrder,
-    }));
-  }
-
-  return { extracted, state };
+  return {
+    extracted: mapProjectFormToExtracted(formData),
+    state: mapProjectFormToState(formData),
+  };
 }
 
 // =============================================================================

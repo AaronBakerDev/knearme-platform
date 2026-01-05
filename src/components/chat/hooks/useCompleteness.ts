@@ -110,7 +110,7 @@ export function calculateCompleteness(
   if (data.duration) additionalContent.push('duration');
   if (data.proud_of) additionalContent.push('highlight');
 
-  // Add any additional content to completed fields
+  // Add additional content to completed fields
   completedFields.push(...additionalContent);
 
   // Percentage based on core fields + richness of additional content
@@ -186,7 +186,7 @@ export function calculateCompleteness(
     percentage,
     completedFields,
     missingFields,
-    canGenerate: hasAnyContent, // Always enabled if any content
+    canGenerate: hasAnyContent, // Always enabled if content exists
     canPublish: hasRecommendedFields, // Recommendation only
     statusMessage,
     visualState,
@@ -198,7 +198,7 @@ export function calculateCompleteness(
  * Hook for tracking portfolio completeness.
  *
  * IMPORTANT: This hook provides UI feedback only.
- * It does NOT gate any actions - the model decides when ready.
+ * It does NOT gate actions - the model decides when ready.
  *
  * @example
  * ```tsx
@@ -218,4 +218,3 @@ export function useCompleteness(
     [data, images.length]
   );
 }
-

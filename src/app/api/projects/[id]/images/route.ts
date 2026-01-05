@@ -31,6 +31,7 @@ import {
   updateProjectImageOrder,
   verifyProjectImageIds,
 } from '@/lib/supabase/typed-queries';
+import { logger } from '@/lib/logging';
 import type { ProjectImage } from '@/types/database';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     if (insertError || !image) {
-      console.error('[POST /api/projects/[id]/images] Insert error:', insertError);
+      logger.error('[POST /api/projects/[id]/images] Insert error', { error: insertError });
       return handleApiError(insertError);
     }
 
@@ -296,11 +297,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     supabase.storage
       .from('project-images-draft')
       .remove([imageData.storage_path])
-      .catch((err: Error) => console.error('[Draft storage delete failed]', err));
+      .catch((err: Error) => logger.error('[Draft storage delete failed]', { error: err }));
     supabase.storage
       .from('project-images')
       .remove([imageData.storage_path])
-      .catch((err: Error) => console.error('[Public storage delete failed]', err));
+      .catch((err: Error) => logger.error('[Public storage delete failed]', { error: err }));
 
     return apiSuccess({ deleted: true });
   } catch (error) {
@@ -384,7 +385,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const reorderResults = await Promise.all(reorderPromises);
       const reorderErrors = reorderResults.filter((r) => r.error);
       if (reorderErrors.length > 0) {
-        console.error('[PATCH /api/projects/[id]/images] Reorder errors:', reorderErrors);
+        logger.error('[PATCH /api/projects/[id]/images] Reorder errors', { errors: reorderErrors });
         return apiError('INTERNAL_ERROR', 'Failed to reorder some images');
       }
       reorderedCount = image_ids.length;
@@ -408,7 +409,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const labelResults = await Promise.all(labelPromises);
       const labelErrors = labelResults.filter((r) => r.error);
       if (labelErrors.length > 0) {
-        console.error('[PATCH /api/projects/[id]/images] Label update errors:', labelErrors);
+        logger.error('[PATCH /api/projects/[id]/images] Label update errors', { errors: labelErrors });
         return apiError('INTERNAL_ERROR', 'Failed to update some image labels');
       }
       labelsUpdatedCount = labels.length;

@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { storeAuthorizationCode } from '@/lib/oauth/auth-code-store';
+import { logger } from '@/lib/logging';
 
 /**
  * Allowed ChatGPT redirect URIs.
@@ -120,8 +121,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Get contractor profile for the authenticated user
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: contractor, error: contractorError } = await (supabase as any)
+  const { data: contractor, error: contractorError } = await supabase
     .from('contractors')
     .select('id, email')
     .eq('auth_user_id', user.id)
@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(successUrl);
   } catch (error) {
-    console.error('[OAuth Authorize] Failed to generate auth code:', error);
+    logger.error('[OAuth Authorize] Failed to generate auth code', { error });
     return errorRedirect('server_error', 'Failed to generate authorization code');
   }
 }

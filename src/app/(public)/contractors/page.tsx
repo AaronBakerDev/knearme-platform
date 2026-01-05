@@ -12,8 +12,8 @@ import { Badge, Button, Card, CardContent } from '@/components/ui';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getServiceCatalog } from '@/lib/services';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
+import { formatCityName, getCanonicalUrl } from '@/lib/constants/page-descriptions';
+import { logger } from '@/lib/logging';
 
 export const metadata: Metadata = {
   title: 'Business Portfolios | Browse Real Project Work | KnearMe',
@@ -24,10 +24,10 @@ export const metadata: Metadata = {
     description:
       'Browse real project work from local businesses. Filter by city or service type and choose with confidence.',
     type: 'website',
-    url: `${SITE_URL}/businesses`,
+    url: getCanonicalUrl('/businesses'),
   },
   alternates: {
-    canonical: `${SITE_URL}/businesses`,
+    canonical: getCanonicalUrl('/businesses'),
   },
 };
 
@@ -37,30 +37,21 @@ type CityCard = {
   projectCount: number;
 };
 
-function formatCityName(citySlug: string): string {
-  const parts = citySlug.split('-');
-  if (parts.length < 2) return citySlug;
-  const state = parts.pop()?.toUpperCase() || '';
-  const city = parts.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-  return `${city}, ${state}`;
-}
-
 async function getTopCities(limit: number = 18): Promise<CityCard[]> {
   const supabase = createAdminClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('projects')
     .select('city_slug')
     .eq('status', 'published')
     .not('city_slug', 'is', null);
 
   if (error) {
-    console.error('[ContractorsLanding] Error fetching cities:', error);
+    logger.error('[ContractorsLanding] Error fetching cities', { error });
     return [];
   }
 
-  type CityRow = { city_slug: string };
+  type CityRow = { city_slug: string | null };
   const rows = (data || []) as CityRow[];
 
   const cityCounts = new Map<string, number>();

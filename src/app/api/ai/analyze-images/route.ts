@@ -18,6 +18,8 @@ import { requireAuth, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { analyzeProjectImages, projectTypeToSlug } from '@/lib/ai/image-analysis';
 import { downloadProjectImage } from '@/lib/storage/upload.server';
+import { logger } from '@/lib/logging';
+import type { ProjectImage, ProjectUpdate } from '@/types/database';
 
 /**
  * Request schema for image analysis.
@@ -58,8 +60,7 @@ export async function POST(request: NextRequest) {
     const supabase = await getAuthClient(auth);
 
     // Step 1: Verify project ownership
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: projectData, error: projectError } = await (supabase as any)
+    const { data: projectData, error: projectError } = await supabase
       .from('projects')
       .select('id, contractor_id')
       .eq('id', project_id)
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (projectError || !projectData) {
-      console.error('[analyze-images] Project query failed:', {
+      logger.error('[analyze-images] Project query failed', {
         project_id,
         contractor_id: contractor.id,
         error: projectError,
@@ -76,22 +77,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2: Get images separately (avoids nested RLS issues)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: imagesData, error: imagesError } = await (supabase as any)
+    const { data: imagesData, error: imagesError } = await supabase
       .from('project_images')
       .select('id, storage_path, display_order')
       .eq('project_id', project_id)
       .order('display_order', { ascending: true });
 
     if (imagesError) {
-      console.error('[analyze-images] Images query failed:', {
+      logger.error('[analyze-images] Images query failed', {
         project_id,
         error: imagesError,
       });
     }
 
-    type ProjectImage = { id: string; storage_path: string; display_order: number | null };
-    const images = (imagesData || []) as ProjectImage[];
+    type AnalysisImage = Pick<ProjectImage, 'id' | 'storage_path' | 'display_order'>;
+    const images = (imagesData || []) as AnalysisImage[];
 
     if (!images || images.length === 0) {
       return apiError('VALIDATION_ERROR', 'No images to analyze. Please upload photos first.');
@@ -105,7 +105,10 @@ export async function POST(request: NextRequest) {
     for (const img of analysisCandidates) {
       const downloadResult = await downloadProjectImage(img.storage_path);
       if ('error' in downloadResult) {
-        console.warn('[analyze-images] Failed to download image:', downloadResult.error);
+        logger.warn('[analyze-images] Failed to download image', {
+          error: downloadResult.error,
+          project_id,
+        });
         continue;
       }
 
@@ -128,8 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Store analysis in interview session
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: session, error: sessionError } = await (supabase as any)
+    const { data: session, error: sessionError } = await supabase
       .from('interview_sessions')
       .upsert(
         {
@@ -145,21 +147,24 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (sessionError) {
-      console.error('[POST /api/ai/analyze-images] Session error:', sessionError);
+      logger.error('[POST /api/ai/analyze-images] Session error', {
+        error: sessionError,
+        project_id,
+      });
       // Don't fail - analysis still succeeded
     }
 
     // Update project with detected type if high confidence
     if (analysisResult.project_type_confidence > 0.7) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any)
+      const projectUpdate: ProjectUpdate = {
+        project_type: analysisResult.project_type,
+        project_type_slug: projectTypeToSlug(analysisResult.project_type),
+        materials: analysisResult.materials,
+        techniques: analysisResult.techniques,
+      };
+      await supabase
         .from('projects')
-        .update({
-          project_type: analysisResult.project_type,
-          project_type_slug: projectTypeToSlug(analysisResult.project_type),
-          materials: analysisResult.materials,
-          techniques: analysisResult.techniques,
-        })
+        .update(projectUpdate)
         .eq('id', project_id);
     }
 
@@ -169,14 +174,13 @@ export async function POST(request: NextRequest) {
       const altTextUpdates = analyzedImages.map((img, index) => {
         const altText = analysisResult.image_alt_texts[String(index)];
         if (altText) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (supabase as any)
+          return supabase
             .from('project_images')
             .update({ alt_text: altText })
             .eq('id', img.id);
         }
         return null;
-      }).filter(Boolean);
+      }).filter((update) => update !== null);
 
       // Execute all alt text updates in parallel
       await Promise.all(altTextUpdates);

@@ -23,6 +23,7 @@ import {
 } from '@/lib/supabase/typed-queries';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
+import { logger } from '@/lib/logging';
 import {
   generateInterviewQuestions,
   generatePortfolioContent,
@@ -360,7 +361,7 @@ export async function POST(request: NextRequest) {
           projectId: project_id,
           questionCount: interviewResponses.length,
           contentLength: (result.description?.length || 0) + (result.title?.length || 0),
-        }).catch((err) => console.error('[KPI] trackInterviewCompleted failed:', err));
+        }).catch((err) => logger.error('[KPI] trackInterviewCompleted failed', { error: err }));
 
         // Update project with generated content
         await updateProject(supabase, project_id, {
@@ -447,7 +448,7 @@ export async function POST(request: NextRequest) {
           projectId: project_id,
           section: 'all',
           feedbackProvided: feedback.length > 0,
-        }).catch((err) => console.error('[KPI] trackContentRegenerated failed:', err));
+        }).catch((err) => logger.error('[KPI] trackContentRegenerated failed', { error: err }));
 
         // Update session with new content if it exists
         if (!sessionError && sessionData) {

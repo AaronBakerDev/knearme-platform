@@ -16,7 +16,8 @@ import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { slugify } from '@/lib/utils/slugify';
 import { composeProjectDescription } from '@/lib/projects/compose-description';
 import { blocksToHtml, descriptionBlocksSchema, sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
-import type { ProjectWithImages } from '@/types/database';
+import { logger } from '@/lib/logging';
+import type { Project, ProjectImage, ProjectUpdate, ProjectWithImages } from '@/types/database';
 
 /**
  * Allowed HTML tags for sanitized description content.
@@ -90,8 +91,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Use explicit relationship hint due to hero_image_id FK ambiguity
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: project, error } = await (supabase as any)
+    const { data: project, error } = await supabase
       .from('projects')
       .select('*, project_images!project_images_project_id_fkey(*)')
       .eq('id', id)
@@ -148,8 +148,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Verify project ownership first
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: existing, error: fetchError } = await (supabase as any)
+    const { data: existing, error: fetchError } = await supabase
       .from('projects')
       .select('id, contractor_id, title, city, state, project_type, description_manual, summary, challenge, solution, results, outcome_highlights, status')
       .eq('id', id)
@@ -157,21 +156,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .single();
 
     // Type assertion for existing project
-    type ExistingProject = {
-      id: string;
-      contractor_id: string;
-      title?: string | null;
-      city?: string | null;
-      state?: string | null;
-      project_type?: string | null;
-      description_manual?: boolean | null;
-      summary?: string | null;
-      challenge?: string | null;
-      solution?: string | null;
-      results?: string | null;
-      outcome_highlights?: string[] | null;
-      status?: 'draft' | 'published' | 'archived' | null;
-    };
+    type ExistingProject = Pick<
+      Project,
+      | 'id'
+      | 'contractor_id'
+      | 'title'
+      | 'city'
+      | 'state'
+      | 'project_type'
+      | 'description_manual'
+      | 'summary'
+      | 'challenge'
+      | 'solution'
+      | 'results'
+      | 'outcome_highlights'
+      | 'status'
+    >;
     const existingProject = existing as ExistingProject | null;
 
     if (fetchError || !existingProject) {
@@ -179,7 +179,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Build update payload with generated slugs
-    const updatePayload: Record<string, unknown> = { ...updates };
+    const updatePayload: ProjectUpdate = { ...updates } as ProjectUpdate;
 
     // Regenerate city_slug if city or state changed
     const cityChanged = typeof updates.city !== 'undefined' && updates.city !== existingProject.city;
@@ -229,8 +229,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update project - use explicit relationship hint due to hero_image_id FK ambiguity
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: project, error: updateError } = await (supabase as any)
+    const { data: project, error: updateError } = await supabase
       .from('projects')
       .update(updatePayload)
       .eq('id', id)
@@ -239,7 +238,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .single();
 
     if (updateError) {
-      console.error('[PATCH /api/projects/[id]] Update error:', updateError);
+      logger.error('[PATCH /api/projects/[id]] Update error', { error: updateError, projectId: id });
       return handleApiError(updateError);
     }
 
@@ -268,25 +267,22 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Get image paths before deletion (for storage cleanup)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: images } = await (supabase as any)
+    const { data: images } = await supabase
       .from('project_images')
       .select('storage_path')
       .eq('project_id', id);
 
-    // Type assertion
-    const imagesList = (images ?? []) as Array<{ storage_path: string }>;
+    const imagesList = (images ?? []) as Array<Pick<ProjectImage, 'storage_path'>>;
 
     // Delete project (cascades to images and interviews)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('projects')
       .delete()
       .eq('id', id)
       .eq('contractor_id', contractor.id);
 
     if (error) {
-      console.error('[DELETE /api/projects/[id]] Delete error:', error);
+      logger.error('[DELETE /api/projects/[id]] Delete error', { error, projectId: id });
       return handleApiError(error);
     }
 
@@ -296,11 +292,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       supabase.storage
         .from('project-images-draft')
         .remove(paths)
-        .catch((err: Error) => console.error('[Draft storage cleanup failed]', err));
+        .catch((err: Error) => logger.error('[Draft storage cleanup failed]', { error: err }));
       supabase.storage
         .from('project-images')
         .remove(paths)
-        .catch((err: Error) => console.error('[Public storage cleanup failed]', err));
+        .catch((err: Error) => logger.error('[Public storage cleanup failed]', { error: err }));
     }
 
     return apiSuccess({ deleted: true });

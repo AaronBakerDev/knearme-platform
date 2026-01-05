@@ -3,6 +3,7 @@ import { buildDescriptionBlocksFromContent } from '@/lib/content/description-blo
 import type { ChatPhase, ExtractedProjectData } from '@/lib/chat/chat-types';
 import type { ArtifactAction } from './types';
 import type { ValidatableField } from '@/lib/chat/tool-schemas';
+import { logger } from '@/lib/logging';
 
 type UsePublishActionsParams = {
   projectId: string | null;
@@ -111,7 +112,7 @@ export function usePublishActions({
             triggerMilestone('published');
             onProjectUpdate?.();
           } catch (err) {
-            console.error('[ChatWizard] Accept & Publish error:', err);
+            logger.error('[ChatWizard] Accept & Publish error', { error: err });
             setError(err instanceof Error ? err.message : 'Failed to publish. Please try again.');
           } finally {
             setIsSavingContent(false);
@@ -141,7 +142,7 @@ export function usePublishActions({
               setSuccessMessage('Ready to publish! All requirements met.');
             }
           } catch (err) {
-            console.error('[ChatWizard] Validation error:', err);
+            logger.error('[ChatWizard] Validation error', { error: err });
             setError('Failed to validate project.');
           }
         })();
@@ -183,7 +184,7 @@ export function usePublishActions({
               setSuccessMessage(`${payload.field} looks good!`);
             }
           } catch (err) {
-            console.error('[ChatWizard] Field validation error:', err);
+            logger.error('[ChatWizard] Field validation error', { error: err });
             setError(`Failed to validate ${payload.field}.`);
           }
         })();
@@ -221,7 +222,7 @@ export function usePublishActions({
               setError(`Not ready: ${missingItems}`);
             }
           } catch (err) {
-            console.error('[ChatWizard] Publish readiness check error:', err);
+            logger.error('[ChatWizard] Publish readiness check error', { error: err });
             setError('Failed to check publish readiness.');
           }
         })();
@@ -266,7 +267,7 @@ export function usePublishActions({
             triggerMilestone('published');
             onProjectUpdate?.();
           } catch (err) {
-            console.error('[ChatWizard] Publish error:', err);
+            logger.error('[ChatWizard] Publish error', { error: err });
             setError(err instanceof Error ? err.message : 'Failed to publish. Please try again.');
           } finally {
             setIsSavingContent(false);
@@ -311,7 +312,7 @@ export function usePublishActions({
             setSuccessMessage('Project archived. You can restore it anytime from your dashboard.');
             onProjectUpdate?.();
           } catch (err) {
-            console.error('[ChatWizard] Archive error:', err);
+            logger.error('[ChatWizard] Archive error', { error: err });
             setError(err instanceof Error ? err.message : 'Failed to archive project.');
           } finally {
             setIsSavingContent(false);

@@ -11,6 +11,8 @@
  * @see /docs/philosophy/implementation-roadmap.md - Phase 0: Foundation
  */
 
+import { logger } from '@/lib/logging';
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -110,7 +112,7 @@ export function activateKillSwitch(
     reason,
     activatedBy,
   };
-  console.error(`[KILL SWITCH] Activated: ${reason} by ${activatedBy}`);
+  logger.error('[KILL SWITCH] Activated', { reason, activatedBy });
 }
 
 /**
@@ -123,7 +125,7 @@ export function deactivateKillSwitch(): void {
     reason: null,
     activatedBy: null,
   };
-  console.info('[KILL SWITCH] Deactivated');
+  logger.info('[KILL SWITCH] Deactivated');
 }
 
 /**

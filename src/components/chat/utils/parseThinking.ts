@@ -115,7 +115,7 @@ export function parseThinking(text: string): TextSegment[] {
 
     // Only treat as thinking if the header looks like a thinking header
     if (isThinkingHeader(header)) {
-      // Add any text before this match as regular text
+      // Add preceding text before this match as regular text
       if (matchStart > lastIndex) {
         const beforeText = stripToolMarkers(text.slice(lastIndex, matchStart));
         if (beforeText) {
@@ -132,7 +132,7 @@ export function parseThinking(text: string): TextSegment[] {
     }
   }
 
-  // Add any remaining text after the last match
+  // Add remaining text after the last match
   if (lastIndex < text.length) {
     const remainingText = stripToolMarkers(text.slice(lastIndex));
     if (remainingText) {
@@ -153,7 +153,7 @@ export function parseThinking(text: string): TextSegment[] {
 }
 
 /**
- * Check if text contains any thinking blocks.
+ * Check if text contains thinking blocks.
  * Useful for quick checks without full parsing.
  */
 export function hasThinkingBlocks(text: string): boolean {

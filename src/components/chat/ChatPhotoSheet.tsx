@@ -24,6 +24,7 @@ import type { UploadedImage } from '@/components/upload/ImageUploader';
 import { compressImage, COMPRESSION_PRESETS } from '@/lib/images/compress';
 import { mergeImagesById } from '@/lib/images/mergeImagesById';
 import { validateFile } from '@/lib/storage/upload';
+import { logger } from '@/lib/logging';
 import { ResponsivePhotoModal, PhotoModalDoneButton } from './ResponsivePhotoModal';
 import { PhotoGridContent } from './PhotoGridContent';
 
@@ -114,7 +115,7 @@ async function uploadSingleImage(
   // Sync to public bucket if project is published (server decides)
   fetch(`/api/projects/${projectId}/images/${image.id}/sync`, {
     method: 'POST',
-  }).catch((err) => console.warn('[ChatPhotoSheet] Sync failed:', err));
+  }).catch((err) => logger.warn('[ChatPhotoSheet] Sync failed', { error: err }));
 
   return {
     id: image.id,
@@ -227,7 +228,10 @@ export function ChatPhotoSheet({
               newUploads.push(result.value);
             } else {
               const fileName = batch[index]?.name || 'Unknown file';
-              console.warn(`[ChatPhotoSheet] Failed to upload ${fileName}:`, result.reason);
+              logger.warn('[ChatPhotoSheet] Failed to upload file', {
+                fileName,
+                error: result.reason,
+              });
               failedUploads.push(fileName);
             }
           });
@@ -246,7 +250,7 @@ export function ChatPhotoSheet({
           setUploadError(`Failed to upload: ${failedUploads.join(', ')}`);
         }
       } catch (err) {
-        console.error('[ChatPhotoSheet] Upload error:', err);
+        logger.error('[ChatPhotoSheet] Upload error', { error: err });
         setUploadError(err instanceof Error ? err.message : 'Upload failed');
       } finally {
         setIsUploading(false);
@@ -276,7 +280,7 @@ export function ChatPhotoSheet({
 
       const currentProjectId = effectiveProjectIdRef.current;
       if (!currentProjectId) {
-        console.error('[ChatPhotoSheet] No project ID for deletion');
+        logger.error('[ChatPhotoSheet] No project ID for deletion');
         return;
       }
 
@@ -290,11 +294,11 @@ export function ChatPhotoSheet({
 
         if (!response.ok) {
           // Revert on error to pre-removal state
-          console.error('[ChatPhotoSheet] Delete failed, reverting');
+          logger.error('[ChatPhotoSheet] Delete failed, reverting');
           onImagesChange(beforeRemoval);
         }
       } catch (err) {
-        console.error('[ChatPhotoSheet] Delete error:', err);
+        logger.error('[ChatPhotoSheet] Delete error', { error: err });
         // Revert on error to pre-removal state
         onImagesChange(beforeRemoval);
       }

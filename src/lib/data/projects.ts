@@ -1,4 +1,7 @@
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
+
 export type RelatedProject = {
     id: string;
     title: string | null;
@@ -29,8 +32,7 @@ export type RelatedProject = {
  * @param limit - Maximum number of related projects to return
  */
 export async function fetchRelatedProjects(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    supabase: any,
+    supabase: SupabaseClient<Database>,
     currentProject: {
         id: string;
         business_id: string;

@@ -31,6 +31,7 @@ import {
   ContractorProjectsSection,
   type ProjectWithCover,
 } from '@/components/portfolio/ContractorProfileSections';
+import { logger } from '@/lib/logging';
 import type { Contractor, Project, ProjectImage } from '@/types/database';
 
 /** Number of projects to show per page */
@@ -90,7 +91,7 @@ export async function generateStaticParams() {
 
     return Array.from(unique.values());
   } catch (error) {
-    console.error('[generateStaticParams] Error fetching contractors:', error);
+    logger.error('[generateStaticParams] Error fetching contractors', { error });
     return [];
   }
 }

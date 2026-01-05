@@ -16,8 +16,11 @@
  * @see /src/lib/chat/context-shared.ts for client-safe types and utilities
  */
 
-import { createClient } from '@/lib/supabase/server';
 import type { UIMessage } from 'ai';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
+import type { Database } from '@/types/database';
 import type { ExtractedProjectData } from './chat-types';
 
 // Re-export shared types and utilities for backwards compatibility
@@ -75,23 +78,81 @@ import type { ProjectContextData, ContextLoadResult } from './context-shared';
  * Message part types from Vercel AI SDK.
  * Stored in metadata.parts for tool call visibility.
  */
-type UIMessagePart =
-  | { type: 'text'; text: string }
-  | { type: string; toolCallId?: string; toolName?: string; args?: unknown; result?: unknown; state?: string };
+type MessageParts = UIMessage['parts'];
+
+type ChatMessageMetadata = {
+  parts?: MessageParts;
+  [key: string]: unknown;
+};
+
+type ChatSessionRow = {
+  id: string;
+  message_count: number | null;
+  session_summary: string | null;
+  estimated_tokens: number | null;
+};
+
+type ChatSessionInsert = {
+  id?: string;
+  message_count?: number | null;
+  session_summary?: string | null;
+  estimated_tokens?: number | null;
+};
+
+type ChatSessionUpdate = {
+  message_count?: number | null;
+  session_summary?: string | null;
+  estimated_tokens?: number | null;
+  updated_at?: string | null;
+};
+
+type ChatMessageRow = {
+  id: string;
+  session_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  metadata: ChatMessageMetadata | null;
+  created_at: string;
+};
+
+type ChatMessageInsert = {
+  id?: string;
+  session_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  metadata?: ChatMessageMetadata | null;
+  created_at?: string;
+};
+
+type ChatMessageUpdate = {
+  content?: string;
+  metadata?: ChatMessageMetadata | null;
+  updated_at?: string | null;
+};
+
+type ChatDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      chat_sessions: {
+        Row: ChatSessionRow;
+        Insert: ChatSessionInsert;
+        Update: ChatSessionUpdate;
+      };
+      chat_messages: {
+        Row: ChatMessageRow;
+        Insert: ChatMessageInsert;
+        Update: ChatMessageUpdate;
+      };
+    };
+  };
+};
+
+type ChatSupabaseClient = SupabaseClient<ChatDatabase>;
 
 /**
  * Database message format from chat_messages table.
  */
-interface DbMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  metadata?: {
-    parts?: UIMessagePart[];
-    [key: string]: unknown;
-  };
-  created_at: string;
-}
+type DbMessage = ChatMessageRow;
 
 // ============================================
 // Core Functions
@@ -144,13 +205,15 @@ export function estimateTokens(
  */
 export function estimateMessageTokens(
   content: string,
-  parts?: UIMessagePart[]
+  parts?: MessageParts
 ): number {
   if (Array.isArray(parts) && parts.length > 0) {
     try {
       return Math.max(1, Math.ceil(JSON.stringify(parts).length / 4));
     } catch (error) {
-      console.warn('[ContextLoader] Failed to stringify message parts:', error);
+      logger.warn('[ContextLoader] Failed to stringify message parts', {
+        error,
+      });
     }
   }
 
@@ -185,21 +248,23 @@ export async function loadConversationContext(
   sessionId: string,
   options: ContextLoadOptions = {}
 ): Promise<ContextLoadResult> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as ChatSupabaseClient;
 
   // 1. Load project data
   const projectData = await loadProjectContext(supabase, projectId);
 
   // 2. Get message count from session
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: session, error: sessionError } = await (supabase as any)
+  const { data: session, error: sessionError } = await supabase
     .from('chat_sessions')
     .select('message_count, session_summary, estimated_tokens')
     .eq('id', sessionId)
     .single();
 
   if (sessionError) {
-    console.error('[ContextLoader] Failed to load session:', sessionError);
+    logger.error('[ContextLoader] Failed to load session', {
+      error: sessionError,
+      sessionId,
+    });
     // Return empty context on error
     return {
       projectData,
@@ -264,8 +329,7 @@ export async function loadConversationContext(
  * @returns Project context data
  */
 async function loadProjectContext(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: ChatSupabaseClient,
   projectId: string
 ): Promise<ProjectContextData> {
   const { data: project, error } = await supabase
@@ -289,7 +353,10 @@ async function loadProjectContext(
     .single();
 
   if (error) {
-    console.error('[ContextLoader] Failed to load project:', error);
+    logger.error('[ContextLoader] Failed to load project', {
+      error,
+      projectId,
+    });
     // Return minimal context on error
     return {
       id: projectId,
@@ -329,8 +396,7 @@ async function loadProjectContext(
  * @returns Array of UI messages
  */
 async function loadAllMessages(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: ChatSupabaseClient,
   sessionId: string
 ): Promise<UIMessage[]> {
   const { data: messages, error } = await supabase
@@ -340,7 +406,10 @@ async function loadAllMessages(
     .order('created_at', { ascending: true });
 
   if (error) {
-    console.error('[ContextLoader] Failed to load messages:', error);
+    logger.error('[ContextLoader] Failed to load messages', {
+      error,
+      sessionId,
+    });
     return [];
   }
 
@@ -356,8 +425,7 @@ async function loadAllMessages(
  * @returns Array of UI messages (most recent)
  */
 async function loadRecentMessages(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: ChatSupabaseClient,
   sessionId: string,
   limit: number
 ): Promise<UIMessage[]> {
@@ -370,7 +438,10 @@ async function loadRecentMessages(
     .limit(limit);
 
   if (error) {
-    console.error('[ContextLoader] Failed to load recent messages:', error);
+    logger.error('[ContextLoader] Failed to load recent messages', {
+      error,
+      sessionId,
+    });
     return [];
   }
 
@@ -396,9 +467,7 @@ function dbMessageToUIMessage(dbMsg: DbMessage): UIMessage {
     return {
       id: dbMsg.id,
       role: dbMsg.role,
-      // Cast to any to satisfy UIMessage type - parts structure matches SDK
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      parts: storedParts as any,
+      parts: storedParts,
     };
   }
 
@@ -427,10 +496,9 @@ export async function updateSessionMessageCount(
   newCount: number,
   estimatedTokens?: number
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as ChatSupabaseClient;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('chat_sessions')
     .update({
       message_count: newCount,
@@ -443,7 +511,10 @@ export async function updateSessionMessageCount(
     .eq('id', sessionId);
 
   if (error) {
-    console.error('[ContextLoader] Failed to update message count:', error);
+    logger.error('[ContextLoader] Failed to update message count', {
+      error,
+      sessionId,
+    });
   }
 }
 

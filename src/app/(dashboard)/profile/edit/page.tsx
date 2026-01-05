@@ -45,6 +45,7 @@ import {
 import { toast } from 'sonner';
 import { REGIONS } from '@/lib/constants/services';
 import { slugify } from '@/lib/utils/slugify';
+import { logger } from '@/lib/logging';
 import type { Contractor as _Contractor } from '@/types/database';
 
 /** Service option from API */
@@ -122,7 +123,7 @@ export default function ProfileEditPage() {
           });
         }
       } catch (error) {
-        console.error('Failed to fetch data:', error);
+      logger.error('[Profile Edit] Failed to fetch data', { error });
       } finally {
         setIsLoading(false);
       }
@@ -164,7 +165,7 @@ export default function ProfileEditPage() {
         toast.error(error.message || 'Failed to update profile');
       }
     } catch (error) {
-      console.error('Failed to update profile:', error);
+      logger.error('[Profile Edit] Failed to update profile', { error });
       toast.error('Failed to update profile');
     } finally {
       setIsSaving(false);

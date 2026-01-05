@@ -14,6 +14,7 @@
 
 import { useCallback, useRef, useEffect, useState } from 'react';
 import type { SaveStatus } from '../artifacts/shared/SaveStatusBadge';
+import { logger } from '@/lib/logging';
 
 interface SaveItem {
   /** Unique ID for deduplication */
@@ -155,7 +156,7 @@ export function useSaveQueue({
         return;
       }
     } catch (error) {
-      console.error('[SaveQueue] Save failed:', error);
+      logger.error('[SaveQueue] Save failed', { error });
 
       // Update retry count
       item.retries++;
@@ -163,7 +164,7 @@ export function useSaveQueue({
 
       if (item.retries > maxRetries) {
         // Give up on this item
-        console.error('[SaveQueue] Max retries exceeded, dropping item:', item.id);
+        logger.error('[SaveQueue] Max retries exceeded, dropping item', { itemId: item.id });
         queueRef.current.shift();
         setPendingCount(queueRef.current.length);
         setStatus('error');
@@ -171,7 +172,11 @@ export function useSaveQueue({
       } else {
         // Schedule retry with exponential backoff
         const delay = baseDelay * Math.pow(2, item.retries - 1);
-        console.log(`[SaveQueue] Retrying in ${delay}ms (attempt ${item.retries}/${maxRetries})`);
+        logger.info('[SaveQueue] Retrying', {
+          delayMs: delay,
+          attempt: item.retries,
+          maxRetries,
+        });
         retryTimerRef.current = setTimeout(() => {
           processingRef.current = false;
           void processQueue();

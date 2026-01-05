@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ProjectEditFormArtifact } from '@/components/chat/artifacts/ProjectEditFormArtifact';
 import { resolveProjectImageUrl } from '@/lib/storage/project-images';
+import { logger } from '@/lib/logging';
 import type { ProjectWithImages, ProjectImage } from '@/types/database';
 
 interface ProjectEditFormPanelProps {
@@ -61,7 +62,7 @@ export function ProjectEditFormPanel({
         setBusinessId(meData.business?.id || '');
       }
     } catch (err) {
-      console.error('[ProjectEditFormPanel] Failed to load project:', err);
+      logger.error('[ProjectEditFormPanel] Failed to load project', { error: err });
       setError(err instanceof Error ? err.message : 'Failed to load project');
     } finally {
       setIsLoading(false);
@@ -76,7 +77,7 @@ export function ProjectEditFormPanel({
         setImages(data.images || []);
       }
     } catch (err) {
-      console.error('[ProjectEditFormPanel] Failed to refresh images:', err);
+      logger.error('[ProjectEditFormPanel] Failed to refresh images', { error: err });
     }
   }, [projectId]);
 

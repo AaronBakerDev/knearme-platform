@@ -12,9 +12,12 @@
  */
 
 import { NextRequest } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/server';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
+import { logger } from '@/lib/logging';
+import type { Database } from '@/types/database';
 
 /**
  * Validation schema for PDF export request.
@@ -43,6 +46,40 @@ const exportPdfSchema = z.object({
 });
 
 type ExportPdfRequest = z.infer<typeof exportPdfSchema>;
+
+type ToolLeadRow = {
+  id: string;
+  email: string;
+  tool_slug: string;
+  inputs: Record<string, unknown>;
+  results: Record<string, unknown>;
+  source_url: string | null;
+  created_at: string;
+};
+
+type ToolLeadInsert = {
+  id?: string;
+  email: string;
+  tool_slug: string;
+  inputs: Record<string, unknown>;
+  results: Record<string, unknown>;
+  source_url?: string | null;
+  created_at?: string;
+};
+
+type ToolLeadsDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      tool_leads: {
+        Row: ToolLeadRow;
+        Insert: ToolLeadInsert;
+        Update: Partial<ToolLeadInsert>;
+      };
+    };
+  };
+};
+
+type ToolLeadsClient = SupabaseClient<ToolLeadsDatabase>;
 
 /**
  * POST /api/tools/export-pdf
@@ -102,10 +139,7 @@ async function captureToolLead(data: ExportPdfRequest): Promise<void> {
   // Extract UTM parameters from referrer if available
   const sourceUrl = typeof window !== 'undefined' ? window.location.href : undefined;
 
-  // Supabase generated types may not include tool_leads in this repo yet.
-  // Cast to any to avoid blocking builds; RLS still protects the table.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error } = await (supabase as ToolLeadsClient)
     .from('tool_leads')
     .insert({
       email: data.email,
@@ -118,7 +152,7 @@ async function captureToolLead(data: ExportPdfRequest): Promise<void> {
 
   if (error) {
     // Log error but don't fail the request
-    console.error('[captureToolLead] Failed to store lead:', error);
+    logger.error('[captureToolLead] Failed to store lead', { error });
   }
 }
 

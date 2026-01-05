@@ -12,7 +12,7 @@
  * @see src/lib/voice/voice-telemetry.ts - Telemetry implementation
  */
 
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type {
   FunctionCall,
   LiveConnectConfig,
@@ -33,11 +33,8 @@ import {
 } from '@/lib/voice/voice-telemetry';
 import {
   calculateRMS,
-  decodeBase64ToInt16,
   encodeInt16ToBase64,
   downsampleTo16k,
-  parseSampleRate,
-  int16ToFloat32,
   INPUT_SAMPLE_RATE,
   OUTPUT_CHUNK_SIZE,
   SILENCE_THRESHOLD,
@@ -47,6 +44,14 @@ import {
   initialLiveVoiceConnectionState,
   type LiveVoiceStatus,
 } from './live-voice-state';
+import { createPlaybackController } from './voice/audio-playback';
+import { mergeTranscriptText, shouldCommitTranscript } from './voice/transcript-utils';
+import {
+  buildToolCallsPayload,
+  buildToolResponses,
+  persistToolResult,
+} from './voice/tool-call-utils';
+import { logger } from '@/lib/logging';
 
 interface LiveVoiceSessionOptions {
   enabled: boolean;
@@ -151,56 +156,22 @@ export function useLiveVoiceSession({
   // Track whether this session was created in continuous mode
   const continuousModeRef = useRef(continuousMode);
 
-  const flushPlayback = useCallback(() => {
-    activeSourcesRef.current.forEach((source) => {
-      try {
-        source.stop();
-      } catch {
-        // Ignore stop errors.
-      }
-    });
-    activeSourcesRef.current = [];
-    if (outputContextRef.current) {
-      nextPlaybackTimeRef.current = outputContextRef.current.currentTime;
-    }
-  }, []);
-
-  const enqueueAudioChunk = useCallback((base64: string, mimeType?: string) => {
-    if (!base64) return;
-
-    const sampleRate = parseSampleRate(mimeType);
-    const pcm16 = decodeBase64ToInt16(base64);
-    const float32 = int16ToFloat32(pcm16);
-
-    if (!outputContextRef.current) {
-      outputContextRef.current = new AudioContext({ sampleRate });
-      nextPlaybackTimeRef.current = outputContextRef.current.currentTime;
-    }
-
-    const context = outputContextRef.current;
-    if (!context) return;
-
-    const buffer = context.createBuffer(1, float32.length, sampleRate);
-    buffer.copyToChannel(float32, 0);
-
-    const source = context.createBufferSource();
-    source.buffer = buffer;
-    source.connect(context.destination);
-    source.onended = () => {
-      activeSourcesRef.current = activeSourcesRef.current.filter((item) => item !== source);
-    };
-
-    const startAt = Math.max(context.currentTime, nextPlaybackTimeRef.current);
-    source.start(startAt);
-    nextPlaybackTimeRef.current = startAt + buffer.duration;
-    activeSourcesRef.current.push(source);
-  }, []);
+  const { enqueueAudioChunk, flushPlayback } = useMemo(
+    () =>
+      createPlaybackController({
+        outputContextRef,
+        nextPlaybackTimeRef,
+        activeSourcesRef,
+      }),
+    [activeSourcesRef, nextPlaybackTimeRef, outputContextRef]
+  );
 
   const commitUserTranscript = useCallback(() => {
-    const text = pendingUserTranscriptRef.current.trim();
-    if (!text || text === lastUserTranscriptRef.current) {
+    const rawText = pendingUserTranscriptRef.current;
+    if (!shouldCommitTranscript(rawText, lastUserTranscriptRef.current)) {
       return;
     }
+    const text = rawText.trim();
     lastUserTranscriptRef.current = text;
     pendingUserTranscriptRef.current = '';
     transcriptBufferRef.current.user = '';
@@ -217,10 +188,11 @@ export function useLiveVoiceSession({
   }, [onUserMessage]);
 
   const commitAssistantTranscript = useCallback(() => {
-    const text = pendingAssistantTranscriptRef.current.trim();
-    if (!text || text === lastAssistantTranscriptRef.current) {
+    const rawText = pendingAssistantTranscriptRef.current;
+    if (!shouldCommitTranscript(rawText, lastAssistantTranscriptRef.current)) {
       return;
     }
+    const text = rawText.trim();
     lastAssistantTranscriptRef.current = text;
     pendingAssistantTranscriptRef.current = '';
     transcriptBufferRef.current.assistant = '';
@@ -267,52 +239,6 @@ export function useLiveVoiceSession({
     []
   );
 
-  /**
-   * Persist tool result to chat_messages for context continuity.
-   * This ensures tool call results are saved even after the voice session ends.
-   * Fires asynchronously and does not block voice flow on failure.
-   *
-   * @see /src/app/api/chat/sessions/[id]/messages/route.ts - Messages API endpoint
-   */
-  const persistToolResult = useCallback(
-    async (
-      sessionId: string,
-      toolName: string,
-      output?: unknown,
-      error?: { message?: string }
-    ) => {
-      try {
-        const response = await fetch(`/api/chat/sessions/${sessionId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            role: 'assistant',
-            content: `[Tool: ${toolName}]`,
-            metadata: {
-              parts: [
-                {
-                  type: 'tool-result',
-                  toolName,
-                  output: error ? { error: error.message ?? 'Tool execution failed' } : output,
-                },
-              ],
-            },
-          }),
-        });
-
-        if (!response.ok) {
-          console.warn(
-            `[LiveVoice] Failed to persist tool result for ${toolName}: ${response.status}`
-          );
-        }
-      } catch (err) {
-        // Log but don't block voice flow - persistence is best-effort
-        console.warn('[LiveVoice] Error persisting tool result:', err);
-      }
-    },
-    []
-  );
-
   const handleToolCalls = useCallback(async (calls: FunctionCall[]) => {
     const session = sessionRef.current;
     const context = sessionContextRef.current;
@@ -321,11 +247,7 @@ export function useLiveVoiceSession({
     const latestUserMessage =
       pendingUserTranscriptRef.current || lastUserTranscriptRef.current;
 
-    const toolCallsPayload = calls.map((call, index) => ({
-      id: call.id ?? `${call.name ?? 'tool'}-${index}`,
-      name: call.name ?? 'unknown',
-      args: call.args ?? {},
-    }));
+    const toolCallsPayload = buildToolCallsPayload(calls);
 
     // Telemetry: Track tool execution starts
     toolCallsPayload.forEach((tool) => {
@@ -356,11 +278,7 @@ export function useLiveVoiceSession({
       const results = Array.isArray(data.results) ? data.results : [];
 
       session.sendToolResponse({
-        functionResponses: results.map((result: { id?: string; name?: string; output?: unknown; error?: unknown }) => ({
-          id: result.id,
-          name: result.name,
-          response: result.error ? { error: result.error } : { output: result.output },
-        })),
+        functionResponses: buildToolResponses(results),
       });
 
       results.forEach((result: { id?: string; name?: string; output?: unknown; error?: { message?: string } }) => {
@@ -390,7 +308,7 @@ export function useLiveVoiceSession({
         }
       });
     } catch (err) {
-      console.error('[LiveVoice] Tool execution error:', err);
+      logger.error('[LiveVoice] Tool execution error', { error: err });
 
       // Telemetry: Track tool error
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -398,7 +316,7 @@ export function useLiveVoiceSession({
 
       setError('Tool execution failed. I can keep listening and respond in text.');
     }
-  }, [onToolResult, persistToolResult]);
+  }, [onToolResult]);
 
   const handleMessage = useCallback((message: LiveServerMessage) => {
     const serverContent = message.serverContent;
@@ -410,21 +328,16 @@ export function useLiveVoiceSession({
     if (serverContent?.inputTranscription?.text) {
       const newText = serverContent.inputTranscription.text;
       const currentText = pendingUserTranscriptRef.current;
-      // Gemini sends full accumulated transcripts, but use the longer one
-      // as a safeguard against any partial/incremental messages
-      if (newText.length >= currentText.length || serverContent.inputTranscription.finished) {
-        pendingUserTranscriptRef.current = newText;
+      const nextText = mergeTranscriptText({
+        currentText,
+        incomingText: newText,
+        isFinal: Boolean(serverContent.inputTranscription.finished),
+      });
+      if (nextText !== currentText) {
+        pendingUserTranscriptRef.current = nextText;
         scheduleTranscriptUpdate(
           'user',
-          newText,
-          Boolean(serverContent.inputTranscription.finished)
-        );
-      } else if (!currentText.includes(newText)) {
-        // New text is shorter but not contained - might be incremental, accumulate it
-        pendingUserTranscriptRef.current = `${currentText} ${newText}`.trim();
-        scheduleTranscriptUpdate(
-          'user',
-          pendingUserTranscriptRef.current,
+          nextText,
           Boolean(serverContent.inputTranscription.finished)
         );
       }
@@ -436,21 +349,16 @@ export function useLiveVoiceSession({
     if (serverContent?.outputTranscription?.text && !isTalkingRef.current) {
       const newText = serverContent.outputTranscription.text;
       const currentText = pendingAssistantTranscriptRef.current;
-      // Gemini sends full accumulated transcripts, but use the longer one
-      // as a safeguard against any partial/incremental messages
-      if (newText.length >= currentText.length || serverContent.outputTranscription.finished) {
-        pendingAssistantTranscriptRef.current = newText;
+      const nextText = mergeTranscriptText({
+        currentText,
+        incomingText: newText,
+        isFinal: Boolean(serverContent.outputTranscription.finished),
+      });
+      if (nextText !== currentText) {
+        pendingAssistantTranscriptRef.current = nextText;
         scheduleTranscriptUpdate(
           'assistant',
-          newText,
-          Boolean(serverContent.outputTranscription.finished)
-        );
-      } else if (!currentText.includes(newText)) {
-        // New text is shorter but not contained - might be incremental, accumulate it
-        pendingAssistantTranscriptRef.current = `${currentText} ${newText}`.trim();
-        scheduleTranscriptUpdate(
-          'assistant',
-          pendingAssistantTranscriptRef.current,
+          nextText,
           Boolean(serverContent.outputTranscription.finished)
         );
       }
@@ -468,14 +376,15 @@ export function useLiveVoiceSession({
         // Only use modelTurn text if we don't have outputTranscription
         // outputTranscription provides the full accumulated transcript for audio
         if (!serverContent?.outputTranscription?.text) {
-          // Accumulate text from model parts (these may arrive incrementally)
           const currentText = pendingAssistantTranscriptRef.current;
-          // Check if this text is already contained to avoid duplicates
-          if (!currentText.includes(part.text)) {
-            pendingAssistantTranscriptRef.current = currentText
-              ? `${currentText} ${part.text}`.trim()
-              : part.text;
-            scheduleTranscriptUpdate('assistant', pendingAssistantTranscriptRef.current);
+          const nextText = mergeTranscriptText({
+            currentText,
+            incomingText: part.text,
+            isFinal: false,
+          });
+          if (nextText !== currentText) {
+            pendingAssistantTranscriptRef.current = nextText;
+            scheduleTranscriptUpdate('assistant', nextText);
           }
         }
       }
@@ -594,7 +503,7 @@ export function useLiveVoiceSession({
           handleMessage(message);
         },
         onerror: (err) => {
-          console.error('[LiveVoice] Session error:', err);
+          logger.error('[LiveVoice] Session error', { error: err });
           // Telemetry: Track session error
           const errorMsg = err instanceof Error ? err.message : 'Session error';
           trackError('session', errorMsg, false);
@@ -614,7 +523,7 @@ export function useLiveVoiceSession({
 
     // Start session duration timer to prevent runaway costs
     sessionDurationTimerRef.current = window.setTimeout(() => {
-      console.warn('[LiveVoice] Session duration limit reached (10 minutes)');
+      logger.warn('[LiveVoice] Session duration limit reached (10 minutes)');
       // Telemetry: Track fallback due to timeout
       trackFallback('session-timeout');
       disconnectRef.current?.('session-timeout');
@@ -718,7 +627,7 @@ export function useLiveVoiceSession({
       pcmBufferRef.current = [];
       dispatchConnection({ type: 'LISTENING' });
     } catch (err) {
-      console.error('[LiveVoice] Start error:', err);
+      logger.error('[LiveVoice] Start error', { error: err });
       const message = err instanceof Error ? err.message : 'Unable to start live voice.';
 
       // Telemetry: Track start error and fallback
@@ -763,7 +672,7 @@ export function useLiveVoiceSession({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usageId: usageIdRef.current }),
       }).catch((err) => {
-        console.warn('[LiveVoice] Failed to report session end:', err);
+        logger.warn('[LiveVoice] Failed to report session end', { error: err });
       });
       usageIdRef.current = null;
     }

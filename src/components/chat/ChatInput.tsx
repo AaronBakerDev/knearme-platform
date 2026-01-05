@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 import { CHAT_VOICE_CONSTRAINTS } from '@/types/voice';
+import { logger } from '@/lib/logging';
 import { useDropZone } from './hooks/useDropZone';
 
 import type { VoiceInteractionMode } from '@/types/voice';
@@ -116,7 +117,10 @@ export function ChatInput({
       }
     },
     onError: (error) => {
-      console.error('[ChatInput] Voice error:', error.type, error.message);
+      logger.error('[ChatInput] Voice error', {
+        type: error.type,
+        message: error.message,
+      });
     },
   });
 
@@ -278,7 +282,7 @@ export function ChatInput({
       mediaRecorder.start();
       setExternalRecording(true);
     } catch (err) {
-      console.error('[ChatInput] Recording error:', err);
+      logger.error('[ChatInput] Recording error', { error: err });
       setExternalError('Could not access microphone');
       setExternalRecording(false);
     }

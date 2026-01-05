@@ -13,6 +13,7 @@
 import { headers } from 'next/headers';
 import * as jose from 'jose';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
 import type { Business, Contractor } from '@/types/database';
 
 // ECC P-256 public key for MCP token verification (ES256 algorithm)
@@ -35,7 +36,7 @@ async function getPublicKey(): Promise<CryptoKey | null> {
     publicKeyCache = await jose.importSPKI(JWT_PUBLIC_KEY, 'ES256');
     return publicKeyCache;
   } catch {
-    console.error('[Auth] Failed to import JWT_PUBLIC_KEY');
+    logger.error('[Auth] Failed to import JWT_PUBLIC_KEY');
     return null;
   }
 }
@@ -83,8 +84,7 @@ export async function requireAuth(): Promise<AuthResult | AuthError> {
   }
 
   // Get contractor profile
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: contractor, error: profileError } = await (supabase as any)
+  const { data: contractor, error: profileError } = await supabase
     .from('contractors')
     .select('*')
     .eq('auth_user_id', user.id)
@@ -162,7 +162,7 @@ interface McpTokenPayload {
 async function validateBearerToken(token: string): Promise<AuthResult | AuthError> {
   const publicKey = await getPublicKey();
   if (!publicKey) {
-    console.error('[Auth] JWT_PUBLIC_KEY not configured for Bearer token validation');
+    logger.error('[Auth] JWT_PUBLIC_KEY not configured for Bearer token validation');
     return {
       type: 'UNAUTHORIZED',
       message: 'Server configuration error.',
@@ -187,8 +187,7 @@ async function validateBearerToken(token: string): Promise<AuthResult | AuthErro
 
     // Use admin client to bypass RLS and lookup contractor by ID
     const supabase = createAdminClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: contractor, error } = await (supabase as any)
+    const { data: contractor, error } = await supabase
       .from('contractors')
       .select('*')
       .eq('id', mcpPayload.contractor_id)
@@ -218,7 +217,7 @@ async function validateBearerToken(token: string): Promise<AuthResult | AuthErro
     if (err instanceof jose.errors.JWTInvalid || err instanceof jose.errors.JWSSignatureVerificationFailed) {
       return { type: 'UNAUTHORIZED', message: 'Invalid token.' };
     }
-    console.error('[Auth] Bearer token validation error:', err);
+    logger.error('[Auth] Bearer token validation error', { error: err });
     return { type: 'UNAUTHORIZED', message: 'Token validation failed.' };
   }
 }
@@ -295,8 +294,7 @@ export async function requireAuthBusiness(): Promise<BusinessAuthResult | AuthEr
   }
 
   // Get business profile from businesses table
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: business, error: profileError } = await (supabase as any)
+  const { data: business, error: profileError } = await supabase
     .from('businesses')
     .select('*')
     .eq('auth_user_id', user.id)
@@ -360,7 +358,7 @@ async function validateBearerTokenBusiness(
 ): Promise<BusinessAuthResult | AuthError> {
   const publicKey = await getPublicKey();
   if (!publicKey) {
-    console.error('[Auth] JWT_PUBLIC_KEY not configured for Bearer token validation');
+    logger.error('[Auth] JWT_PUBLIC_KEY not configured for Bearer token validation');
     return {
       type: 'UNAUTHORIZED',
       message: 'Server configuration error.',
@@ -390,8 +388,7 @@ async function validateBearerTokenBusiness(
 
     // Use admin client to bypass RLS and lookup business by ID
     const supabase = createAdminClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: business, error } = await (supabase as any)
+    const { data: business, error } = await supabase
       .from('businesses')
       .select('*')
       .eq('id', businessId)
@@ -424,7 +421,7 @@ async function validateBearerTokenBusiness(
     ) {
       return { type: 'UNAUTHORIZED', message: 'Invalid token.' };
     }
-    console.error('[Auth] Bearer token validation error:', err);
+    logger.error('[Auth] Bearer token validation error', { error: err });
     return { type: 'UNAUTHORIZED', message: 'Token validation failed.' };
   }
 }

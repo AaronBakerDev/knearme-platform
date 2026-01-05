@@ -18,9 +18,19 @@ import { ImageUploader, type UploadedImage } from './ImageUploader';
 
 // Mock next/image
 vi.mock('next/image', () => ({
-  default: ({ src, alt, ...props }: { src: string; alt: string }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} data-testid="next-image" {...props} />
+  default: ({
+    src,
+    alt,
+    fill: _fill,
+    unoptimized: _unoptimized,
+    ...props
+  }: {
+    src: string;
+    alt: string;
+    fill?: boolean;
+    unoptimized?: boolean;
+  }) => (
+    <span data-testid="next-image" data-src={src} data-alt={alt} {...props} />
   ),
 }));
 

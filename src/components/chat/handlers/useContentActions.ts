@@ -2,6 +2,7 @@ import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { buildDescriptionBlocksFromContent } from '@/lib/content/description-blocks.client';
 import type { ChatPhase, ExtractedProjectData, GeneratedContent } from '@/lib/chat/chat-types';
 import type { ArtifactAction } from './types';
+import { logger } from '@/lib/logging';
 
 type UseContentActionsParams = {
   projectId: string | null;
@@ -99,7 +100,7 @@ export function useContentActions({
             setSuccessMessage('Content saved to your project.');
             onProjectUpdate?.();
           } catch (err) {
-            console.error('[ChatWizard] Failed to save content:', err);
+            logger.error('[ChatWizard] Failed to save content', { error: err });
             setError(err instanceof Error ? err.message : 'Failed to save content. Please try again.');
           } finally {
             setIsSavingContent(false);
@@ -242,7 +243,7 @@ export function useContentActions({
             updateContentEditorOutput(data.content as GeneratedContent);
             setSuccessMessage(`Regenerated ${section} section.`);
           } catch (err) {
-            console.error('[ChatWizard] Regeneration error:', err);
+            logger.error('[ChatWizard] Regeneration error', { error: err });
 
             // Task A5: Specific error messages for different failure types
             if (err instanceof DOMException && err.name === 'AbortError') {
@@ -330,7 +331,7 @@ export function useContentActions({
             setSuccessMessage('Project data updated.');
             onProjectUpdate?.();
           } catch (err) {
-            console.error('[ChatWizard] Failed to update project data:', err);
+            logger.error('[ChatWizard] Failed to update project data', { error: err });
             setError(err instanceof Error ? err.message : 'Failed to update project data.');
           } finally {
             setIsSavingContent(false);
@@ -399,7 +400,7 @@ export function useContentActions({
             setSuccessMessage(`Updated ${payload.field}.`);
             onProjectUpdate?.();
           } catch (err) {
-            console.error('[ChatWizard] Failed to update field:', err);
+            logger.error('[ChatWizard] Failed to update field', { error: err });
             setError(err instanceof Error ? err.message : 'Failed to update field.');
           } finally {
             setIsSavingContent(false);

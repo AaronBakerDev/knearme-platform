@@ -16,6 +16,7 @@ import { after } from 'next/server';
 import { z } from 'zod';
 import { getChatModel, isGoogleAIEnabled } from '@/lib/ai/providers';
 import { requireAuthBusiness, isBusinessAuthError } from '@/lib/api/auth';
+import { logger } from '@/lib/logging';
 import {
   buildSystemPromptWithContext,
   UNIFIED_PROJECT_SYSTEM_PROMPT,
@@ -318,7 +319,7 @@ export async function POST(request: Request) {
         memory: promptContext.memory,
       });
     } catch (err) {
-      console.warn('[ChatAPI] Failed to load prompt context:', err);
+      logger.warn('[ChatAPI] Failed to load prompt context', { error: err });
     }
 
     // Stream response with tool calling using Gemini 3.0 Flash
@@ -691,7 +692,7 @@ handles both agents automatically. Do not call followed by separate agent tools.
     // Return streaming response
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    console.error('[POST /api/chat] Error:', error);
+    logger.error('[POST /api/chat] Error', { error });
     // Ensure traces are flushed even on error
     after(async () => {
       await flushLangfuse();

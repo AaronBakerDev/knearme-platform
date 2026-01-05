@@ -20,6 +20,7 @@ import { getVisionModel, isGoogleAIEnabled, OUTPUT_LIMITS, validateTokenLimit, T
 import { IMAGE_ANALYSIS_PROMPT, buildImageAnalysisMessage } from './prompts';
 import { ImageAnalysisSchema } from './schemas';
 import { withRetry, AI_RETRY_OPTIONS } from './retry';
+import { logger } from '@/lib/logging';
 
 /**
  * Result of analyzing project images.
@@ -73,9 +74,9 @@ const DEFAULT_ANALYSIS: ImageAnalysisResult = {
  * ]);
  *
  * if ('error' in result) {
- *   console.error(result.error);
+ *   // Handle error result
  * } else {
- *   console.log(result.project_type); // "chimney-rebuild"
+ *   const { project_type } = result; // "chimney-rebuild"
  * }
  */
 export async function analyzeProjectImages(
@@ -83,7 +84,7 @@ export async function analyzeProjectImages(
 ): Promise<ImageAnalysisResult | { error: string; retryable: boolean }> {
   // Check if AI is available
   if (!isGoogleAIEnabled()) {
-    console.warn('[analyzeProjectImages] Google AI not enabled, returning defaults');
+    logger.warn('[analyzeProjectImages] Google AI not enabled, returning defaults');
     return DEFAULT_ANALYSIS;
   }
 
@@ -108,9 +109,10 @@ export async function analyzeProjectImages(
   );
 
   if (!tokenValidation.valid) {
-    console.warn(
-      `[analyzeProjectImages] Token limit exceeded: ${tokenValidation.estimated} > ${tokenValidation.limit}`
-    );
+    logger.warn('[analyzeProjectImages] Token limit exceeded', {
+      estimated: tokenValidation.estimated,
+      limit: tokenValidation.limit,
+    });
     return {
       error: tokenValidation.message || 'Request too large for AI processing',
       retryable: false,
@@ -182,7 +184,7 @@ export async function analyzeProjectImages(
   } catch (error) {
     // Parse and categorize errors
     const aiError = parseImageAnalysisError(error);
-    console.error('[analyzeProjectImages] Error:', aiError);
+    logger.error('[analyzeProjectImages] Error', { error: aiError });
     return { error: aiError.message, retryable: aiError.retryable };
   }
 }

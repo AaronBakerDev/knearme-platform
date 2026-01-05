@@ -12,7 +12,8 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
-import type { Project, ProjectImage } from '@/types/database';
+import { logger } from '@/lib/logging';
+import type { Business, Contractor, Project, ProjectImage } from '@/types/database';
 
 /**
  * Public business profile response.
@@ -72,8 +73,7 @@ export async function GET(
     const supabase = await createClient();
 
     // Fetch business by slug
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: business, error: businessError } = await (supabase as any)
+    const { data: business, error: businessError } = await supabase
       .from('businesses')
       .select('*')
       .eq('slug', slug)
@@ -82,8 +82,7 @@ export async function GET(
 
     if (businessError || !business) {
       // Fallback: check legacy contractors table by profile_slug
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: contractor, error: contractorError } = await (supabase as any)
+      const { data: contractor, error: contractorError } = await supabase
         .from('contractors')
         .select('*')
         .eq('profile_slug', slug)
@@ -94,37 +93,39 @@ export async function GET(
         return apiError('NOT_FOUND', 'Business not found');
       }
 
+      const contractorData = contractor as Contractor;
+
       // Return contractor data in business shape
       // CR-4 fix: Use actual contractor phone/website instead of hardcoded nulls
       const publicBusiness: PublicBusiness = {
-        id: contractor.id,
-        name: contractor.business_name,
-        slug: contractor.profile_slug,
-        city: contractor.city ?? '',
-        state: contractor.state ?? '',
-        city_slug: contractor.city_slug ?? '',
-        services: contractor.services ?? [],
-        service_areas: contractor.service_areas ?? [],
-        description: contractor.description,
-        profile_photo_url: contractor.profile_photo_url,
-        phone: contractor.phone ?? null,
-        website: contractor.website ?? null,
+        id: contractorData.id,
+        name: contractorData.business_name,
+        slug: contractorData.profile_slug,
+        city: contractorData.city ?? '',
+        state: contractorData.state ?? '',
+        city_slug: contractorData.city_slug ?? '',
+        services: contractorData.services ?? [],
+        service_areas: contractorData.service_areas ?? [],
+        description: contractorData.description,
+        profile_photo_url: contractorData.profile_photo_url,
+        phone: contractorData.phone ?? null,
+        website: contractorData.website ?? null,
       };
 
       // Fetch projects using contractor_id (legacy)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: projects } = await (supabase as any)
+      const { data: projects } = await supabase
         .from('projects')
         .select(`
           id, title, slug, project_type, project_type_slug,
           city, city_slug, description, seo_description, published_at,
           project_images (id, storage_path, display_order)
         `)
-        .eq('contractor_id', contractor.id)
+        .eq('contractor_id', contractorData.id)
         .eq('status', 'published')
         .order('published_at', { ascending: false });
 
-      const publicProjects = transformProjects(projects ?? [], publicBusiness);
+      const projectRows = (projects ?? []) as Array<Project & { project_images: ProjectImage[] }>;
+      const publicProjects = transformProjects(projectRows, publicBusiness);
 
       return apiSuccess({
         business: publicBusiness,
@@ -135,24 +136,24 @@ export async function GET(
     }
 
     // Transform to public shape (strip sensitive data)
+    const businessData = business as Business;
     const publicBusiness: PublicBusiness = {
-      id: business.id,
-      name: business.name,
-      slug: business.slug,
-      city: business.city ?? '',
-      state: business.state ?? '',
-      city_slug: business.city_slug ?? '',
-      services: business.services ?? [],
-      service_areas: business.service_areas ?? [],
-      description: business.description,
-      profile_photo_url: business.profile_photo_url,
-      phone: business.phone,
-      website: business.website,
+      id: businessData.id,
+      name: businessData.name,
+      slug: businessData.slug,
+      city: businessData.city ?? '',
+      state: businessData.state ?? '',
+      city_slug: businessData.city_slug ?? '',
+      services: businessData.services ?? [],
+      service_areas: businessData.service_areas ?? [],
+      description: businessData.description,
+      profile_photo_url: businessData.profile_photo_url,
+      phone: businessData.phone,
+      website: businessData.website,
     };
 
     // Fetch published projects for this business
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: projects, error: projectsError } = await (supabase as any)
+    const { data: projects, error: projectsError } = await supabase
       .from('projects')
       .select(`
         id,
@@ -176,11 +177,12 @@ export async function GET(
       .order('published_at', { ascending: false });
 
     if (projectsError) {
-      console.error('[GET /api/businesses/[slug]] Projects error:', projectsError);
+      logger.error('[GET /api/businesses/[slug]] Projects error', { error: projectsError });
       // Continue without projects rather than failing completely
     }
 
-    const publicProjects = transformProjects(projects ?? [], publicBusiness);
+    const projectRows = (projects ?? []) as Array<Project & { project_images: ProjectImage[] }>;
+    const publicProjects = transformProjects(projectRows, publicBusiness);
 
     return apiSuccess({
       business: publicBusiness,

@@ -31,6 +31,7 @@ import { PublishSuccessModal } from '@/components/publish/PublishSuccessModal';
 import { useCompleteness } from '@/components/chat/hooks';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { resolveProjectImageUrl } from '@/lib/storage/project-images';
+import { logger } from '@/lib/logging';
 import type { Business, ProjectWithImages, ProjectImage } from '@/types/database';
 import type { RelatedProject } from '@/lib/data/projects';
 import type { ExtractedProjectData } from '@/lib/chat/chat-types';
@@ -117,7 +118,7 @@ export default function ProjectWorkspacePage({ params }: PageParams) {
         setBusiness(meData.business || null);
       }
     } catch (error) {
-      console.error('Failed to fetch project:', error);
+      logger.error('[Project Workspace] Failed to fetch project', { error });
       router.push('/projects');
     } finally {
       setIsLoading(false);
@@ -140,7 +141,7 @@ export default function ProjectWorkspacePage({ params }: PageParams) {
         setRelatedProjects(data.projects || []);
       }
     } catch (error) {
-      console.error('Failed to fetch related projects:', error);
+      logger.error('[Project Workspace] Failed to fetch related projects', { error });
     }
   }, [id]);
 
@@ -162,7 +163,7 @@ export default function ProjectWorkspacePage({ params }: PageParams) {
         setImages(data.images || []);
       }
     } catch (error) {
-      console.error('Failed to refresh images:', error);
+      logger.error('[Project Workspace] Failed to refresh images', { error });
     }
   }, [id]);
 
@@ -199,7 +200,7 @@ export default function ProjectWorkspacePage({ params }: PageParams) {
         toast.error(error.message || 'Failed to publish');
       }
     } catch (error) {
-      console.error('Failed to publish:', error);
+      logger.error('[Project Workspace] Failed to publish', { error });
       toast.error('Failed to publish project');
     } finally {
       setIsPublishing(false);

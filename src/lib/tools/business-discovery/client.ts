@@ -20,6 +20,7 @@ import type {
   DiscoveredBusiness,
   DiscoveredProfileData,
 } from './types';
+import { logger } from '@/lib/logging';
 
 const BASE_URL = 'https://api.dataforseo.com/v3';
 
@@ -50,7 +51,10 @@ const TASK_INITIAL_WAIT_MS = 5000;
  * const businesses = await client.searchBusinesses('Rocky Mountain Woodworks', 'Denver');
  *
  * // Show confirmation: "Is this you at 1234 Pine St?"
- * console.log(businesses[0].name, businesses[0].address);
+ * logger.info('Business match', {
+ *   name: businesses[0].name,
+ *   address: businesses[0].address,
+ * });
  * ```
  */
 export class DataForSEOClient {
@@ -136,9 +140,7 @@ export class DataForSEOClient {
     // Combine business name and location for the search
     const keyword = `${businessName} ${location}`;
 
-    console.log(
-      `[DataForSEO] Searching for business: "${keyword}" (limit: ${limit})`
-    );
+    logger.info('[DataForSEO] Searching for business', { keyword, limit });
 
     const response = await this.request<{
       tasks: Array<{
@@ -201,7 +203,7 @@ export class DataForSEOClient {
       }
     }
 
-    console.log(`[DataForSEO] Found ${results.length} businesses`);
+    logger.info('[DataForSEO] Found businesses', { count: results.length });
     return results;
   }
 
@@ -215,9 +217,11 @@ export class DataForSEOClient {
     locationCode: number = 2840,
     limit: number = 20
   ): Promise<{ results: GoogleMapsResult[]; meta: TaskMeta }> {
-    console.log(
-      `[DataForSEO] Searching Google Maps for: "${keyword}" (location: ${locationCode}, limit: ${limit})`
-    );
+    logger.info('[DataForSEO] Searching Google Maps', {
+      keyword,
+      locationCode,
+      limit,
+    });
 
     const response = await this.request<{
       tasks: Array<{
@@ -296,7 +300,9 @@ export class DataForSEOClient {
       }
     }
 
-    console.log(`[DataForSEO] Found ${results.length} results`);
+    logger.info('[DataForSEO] Found Google Maps results', {
+      count: results.length,
+    });
     return { results, meta: this.extractMeta(response) };
   }
 
@@ -315,9 +321,11 @@ export class DataForSEOClient {
     locationName: string = 'United States',
     maxReviews: number = 10
   ): Promise<{ results: GoogleReviewsResult | null; meta: TaskMeta }> {
-    console.log(
-      `[DataForSEO] Fetching reviews for cid: ${cid} (location: ${locationName}, max: ${maxReviews})`
-    );
+    logger.info('[DataForSEO] Fetching reviews', {
+      cid,
+      locationName,
+      maxReviews,
+    });
 
     // Post the task
     const postResponse = await this.request<{
@@ -338,10 +346,9 @@ export class DataForSEOClient {
 
     const taskId = postResponse.tasks?.[0]?.id;
     if (!taskId) {
-      console.error(
-        '[DataForSEO] Failed to create reviews task:',
-        postResponse.tasks?.[0]?.status_message
-      );
+      logger.error('[DataForSEO] Failed to create reviews task', {
+        statusMessage: postResponse.tasks?.[0]?.status_message,
+      });
       return {
         results: null,
         meta: {
@@ -353,7 +360,7 @@ export class DataForSEOClient {
       };
     }
 
-    console.log(`[DataForSEO] Reviews task created: ${taskId}`);
+    logger.info('[DataForSEO] Reviews task created', { taskId });
 
     // Poll for results
     await this.sleep(TASK_INITIAL_WAIT_MS);
@@ -378,7 +385,7 @@ export class DataForSEOClient {
       const ourTask = readyTasks.find((t) => t.id === taskId);
 
       if (ourTask) {
-        console.log(`[DataForSEO] Task ${taskId} is ready, fetching results...`);
+        logger.info('[DataForSEO] Reviews task ready', { taskId });
 
         const getResponse = await this.request<{
           tasks: Array<{
@@ -410,15 +417,19 @@ export class DataForSEOClient {
 
         const task = getResponse.tasks?.[0];
         if (task?.status_code !== 20000) {
-          console.error(
-            `[DataForSEO] Task get failed: ${task?.status_code} - ${task?.status_message}`
-          );
+          logger.error('[DataForSEO] Reviews task get failed', {
+            taskId,
+            statusCode: task?.status_code,
+            statusMessage: task?.status_message,
+          });
           return { results: null, meta: this.extractMeta(getResponse) };
         }
 
         const resultData = task.result?.[0];
         if (!resultData) {
-          console.log('[DataForSEO] Task completed but no result data');
+          logger.warn('[DataForSEO] Reviews task completed without result data', {
+            taskId,
+          });
           return { results: null, meta: this.extractMeta(getResponse) };
         }
 
@@ -446,7 +457,7 @@ export class DataForSEOClient {
           }
         }
 
-        console.log(`[DataForSEO] Retrieved ${reviews.length} reviews`);
+        logger.info('[DataForSEO] Retrieved reviews', { count: reviews.length });
 
         return {
           results: {
@@ -466,7 +477,7 @@ export class DataForSEOClient {
       await this.sleep(TASK_POLL_INTERVAL_MS);
     }
 
-    console.error(`[DataForSEO] Task timed out after ${attempts} attempts`);
+    logger.error('[DataForSEO] Reviews task timed out', { attempts, taskId });
     return {
       results: null,
       meta: {

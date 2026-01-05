@@ -26,6 +26,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logging';
 
 const markdownComponents: Components = {
   p: ({ children }) => (
@@ -147,7 +148,7 @@ export function ChatMessage({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      logger.error('[ChatMessage] Failed to copy', { error: err });
     }
   }, [content]);
 

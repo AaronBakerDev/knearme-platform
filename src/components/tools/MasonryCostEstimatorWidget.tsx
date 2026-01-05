@@ -23,6 +23,7 @@ import {
 import { SERVICE_CONTENT } from '@/lib/constants/service-content'
 import { estimateCost, type AccessTier, type SeverityTier } from '@/lib/tools/cost-estimator'
 import type { ServiceId } from '@/lib/constants/services'
+import { logger } from '@/lib/logging'
 
 /** Service option from API */
 interface ServiceOption {
@@ -187,7 +188,7 @@ export function MasonryCostEstimatorWidget({ initialServiceId = 'chimney-repair'
           setServices(data.services || [])
         }
       } catch (error) {
-        console.error('Failed to fetch services:', error)
+        logger.error('[MasonryCostEstimatorWidget] Failed to fetch services', { error })
       } finally {
         setIsLoadingServices(false)
       }
@@ -376,4 +377,3 @@ export function MasonryCostEstimatorWidget({ initialServiceId = 'chimney-repair'
 }
 
 export default MasonryCostEstimatorWidget
-

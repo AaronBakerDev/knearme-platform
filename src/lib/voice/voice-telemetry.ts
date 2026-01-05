@@ -15,6 +15,8 @@
  * @see /docs/observability/ - Observability architecture
  */
 
+import { logger } from '@/lib/logging';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -110,10 +112,6 @@ const state: TelemetryState = {
 // Logging Utilities
 // ============================================================================
 
-const isDevelopment = typeof window !== 'undefined'
-  ? window.location?.hostname === 'localhost'
-  : process.env.NODE_ENV === 'development';
-
 /**
  * Emit a telemetry event.
  * Development: Pretty console output.
@@ -130,20 +128,16 @@ function emitEvent(
     ...data,
   };
 
-  if (isDevelopment) {
-    const prefix = `[VoiceTelemetry] ${event}`;
-    // Color-code by event type
-    if (event.includes('error') || event.includes('fallback')) {
-      console.warn(prefix, data);
-    } else if (event.includes('start') || event.includes('connected')) {
-      console.info(prefix, data);
-    } else {
-      console.log(prefix, data);
-    }
-  } else {
-    // Production: structured JSON for log aggregation
-    console.log(JSON.stringify(payload));
+  const message = `[VoiceTelemetry] ${event}`;
+  if (event.includes('error')) {
+    logger.error(message, payload);
+    return;
   }
+  if (event.includes('fallback')) {
+    logger.warn(message, payload);
+    return;
+  }
+  logger.info(message, payload);
 }
 
 // ============================================================================

@@ -10,6 +10,7 @@
 
 import { STORAGE_BUCKETS, type BucketName } from './upload';
 import { createAdminClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
 
 /**
  * Result of validating storage images.
@@ -79,7 +80,7 @@ export async function checkImageExists(
     return !error && Boolean(data);
   } catch (error) {
     // Network error or other issue - treat as not existing
-    console.error(`Error checking image existence: ${storagePath}`, error);
+    logger.error('Error checking image existence', { error, storagePath });
     return false;
   }
 }
