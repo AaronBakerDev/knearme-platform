@@ -22,6 +22,7 @@ export interface ConfirmBusinessResult {
   confirmed: boolean;
   data: {
     googlePlaceId: string;
+    googleCid?: string;
     businessName: string;
     address?: string;
     city?: string;
@@ -29,7 +30,24 @@ export interface ConfirmBusinessResult {
     phone?: string;
     website?: string;
     category?: string;
+    rating?: number;
+    reviewCount?: number;
   };
+}
+
+export interface FetchReviewsResult {
+  success: boolean;
+  reviews: Array<{
+    text: string;
+    rating: number;
+    reviewerName: string | null;
+    timeAgo: string | null;
+    hasImages: boolean;
+    imageUrls: string[] | null;
+  }>;
+  rating: number | null;
+  reviewCount: number | null;
+  error?: string;
 }
 
 export interface SaveProfileResult {
@@ -47,6 +65,21 @@ export interface SaveProfileResult {
   };
 }
 
+/**
+ * Project suggestion from reviews with photos or web portfolio.
+ */
+export interface ProfileRevealProjectSuggestion {
+  title: string;
+  description?: string;
+  source: 'review' | 'web';
+  imageUrls?: string[];
+}
+
+/**
+ * Result from showProfileReveal tool - the "wow" moment data.
+ *
+ * @see /docs/specs/typeform-onboarding-spec.md - Phase 5: Reveal Artifact
+ */
 export interface ProfileRevealResult {
   revealed: boolean;
   profile: {
@@ -60,6 +93,14 @@ export interface ProfileRevealResult {
     rating?: number;
     reviewCount?: number;
     celebrationMessage: string;
+    /** AI-synthesized bio blending reviews + web content */
+    bio?: string;
+    /** 2-3 best review quotes */
+    highlights?: string[];
+    /** Years in business if discovered */
+    yearsInBusiness?: string;
+    /** Project suggestions from reviews with photos or web portfolio */
+    projectSuggestions?: ProfileRevealProjectSuggestion[];
   };
 }
 

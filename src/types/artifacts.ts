@@ -235,6 +235,7 @@ export interface BusinessSearchResultsData {
 /**
  * Profile reveal data from Discovery Agent.
  * Shown after profile is saved to celebrate the business.
+ * This is the "wow" moment with bio, review highlights, and project suggestions.
  *
  * @see /docs/specs/typeform-onboarding-spec.md - Discovery Reveal feature
  */
@@ -249,6 +250,29 @@ export interface ProfileRevealData {
   rating?: number;
   reviewCount?: number;
   celebrationMessage: string;
+  /** AI-synthesized bio blending reviews + web content */
+  bio?: string;
+  /** 2-3 best review quotes */
+  highlights?: string[];
+  /** Years in business if discovered */
+  yearsInBusiness?: string;
+  /** Project suggestions from reviews with photos or web portfolio */
+  projectSuggestions?: ProfileRevealProjectSuggestion[];
+}
+
+/**
+ * Project suggestion for profile reveal.
+ * Can come from reviews with photos or discovered web portfolio.
+ */
+export interface ProfileRevealProjectSuggestion {
+  /** Suggested project title */
+  title: string;
+  /** Brief description or context */
+  description?: string;
+  /** Source: 'review' if from a review, 'web' if from web portfolio */
+  source: 'review' | 'web';
+  /** Image URLs if available (from review photos or web) */
+  imageUrls?: string[];
 }
 
 /**

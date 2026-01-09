@@ -15,6 +15,10 @@ export function createEmptyDiscoveryState(): DiscoveryState {
     googleCid: undefined,
     discoveredData: undefined,
     searchResults: undefined,
+    reviews: undefined,
+    rating: undefined,
+    reviewCount: undefined,
+    webSearchInfo: undefined,
     isComplete: false,
     missingFields: [],
   };

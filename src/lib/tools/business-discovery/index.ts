@@ -49,7 +49,7 @@ export {
 // =============================================================================
 
 import { createDataForSEOClient } from './client';
-import type { DiscoveredBusiness } from './types';
+import type { DiscoveredBusiness, GoogleReviewsResult } from './types';
 
 /** Singleton client for reuse */
 let clientInstance: ReturnType<typeof createDataForSEOClient> | null = null;
@@ -77,4 +77,32 @@ export async function searchBusinesses(
 ): Promise<DiscoveredBusiness[]> {
   const client = getClient();
   return client.searchBusinesses(businessName, location, limit);
+}
+
+/**
+ * Get reviews for a confirmed business.
+ * Used to gather social proof and review content for profile/bio generation.
+ *
+ * @param cid - Google CID from the confirmed business
+ * @param locationName - Location name (e.g., "Denver,Colorado,United States")
+ * @param maxReviews - Max reviews to fetch (default: 10)
+ * @returns Reviews result or null if failed
+ *
+ * @example
+ * ```typescript
+ * // After user confirms business
+ * const reviews = await getBusinessReviews(business.googleCid, 'United States', 10);
+ * if (reviews) {
+ *   console.log(`Found ${reviews.reviews.length} reviews`);
+ * }
+ * ```
+ */
+export async function getBusinessReviews(
+  cid: string,
+  locationName = 'United States',
+  maxReviews = 10
+): Promise<GoogleReviewsResult | null> {
+  const client = getClient();
+  const { results } = await client.getGoogleReviews(cid, locationName, maxReviews);
+  return results;
 }

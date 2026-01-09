@@ -7,6 +7,7 @@ export const showBusinessSearchResultsSchema = z.object({
 
 export const confirmBusinessSchema = z.object({
   googlePlaceId: z.string().describe('Google Place ID of the confirmed business'),
+  googleCid: z.string().optional().describe('Google CID (customer ID) for fetching reviews'),
   businessName: z.string().describe('Confirmed business name'),
   address: z.string().optional().describe('Street address from the listing'),
   city: z.string().optional().describe('City from the listing'),
@@ -14,6 +15,13 @@ export const confirmBusinessSchema = z.object({
   phone: z.string().optional().describe('Phone from the listing'),
   website: z.string().optional().describe('Website from the listing'),
   category: z.string().optional().describe('Category from the listing'),
+  rating: z.number().optional().describe('Google rating (1-5)'),
+  reviewCount: z.number().optional().describe('Number of Google reviews'),
+});
+
+export const fetchReviewsSchema = z.object({
+  googleCid: z.string().describe('Google CID (customer ID) from the confirmed business'),
+  maxReviews: z.number().optional().describe('Maximum number of reviews to fetch (default: 10)'),
 });
 
 export const saveProfileSchema = z.object({
@@ -33,6 +41,12 @@ export const webSearchBusinessSchema = z.object({
   location: z.string().optional().describe('City and state/province (e.g., "Denver, CO")'),
 });
 
+/**
+ * Schema for showProfileReveal tool - the "wow" moment artifact.
+ * Includes bio, highlights, and project suggestions for maximum delight.
+ *
+ * @see /docs/specs/typeform-onboarding-spec.md - Phase 5: Reveal Artifact
+ */
 export const showProfileRevealSchema = z.object({
   businessName: z.string().describe('The business name'),
   address: z.string().describe('Full street address'),
@@ -44,4 +58,13 @@ export const showProfileRevealSchema = z.object({
   rating: z.number().optional().describe('Google rating (1-5)'),
   reviewCount: z.number().optional().describe('Number of Google reviews'),
   celebrationMessage: z.string().describe('A short, enthusiastic message celebrating the business (1-2 sentences)'),
+  bio: z.string().optional().describe('AI-generated bio synthesized from reviews and web content'),
+  highlights: z.array(z.string()).optional().describe('2-3 best review quotes'),
+  yearsInBusiness: z.string().optional().describe('Years in business if discovered (e.g., "20 years")'),
+  projectSuggestions: z.array(z.object({
+    title: z.string().describe('Suggested project title'),
+    description: z.string().optional().describe('Brief description or context'),
+    source: z.enum(['review', 'web']).describe('Source of the suggestion'),
+    imageUrls: z.array(z.string()).optional().describe('Image URLs if available'),
+  })).optional().describe('Project suggestions from reviews with photos or web portfolio'),
 });

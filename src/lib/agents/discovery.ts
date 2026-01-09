@@ -23,7 +23,7 @@
 import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 import { getChatModel, isGoogleAIEnabled } from '@/lib/ai/providers';
-import { searchBusinesses } from '@/lib/tools/business-discovery';
+import { searchBusinesses, getBusinessReviews } from '@/lib/tools/business-discovery';
 import { logger as baseLogger } from '@/lib/logging';
 import { withCircuitBreaker } from './circuit-breaker';
 import { createAgentLogger, createCorrelationContext } from '@/lib/observability/agent-logger';
@@ -31,6 +31,7 @@ import { runWebSearchAgent } from './web-search';
 import { buildDiscoverySystemPrompt } from './discovery/prompts';
 import {
   confirmBusinessSchema,
+  fetchReviewsSchema,
   saveProfileSchema,
   showBusinessSearchResultsSchema,
   showProfileRevealSchema,
@@ -40,6 +41,7 @@ import { createEmptyDiscoveryState, getMissingDiscoveryFields, isDiscoveryComple
 import { extractWebSearchSources, processDiscoveryToolCalls } from './discovery/tool-processing';
 import type {
   ConfirmBusinessResult,
+  FetchReviewsResult,
   ProfileRevealResult,
   SaveProfileResult,
   SearchBusinessResult,
@@ -112,6 +114,7 @@ async function executeConfirmBusiness(
     confirmed: true,
     data: {
       googlePlaceId: params.googlePlaceId,
+      googleCid: params.googleCid,
       businessName: params.businessName,
       address: params.address,
       city: params.city,
@@ -119,8 +122,65 @@ async function executeConfirmBusiness(
       phone: params.phone,
       website: params.website,
       category: params.category,
+      rating: params.rating,
+      reviewCount: params.reviewCount,
     },
   };
+}
+
+/**
+ * Execute fetch reviews - retrieves reviews from Google for bio synthesis
+ * @see /docs/specs/typeform-onboarding-spec.md - Review Mining section
+ */
+async function executeFetchReviews(
+  params: z.infer<typeof fetchReviewsSchema>
+): Promise<FetchReviewsResult> {
+  try {
+    const maxReviews = params.maxReviews ?? 10;
+    const reviewsResult = await getBusinessReviews(params.googleCid, 'United States', maxReviews);
+
+    if (!reviewsResult) {
+      return {
+        success: false,
+        reviews: [],
+        rating: null,
+        reviewCount: null,
+        error: 'Unable to fetch reviews at this time',
+      };
+    }
+
+    const reviews = reviewsResult.reviews
+      .filter((r) => r.review_text && r.review_text.trim().length > 0)
+      .map((r) => ({
+        text: r.review_text || '',
+        rating: r.rating,
+        reviewerName: r.reviewer_name,
+        timeAgo: r.time_ago,
+        hasImages: Boolean(r.review_images && r.review_images.length > 0),
+        imageUrls: r.review_images,
+      }));
+
+    baseLogger.info('[DiscoveryAgent] Fetched reviews', {
+      count: reviews.length,
+      withImages: reviews.filter((r) => r.hasImages).length,
+    });
+
+    return {
+      success: true,
+      reviews,
+      rating: reviewsResult.rating,
+      reviewCount: reviewsResult.reviews_count,
+    };
+  } catch (error) {
+    baseLogger.error('[DiscoveryAgent] Failed to fetch reviews', { error });
+    return {
+      success: false,
+      reviews: [],
+      rating: null,
+      reviewCount: null,
+      error: 'Unable to fetch reviews at this time',
+    };
+  }
 }
 
 /**
@@ -174,8 +234,17 @@ const webSearchBusinessTool = tool({
   },
 });
 
+const fetchReviewsTool = tool({
+  description: 'Fetch reviews for a confirmed business to learn what customers say about them. Call this AFTER confirmBusiness when the business has a googleCid and reviewCount > 0.',
+  inputSchema: fetchReviewsSchema,
+  execute: executeFetchReviews,
+});
+
 /**
- * Execute profile reveal - shows a celebratory summary after profile is saved
+ * Execute profile reveal - shows a celebratory summary after profile is saved.
+ * This is the "wow" moment with bio, highlights, and project suggestions.
+ *
+ * @see /docs/specs/typeform-onboarding-spec.md - Phase 5: Reveal Artifact
  */
 async function executeShowProfileReveal(
   params: z.infer<typeof showProfileRevealSchema>
@@ -193,6 +262,10 @@ async function executeShowProfileReveal(
       rating: params.rating,
       reviewCount: params.reviewCount,
       celebrationMessage: params.celebrationMessage,
+      bio: params.bio,
+      highlights: params.highlights,
+      yearsInBusiness: params.yearsInBusiness,
+      projectSuggestions: params.projectSuggestions,
     },
   };
 }
@@ -206,6 +279,7 @@ const showProfileRevealTool = tool({
 export const discoveryTools = {
   showBusinessSearchResults: showBusinessSearchResultsTool,
   confirmBusiness: confirmBusinessTool,
+  fetchReviews: fetchReviewsTool,
   saveProfile: saveProfileTool,
   webSearchBusiness: webSearchBusinessTool,
   showProfileReveal: showProfileRevealTool,
@@ -387,4 +461,6 @@ export {
 } from './discovery/state';
 export { buildDiscoverySystemPrompt, getDiscoveryGreeting } from './discovery/prompts';
 export { processDiscoveryToolCalls } from './discovery/tool-processing';
-export type { DiscoveryContext, DiscoveryResult, DiscoveryState } from './discovery/types';
+export { synthesizeBio, type BioSynthesisInput, type BioSynthesisResult } from './discovery/bio-synthesis';
+export { extractProjectSuggestions, type ProjectSuggestionsInput } from './discovery/project-suggestions';
+export type { DiscoveryContext, DiscoveryResult, DiscoveryState, DiscoveryReview } from './discovery/types';

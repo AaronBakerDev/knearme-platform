@@ -37,7 +37,6 @@ import {
   discoveryTools,
   getDiscoveryGreeting,
   getMissingDiscoveryFields,
-  isDiscoveryComplete,
   processDiscoveryToolCalls,
   type DiscoveryState,
 } from '@/lib/agents';
@@ -47,6 +46,42 @@ import type { Database, Json } from '@/types/database';
 
 // Allow responses up to 30 seconds
 export const maxDuration = 30;
+
+// =============================================================================
+// Dynamic Tool Selection
+// =============================================================================
+
+/**
+ * Get active discovery tools based on current state.
+ * This prevents the model from making invalid tool calls.
+ *
+ * Rules:
+ * - If business info exists (businessName, googlePlaceId, etc.): remove showBusinessSearchResults
+ *   This prevents duplicate search results after business is identified
+ * - If profile is complete (isComplete): only keep showProfileReveal
+ *
+ * @see /docs/specs/typeform-onboarding-spec.md - Tool availability rules
+ */
+function getActiveDiscoveryTools(state: Partial<DiscoveryState>): typeof discoveryTools {
+  // Remove showBusinessSearchResults if ANY of these are true:
+  // 1. Business already confirmed (googlePlaceId exists)
+  // 2. Business name is known (confirmBusiness was called at some point)
+  // 3. Search results are in current state (waiting for user to select)
+  // This is the definitive fix for the "duplicate search results" bug
+  const hasBusinessInfo = Boolean(
+    state.googlePlaceId ||
+    state.businessName ||
+    (state.searchResults && state.searchResults.length > 0)
+  );
+
+  if (hasBusinessInfo) {
+    const { showBusinessSearchResults: _removed, ...remainingTools } = discoveryTools;
+    return remainingTools as unknown as typeof discoveryTools;
+  }
+
+  // Default: all tools available
+  return discoveryTools;
+}
 
 // =============================================================================
 // Request Schema
@@ -558,16 +593,27 @@ export async function POST(request: Request) {
 
     const systemPrompt = buildDiscoverySystemPrompt(currentState);
 
+    // Dynamically build tools based on current state to prevent invalid tool calls
+    // If business is already confirmed (googlePlaceId exists), remove showBusinessSearchResults
+    // to prevent the model from showing duplicate search results after confirmation.
+    // @see /docs/specs/typeform-onboarding-spec.md - Preventing duplicate search results
+    const activeTools = getActiveDiscoveryTools(currentState);
+
     const result = streamText({
       model: getChatModel(),
       system: systemPrompt,
       messages: [...history, { role: 'user', content: message }],
-      tools: discoveryTools,
+      tools: activeTools,
       stopWhen: stepCountIs(3),
       onFinish: async ({ text, toolResults }) => {
         const updatedState = processDiscoveryToolCalls(currentState, toolResults);
-        updatedState.isComplete = isDiscoveryComplete(updatedState);
+        // Update missingFields for UI display
         updatedState.missingFields = getMissingDiscoveryFields(updatedState);
+        // IMPORTANT: Do NOT overwrite isComplete here!
+        // isComplete is set ONLY by processDiscoveryToolCalls when saveProfile is called.
+        // This prevents the "hallucination bug" where the agent says "done" without
+        // actually calling saveProfile.
+        // @see /docs/specs/typeform-onboarding-spec.md - Agent Hallucination Bug
 
         // Use model's response, or generate contextual fallback if empty
         // This fixes the "agent reset" bug where empty responses break history
@@ -715,6 +761,11 @@ async function saveOnboardingProfile(params: {
   if (!contractorId) return;
 
   // Best-effort contractor sync (legacy)
+  // Only sync fields that exist in the contractors table schema:
+  // id, auth_user_id, email, business_name, city, state, city_slug, services,
+  // service_areas, description, profile_photo_url, created_at, updated_at,
+  // profile_slug, google_place_id, google_cid, onboarding_method
+  // Note: address, postal_code, phone, website do NOT exist in contractors table
   const { error } = await updateContractorOnboarding(adminClient, contractorId, {
     business_name: state.businessName,
     city: state.city,
@@ -722,35 +773,10 @@ async function saveOnboardingProfile(params: {
     description: state.description || null,
     services: state.services.length > 0 ? state.services : null,
     service_areas: state.serviceAreas.length > 0 ? state.serviceAreas : null,
-    address: discoveredAddress,
-    postal_code: discoveredPostalCode,
-    phone: discoveredPhone,
-    website: discoveredWebsite,
     google_place_id: state.googlePlaceId || null,
     google_cid: state.googleCid || null,
     onboarding_method: 'conversation',
   });
-
-  if (error?.code === '42703') {
-    // Legacy schema without NAP columns; retry with base fields only.
-    const { error: fallbackError } = await updateContractorOnboarding(
-      adminClient,
-      contractorId,
-      {
-        business_name: state.businessName,
-        city: state.city,
-        state: state.state,
-        description: state.description || null,
-        services: state.services.length > 0 ? state.services : null,
-        service_areas: state.serviceAreas.length > 0 ? state.serviceAreas : null,
-      }
-    );
-
-    if (fallbackError) {
-      logger.error('Failed to sync contractor profile', { error: fallbackError });
-    }
-    return;
-  }
 
   if (error) {
     logger.error('Failed to sync contractor profile', { error });

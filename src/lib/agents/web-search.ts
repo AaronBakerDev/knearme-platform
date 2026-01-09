@@ -21,6 +21,14 @@ export interface WebSearchSource {
 export interface WebSearchAgentResult {
   summary: string;
   sources: WebSearchSource[];
+  /** Extracted business info for bio synthesis */
+  businessInfo?: {
+    aboutDescription?: string;
+    services?: string[];
+    yearsInBusiness?: string;
+    specialties?: string[];
+    serviceAreas?: string[];
+  };
 }
 
 function normalizeSources(
@@ -36,8 +44,10 @@ function normalizeSources(
 }
 
 /**
- * Run a grounded web search and return a short summary.
+ * Run a grounded web search and return a summary with extracted business info.
  * Uses a stable Gemini model (preview models do not support Google Search grounding).
+ *
+ * @see /docs/specs/typeform-onboarding-spec.md - Phase 3 Web Search Enhancement
  */
 export async function runWebSearchAgent(
   input: WebSearchAgentInput
@@ -56,16 +66,47 @@ export async function runWebSearchAgent(
     },
     toolChoice: { type: 'tool', toolName: 'google_search' },
     prompt: [
-      'You are a web search assistant helping confirm a business listing.',
-      'Use google_search to find the most likely official website or listing.',
-      'Summarize what you found in 2-3 short sentences.',
-      `Query: ${input.query}`,
+      'You are a web search assistant helping gather information about a business.',
+      'Use google_search to find their official website and any relevant listings.',
+      '',
+      'Search for: ' + input.query,
+      '',
+      'After searching, provide a response in this EXACT JSON format:',
+      '{',
+      '  "summary": "2-3 sentence summary of what you found",',
+      '  "businessInfo": {',
+      '    "aboutDescription": "Company description from their about page or Google listing",',
+      '    "services": ["service1", "service2"],',
+      '    "yearsInBusiness": "e.g., 15 years or since 2008",',
+      '    "specialties": ["specialty1", "specialty2"],',
+      '    "serviceAreas": ["Denver Metro", "Boulder County"]',
+      '  }',
+      '}',
+      '',
+      'Include only fields where you found actual information. Omit empty fields.',
     ].join('\n'),
     stopWhen: stepCountIs(3),
   });
 
+  // Try to parse structured response
+  let businessInfo: WebSearchAgentResult['businessInfo'];
+  let summary = result.text;
+
+  try {
+    // Check if response contains JSON
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.summary) summary = parsed.summary;
+      if (parsed.businessInfo) businessInfo = parsed.businessInfo;
+    }
+  } catch {
+    // If parsing fails, just use the raw text as summary
+  }
+
   return {
-    summary: result.text,
+    summary,
     sources: normalizeSources(result.sources as Array<{ url?: string; title?: string }> | undefined),
+    businessInfo,
   };
 }
