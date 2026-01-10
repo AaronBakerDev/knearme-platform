@@ -14,7 +14,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { logger } from '@/lib/logging';
-import type { Database, Project, ProjectImage } from '@/types/database';
+import type { Contractor, Database, Project, ProjectImage } from '@/types/database';
 
 /**
  * Public contractor profile response.
@@ -73,19 +73,23 @@ export async function GET(
 
     // Fetch contractor by profile_slug
     // Note: profile_slug is the URL-friendly business slug (unique)
-    const { data: contractor, error: contractorError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: contractorData, error: contractorError } = await (supabase as any)
       .from('contractors')
       .select('*')
       .eq('profile_slug', slug)
       .not('business_name', 'is', null)  // Only complete profiles
       .single();
 
-    if (contractorError || !contractor) {
+    if (contractorError || !contractorData) {
       return apiError('NOT_FOUND', 'Contractor not found');
     }
 
+    const contractor = contractorData as Contractor;
+
     // Fetch published projects for this contractor
-    const { data: projects, error: projectsError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: projects, error: projectsError } = await (supabase as any)
       .from('projects')
       .select(`
         id,

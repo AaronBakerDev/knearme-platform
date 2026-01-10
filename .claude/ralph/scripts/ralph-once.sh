@@ -148,14 +148,20 @@ run_claude() {
     local prompt="$1"
 
     if [[ "$USE_SANDBOX" == "true" ]]; then
-        log_step "Running Claude in Docker sandbox..."
+        log_step "Launching Claude in Docker sandbox..."
+        log_info "This may take a minute. Output will stream below."
         if ! command -v docker &> /dev/null; then
             log_error "Docker not found. Install Docker Desktop or remove -s flag."
             exit 1
         fi
         docker sandbox run claude --permission-mode bypassPermissions -p "$prompt"
     else
-        log_step "Running Claude (interactive mode)..."
+        if ! command -v claude &> /dev/null; then
+            log_error "Claude CLI not found. Install it or use -s for Docker sandbox."
+            exit 1
+        fi
+        log_step "Launching Claude (interactive mode)..."
+        log_info "If the terminal looks idle, Claude is still working. Press Ctrl+C to cancel."
         # Using -p for print mode allows capturing output
         # Remove -p for fully interactive session where you can intervene
         claude --permission-mode bypassPermissions "$prompt"
@@ -254,6 +260,8 @@ if [[ "$VERBOSE" == "true" ]]; then
     echo "$FULL_PROMPT"
     echo -e "${CYAN}--- END PROMPT ---${NC}"
     echo ""
+else
+    log_info "Prompt ready. Use -v to print it."
 fi
 
 # Run Claude

@@ -139,7 +139,8 @@ export async function saveSessionSummary(
 ): Promise<void> {
   const supabase = (await createClient()) as ChatSupabaseClient;
 
-  const { error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
     .from('chat_sessions')
     .update({
       session_summary: summary,

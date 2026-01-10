@@ -23,7 +23,7 @@ interface MicPermissionPromptProps {
   /** Current permission status */
   status: MicPermissionStatus;
   /** Callback to request permission */
-  onRequestPermission: () => Promise<void>;
+  onRequestPermission: () => void | Promise<void>;
   /** Callback when permission is granted */
   onPermissionGranted?: () => void;
   /** Whether currently requesting permission */

@@ -91,7 +91,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Check if session exists for this project (single shared session)
-    const { data: existingSession, error: fetchError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existingSession, error: fetchError } = await (supabase as any)
       .from('chat_sessions')
       .select('id, project_id, contractor_id, title, phase, extracted_data, created_at, updated_at')
       .eq('project_id', projectId)
@@ -114,7 +115,8 @@ export async function GET(request: Request, { params }: RouteParams) {
         extracted_data: {},
       };
 
-      const { data: newSession, error: createError } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: newSession, error: createError } = await (supabase as any)
         .from('chat_sessions')
         .insert(insertPayload)
         .select()
@@ -130,7 +132,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     const typedSession = session as ChatSessionRow;
     let messages: ChatMessageRow[] | null = null;
     if (includeMessages) {
-      const { data: sessionMessages, error: messagesError } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: sessionMessages, error: messagesError } = await (supabase as any)
         .from('chat_messages')
         .select('id, role, content, metadata, created_at')
         .eq('session_id', typedSession.id)

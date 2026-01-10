@@ -208,7 +208,8 @@ export async function POST(request: NextRequest) {
       outcome_highlights: outcome_highlights ?? null,
     };
 
-    const { data: project, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: project, error } = await (supabase as any)
       .from('projects')
       .insert(insertPayload)
       .select('*')

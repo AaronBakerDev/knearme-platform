@@ -254,7 +254,8 @@ export async function loadConversationContext(
   const projectData = await loadProjectContext(supabase, projectId);
 
   // 2. Get message count from session
-  const { data: session, error: sessionError } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: session, error: sessionError } = await (supabase as any)
     .from('chat_sessions')
     .select('message_count, session_summary, estimated_tokens')
     .eq('id', sessionId)
@@ -332,7 +333,8 @@ async function loadProjectContext(
   supabase: ChatSupabaseClient,
   projectId: string
 ): Promise<ProjectContextData> {
-  const { data: project, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: project, error } = await (supabase as any)
     .from('projects')
     .select(
       `
@@ -399,7 +401,8 @@ async function loadAllMessages(
   supabase: ChatSupabaseClient,
   sessionId: string
 ): Promise<UIMessage[]> {
-  const { data: messages, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: messages, error } = await (supabase as any)
     .from('chat_messages')
     .select('id, role, content, metadata, created_at')
     .eq('session_id', sessionId)
@@ -430,7 +433,8 @@ async function loadRecentMessages(
   limit: number
 ): Promise<UIMessage[]> {
   // Load recent messages in descending order, then reverse
-  const { data: messages, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: messages, error } = await (supabase as any)
     .from('chat_messages')
     .select('id, role, content, metadata, created_at')
     .eq('session_id', sessionId)
@@ -498,7 +502,8 @@ export async function updateSessionMessageCount(
 ): Promise<void> {
   const supabase = (await createClient()) as ChatSupabaseClient;
 
-  const { error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
     .from('chat_sessions')
     .update({
       message_count: newCount,

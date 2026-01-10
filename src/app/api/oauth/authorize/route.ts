@@ -121,7 +121,8 @@ export async function GET(request: NextRequest) {
   }
 
   // Get contractor profile for the authenticated user
-  const { data: contractor, error: contractorError } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: contractor, error: contractorError } = await (supabase as any)
     .from('contractors')
     .select('id, email')
     .eq('auth_user_id', user.id)

@@ -35,6 +35,7 @@ import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { google } from '@ai-sdk/google';
 import { isGoogleAIEnabled, AI_MODELS } from '@/lib/ai/providers';
+import { withCircuitBreaker } from '@/lib/agents/circuit-breaker';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { getTradeConfig } from '@/lib/trades/config';
 import { logger } from '@/lib/logging';
@@ -218,13 +219,17 @@ ${message}`
     : `MESSAGE TO EXTRACT FROM:
 ${message}`;
 
-  const { output: object } = await generateText({
-    model: google(AI_MODELS.generation),
-    output: Output.object({ schema: ExtractionSchema }),
-    system: systemPrompt,
-    prompt: contextPrompt,
-    maxOutputTokens: 2048, // Increased from 1000 - structured response needs room for all fields
-    temperature: 0.2, // Low temperature for consistent extraction
+  // Wrap AI call with circuit breaker for resilience
+  // @see /docs/philosophy/operational-excellence.md - Resilience Strategy
+  const { output: object } = await withCircuitBreaker('story-extractor', async () => {
+    return generateText({
+      model: google(AI_MODELS.generation),
+      output: Output.object({ schema: ExtractionSchema }),
+      system: systemPrompt,
+      prompt: contextPrompt,
+      maxOutputTokens: 2048, // Increased from 1000 - structured response needs room for all fields
+      temperature: 0.2, // Low temperature for consistent extraction
+    });
   });
 
   // Handle null output (schema validation failure)

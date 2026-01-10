@@ -43,6 +43,7 @@ import {
 import { resolveOnboardingContact } from '@/lib/agents/discovery/contact-resolution';
 import { parseLocationFromAddress, type DiscoveredBusiness } from '@/lib/tools/business-discovery';
 import { getChatModel, isGoogleAIEnabled } from '@/lib/ai/providers';
+import { canExecute, recordSuccess, recordFailure } from '@/lib/agents/circuit-breaker';
 import { logger } from '@/lib/logging';
 import type { Database, Json } from '@/types/database';
 
@@ -697,6 +698,20 @@ export async function POST(request: Request) {
     // @see /docs/specs/typeform-onboarding-spec.md - Preventing duplicate search results
     const activeTools = getActiveDiscoveryTools(mergedState);
 
+    // Circuit breaker pre-flight check for streaming operations
+    // Streaming can't be wrapped with withCircuitBreaker(), so we check before and record after
+    // @see /docs/philosophy/operational-excellence.md - Resilience Strategy
+    if (!canExecute('discovery')) {
+      logger.warn('[Onboarding] Circuit breaker open, rejecting request');
+      return NextResponse.json(
+        {
+          error: 'Service temporarily unavailable. Please try again in a moment.',
+          circuitOpen: true,
+        },
+        { status: 503 }
+      );
+    }
+
     const result = streamText({
       model: getChatModel(),
       system: systemPrompt,
@@ -755,11 +770,16 @@ export async function POST(request: Request) {
             state: updatedState,
           });
         }
+
+        // Record success for circuit breaker - stream completed without error
+        recordSuccess('discovery');
       },
     });
 
     return result.toUIMessageStreamResponse({ sendSources: true });
   } catch (error) {
+    // Record failure for circuit breaker tracking
+    recordFailure('discovery', error instanceof Error ? error : new Error(String(error)));
     logger.error('Onboarding error', { error });
     return NextResponse.json(
       { error: 'Something went wrong. Please try again.' },

@@ -4,11 +4,18 @@
     "description": "Template for creating Ralph-compatible PRD files",
     "created": "2026-01-08",
     "version": "1.0.0",
-    "author": "FixMyBrick Team"
+    "author": "Knearme Team"
   },
   "config": {
     "priority_order": ["critical", "high", "medium", "low"],
-    "categories": ["architectural", "integration", "functional", "ui", "testing", "documentation"]
+    "categories": [
+      "architectural",
+      "integration",
+      "functional",
+      "ui",
+      "testing",
+      "documentation"
+    ]
   },
   "features": [
     {

@@ -16,7 +16,9 @@
 
 import { generateText, Output, type FlexibleSchema, type UserModelMessage, type TextPart, type ImagePart } from 'ai';
 import { google } from '@ai-sdk/google';
+import { z } from 'zod';
 import { AI_MODELS, isGoogleAIEnabled } from '@/lib/ai/providers';
+import { withCircuitBreaker } from '@/lib/agents/circuit-breaker';
 import type { ProjectImageState } from '../types';
 import { downloadProjectImage } from '@/lib/storage/upload.server';
 import { logger } from '@/lib/logging';
@@ -55,14 +57,108 @@ const DEFAULT_TIMEOUT = 30000; // 30 seconds
 const DEFAULT_MAX_TOKENS = 2048;
 
 // ============================================================================
+// Response Validation
+// ============================================================================
+
+/**
+ * Base schema for validating subagent responses.
+ * Uses safeParse to catch malformed AI responses gracefully.
+ *
+ * All subagent responses must have at minimum:
+ * - success: boolean indicating if the subagent completed its task
+ * - confidence: number between 0-1 indicating certainty
+ *
+ * Optional fields that may be present:
+ * - stateUpdates: partial state updates from story agent
+ * - message: optional message to display
+ */
+const BaseSubagentResultSchema = z.object({
+  success: z.boolean().optional().default(true),
+  confidence: z.number().min(0).max(1).optional(),
+  stateUpdates: z.record(z.string(), z.unknown()).optional(),
+  message: z.string().optional(),
+}).passthrough(); // Allow additional fields from specific subagent schemas
+
+// ============================================================================
 // Multimodal Message Building
 // ============================================================================
+
+/** Timeout for individual image downloads (10 seconds) */
+const IMAGE_DOWNLOAD_TIMEOUT = 10000;
+
+/** Maximum concurrent image downloads to avoid overwhelming storage service */
+const MAX_PARALLEL_DOWNLOADS = 5;
+
+/**
+ * Download result with metadata for parallel processing
+ */
+interface ImageDownloadResult {
+  success: boolean;
+  image?: ProjectImageState;
+  data?: Buffer | Uint8Array;
+  contentType?: string;
+  error?: string;
+}
+
+/**
+ * Download an image with timeout protection.
+ * Returns error result instead of throwing on failure.
+ */
+async function downloadWithTimeout(
+  storagePath: string,
+  timeout: number
+): Promise<ImageDownloadResult> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    // Note: downloadProjectImage doesn't support AbortSignal natively,
+    // so we race it against a timeout promise
+    const downloadPromise = downloadProjectImage(storagePath);
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Download timeout'));
+      }, timeout);
+    });
+
+    const result = await Promise.race([downloadPromise, timeoutPromise]);
+    clearTimeout(timeoutId);
+
+    if ('error' in result) {
+      return { success: false, error: result.error };
+    }
+
+    return {
+      success: true,
+      data: result.data,
+      contentType: result.contentType,
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    const isTimeout = error instanceof Error &&
+      (error.name === 'AbortError' || error.message === 'Download timeout');
+
+    if (isTimeout) {
+      logger.warn('[buildMultimodalMessage] Download timeout', { storagePath });
+      return { success: false, error: 'Download timeout' };
+    }
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
 
 /**
  * Build a multimodal message with text and images for the AI SDK.
  *
  * For the Story Agent, this enables true multimodal understanding—
  * the model sees images directly rather than just text descriptions.
+ *
+ * PERFORMANCE: Downloads images in parallel (up to MAX_PARALLEL_DOWNLOADS)
+ * with timeout protection to prevent slow image downloads from blocking
+ * the entire request.
  *
  * @param textPrompt - The text portion of the message
  * @param images - Optional array of images with URLs
@@ -87,33 +183,81 @@ async function buildMultimodalMessage(
     { type: 'text', text: textPrompt },
   ];
 
-  // Add each image as an ImagePart
+  // Separate images that need downloading from those that can use URLs directly
+  const imagesToDownload: { image: ProjectImageState; storagePath: string }[] = [];
+  const urlImages: ProjectImageState[] = [];
+
   for (const img of images) {
     const shouldDownload =
       Boolean(img.storagePath) &&
       (img.bucket === 'project-images-draft' || (img.url?.startsWith('/api/') ?? false));
 
     if (shouldDownload && img.storagePath) {
-      const downloadResult = await downloadProjectImage(img.storagePath);
-      if (!('error' in downloadResult)) {
-        content.push({
-          type: 'image',
-          image: downloadResult.data,
-          ...(downloadResult.contentType ? { mediaType: downloadResult.contentType } : {}),
-        });
-        continue;
-      }
-      logger.warn('[buildMultimodalMessage] Draft image download failed', {
-        error: downloadResult.error,
-      });
+      imagesToDownload.push({ image: img, storagePath: img.storagePath });
+    } else if (img.url && !img.url.startsWith('/api/')) {
+      urlImages.push(img);
+    }
+  }
+
+  // Download images in parallel with timeout, limited to MAX_PARALLEL_DOWNLOADS
+  if (imagesToDownload.length > 0) {
+    // Process in batches to limit concurrency
+    const batches = [];
+    for (let i = 0; i < imagesToDownload.length; i += MAX_PARALLEL_DOWNLOADS) {
+      batches.push(imagesToDownload.slice(i, i + MAX_PARALLEL_DOWNLOADS));
     }
 
-    if (img.url && !img.url.startsWith('/api/')) {
-      content.push({
-        type: 'image',
-        image: img.url,
+    for (const batch of batches) {
+      const downloadPromises = batch.map(async ({ image, storagePath }) => {
+        const result = await downloadWithTimeout(storagePath, IMAGE_DOWNLOAD_TIMEOUT);
+        return { image, result };
       });
+
+      const batchResults = await Promise.allSettled(downloadPromises);
+
+      for (const settledResult of batchResults) {
+        if (settledResult.status === 'rejected') {
+          logger.warn('[buildMultimodalMessage] Parallel download rejected', {
+            reason: settledResult.reason,
+          });
+          continue;
+        }
+
+        const { image, result } = settledResult.value;
+
+        if (result.success && result.data) {
+          content.push({
+            type: 'image',
+            image: result.data,
+            ...(result.contentType ? { mediaType: result.contentType } : {}),
+          });
+        } else {
+          // Fallback to URL if download failed and URL is available
+          if (image.url && !image.url.startsWith('/api/')) {
+            logger.info('[buildMultimodalMessage] Falling back to URL after download failure', {
+              storagePath: image.storagePath,
+            });
+            content.push({
+              type: 'image',
+              image: image.url,
+            });
+          } else {
+            logger.warn('[buildMultimodalMessage] Image download failed, no fallback URL', {
+              storagePath: image.storagePath,
+              error: result.error,
+            });
+          }
+        }
+      }
     }
+  }
+
+  // Add URL-based images directly
+  for (const img of urlImages) {
+    content.push({
+      type: 'image',
+      image: img.url!,
+    });
   }
 
   return {
@@ -243,35 +387,66 @@ export async function spawnSubagent<T extends SubagentType>(
     // text-only vs text+images automatically.
     //
     // TYPE SAFETY NOTE: TypeScript can't narrow the union of Zod schemas
-    // based on the `type` parameter, so we cast to the expected flexible schema.
-    const schemaTyped = config.schema as FlexibleSchema<SubagentResultType>;
+    // based on the `type` parameter, so we cast through unknown to the expected type.
+    // This is safe because the schemas are properly typed in each agent's definition.
+    const schemaTyped = config.schema as unknown as FlexibleSchema<SubagentResultType>;
 
     // Story Agent gets images passed for vision understanding; others get text only
     const images = type === 'story' ? context.images : undefined;
 
-    // Call generateText with structured output
-    const { output: result } = await generateText({
-      model: google(options.model ?? AI_MODELS.generation),
-      output: Output.object<SubagentResultType>({ schema: schemaTyped }),
-      system: config.prompt,
-      messages: [await buildMultimodalMessage(userPrompt, images)],
-      maxOutputTokens,
-      temperature,
-      abortSignal: controller.signal,
+    // Build the message before the circuit breaker call
+    // (async prep work that doesn't need protection)
+    const userMessage = await buildMultimodalMessage(userPrompt, images);
+
+    // Call generateText with structured output, wrapped in circuit breaker
+    // Each subagent type has its own circuit breaker for independent failure tracking
+    // @see /docs/philosophy/operational-excellence.md - Resilience Strategy
+    const { output: result } = await withCircuitBreaker(type, async () => {
+      return generateText({
+        model: google(options.model ?? AI_MODELS.generation),
+        output: Output.object<SubagentResultType>({ schema: schemaTyped }),
+        system: config.prompt,
+        messages: [userMessage],
+        maxOutputTokens,
+        temperature,
+        abortSignal: controller.signal,
+      });
     });
 
-    // Handle null result (schema validation failure)
+    // Handle null result (schema validation failure from AI SDK)
     if (!result) {
       return createErrorResult(
         type,
-        'Subagent returned invalid response',
+        'Subagent returned null response',
         true
       ) as SubagentResultType;
     }
 
-    const confidence = Number.isFinite(result.confidence) ? result.confidence : 0.5;
+    // Validate response structure using safeParse for resilience
+    // This catches malformed AI responses that pass the AI SDK schema
+    // but don't match our expected structure
+    const validation = BaseSubagentResultSchema.safeParse(result);
+    if (!validation.success) {
+      logger.warn('[spawnSubagent] Invalid response structure', {
+        subagent: type,
+        errors: validation.error.issues, // Zod v4 uses 'issues' instead of 'errors'
+        rawResult: JSON.stringify(result).slice(0, 200), // Truncate for logs
+      });
+      return createErrorResult(
+        type,
+        'Subagent returned invalid response structure',
+        true
+      ) as SubagentResultType;
+    }
 
-    if (!Number.isFinite(result.confidence)) {
+    // Extract validated result and handle missing confidence
+    const validatedResult = validation.data;
+    const hasValidConfidence =
+      typeof validatedResult.confidence === 'number' &&
+      Number.isFinite(validatedResult.confidence);
+    const confidence = hasValidConfidence ? validatedResult.confidence : 0.5;
+
+    if (!hasValidConfidence) {
       logger.warn('[spawnSubagent] Missing confidence score, using fallback', {
         subagent: type,
       });
@@ -280,7 +455,7 @@ export async function spawnSubagent<T extends SubagentType>(
     const enrichedResult = {
       ...result,
       success: true,
-      confidence, // Conservative fallback
+      confidence, // Use validated or fallback
     };
 
     return enrichedResult as SubagentResultType;

@@ -1,5 +1,23 @@
 import type { WebSearchAgentResult } from '../web-search';
 
+/**
+ * Web enrichment data gathered in parallel with DataForSEO search.
+ * This provides richer context (website, years in business, about info).
+ */
+export interface WebEnrichmentData {
+  website?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  aboutDescription?: string;
+  yearsInBusiness?: string;
+  services?: string[];
+  specialties?: string[];
+  serviceAreas?: string[];
+  sources?: Array<{ url: string; title?: string }>;
+}
+
 export interface SearchBusinessResult {
   found: boolean;
   message: string;
@@ -16,6 +34,8 @@ export interface SearchBusinessResult {
     coordinates: { lat: number; lng: number } | null;
   }>;
   error?: boolean;
+  /** Web enrichment data gathered in parallel - provides richer context */
+  webEnrichment?: WebEnrichmentData;
 }
 
 export interface ConfirmBusinessResult {

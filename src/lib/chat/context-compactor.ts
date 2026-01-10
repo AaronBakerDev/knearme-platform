@@ -149,7 +149,8 @@ export async function saveConversationSummary(
   const supabase = (await createClient()) as ChatSupabaseClient;
 
   // Update project with summary
-  const { error: projectError } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: projectError } = await (supabase as any)
     .from('projects')
     .update({
       conversation_summary: summary,
@@ -165,7 +166,8 @@ export async function saveConversationSummary(
   }
 
   // Update session with summary
-  const { error: sessionError } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: sessionError } = await (supabase as any)
     .from('chat_sessions')
     .update({
       session_summary: summary,
@@ -190,7 +192,8 @@ export async function saveConversationSummary(
 export async function needsCompaction(sessionId: string): Promise<boolean> {
   const supabase = (await createClient()) as ChatSupabaseClient;
 
-  const { data: session, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: session, error } = await (supabase as any)
     .from('chat_sessions')
     .select('message_count, session_summary')
     .eq('id', sessionId)

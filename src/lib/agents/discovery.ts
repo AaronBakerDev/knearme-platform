@@ -62,26 +62,79 @@ import type { DiscoveryContext, DiscoveryResult, DiscoveryState } from './discov
 // =============================================================================
 
 /**
- * Execute search business
+ * Execute search business with parallel web enrichment.
+ *
+ * Runs DataForSEO lookup AND web search in parallel using Promise.all
+ * to provide richer results faster. Web search adds context like:
+ * - Website, about page description
+ * - Years in business
+ * - Services and specialties
+ *
+ * @see /docs/philosophy/agentic-first-experience.md - Parallel data gathering
  */
 async function executeShowBusinessSearchResults(
   params: z.infer<typeof showBusinessSearchResultsSchema>
 ): Promise<SearchBusinessResult> {
-  try {
-    const results = await searchBusinesses(params.businessName, params.location, 5);
+  const query = params.location
+    ? `${params.businessName} ${params.location}`
+    : params.businessName;
 
-    if (results.length === 0) {
+  try {
+    // Run BOTH DataForSEO and web search in parallel for faster, richer results
+    const [dataForSeoResults, webSearchResult] = await Promise.all([
+      // DataForSEO: structured Google Business Profile data
+      withCircuitBreaker('dataforseo', async () => {
+        return searchBusinesses(params.businessName, params.location, 5);
+      }).catch((error) => {
+        baseLogger.warn('[DiscoveryAgent] DataForSEO search failed, continuing with web search', { error });
+        return [] as Awaited<ReturnType<typeof searchBusinesses>>;
+      }),
+
+      // Web search: enrichment data (website, about, years in business)
+      runWebSearchAgent({ query }).catch((error) => {
+        baseLogger.warn('[DiscoveryAgent] Web search enrichment failed, continuing with DataForSEO', { error });
+        return null;
+      }),
+    ]);
+
+    baseLogger.info('[DiscoveryAgent] Parallel search completed', {
+      dataForSeoCount: dataForSeoResults.length,
+      webSearchSuccess: !!webSearchResult?.businessInfo,
+    });
+
+    // Build web enrichment data from web search result
+    const webEnrichment = webSearchResult?.businessInfo
+      ? {
+          website: webSearchResult.businessInfo.website,
+          phone: webSearchResult.businessInfo.phone,
+          address: webSearchResult.businessInfo.address,
+          city: webSearchResult.businessInfo.city,
+          state: webSearchResult.businessInfo.state,
+          aboutDescription: webSearchResult.businessInfo.aboutDescription,
+          yearsInBusiness: webSearchResult.businessInfo.yearsInBusiness,
+          services: webSearchResult.businessInfo.services,
+          specialties: webSearchResult.businessInfo.specialties,
+          serviceAreas: webSearchResult.businessInfo.serviceAreas,
+          sources: webSearchResult.sources,
+        }
+      : undefined;
+
+    if (dataForSeoResults.length === 0) {
+      // No DataForSEO results, but we may have web enrichment
       return {
         found: false,
-        message: 'No businesses found matching that name and location.',
+        message: webEnrichment
+          ? 'No Google listing found, but I found some info online.'
+          : 'No businesses found matching that name and location.',
         results: [],
+        webEnrichment,
       };
     }
 
     return {
       found: true,
-      message: `Found ${results.length} potential match${results.length > 1 ? 'es' : ''}.`,
-      results: results.map((r) => ({
+      message: `Found ${dataForSeoResults.length} potential match${dataForSeoResults.length > 1 ? 'es' : ''}.`,
+      results: dataForSeoResults.map((r) => ({
         name: r.name,
         address: r.address,
         phone: r.phone,
@@ -93,6 +146,7 @@ async function executeShowBusinessSearchResults(
         googleCid: r.googleCid,
         coordinates: r.coordinates ?? null,
       })),
+      webEnrichment,
     };
   } catch (error) {
     baseLogger.error('[DiscoveryAgent] Business search failed', { error });
@@ -138,7 +192,11 @@ async function executeFetchReviews(
 ): Promise<FetchReviewsResult> {
   try {
     const maxReviews = params.maxReviews ?? 10;
-    const reviewsResult = await getBusinessReviews(params.googleCid, 'United States', maxReviews);
+    // Wrap external API call with circuit breaker for resilience
+    // DataForSEO reviews API has rate limits and can fail under load
+    const reviewsResult = await withCircuitBreaker('dataforseo', async () => {
+      return getBusinessReviews(params.googleCid, 'United States', maxReviews);
+    });
 
     if (!reviewsResult) {
       return {
@@ -208,7 +266,7 @@ async function executeSaveProfile(
 }
 
 const showBusinessSearchResultsTool = tool({
-  description: 'Search for a business by name and location to find their Google listing',
+  description: 'Search for a business by name and location. Automatically runs Google lookup AND web search in parallel for rich results including website, years in business, about info.',
   inputSchema: showBusinessSearchResultsSchema,
   execute: executeShowBusinessSearchResults,
 });
@@ -226,7 +284,7 @@ const saveProfileTool = tool({
 });
 
 const webSearchBusinessTool = tool({
-  description: 'Use web search to find a business online when listing lookup fails',
+  description: 'Manual web search fallback. Use this ONLY if user says "none of these" and you need to find their business details directly from the web.',
   inputSchema: webSearchBusinessSchema,
   execute: async (params) => {
     const query = params.location

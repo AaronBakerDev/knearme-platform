@@ -23,7 +23,9 @@ import { logger } from '@/lib/logging';
 export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 
 /**
- * Agent types that have their own circuit breaker
+ * Agent types that have their own circuit breaker.
+ *
+ * Includes both high-level agents and subagent types used by the spawn infrastructure.
  */
 export type AgentType =
   | 'discovery'
@@ -32,7 +34,14 @@ export type AgentType =
   | 'quality-checker'
   | 'layout-composer'
   | 'ui-composer'
-  | 'orchestrator';
+  | 'orchestrator'
+  // Subagent types (used by spawnSubagent)
+  | 'story'
+  | 'design'
+  | 'quality'
+  // External API types
+  | 'dataforseo'
+  | 'storage';
 
 interface CircuitBreakerConfig {
   /** Failures before opening circuit */
@@ -84,6 +93,28 @@ const AGENT_CONFIGS: Partial<Record<AgentType, Partial<CircuitBreakerConfig>>> =
   'discovery': {
     failureThreshold: 5,  // External API, more lenient
     timeout: 30000,       // Faster recovery attempt
+  },
+  // Subagent types (used by spawnSubagent infrastructure)
+  'story': {
+    failureThreshold: 3,  // Story extraction is critical for flow
+    timeout: 60000,       // 1 minute recovery
+  },
+  'design': {
+    failureThreshold: 5,  // Design is less critical, more lenient
+    timeout: 60000,
+  },
+  'quality': {
+    failureThreshold: 5,  // Advisory, can fail gracefully
+    timeout: 60000,
+  },
+  // External API types
+  'dataforseo': {
+    failureThreshold: 3,  // External API, strict
+    timeout: 30000,       // Faster recovery for external
+  },
+  'storage': {
+    failureThreshold: 5,
+    timeout: 30000,
   },
 };
 

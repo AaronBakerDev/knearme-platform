@@ -119,12 +119,13 @@ export async function GET() {
       const supabase = createAdminClient() as SitemapSupabaseClient;
 
       // Review articles from database (Learning center)
-      const { data: reviewArticles } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: reviewArticles } = await (supabase as any)
         .from('review_articles')
         .select('slug, generated_at')
         .eq('status', 'published');
 
-      const reviewList = reviewArticles ?? [];
+      const reviewList = (reviewArticles ?? []) as ReviewArticleRow[];
 
       reviewList.forEach((article) => {
         urls.push(
@@ -138,7 +139,8 @@ export async function GET() {
       });
 
       // Published projects
-      const { data: projects } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: projects } = await (supabase as any)
         .from('projects')
         .select('slug, city_slug, project_type_slug, updated_at, published_at')
         .eq('status', 'published')

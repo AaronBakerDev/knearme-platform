@@ -42,7 +42,7 @@ interface ChatInputFooterProps {
   isLoading: boolean;
   showMicPermissionPrompt: boolean;
   micPermissionStatus: MicPermissionStatus;
-  onRequestMicPermission: () => void;
+  onRequestMicPermission: () => void | Promise<void>;
   isRequestingMicPermission: boolean;
   voiceMode: VoiceInteractionMode;
   liveVoiceSession: LiveVoiceSessionControls;
@@ -136,7 +136,7 @@ export function ChatInputFooter({
             {showMicPermissionPrompt && (
               <MicPermissionPrompt
                 status={micPermissionStatus}
-                onRequestPermission={onRequestMicPermission}
+                onRequestPermission={async () => { await onRequestMicPermission(); }}
                 isRequesting={isRequestingMicPermission}
                 compact
                 className="mb-2"

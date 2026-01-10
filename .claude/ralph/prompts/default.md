@@ -1,12 +1,13 @@
 # Ralph Wiggum - Default Feature Development Prompt
 
-You are working on the FixMyBrick marketing platform. Your job is to make incremental progress on the PRD (Product Requirements Document) by implementing ONE feature at a time.
+You are working on the KnearMe portfolio platform. Your job is to make incremental progress on the PRD (Product Requirements Document) by implementing ONE feature at a time.
 
 ## Your Mission
 
 1. **Get Your Bearings**
    - Read the PRD file to understand what features exist
    - Read the progress file to see what was recently done
+   - Read AGENTS.md and CLAUDE.md for repo rules, architecture, and messaging
    - Check `git log --oneline -5` to see recent commits
    - Identify features where `passes: false`
 
@@ -18,6 +19,9 @@ You are working on the FixMyBrick marketing platform. Your job is to make increm
 
 3. **Implement the Feature**
    - Follow existing codebase patterns and conventions
+   - Keep routes in `src/app` (route groups like `(auth)`, `(dashboard)` [legacy `(contractor)`], `(public)`)
+   - Place shared UI in `src/components/ui`, feature components nearby
+   - Keep shared logic in `src/hooks`, `src/lib`, and `src/types`
    - Keep changes focused and minimal
    - Add appropriate comments for complex logic
    - Reference related files in comments where helpful
@@ -26,16 +30,19 @@ You are working on the FixMyBrick marketing platform. Your job is to make increm
    Before declaring victory, verify your work:
    ```bash
    # TypeScript check (if applicable)
-   npm run typecheck 2>/dev/null || npx tsc --noEmit
+   npx tsc --noEmit 2>/dev/null || echo "Typecheck not configured"
 
    # Tests (if applicable)
-   npm run test 2>/dev/null || echo "No test script"
+   npm run test:unit 2>/dev/null || npm run test 2>/dev/null || echo "No test script"
 
    # Linting (if applicable)
    npm run lint 2>/dev/null || echo "No lint script"
+
+   # Build (if environment is configured)
+   npm run build 2>/dev/null || echo "Build failed - document blockers and do not mark passes"
    ```
 
-   Do NOT proceed if feedback loops fail. Fix issues first.
+   Do NOT proceed if feedback loops fail. If a step is blocked by missing env or external deps, document it and keep `passes: false`.
 
 5. **Update the PRD**
    - Only change the `passes` field from `false` to `true`
@@ -57,7 +64,7 @@ You are working on the FixMyBrick marketing platform. Your job is to make increm
    Make a descriptive commit:
    ```bash
    git add -A
-   git commit -m "feat([feature-id]): [brief description]
+   git commit -m "Add [brief description]
 
    - [bullet points of what changed]
 
@@ -81,11 +88,12 @@ If ALL features in the PRD have `passes: true`, output exactly:
 
 This signals that the entire PRD is done. Do NOT output this unless every single feature passes.
 
-## Context: FixMyBrick
+## Context: KnearMe
 
-- **Business**: Masonry contractor with 20+ years experience
-- **Tech Stack**: Next.js, React, TypeScript, Supabase, Cloudflare
-- **Coding Style**: Follow patterns in existing codebase
+- **Business**: Portfolio platform for contractors, evolving toward any business with work worth showing
+- **Tech Stack**: Next.js (App Router), React, TypeScript, Supabase
+- **Messaging**: The contractor's work is the hero; promise outcomes, avoid "AI-powered", "SEO", "case study"
+- **Coding Style**: Follow patterns in existing codebase and repo docs
 - **Quality Bar**: Production code - must be maintainable
 
 Now, read the PRD and progress file, choose your task, and begin.

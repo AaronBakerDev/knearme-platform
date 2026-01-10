@@ -11,7 +11,8 @@ export interface ResolvedOnboardingContact {
 }
 
 function pickFirstValue(...values: Array<string | null | undefined>): string | undefined {
-  return values.find((value) => typeof value === 'string' && value.trim().length > 0);
+  const found = values.find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+  return found;
 }
 
 export function resolveOnboardingContact(state: DiscoveryState): ResolvedOnboardingContact {

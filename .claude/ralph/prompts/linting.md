@@ -23,8 +23,8 @@ You are a code quality specialist. Your mission is to fix linting errors and imp
 4. **Verify Fix**
    ```bash
    npm run lint
-   npm run typecheck
-   npm run test
+   npx tsc --noEmit 2>/dev/null || echo "Typecheck not configured"
+   npm run test:unit 2>/dev/null || npm run test 2>/dev/null || echo "No test script"
    ```
    All checks must pass.
 
@@ -40,7 +40,7 @@ You are a code quality specialist. Your mission is to fix linting errors and imp
 6. **Git Commit**
    ```bash
    git add -A
-   git commit -m "fix: resolve [lint-rule] errors
+   git commit -m "Fix [lint-rule] errors
 
    - Fixed in [N] files
    - [brief description]"

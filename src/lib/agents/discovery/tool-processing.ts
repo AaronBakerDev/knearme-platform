@@ -70,6 +70,44 @@ export function processDiscoveryToolCalls(
             coordinates: null,
           }));
         }
+
+        // Process parallel web enrichment data (gathered alongside DataForSEO)
+        // This provides richer context like years in business, about description, etc.
+        if (result?.webEnrichment) {
+          const enrichment = result.webEnrichment;
+          state.webSearchInfo = {
+            aboutDescription: enrichment.aboutDescription,
+            website: enrichment.website,
+            phone: enrichment.phone,
+            address: enrichment.address,
+            city: enrichment.city,
+            state: enrichment.state,
+            yearsInBusiness: enrichment.yearsInBusiness,
+            specialties: enrichment.specialties,
+            serviceAreas: enrichment.serviceAreas,
+            services: enrichment.services,
+            sources: enrichment.sources,
+          };
+          // Fill in missing fields from web enrichment
+          if (enrichment.website && !state.website) {
+            state.website = enrichment.website;
+          }
+          if (enrichment.phone && !state.phone) {
+            state.phone = enrichment.phone;
+          }
+          if (enrichment.city && !state.city) {
+            state.city = enrichment.city;
+          }
+          if (enrichment.state && !state.state) {
+            state.state = enrichment.state;
+          }
+          if (enrichment.services && enrichment.services.length > 0 && state.services.length === 0) {
+            state.services = enrichment.services;
+          }
+          if (enrichment.serviceAreas && enrichment.serviceAreas.length > 0 && state.serviceAreas.length === 0) {
+            state.serviceAreas = enrichment.serviceAreas;
+          }
+        }
         break;
       }
 

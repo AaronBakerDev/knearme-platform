@@ -174,6 +174,9 @@ run_claude_iteration() {
     local prompt
     prompt=$(build_prompt)
 
+    log_info "Output log: $log_file"
+    log_info "If output is quiet, Claude may still be working."
+
     if [[ "$USE_SANDBOX" == "true" ]]; then
         if ! command -v docker &> /dev/null; then
             log_error "Docker not found. Install Docker Desktop or remove -s flag."
@@ -182,6 +185,10 @@ run_claude_iteration() {
         # Run in Docker sandbox with print mode for output capture
         docker sandbox run claude --permission-mode bypassPermissions -p "$prompt" 2>&1 | tee "$log_file"
     else
+        if ! command -v claude &> /dev/null; then
+            log_error "Claude CLI not found. Install it or use -s for Docker sandbox."
+            exit 1
+        fi
         # Run Claude in print mode (non-interactive)
         claude --permission-mode bypassPermissions -p "$prompt" 2>&1 | tee "$log_file"
     fi
@@ -310,6 +317,7 @@ fi
 echo ""
 log_info "Starting AFK Ralph loop..."
 log_info "Session log: $SESSION_LOG"
+log_info "Tip: watch output with tail -f $LOG_DIR/iteration-1.log"
 echo ""
 
 # Record start time

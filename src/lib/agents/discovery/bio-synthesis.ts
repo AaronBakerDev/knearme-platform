@@ -126,7 +126,7 @@ export async function synthesizeBio(input: BioSynthesisInput): Promise<BioSynthe
     const result = await generateText({
       model,
       prompt,
-      maxTokens: 1024,
+      maxOutputTokens: 1024,
     });
 
     // Parse JSON response
@@ -213,8 +213,9 @@ function extractHighlights(reviews?: DiscoveryReview[]): string[] {
     if (text.length < 100) return text;
     // Otherwise, try to find a sentence
     const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 10);
-    if (sentences.length > 0) {
-      return sentences[0].trim() + '.';
+    const firstSentence = sentences[0];
+    if (firstSentence) {
+      return firstSentence.trim() + '.';
     }
     return text.slice(0, 100) + '...';
   });

@@ -83,7 +83,7 @@ async function findUniqueProfileSlug(
   let maxSuffix = 1;
   for (const slug of slugStrings) {
     const match = slug.match(new RegExp(`^${baseSlug}-(\\d+)$`));
-    if (match) {
+    if (match && match[1]) {
       maxSuffix = Math.max(maxSuffix, parseInt(match[1], 10));
     }
   }
@@ -191,7 +191,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Update contractor
-    const { data: updated, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: updated, error } = await (supabase as any)
       .from('contractors')
       .update(updatePayload)
       .eq('id', contractor.id)

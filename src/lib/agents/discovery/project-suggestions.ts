@@ -210,7 +210,10 @@ function isPortfolioSource(url: string, title?: string): boolean {
 function cleanPortfolioTitle(title?: string): string | null {
   if (!title) return null;
   // Remove site name suffixes like "| Company Name"
-  const cleaned = title.split(/\s*[|–-]\s*/)[0].trim();
+  const parts = title.split(/\s*[|–-]\s*/);
+  const firstPart = parts[0];
+  if (!firstPart) return null;
+  const cleaned = firstPart.trim();
   if (cleaned.length < 5) return null;
   return cleaned;
 }

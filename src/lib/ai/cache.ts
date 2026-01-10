@@ -127,11 +127,8 @@ export function logCacheUsage(
       savings: `${usage.savingsPercent}%`,
       costSaved: `$${usage.costSaved.toFixed(6)}`,
     });
-  } else {
-    logger.debug(`[Cache] ${operation} - no cache hit`, {
-      total: usage.total,
-    });
   }
+  // No-hit case doesn't need logging - it's the common path
 }
 
 // ============================================================================

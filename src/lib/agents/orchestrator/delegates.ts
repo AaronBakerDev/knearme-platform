@@ -45,7 +45,9 @@ export async function delegateToStoryAgent(
   }
 
   const storyResult = result as StoryAgentResult;
-  const newState = mergeProjectState(context.state, storyResult.stateUpdates);
+  // Use nullish coalescing to handle undefined stateUpdates safely
+  // Prevents crashes when AI response is malformed or missing stateUpdates
+  const newState = mergeProjectState(context.state, storyResult.stateUpdates ?? {});
 
   if (storyResult.narrative) {
     if (storyResult.narrative.title) newState.title = storyResult.narrative.title;
@@ -234,8 +236,8 @@ export function synthesizeResults(
 
     const result = delegation.result;
 
-    if ('stateUpdates' in result) {
-      state = mergeProjectState(state, result.stateUpdates);
+    if ('stateUpdates' in result && result.stateUpdates) {
+      state = mergeProjectState(state, result.stateUpdates ?? {});
       if ('narrative' in result && result.narrative?.title) {
         state.title = result.narrative.title;
       }

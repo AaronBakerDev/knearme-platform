@@ -85,7 +85,8 @@ export async function GET(request: Request) {
     const projectId = url.searchParams.get('project_id');
 
     // Build query - filter by contractor (RLS handles this too, but explicit is better)
-    let query = supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = (supabase as any)
       .from('chat_sessions')
       .select(`
         id,
@@ -169,7 +170,8 @@ export async function POST(request: Request) {
     const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Create the session with mode
-    const { data: session, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: session, error } = await (supabase as any)
       .from('chat_sessions')
       .insert({
         project_id,

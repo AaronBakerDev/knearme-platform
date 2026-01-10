@@ -199,7 +199,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           alt_text: img.alt_text ?? null,
           display_order: currentOrder++,
         };
-        const { data: imageRecord, error: insertError } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: imageRecord, error: insertError } = await (supabase as any)
           .from('project_images')
           .insert(insertPayload)
           .select('id')
@@ -236,7 +237,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         // Set hero image if this is the first image and no hero is set
         if (!typedProject.hero_image_id && uploadedImages.length === 1) {
           const heroUpdate: ProjectUpdate = { hero_image_id: imageRecordData.id };
-          await supabase
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any)
             .from('projects')
             .update(heroUpdate)
             .eq('id', projectId)

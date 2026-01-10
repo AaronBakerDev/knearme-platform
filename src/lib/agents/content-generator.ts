@@ -15,6 +15,7 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getGenerationModel, isGoogleAIEnabled, OUTPUT_LIMITS } from '@/lib/ai/providers';
+import { withCircuitBreaker } from '@/lib/agents/circuit-breaker';
 import { formatProjectLocation } from '@/lib/utils/location';
 import type { SharedProjectState, ContentGenerationResult } from './types';
 import { logger } from '@/lib/logging';
@@ -228,20 +229,25 @@ export async function generateContent(
   }
 
   try {
-    const { object } = await generateObject({
-      model: getGenerationModel(),
-      schema: ContentGenerationSchema,
-      system: CONTENT_GENERATION_SYSTEM_PROMPT,
-      prompt: buildContentPrompt(state),
-      maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
-      temperature: 0.7, // Some creativity for engaging content
-      providerOptions: {
-        google: {
-          thinkingConfig: {
-            thinkingLevel: 'medium',
+    // Wrap AI call with circuit breaker for resilience
+    // Uses 'content-generator' agent type with failureThreshold: 3
+    // @see /docs/philosophy/operational-excellence.md - Resilience Strategy
+    const { object } = await withCircuitBreaker('content-generator', async () => {
+      return generateObject({
+        model: getGenerationModel(),
+        schema: ContentGenerationSchema,
+        system: CONTENT_GENERATION_SYSTEM_PROMPT,
+        prompt: buildContentPrompt(state),
+        maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
+        temperature: 0.7, // Some creativity for engaging content
+        providerOptions: {
+          google: {
+            thinkingConfig: {
+              thinkingLevel: 'medium',
+            },
           },
         },
-      },
+      });
     });
 
     // Post-process to ensure constraints are met

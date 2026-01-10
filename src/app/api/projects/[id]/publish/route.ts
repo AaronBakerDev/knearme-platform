@@ -71,7 +71,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     let planLimitMessage: string | null = null;
 
     if (publishedProjectLimit !== null) {
-      const { count, error: countError } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { count, error: countError } = await (supabase as any)
         .from('projects')
         .select('id', { count: 'exact', head: true })
         .eq('contractor_id', contractor.id)
@@ -196,7 +197,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update to published
-    const { data: published, error: updateError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: published, error: updateError } = await (supabase as any)
       .from('projects')
       .update(updatePayload)
       .eq('id', id)
@@ -262,7 +264,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Verify project exists and is published
-    const { data: project, error: fetchError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: project, error: fetchError } = await (supabase as any)
       .from('projects')
       .select('id, status')
       .eq('id', id)
@@ -280,7 +283,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Revert to draft
-    const { data: unpublished, error: updateError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: unpublished, error: updateError } = await (supabase as any)
       .from('projects')
       .update({
         status: 'draft',

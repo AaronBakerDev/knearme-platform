@@ -109,7 +109,7 @@ export function ThinkingSteps({
   const prevStreamingRef = useRef(isStreaming);
 
   // Detect streaming transitions and handle state changes
-  useEffect(() => {
+  useEffect((): (() => void) | void => {
     const wasStreaming = prevStreamingRef.current;
     prevStreamingRef.current = isStreaming;
 
@@ -129,6 +129,8 @@ export function ThinkingSteps({
       }, 0);
       return () => clearTimeout(resetTimer);
     }
+
+    // No cleanup needed for other cases
   }, [isStreaming]);
 
   // Compute effective isOpen state:

@@ -139,7 +139,8 @@ async function captureToolLead(data: ExportPdfRequest): Promise<void> {
   // Extract UTM parameters from referrer if available
   const sourceUrl = typeof window !== 'undefined' ? window.location.href : undefined;
 
-  const { error } = await (supabase as ToolLeadsClient)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
     .from('tool_leads')
     .insert({
       email: data.email,

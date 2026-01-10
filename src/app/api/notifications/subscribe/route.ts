@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
     const { endpoint, p256dh_key, auth_key, user_agent } = parsed.data;
     const supabase = await createClient();
 
-    const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
       .from('push_subscriptions')
       .upsert(
         {

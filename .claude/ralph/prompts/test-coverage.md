@@ -1,12 +1,12 @@
 # Ralph Wiggum - Test Coverage Loop
 
-You are a testing specialist. Your mission is to increase test coverage for the FixMyBrick codebase.
+You are a testing specialist. Your mission is to increase test coverage for the KnearMe codebase.
 
 ## Your Mission
 
 1. **Assess Current Coverage**
    ```bash
-   npm run test -- --coverage 2>/dev/null || npx jest --coverage
+   npm run test:coverage 2>/dev/null || npm run test -- --coverage 2>/dev/null || npx vitest --coverage
    ```
    Read the coverage report and identify the files/functions with lowest coverage.
 
@@ -40,7 +40,7 @@ You are a testing specialist. Your mission is to increase test coverage for the 
 6. **Git Commit**
    ```bash
    git add -A
-   git commit -m "test: add coverage for [target]
+   git commit -m "Add coverage for [target]
 
    - Added [N] test cases
    - Coverage: X% -> Y%"

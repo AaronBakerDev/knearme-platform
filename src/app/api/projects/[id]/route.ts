@@ -91,7 +91,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Use explicit relationship hint due to hero_image_id FK ambiguity
-    const { data: project, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: project, error } = await (supabase as any)
       .from('projects')
       .select('*, project_images!project_images_project_id_fkey(*)')
       .eq('id', id)
@@ -148,7 +149,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Verify project ownership first
-    const { data: existing, error: fetchError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existing, error: fetchError } = await (supabase as any)
       .from('projects')
       .select('id, contractor_id, title, city, state, project_type, description_manual, summary, challenge, solution, results, outcome_highlights, status')
       .eq('id', id)
@@ -229,7 +231,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update project - use explicit relationship hint due to hero_image_id FK ambiguity
-    const { data: project, error: updateError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: project, error: updateError } = await (supabase as any)
       .from('projects')
       .update(updatePayload)
       .eq('id', id)
@@ -267,7 +270,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Get image paths before deletion (for storage cleanup)
-    const { data: images } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: images } = await (supabase as any)
       .from('project_images')
       .select('storage_path')
       .eq('project_id', id);
@@ -275,7 +279,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const imagesList = (images ?? []) as Array<Pick<ProjectImage, 'storage_path'>>;
 
     // Delete project (cascades to images and interviews)
-    const { error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
       .from('projects')
       .delete()
       .eq('id', id)

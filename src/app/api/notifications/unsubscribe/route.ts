@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
 
     const { contractor, user } = auth;
     const supabase = (await createClient()) as SupabaseClient<Database>;
-    const { data: existing, error: fetchError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existing, error: fetchError } = await (supabase as any)
       .from('push_subscriptions')
       .select('id')
       .eq('contractor_id', contractor.id)
@@ -47,7 +48,8 @@ export async function POST(request: NextRequest) {
       return apiError('NOT_FOUND', 'Subscription not found');
     }
 
-    const { error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
       .from('push_subscriptions')
       .delete()
       .eq('id', existing.id);
