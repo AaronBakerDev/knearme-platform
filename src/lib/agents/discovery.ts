@@ -28,6 +28,7 @@ import { logger as baseLogger } from '@/lib/logging';
 import { withCircuitBreaker } from './circuit-breaker';
 import { createAgentLogger, createCorrelationContext } from '@/lib/observability/agent-logger';
 import { runWebSearchAgent } from './web-search';
+import { logCacheUsage, type GoogleProviderMetadata } from '@/lib/ai/cache';
 import { buildDiscoverySystemPrompt } from './discovery/prompts';
 import {
   confirmBusinessSchema,
@@ -201,6 +202,7 @@ async function executeSaveProfile(
       description: params.description,
       services: params.services,
       serviceAreas: params.serviceAreas || [],
+      hideAddress: params.hideAddress,
     },
   };
 }
@@ -266,6 +268,7 @@ async function executeShowProfileReveal(
       highlights: params.highlights,
       yearsInBusiness: params.yearsInBusiness,
       projectSuggestions: params.projectSuggestions,
+      hideAddress: params.hideAddress,
     },
   };
 }
@@ -307,6 +310,9 @@ export const discoveryTools = {
  *   }
  * );
  * ```
+ */
+/**
+ * @deprecated Use the streaming /api/onboarding runtime. Keep this for non-streaming tests only.
  */
 export async function runDiscoveryAgent(
   userMessage: string,
@@ -355,6 +361,9 @@ export async function runDiscoveryAgent(
       });
     });
 
+    // Track cache usage for cost monitoring (Gemini 2.5 implicit caching)
+    logCacheUsage('discovery-main', result.providerMetadata?.google as GoogleProviderMetadata);
+
     // Process tool calls and build updated state
     const updatedState = processDiscoveryToolCalls(currentState, result.toolResults);
 
@@ -397,6 +406,9 @@ export async function runDiscoveryAgent(
         });
       });
 
+      // Track cache usage for fallback web search
+      logCacheUsage('discovery-websearch', searchResult.providerMetadata?.google as GoogleProviderMetadata);
+
       if (searchResult.text && searchResult.text.trim().length > 0) {
         responseText = searchResult.text;
       }
@@ -426,6 +438,9 @@ export async function runDiscoveryAgent(
           stopWhen: stepCountIs(1),
         });
       });
+
+      // Track cache usage for retry
+      logCacheUsage('discovery-retry', retryResult.providerMetadata?.google as GoogleProviderMetadata);
 
       responseText = retryResult.text;
     }

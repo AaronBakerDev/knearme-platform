@@ -21,6 +21,7 @@ import {
 import { logger } from '@/lib/logging';
 import type { UIMessage } from 'ai';
 import type { ProjectContextData } from '@/lib/chat/context-loader';
+import type { ExtractedProjectData } from '@/lib/chat/chat-types';
 import type { Database, Project } from '@/types/database';
 
 interface SummarizeRequest {
@@ -92,12 +93,15 @@ export async function POST(request: Request) {
     const supabase = (await createClient()) as ChatSupabaseClient;
 
     // 3. Verify ownership of session and project
-    const { data: session, error: sessionError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: sessionData, error: sessionError } = await (supabase as any)
       .from('chat_sessions')
       .select('id, contractor_id, project_id')
       .eq('id', sessionId)
       .eq('contractor_id', auth.contractor.id)
       .single();
+
+    const session = sessionData as ChatSessionRow | null;
 
     if (sessionError || !session) {
       return NextResponse.json(
@@ -186,7 +190,7 @@ export async function POST(request: Request) {
       materials: projectDataRow.materials,
       techniques: projectDataRow.techniques,
       status: projectDataRow.status,
-      extractedData: projectDataRow.ai_context || {},
+      extractedData: (projectDataRow.ai_context || {}) as ExtractedProjectData,
       conversationSummary: null,
     };
 

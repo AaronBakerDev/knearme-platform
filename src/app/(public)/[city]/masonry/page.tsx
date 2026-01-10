@@ -32,6 +32,7 @@ import {
   buildOpenGraphMeta,
   buildTwitterMeta,
   selectCoverImage,
+  type CoverImage,
 } from '@/lib/seo/metadata-helpers';
 import { getPublicUrl } from '@/lib/storage/upload';
 import { formatCityName, getCanonicalUrl } from '@/lib/constants/page-descriptions';
@@ -49,7 +50,7 @@ type PageParams = {
  */
 type ProjectWithDetails = Project & {
   contractor: Contractor;
-  cover_image?: ProjectImage;
+  cover_image?: CoverImage;
 };
 
 /**

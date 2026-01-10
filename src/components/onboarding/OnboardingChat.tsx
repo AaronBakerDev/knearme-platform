@@ -24,6 +24,7 @@ import { DefaultChatTransport, type UIMessage } from 'ai';
 import { Button } from '@/components/ui/button';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatSurface } from '@/components/chat/ChatSurface';
+import type { ActiveToolCall } from '@/components/chat/AgentActivityIndicator';
 import { Mic, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -55,6 +56,28 @@ function isToolPart(part: unknown): part is { type: string } {
   return typeof obj.type === 'string' && obj.type.startsWith('tool-');
 }
 
+const suppressedUserMessagePrefixes = [
+  "Yes, that's my business - ",
+  "Yes, that's us - ",
+];
+
+function getMessageText(message: UIMessage): string {
+  if (!Array.isArray(message.parts)) return '';
+  return message.parts
+    .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+    .map((part) => part.text)
+    .join('');
+}
+
+function isSuppressedUserMessage(message: UIMessage): boolean {
+  if (message.role !== 'user') return false;
+  const metadata = message.metadata as { suppressDisplay?: boolean } | undefined;
+  if (metadata?.suppressDisplay) return true;
+  const text = getMessageText(message).trim();
+  if (!text) return false;
+  return suppressedUserMessagePrefixes.some((prefix) => text.startsWith(prefix));
+}
+
 interface OnboardingChatProps {
   /** Optional className for container */
   className?: string;
@@ -79,20 +102,37 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
   const [searchResults, setSearchResults] = useState<DiscoveredBusiness[]>([]);
   const [searchPrompt, setSearchPrompt] = useState<string | undefined>();
   const [searchResultsKey, setSearchResultsKey] = useState(0);
+  const [searchResultsAnchorId, setSearchResultsAnchorId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
   // Track which business card was selected (for loading state UI)
   const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
+  // Business that was confirmed (shows static card instead of search results)
+  const [confirmedBusiness, setConfirmedBusiness] = useState<DiscoveredBusiness | null>(null);
   // Profile reveal data (shown after profile is saved)
   const [profileReveal, setProfileReveal] = useState<ProfileRevealData | null>(null);
   const [profileRevealKey, setProfileRevealKey] = useState(0);
+  const [profileRevealAnchorId, setProfileRevealAnchorId] = useState<string | null>(null);
+  // Track active tool calls for activity indicator during streaming
+  const [activeToolCalls, setActiveToolCalls] = useState<ActiveToolCall[]>([]);
   const hasSentMessageRef = useRef(false);
   const processedWebSearchToolCalls = useRef<Set<string>>(new Set());
   const lastProcessedMessageIdRef = useRef<string | null>(null);
   const hasCompletedRef = useRef(false);
 
   const isLoading = status === 'streaming' || status === 'submitted';
+  // Check if text is currently streaming (vs just tool execution)
+  const isTextStreaming = useMemo(() => {
+    if (status !== 'streaming') return false;
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage || lastMessage.role !== 'assistant') return false;
+    // Text is streaming if we have text parts
+    const textParts = lastMessage.parts?.filter(
+      (p) => p.type === 'text' && (p as { text?: string }).text?.trim()
+    );
+    return textParts && textParts.length > 0;
+  }, [messages, status]);
 
   // Fetch initial conversation on mount
   useEffect(() => {
@@ -117,6 +157,12 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
           setSearchResults(data.state.searchResults);
           setSearchPrompt(undefined);
           setSearchResultsKey((prev) => prev + 1);
+          if (Array.isArray(data.messages)) {
+            const lastAssistant = [...(data.messages as Message[])]
+              .reverse()
+              .find((msg) => msg.role === 'assistant');
+            setSearchResultsAnchorId(lastAssistant?.id ?? null);
+          }
           setSelectedBusinessId(null);
         } else {
           setSearchResults([]);
@@ -157,6 +203,8 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
       setSearchResults(searchResultsOutput);
       setSearchPrompt(searchPart?.output?.prompt);
       setSearchResultsKey((prev) => prev + 1);
+      setSearchResultsAnchorId(lastAssistant.id);
+      setConfirmedBusiness(null);
     } else {
       setSearchResults([]);
       setSearchPrompt(undefined);
@@ -176,7 +224,9 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
     if (profileRevealPart?.output?.profile) {
       setProfileReveal(profileRevealPart.output.profile);
       setProfileRevealKey((prev) => prev + 1);
+      setProfileRevealAnchorId(lastAssistant.id);
       setSearchResults([]); // Clear search results when reveal shows
+      setConfirmedBusiness(null);
       if (!hasCompletedRef.current) {
         hasCompletedRef.current = true;
         toast.success('Profile setup complete!');
@@ -255,17 +305,61 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
     }
   }, [messages, status, setMessages]);
 
+  // Extract active tool calls from streaming messages for activity indicator
+  useEffect(() => {
+    if (status !== 'streaming') {
+      setActiveToolCalls([]);
+      return;
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage || lastMessage.role !== 'assistant') {
+      setActiveToolCalls([]);
+      return;
+    }
+
+    // Find tool parts that haven't completed yet
+    const toolParts = (lastMessage.parts || []).filter((part) => {
+      if (!part || typeof part !== 'object') return false;
+      const p = part as { type?: string; state?: string };
+      return (
+        typeof p.type === 'string' &&
+        p.type.startsWith('tool-') &&
+        p.state !== 'output-available'
+      );
+    });
+
+    const calls: ActiveToolCall[] = toolParts.map((part) => {
+      const p = part as { type: string; toolCallId?: string; state?: string };
+      return {
+        toolCallId: p.toolCallId || '',
+        toolName: p.type.replace('tool-', ''),
+        state: (p.state || 'executing') as ActiveToolCall['state'],
+      };
+    });
+
+    setActiveToolCalls(calls);
+  }, [messages, status]);
+
   /**
    * Send a message to the Discovery Agent
    */
   const handleSendMessage = useCallback(
-    async (text: string) => {
+    async (
+      text: string,
+      options?: { suppressDisplay?: boolean; selectedBusiness?: DiscoveredBusiness }
+    ) => {
       if (!text.trim() || isLoading) return;
       hasSentMessageRef.current = true;
       setSelectedBusinessId(null);
 
+      const metadata = options?.suppressDisplay ? { suppressDisplay: true } : undefined;
+      const requestOptions = options?.selectedBusiness
+        ? { body: { selectedBusiness: options.selectedBusiness } }
+        : undefined;
+
       try {
-        await sendMessage({ text });
+        await sendMessage({ text, metadata }, requestOptions);
       } catch (error) {
         logger.error('[OnboardingChat] Failed to send message', { error });
         toast.error('Something went wrong. Please try again.');
@@ -287,7 +381,19 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
       const confirmMessage = business.address
         ? `Yes, that's my business - ${business.name} at ${business.address}`
         : `Yes, that's us - ${business.name}`;
-      handleSendMessage(confirmMessage);
+      handleSendMessage(confirmMessage, {
+        suppressDisplay: true,
+        selectedBusiness: business,
+      });
+
+      // After brief delay, convert to static confirmed card
+      // This keeps the business visible in the chat as a record of selection
+      setTimeout(() => {
+        setConfirmedBusiness(business);
+        setSearchResults([]); // Clear the full list, we'll show just the confirmed one
+        setSearchPrompt(undefined);
+        setSelectedBusinessId(null);
+      }, 300); // Brief delay for visual feedback before converting
     },
     [handleSendMessage]
   );
@@ -316,6 +422,7 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
   const displayMessages = useMemo(() => {
     const cleanedMessages = messages
       .map((message) => {
+        if (isSuppressedUserMessage(message)) return null;
         if (!Array.isArray(message.parts)) return message;
         const filteredParts = message.parts.filter((part) => !isToolPart(part));
         if (filteredParts.length === 0) return null;
@@ -323,11 +430,25 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
       })
       .filter(Boolean) as UIMessage[];
 
-    const artifactMessages: UIMessage[] = [];
+    const mergedMessages = [...cleanedMessages];
+    const lastAssistantMessageId =
+      [...cleanedMessages].reverse().find((message) => message.role === 'assistant')?.id || null;
+    const insertArtifactAfter = (anchorId: string | null, artifactMessage: UIMessage) => {
+      const targetId = anchorId || lastAssistantMessageId;
+      if (!targetId) {
+        mergedMessages.push(artifactMessage);
+        return;
+      }
+      const insertIndex = mergedMessages.findIndex((message) => message.id === targetId);
+      if (insertIndex === -1) {
+        mergedMessages.push(artifactMessage);
+        return;
+      }
+      mergedMessages.splice(insertIndex + 1, 0, artifactMessage);
+    };
 
-    // Add search results artifact if present
-    if (searchResults.length > 0) {
-      artifactMessages.push({
+    if (searchResults.length > 0 || confirmedBusiness) {
+      const searchArtifact: UIMessage = {
         id: `onboarding-search-${searchResultsKey}`,
         role: 'assistant',
         parts: [
@@ -340,15 +461,17 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
               results: searchResults,
               prompt: searchPrompt,
               selectedId: selectedBusinessId ?? undefined,
+              confirmedBusiness: confirmedBusiness ?? undefined,
             },
           },
         ],
-      });
+      };
+      insertArtifactAfter(searchResultsAnchorId, searchArtifact);
     }
 
     // Add profile reveal artifact if present (shown after profile is saved)
     if (profileReveal) {
-      artifactMessages.push({
+      const revealArtifact: UIMessage = {
         id: `onboarding-reveal-${profileRevealKey}`,
         role: 'assistant',
         parts: [
@@ -360,11 +483,23 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
             output: profileReveal,
           },
         ],
-      });
+      };
+      insertArtifactAfter(profileRevealAnchorId, revealArtifact);
     }
 
-    return [...cleanedMessages, ...artifactMessages];
-  }, [messages, searchResults, searchPrompt, searchResultsKey, selectedBusinessId, profileReveal, profileRevealKey]);
+    return mergedMessages;
+  }, [
+    messages,
+    searchResults,
+    searchPrompt,
+    searchResultsKey,
+    searchResultsAnchorId,
+    selectedBusinessId,
+    confirmedBusiness,
+    profileReveal,
+    profileRevealKey,
+    profileRevealAnchorId,
+  ]);
 
   /**
    * Retry initialization
@@ -419,6 +554,8 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
       <ChatSurface
         messages={displayMessages}
         isLoading={isLoading}
+        activeToolCalls={activeToolCalls}
+        isTextStreaming={isTextStreaming}
         onArtifactAction={handleArtifactAction}
         scrollOnLoad
         headerSlot={

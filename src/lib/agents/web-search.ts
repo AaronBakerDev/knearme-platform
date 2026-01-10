@@ -28,6 +28,11 @@ export interface WebSearchAgentResult {
     yearsInBusiness?: string;
     specialties?: string[];
     serviceAreas?: string[];
+    website?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
   };
 }
 
@@ -76,6 +81,11 @@ export async function runWebSearchAgent(
       '  "summary": "2-3 sentence summary of what you found",',
       '  "businessInfo": {',
       '    "aboutDescription": "Company description from their about page or Google listing",',
+      '    "website": "Official website URL if found",',
+      '    "phone": "Public phone number if found",',
+      '    "address": "Street address if listed publicly",',
+      '    "city": "City if explicitly listed",',
+      '    "state": "State/province if explicitly listed",',
       '    "services": ["service1", "service2"],',
       '    "yearsInBusiness": "e.g., 15 years or since 2008",',
       '    "specialties": ["specialty1", "specialty2"],',

@@ -113,11 +113,14 @@ export async function POST(request: Request, { params }: RouteParams) {
     const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Verify session exists and belongs to user (RLS will handle this)
-    const { data: session, error: sessionError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: sessionData, error: sessionError } = await (supabase as any)
       .from('chat_sessions')
       .select('id, message_count, estimated_tokens')
       .eq('id', sessionId)
       .single();
+
+    const session = sessionData as ChatSessionRow | null;
 
     if (sessionError || !session) {
       return NextResponse.json(
@@ -140,7 +143,8 @@ export async function POST(request: Request, { params }: RouteParams) {
       metadata: messageMetadata,
     };
 
-    const { data: message, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: message, error } = await (supabase as any)
       .from('chat_messages')
       .insert(insertPayload)
       .select()
@@ -167,7 +171,8 @@ export async function POST(request: Request, { params }: RouteParams) {
       updated_at: new Date().toISOString(),
     };
 
-    const { error: updateError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: updateError } = await (supabase as any)
       .from('chat_sessions')
       .update(updates)
       .eq('id', sessionId);

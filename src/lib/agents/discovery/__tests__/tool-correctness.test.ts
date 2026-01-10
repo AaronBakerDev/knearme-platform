@@ -52,12 +52,13 @@ describe('Discovery Agent Tool Correctness', () => {
       const missing = getMissingDiscoveryFields(state);
 
       expect(missing).toContain('businessName');
-      expect(missing).toContain('address');
+      // Address is optional for service area businesses
+      expect(missing).not.toContain('address');
       expect(missing).toContain('phone');
       expect(missing).toContain('city');
       expect(missing).toContain('state');
       expect(missing).toContain('services');
-      expect(missing).toHaveLength(6);
+      expect(missing).toHaveLength(5);
     });
 
     it('returns empty array when all required fields are present', () => {
@@ -242,6 +243,8 @@ describe('Discovery Agent Tool Correctness', () => {
         expect(newState.state).toBe('CO');
         expect(newState.phone).toBe('555-1234');
         expect(newState.website).toBe('https://abcmasonry.com');
+        expect(newState.discoveredData?.name).toBe('ABC Masonry');
+        expect(newState.discoveredData?.googlePlaceId).toBe('ChIJ123');
       });
 
       it('extracts services from category when masonry-related', () => {
@@ -288,6 +291,37 @@ describe('Discovery Agent Tool Correctness', () => {
       });
     });
 
+    describe('webSearchBusiness tool', () => {
+      it('merges contact info and parses city/state from address', () => {
+        const currentState = createEmptyDiscoveryState();
+        const toolResults = [
+          {
+            toolName: 'webSearchBusiness',
+            output: {
+              summary: 'Found the business website and listing.',
+              sources: [{ url: 'https://abcmasonry.com' }],
+              businessInfo: {
+                website: 'https://abcmasonry.com',
+                phone: '555-1234',
+                address: '123 Main St, Denver, CO 80202',
+                services: ['masonry'],
+              },
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.website).toBe('https://abcmasonry.com');
+        expect(newState.phone).toBe('555-1234');
+        expect(newState.address).toBe('123 Main St, Denver, CO 80202');
+        expect(newState.city).toBe('Denver');
+        expect(newState.state).toBe('CO');
+        expect(newState.services).toEqual(['masonry']);
+        expect(newState.webSearchInfo?.website).toBe('https://abcmasonry.com');
+      });
+    });
+
     describe('saveProfile tool', () => {
       it('marks state as complete when profile is saved', () => {
         const currentState = createEmptyDiscoveryState();
@@ -314,6 +348,30 @@ describe('Discovery Agent Tool Correctness', () => {
         expect(newState.isComplete).toBe(true);
         expect(newState.businessName).toBe('ABC Masonry');
         expect(newState.services).toEqual(['masonry', 'chimney repair']);
+      });
+
+      it('captures hideAddress when provided', () => {
+        const currentState = createEmptyDiscoveryState();
+        const toolResults = [
+          {
+            toolName: 'saveProfile',
+            output: {
+              saved: true,
+              profile: {
+                businessName: 'ABC Masonry',
+                phone: '555-1234',
+                city: 'Denver',
+                state: 'CO',
+                services: ['masonry'],
+                serviceAreas: ['Denver Metro'],
+                hideAddress: true,
+              },
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+        expect(newState.hideAddress).toBe(true);
       });
 
       it('does not mark complete if saved is false', () => {

@@ -17,7 +17,7 @@ import { requireAuth, isAuthError } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { logger } from '@/lib/logging';
 import { slugify } from '@/lib/utils/slugify';
-import type { BusinessUpdate, ContractorUpdate, Json } from '@/types/database';
+import type { Business, BusinessUpdate, Contractor, ContractorUpdate, Json } from '@/types/database';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -59,12 +59,15 @@ async function findUniqueSlug(
   businessId: string
 ): Promise<string> {
   // Single query: find all slugs starting with baseSlug
-  const { data: existingSlugs, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existingSlugsData, error } = await (supabase as any)
     .from('businesses')
     .select('slug')
     .neq('id', businessId)
     .or(`slug.eq.${baseSlug},slug.like.${baseSlug}-%`)
     .limit(100);
+
+  const existingSlugs = existingSlugsData as Array<{ slug: string | null }> | null;
 
   if (error) {
     logger.error('[findUniqueSlug] Query error', { error });
@@ -92,7 +95,7 @@ async function findUniqueSlug(
   let maxSuffix = 1;
   for (const slug of slugStrings) {
     const match = slug.match(new RegExp(`^${baseSlug}-(\\d+)$`));
-    if (match) {
+    if (match && match[1]) {
       maxSuffix = Math.max(maxSuffix, parseInt(match[1], 10));
     }
   }
@@ -117,19 +120,25 @@ export async function GET() {
     const supabase = await createClient();
 
     // Get business profile
-    const { data: business, error: businessError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: businessData, error: businessError } = await (supabase as any)
       .from('businesses')
       .select('*')
       .eq('auth_user_id', user.id)
       .single();
 
+    const business = businessData as Business | null;
+
     if (businessError || !business) {
       // Fallback: check if there's a contractor record we can use
-      const { data: contractor } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: contractorData } = await (supabase as any)
         .from('contractors')
         .select('*')
         .eq('auth_user_id', user.id)
         .single();
+
+      const contractor = contractorData as Contractor | null;
 
       if (contractor) {
         // Return contractor data in business shape for compatibility
@@ -215,17 +224,18 @@ export async function PATCH(request: NextRequest) {
     const adminClient = createAdminClient();
 
     // Get current business
-    const { data: currentBusiness, error: fetchError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: currentBusinessData, error: fetchError } = await (supabase as any)
       .from('businesses')
       .select('*')
       .eq('auth_user_id', user.id)
       .single();
 
-    if (fetchError || !currentBusiness) {
+    if (fetchError || !currentBusinessData) {
       return apiError('NOT_FOUND', 'Business profile not found');
     }
 
-    const business = currentBusiness;
+    const business = currentBusinessData as Business;
 
     // Build update payload
     const updatePayload: BusinessUpdate = { ...updates } as BusinessUpdate;
@@ -243,8 +253,11 @@ export async function PATCH(request: NextRequest) {
 
     // Update location JSONB if city/state/service_areas changed
     if (updates.city || updates.state || updates.service_areas) {
+      const existingLocation = (typeof business.location === 'object' && business.location !== null)
+        ? business.location as Record<string, unknown>
+        : {};
       updatePayload.location = {
-        ...(business.location as Json || {}),
+        ...existingLocation,
         city: newCity,
         state: newState,
         city_slug: updatePayload.city_slug || business.city_slug,
@@ -254,8 +267,11 @@ export async function PATCH(request: NextRequest) {
 
     // Update understanding JSONB if services changed
     if (updates.services) {
+      const existingUnderstanding = (typeof business.understanding === 'object' && business.understanding !== null)
+        ? business.understanding as Record<string, unknown>
+        : {};
       updatePayload.understanding = {
-        ...(business.understanding as Json || {}),
+        ...existingUnderstanding,
         specialties: updates.services,
       } as Json;
     }
@@ -278,7 +294,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Update business
-    const { data: updated, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: updated, error } = await (supabase as any)
       .from('businesses')
       .update(updatePayload)
       .eq('id', business.id)
@@ -323,7 +340,8 @@ export async function PATCH(request: NextRequest) {
         }
 
         if (Object.keys(contractorUpdates).length > 0) {
-          await adminClient
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (adminClient as any)
             .from('contractors')
             .update(contractorUpdates)
             .eq('id', business.legacy_contractor_id);

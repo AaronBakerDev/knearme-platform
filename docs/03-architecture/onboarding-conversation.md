@@ -23,9 +23,10 @@ Ensure every business has exactly one long-lived onboarding conversation. The co
 `POST /api/onboarding`
 - Accepts a single user message.
 - Loads the existing onboarding conversation.
-- Runs the Discovery Agent with recent message history.
+- Runs the Discovery Agent with recent message history via the streaming `/api/onboarding` runtime (canonical for onboarding).
 - Appends user + assistant messages to the stored conversation.
 - Updates `extracted` with the latest `DiscoveryState`.
+ - Contact fields are persisted from the best available source (confirmed listing, web search, or user-provided), with `hide_address` stored in `location` for service-area businesses.
 
 ## Transcription
 - `/api/ai/transcribe` permits authenticated users with incomplete profiles, so onboarding voice input works before profile completion.

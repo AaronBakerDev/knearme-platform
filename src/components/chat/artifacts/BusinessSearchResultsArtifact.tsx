@@ -4,10 +4,11 @@
  * Business search results artifact for onboarding.
  *
  * Renders the "Is this you?" cards inside the unified chat UI.
+ * After confirmation, shows a static "confirmed" card that stays in the chat.
  */
 
 import { useCallback, type KeyboardEvent } from 'react';
-import { Star, MapPin, Phone, Building2, Check, Loader2 } from 'lucide-react';
+import { Star, MapPin, Phone, Building2, Check, Loader2, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -151,11 +152,74 @@ function BusinessCard({
   );
 }
 
+/**
+ * Static confirmed business card - shown after user confirms their business.
+ * This stays in the chat as a historical record of the selection.
+ */
+function ConfirmedBusinessCard({ business }: { business: DiscoveredBusiness }) {
+  return (
+    <Card className="border-primary/30 bg-primary/5">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+            <Building2 className="h-5 w-5 text-primary" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium text-sm truncate">{business.name}</h4>
+
+            {business.address && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                <MapPin className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{business.address}</span>
+              </p>
+            )}
+
+            {business.phone && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                <Phone className="h-3 w-3 flex-shrink-0" />
+                <span>{business.phone}</span>
+              </p>
+            )}
+
+            {business.rating && (
+              <div className="flex items-center gap-1 mt-1.5">
+                <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                <span className="text-xs font-medium">{business.rating.toFixed(1)}</span>
+                {business.reviewCount && (
+                  <span className="text-xs text-muted-foreground">
+                    ({business.reviewCount} reviews)
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Confirmed badge */}
+          <div className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full text-primary bg-primary/20">
+            <CheckCircle2 className="h-3 w-3" />
+            <span>Confirmed</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function BusinessSearchResultsArtifact({
   data,
   onAction,
   className,
 }: BusinessSearchResultsArtifactProps) {
+  // If a business has been confirmed, show the static confirmed card
+  if (data?.confirmedBusiness) {
+    return (
+      <div className={cn('animate-fade-in', className)}>
+        <ConfirmedBusinessCard business={data.confirmedBusiness} />
+      </div>
+    );
+  }
+
   if (!data?.results?.length) return null;
 
   // When a business is selected, keep results visible and lock interactions

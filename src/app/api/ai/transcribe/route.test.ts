@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { NextRequest } from 'next/server';
 import { POST } from './route';
 import { createClient } from '@/lib/supabase/server';
 import { transcribeAudio } from '@/lib/ai/transcription';
@@ -107,7 +108,7 @@ describe('Transcription API', () => {
       body: formData,
     });
 
-    const response = await POST(request);
+    const response = await POST(request as unknown as NextRequest);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -131,7 +132,7 @@ describe('Transcription API', () => {
       body: formData,
     });
 
-    const response = await POST(request);
+    const response = await POST(request as unknown as NextRequest);
     const data = await response.json();
 
     expect(response.status).toBe(401);

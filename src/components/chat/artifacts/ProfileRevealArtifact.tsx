@@ -89,11 +89,16 @@ export function ProfileRevealArtifact({
 
         {/* Contact Info */}
         <div className="space-y-2">
+          {/* Location - show address only if provided and not hidden */}
           <div className="flex items-start gap-2 text-sm">
             <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
             <span>
-              {data.address}
-              <br />
+              {data.address && !data.hideAddress && (
+                <>
+                  {data.address}
+                  <br />
+                </>
+              )}
               {data.city}, {data.state}
             </span>
           </div>

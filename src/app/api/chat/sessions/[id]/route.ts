@@ -85,7 +85,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Get session
-    const { data: session, error: sessionError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: sessionData, error: sessionError } = await (supabase as any)
       .from('chat_sessions')
       .select(`
         id,
@@ -110,8 +111,11 @@ export async function GET(request: Request, { params }: RouteParams) {
       throw sessionError;
     }
 
+    const session = sessionData as ChatSessionRow;
+
     // Get messages
-    const { data: messages, error: messagesError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: messagesData, error: messagesError } = await (supabase as any)
       .from('chat_messages')
       .select('id, role, content, metadata, created_at')
       .eq('session_id', id)
@@ -120,6 +124,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     if (messagesError) {
       throw messagesError;
     }
+
+    const messages = messagesData as ChatMessageRow[] | null;
 
     return NextResponse.json({
       session: {
@@ -168,7 +174,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (extracted_data !== undefined) updates.extracted_data = extracted_data;
 
     // Update session
-    const { data: session, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: session, error } = await (supabase as any)
       .from('chat_sessions')
       .update(updates)
       .eq('id', id)
@@ -215,7 +222,8 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Delete session (messages will cascade delete)
-    const { error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
       .from('chat_sessions')
       .delete()
       .eq('id', id);

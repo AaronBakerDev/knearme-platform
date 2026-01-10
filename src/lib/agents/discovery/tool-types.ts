@@ -54,7 +54,7 @@ export interface SaveProfileResult {
   saved: boolean;
   profile: {
     businessName: string;
-    address: string;
+    address?: string;
     phone: string;
     website?: string;
     city: string;
@@ -62,6 +62,7 @@ export interface SaveProfileResult {
     description?: string;
     services: string[];
     serviceAreas: string[];
+    hideAddress?: boolean;
   };
 }
 
@@ -84,7 +85,7 @@ export interface ProfileRevealResult {
   revealed: boolean;
   profile: {
     businessName: string;
-    address: string;
+    address?: string;
     city: string;
     state: string;
     phone?: string;
@@ -101,6 +102,8 @@ export interface ProfileRevealResult {
     yearsInBusiness?: string;
     /** Project suggestions from reviews with photos or web portfolio */
     projectSuggestions?: ProfileRevealProjectSuggestion[];
+    /** Service area business - do not display address */
+    hideAddress?: boolean;
   };
 }
 

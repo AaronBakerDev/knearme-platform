@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     // Limit analysis to first 4 images to control cost + keep prompt indexing consistent.
     const analysisCandidates = images.slice(0, 4);
-    const analyzedImages: ProjectImage[] = [];
+    const analyzedImages: AnalysisImage[] = [];
     const imageInputs: Array<{ data: Buffer; mediaType?: string }> = [];
 
     for (const img of analysisCandidates) {
@@ -131,7 +131,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Store analysis in interview session
-    const { data: session, error: sessionError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: session, error: sessionError } = await (supabase as any)
       .from('interview_sessions')
       .upsert(
         {
@@ -162,7 +163,8 @@ export async function POST(request: NextRequest) {
         materials: analysisResult.materials,
         techniques: analysisResult.techniques,
       };
-      await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any)
         .from('projects')
         .update(projectUpdate)
         .eq('id', project_id);
@@ -174,7 +176,8 @@ export async function POST(request: NextRequest) {
       const altTextUpdates = analyzedImages.map((img, index) => {
         const altText = analysisResult.image_alt_texts[String(index)];
         if (altText) {
-          return supabase
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (supabase as any)
             .from('project_images')
             .update({ alt_text: altText })
             .eq('id', img.id);

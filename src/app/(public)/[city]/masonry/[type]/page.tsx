@@ -33,6 +33,7 @@ import {
   buildOpenGraphMeta,
   buildTwitterMeta,
   selectCoverImage,
+  type CoverImage,
 } from '@/lib/seo/metadata-helpers';
 import { SERVICE_TYPE_DESCRIPTIONS } from '@/lib/seo/service-type-descriptions';
 import { getPublicUrl } from '@/lib/storage/upload';
@@ -53,7 +54,7 @@ type PageParams = {
  */
 type ProjectWithDetails = Project & {
   business: Business;
-  cover_image?: ProjectImage;
+  cover_image?: CoverImage;
 };
 
 /**

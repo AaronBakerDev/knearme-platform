@@ -620,6 +620,8 @@ Even with automated evals, include:
 - Extend Discovery Agent with new tools
 - Add review mining capability
 - Add project suggestion logic
+- Treat streaming `POST /api/onboarding` as the canonical runtime; any non-streaming helpers should stay aligned or be test-only.
+- Persist contact data from the best available source (confirmed listing, web search, or user-provided) and honor `hide_address` for service-area businesses.
 
 ---
 

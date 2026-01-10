@@ -1,9 +1,11 @@
 import type { WebSearchSource } from '../web-search';
+import { parseLocationFromAddress, type DiscoveredBusiness } from '@/lib/tools/business-discovery';
 import type { DiscoveryState } from './types';
 import { createEmptyDiscoveryState } from './state';
 import type {
   ConfirmBusinessResult,
   FetchReviewsResult,
+  ProfileRevealResult,
   SaveProfileResult,
   SearchBusinessResult,
   WebSearchBusinessResult,
@@ -75,6 +77,19 @@ export function processDiscoveryToolCalls(
         const result = tr.output as ConfirmBusinessResult | undefined;
         if (result?.confirmed && result.data) {
           businessConfirmed = true;
+          const discoveredData: DiscoveredBusiness = {
+            name: result.data.businessName,
+            address: result.data.address ?? null,
+            phone: result.data.phone ?? null,
+            website: result.data.website ?? null,
+            rating: result.data.rating ?? null,
+            reviewCount: result.data.reviewCount ?? null,
+            category: result.data.category ?? null,
+            googlePlaceId: result.data.googlePlaceId ?? null,
+            googleCid: result.data.googleCid ?? null,
+            coordinates: null,
+          };
+          state.discoveredData = discoveredData;
           if (result.data.googlePlaceId) state.googlePlaceId = result.data.googlePlaceId;
           if (result.data.googleCid) state.googleCid = result.data.googleCid;
           if (result.data.businessName) state.businessName = result.data.businessName;
@@ -117,6 +132,28 @@ export function processDiscoveryToolCalls(
             ...result.businessInfo,
             sources: result.sources,
           };
+          if (result.businessInfo.website && !state.website) {
+            state.website = result.businessInfo.website;
+          }
+          if (result.businessInfo.phone && !state.phone) {
+            state.phone = result.businessInfo.phone;
+          }
+          if (result.businessInfo.address && !state.address) {
+            state.address = result.businessInfo.address;
+          }
+          if (result.businessInfo.city && !state.city) {
+            state.city = result.businessInfo.city;
+          }
+          if (result.businessInfo.state && !state.state) {
+            state.state = result.businessInfo.state;
+          }
+          if (result.businessInfo.address && (!state.city || !state.state)) {
+            const parsedLocation = parseLocationFromAddress(result.businessInfo.address);
+            if (parsedLocation) {
+              if (!state.city) state.city = parsedLocation.city;
+              if (!state.state && parsedLocation.state) state.state = parsedLocation.state;
+            }
+          }
           // Also merge services if we have them from web search
           if (
             result.businessInfo.services &&
@@ -150,6 +187,9 @@ export function processDiscoveryToolCalls(
           if (result.profile.description) state.description = result.profile.description;
           if (result.profile.services) state.services = result.profile.services;
           if (result.profile.serviceAreas) state.serviceAreas = result.profile.serviceAreas;
+          if (typeof result.profile.hideAddress === 'boolean') {
+            state.hideAddress = result.profile.hideAddress;
+          }
           state.isComplete = true;
         }
         break;
@@ -158,6 +198,10 @@ export function processDiscoveryToolCalls(
       case 'showProfileReveal': {
         // Track that reveal was shown (artifact handles the display)
         revealShown = true;
+        const result = tr.output as ProfileRevealResult | undefined;
+        if (result?.profile && typeof result.profile.hideAddress === 'boolean') {
+          state.hideAddress = result.profile.hideAddress;
+        }
         break;
       }
     }

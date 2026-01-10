@@ -32,7 +32,7 @@ export function getMissingDiscoveryFields(state: DiscoveryState): string[] {
   const missing: string[] = [];
 
   if (!state.businessName) missing.push('businessName');
-  if (!state.address) missing.push('address');
+  // Address is optional - service area businesses don't need to provide one
   if (!state.phone) missing.push('phone');
   if (!state.city) missing.push('city');
   if (!state.state) missing.push('state');

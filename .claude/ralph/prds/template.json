@@ -1,0 +1,72 @@
+{
+  "meta": {
+    "name": "PRD Template",
+    "description": "Template for creating Ralph-compatible PRD files",
+    "created": "2026-01-08",
+    "version": "1.0.0",
+    "author": "FixMyBrick Team"
+  },
+  "config": {
+    "priority_order": ["critical", "high", "medium", "low"],
+    "categories": ["architectural", "integration", "functional", "ui", "testing", "documentation"]
+  },
+  "features": [
+    {
+      "id": "feat-001",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Example: Set up project foundation and directory structure",
+      "acceptance_criteria": [
+        "Directory structure matches specification",
+        "All required config files exist",
+        "Project builds without errors"
+      ],
+      "verification_steps": [
+        "Run npm run build",
+        "Verify directory structure",
+        "Check config files exist"
+      ],
+      "dependencies": [],
+      "notes": "This is an example feature - delete or modify for your project",
+      "passes": false
+    },
+    {
+      "id": "feat-002",
+      "category": "functional",
+      "priority": "high",
+      "description": "Example: Implement core API endpoint",
+      "acceptance_criteria": [
+        "Endpoint responds with correct data",
+        "Error handling covers edge cases",
+        "TypeScript types are correct"
+      ],
+      "verification_steps": [
+        "Test endpoint with curl or Postman",
+        "Verify error responses",
+        "Run typecheck"
+      ],
+      "dependencies": ["feat-001"],
+      "notes": "",
+      "passes": false
+    },
+    {
+      "id": "feat-003",
+      "category": "ui",
+      "priority": "medium",
+      "description": "Example: Build user interface component",
+      "acceptance_criteria": [
+        "Component renders correctly",
+        "Responsive on mobile and desktop",
+        "Accessible (keyboard nav, aria labels)"
+      ],
+      "verification_steps": [
+        "Visual inspection at multiple breakpoints",
+        "Keyboard navigation test",
+        "Screen reader test if applicable"
+      ],
+      "dependencies": ["feat-002"],
+      "notes": "",
+      "passes": false
+    }
+  ]
+}

@@ -1,13 +1,13 @@
 'use client';
 
 /**
- * Floating pill chat input with text, voice, and attachment support.
+ * Chat input with text, voice, and attachment support.
  *
- * Design: "Void Interface" - floating capsule shape with backdrop blur,
+ * Design: Floating container with subtle rounding and backdrop blur,
  * internal action buttons for attachment, mic, and send.
  *
  * Features:
- * - Floating pill design with shadow
+ * - Subtle rounded design (8px radius) with shadow
  * - Attachment button (opens photo sheet)
  * - Auto-resizing textarea (1-5 lines, Enter to send, Shift+Enter for newline)
  * - Mic button for voice input (transcribed to text)
@@ -381,7 +381,7 @@ export function ChatInput({
     >
       {/* Drop overlay - show when dragging with images */}
       {isDragging && onImageDrop && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-primary/10 backdrop-blur-sm rounded-full border-2 border-dashed border-primary">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-primary/10 backdrop-blur-sm rounded-lg border-2 border-dashed border-primary">
           <div className="flex items-center gap-2 text-primary font-medium">
             <Upload className="h-5 w-5" />
             <span>Drop photos here</span>
@@ -413,10 +413,10 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Floating pill input container */}
+      {/* Floating input container */}
       <div
         className={cn(
-          'flex items-center gap-1.5 bg-muted/60 backdrop-blur-sm border border-border/40 rounded-full px-2 py-1.5 shadow-chat-input',
+          'flex items-center gap-1.5 bg-muted/60 backdrop-blur-sm border border-border/40 rounded-lg px-2 py-1.5 shadow-chat-input',
           isVoiceActive && 'border-primary/50',
           isDragging && onImageDrop && 'ring-2 ring-primary ring-offset-2'
         )}
@@ -429,7 +429,7 @@ export function ChatInput({
             size="icon"
             onClick={onAttachPhotos}
             disabled={isDisabled}
-            className="h-11 w-11 rounded-full flex-shrink-0 relative hover:bg-muted"
+            className="h-11 w-11 rounded-md flex-shrink-0 relative hover:bg-muted"
             aria-label="Attach photos"
           >
             <Plus className="h-5 w-5" />
@@ -485,7 +485,7 @@ export function ChatInput({
             onClick={handleVoiceToggle}
             disabled={disabled || isLoading || isProcessing}
             className={cn(
-              'h-11 w-11 rounded-full flex-shrink-0',
+              'h-11 w-11 rounded-md flex-shrink-0',
               !isRecording && !isProcessing && 'hover:bg-muted',
               isRecording && 'animate-pulse',
               isProcessing && 'opacity-50'
@@ -514,7 +514,7 @@ export function ChatInput({
           size="icon"
           onClick={handleSubmit}
           disabled={!canSend}
-          className="h-11 w-11 rounded-full flex-shrink-0"
+          className="h-11 w-11 rounded-md flex-shrink-0"
           aria-label="Send message"
         >
           {isLoading ? (

@@ -26,7 +26,7 @@ export const fetchReviewsSchema = z.object({
 
 export const saveProfileSchema = z.object({
   businessName: z.string().describe('Business name'),
-  address: z.string().describe('Street address'),
+  address: z.string().optional().describe('Street address (optional for service-area businesses)'),
   phone: z.string().describe('Public phone number'),
   website: z.string().optional().describe('Website URL'),
   city: z.string().describe('City'),
@@ -34,6 +34,7 @@ export const saveProfileSchema = z.object({
   description: z.string().optional().describe('Business description'),
   services: z.array(z.string()).describe('Services offered'),
   serviceAreas: z.array(z.string()).optional().describe('Service areas'),
+  hideAddress: z.boolean().optional().describe('True if service-area business - do not collect or display address'),
 });
 
 export const webSearchBusinessSchema = z.object({
@@ -49,7 +50,7 @@ export const webSearchBusinessSchema = z.object({
  */
 export const showProfileRevealSchema = z.object({
   businessName: z.string().describe('The business name'),
-  address: z.string().describe('Full street address'),
+  address: z.string().optional().describe('Street address (omit for service-area businesses)'),
   city: z.string().describe('City'),
   state: z.string().describe('State/province code'),
   phone: z.string().optional().describe('Phone number'),
@@ -67,4 +68,5 @@ export const showProfileRevealSchema = z.object({
     source: z.enum(['review', 'web']).describe('Source of the suggestion'),
     imageUrls: z.array(z.string()).optional().describe('Image URLs if available'),
   })).optional().describe('Project suggestions from reviews with photos or web portfolio'),
+  hideAddress: z.boolean().optional().describe('If true, do not display street address in reveal (service-area business)'),
 });

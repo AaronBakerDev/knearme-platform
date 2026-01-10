@@ -227,7 +227,8 @@ export async function POST(request: NextRequest) {
         raw_transcripts: [...existingTranscripts, result.text],
         status: 'in_progress',
       };
-      const { error: sessionError } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: sessionError } = await (supabase as any)
         .from('interview_sessions')
         .upsert(sessionPayload, {
           onConflict: 'project_id',

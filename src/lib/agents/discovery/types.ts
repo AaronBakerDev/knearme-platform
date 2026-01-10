@@ -38,6 +38,11 @@ export interface DiscoveryState {
   /** Web search results for bio synthesis */
   webSearchInfo?: {
     aboutDescription?: string;
+    address?: string;
+    phone?: string;
+    website?: string;
+    city?: string;
+    state?: string;
     services?: string[];
     yearsInBusiness?: string;
     specialties?: string[];
@@ -48,6 +53,8 @@ export interface DiscoveryState {
   missingFields: string[];
   /** Whether showProfileReveal was called (for completion tracking) */
   revealShown?: boolean;
+  /** Service area business - don't display address publicly (stored for internal records only) */
+  hideAddress?: boolean;
 }
 
 export interface DiscoveryResult {

@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { UIMessage } from 'ai';
 import { ChatMessage } from './ChatMessage';
-import { ChatTypingIndicator } from './ChatTypingIndicator';
+import { AgentActivityIndicator, type ActiveToolCall } from './AgentActivityIndicator';
 import { ArtifactRenderer, isArtifactPart } from './artifacts';
 import { ToolCallBlock } from './ToolCallBlock';
 import { ThinkingBlock } from './ThinkingBlock';
@@ -37,6 +37,10 @@ export interface ChatMessagesProps {
   messages: UIMessage[];
   /** Whether the AI is currently generating a response */
   isLoading?: boolean;
+  /** Active tool calls for activity indicator */
+  activeToolCalls?: ActiveToolCall[];
+  /** Whether text is currently streaming */
+  isTextStreaming?: boolean;
   /** Callback when an artifact emits an action (categorize, remove, add, etc.) */
   onArtifactAction?: (action: { type: string; payload?: unknown }) => void;
   /** Callback when user provides feedback on a message */
@@ -206,6 +210,8 @@ function getSourceParts(message: UIMessage): SourcePart[] {
 export function ChatMessages({
   messages,
   isLoading = false,
+  activeToolCalls = [],
+  isTextStreaming = false,
   onArtifactAction,
   onMessageFeedback,
   images,
@@ -471,8 +477,13 @@ export function ChatMessages({
           );
         })}
 
-        {/* Typing indicator when AI is responding */}
-        {isLoading && <ChatTypingIndicator />}
+        {/* Activity indicator when AI is responding */}
+        {isLoading && (
+          <AgentActivityIndicator
+            activeToolCalls={activeToolCalls}
+            isTextStreaming={isTextStreaming}
+          />
+        )}
       </div>
 
       {hasNewMessages && !isAtBottom && (

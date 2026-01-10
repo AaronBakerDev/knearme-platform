@@ -99,8 +99,8 @@ export async function GET(
       // CR-4 fix: Use actual contractor phone/website instead of hardcoded nulls
       const publicBusiness: PublicBusiness = {
         id: contractorData.id,
-        name: contractorData.business_name,
-        slug: contractorData.profile_slug,
+        name: contractorData.business_name ?? '',
+        slug: contractorData.profile_slug ?? '',
         city: contractorData.city ?? '',
         state: contractorData.state ?? '',
         city_slug: contractorData.city_slug ?? '',
@@ -139,8 +139,8 @@ export async function GET(
     const businessData = business as Business;
     const publicBusiness: PublicBusiness = {
       id: businessData.id,
-      name: businessData.name,
-      slug: businessData.slug,
+      name: businessData.name ?? '',
+      slug: businessData.slug ?? '',
       city: businessData.city ?? '',
       state: businessData.state ?? '',
       city_slug: businessData.city_slug ?? '',
@@ -172,7 +172,7 @@ export async function GET(
           display_order
         )
       `)
-      .eq('business_id', business.id)
+      .eq('business_id', businessData.id)
       .eq('status', 'published')
       .order('published_at', { ascending: false });
 

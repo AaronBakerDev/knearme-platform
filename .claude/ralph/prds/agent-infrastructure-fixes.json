@@ -1,0 +1,254 @@
+{
+  "meta": {
+    "name": "Agent Infrastructure Fixes",
+    "description": "Fix circuit breaker gaps, validation issues, and resilience improvements in agent infrastructure",
+    "created": "2026-01-10",
+    "version": "1.0.0",
+    "author": "KnearMe Team"
+  },
+  "config": {
+    "priority_order": ["critical", "high", "medium", "low"],
+    "categories": ["architectural", "integration", "functional", "testing"]
+  },
+  "features": [
+    {
+      "id": "cb-001",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Add circuit breaker pre-flight check to streaming onboarding API route",
+      "acceptance_criteria": [
+        "canExecute('discovery') check added before streamText() call",
+        "Returns 503 with circuitOpen: true when circuit is open",
+        "recordSuccess/recordFailure called in onFinish callback",
+        "Graceful error message returned to user"
+      ],
+      "verification_steps": [
+        "Run npm run build (no type errors)",
+        "Test with valid API key - message succeeds",
+        "Temporarily disable API key, send 6+ messages, verify 503 response",
+        "Re-enable key, verify recovery after timeout"
+      ],
+      "dependencies": [],
+      "notes": "File: src/app/api/onboarding/route.ts line 612",
+      "passes": false
+    },
+    {
+      "id": "cb-002",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Wrap spawnSubagent generateText call with circuit breaker",
+      "acceptance_criteria": [
+        "withCircuitBreaker(type, ...) wraps generateText call",
+        "Uses subagent type as circuit breaker agent key",
+        "Errors properly recorded as failures",
+        "Success properly recorded"
+      ],
+      "verification_steps": [
+        "Run npm run build (no type errors)",
+        "Run existing spawn tests",
+        "Test story agent spawn - verify circuit breaker logs"
+      ],
+      "dependencies": [],
+      "notes": "File: src/lib/agents/subagents/spawn.ts lines 253-261",
+      "passes": false
+    },
+    {
+      "id": "cb-003",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Wrap story extractor AI call with circuit breaker",
+      "acceptance_criteria": [
+        "withCircuitBreaker('story-extractor', ...) wraps performAIExtraction call",
+        "Import added for withCircuitBreaker",
+        "Errors propagate correctly to caller"
+      ],
+      "verification_steps": [
+        "Run npm run build (no type errors)",
+        "Run story-extractor tests",
+        "Test extraction - verify circuit breaker logs"
+      ],
+      "dependencies": [],
+      "notes": "File: src/lib/agents/story-extractor.ts line 187",
+      "passes": false
+    },
+    {
+      "id": "cb-004",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Wrap content generator AI call with circuit breaker",
+      "acceptance_criteria": [
+        "withCircuitBreaker('content-generator', ...) wraps generateObject call",
+        "Import added for withCircuitBreaker",
+        "Uses 'content-generator' agent type (already configured with failureThreshold: 3)"
+      ],
+      "verification_steps": [
+        "Run npm run build (no type errors)",
+        "Run content-generator tests",
+        "Test content generation - verify circuit breaker logs"
+      ],
+      "dependencies": [],
+      "notes": "File: src/lib/agents/content-generator.ts line 231",
+      "passes": false
+    },
+    {
+      "id": "img-001",
+      "category": "functional",
+      "priority": "high",
+      "description": "Add timeout and parallel downloads to buildMultimodalMessage",
+      "acceptance_criteria": [
+        "downloadWithTimeout helper function created with 10s timeout",
+        "Promise.allSettled used for parallel downloads",
+        "MAX_PARALLEL_DOWNLOADS constant (5) limits concurrent downloads",
+        "Timeout errors logged but don't fail entire message build",
+        "Fallback to URL if download fails"
+      ],
+      "verification_steps": [
+        "Run npm run build (no type errors)",
+        "Test with 10+ images - verify parallel download timing",
+        "Simulate slow network - verify timeout triggers after 10s",
+        "Verify images still appear in content after timeout"
+      ],
+      "dependencies": ["cb-002"],
+      "notes": "File: src/lib/agents/subagents/spawn.ts lines 91-109",
+      "passes": false
+    },
+    {
+      "id": "tool-001",
+      "category": "functional",
+      "priority": "high",
+      "description": "Add circuit breaker to discovery tool execute functions",
+      "acceptance_criteria": [
+        "Add 'dataforseo' agent type to circuit-breaker.ts config",
+        "withCircuitBreaker('dataforseo', ...) wraps searchBusinesses call",
+        "withCircuitBreaker('dataforseo', ...) wraps getBusinessReviews call",
+        "Fallback error messages still work correctly"
+      ],
+      "verification_steps": [
+        "Run npm run build (no type errors)",
+        "Run discovery tool tests",
+        "Test business search - verify circuit breaker logs",
+        "Test with invalid API key - verify graceful degradation"
+      ],
+      "dependencies": [],
+      "notes": "Files: src/lib/agents/discovery.ts lines 67, 136 and src/lib/agents/circuit-breaker.ts",
+      "passes": false
+    },
+    {
+      "id": "val-001",
+      "category": "functional",
+      "priority": "high",
+      "description": "Add Zod validation to subagent response before access",
+      "acceptance_criteria": [
+        "BaseSubagentResultSchema defined with success, stateUpdates, message, confidence",
+        "safeParse used to validate response",
+        "Invalid responses logged and return createErrorResult",
+        "Valid responses proceed normally"
+      ],
+      "verification_steps": [
+        "Run npm run build (no type errors)",
+        "Run spawn tests",
+        "Mock malformed AI response - verify error handling"
+      ],
+      "dependencies": ["cb-002"],
+      "notes": "File: src/lib/agents/subagents/spawn.ts line 264",
+      "passes": false
+    },
+    {
+      "id": "val-002",
+      "category": "functional",
+      "priority": "high",
+      "description": "Add safe stateUpdates access with nullish coalescing",
+      "acceptance_criteria": [
+        "stateUpdates ?? {} used before mergeProjectState",
+        "No crashes on undefined stateUpdates",
+        "Existing behavior preserved for valid stateUpdates"
+      ],
+      "verification_steps": [
+        "Run npm run build (no type errors)",
+        "Run delegate tests",
+        "Test with missing stateUpdates - verify no crash"
+      ],
+      "dependencies": [],
+      "notes": "File: src/lib/agents/subagents/delegates.ts line 48",
+      "passes": false
+    },
+    {
+      "id": "qual-001",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Add error type detection helpers to lib/api/errors.ts",
+      "acceptance_criteria": [
+        "isRateLimitError(error) function exported",
+        "isTimeoutError(error) function exported",
+        "Both handle Error instances and unknown types",
+        "Tests for both helpers"
+      ],
+      "verification_steps": [
+        "Run npm run build (no type errors)",
+        "Test isRateLimitError with 429 error",
+        "Test isTimeoutError with AbortError"
+      ],
+      "dependencies": [],
+      "notes": "File: src/lib/api/errors.ts (new functions)",
+      "passes": false
+    },
+    {
+      "id": "qual-002",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Replace string-based error detection with helper functions",
+      "acceptance_criteria": [
+        "Import isRateLimitError, isTimeoutError from lib/api/errors",
+        "Replace error.message.includes('429') with isRateLimitError(error)",
+        "Replace AbortError check with isTimeoutError(error)",
+        "Error classification logic is cleaner"
+      ],
+      "verification_steps": [
+        "Run npm run build (no type errors)",
+        "Run spawn tests",
+        "Test rate limit handling still works"
+      ],
+      "dependencies": ["qual-001"],
+      "notes": "File: src/lib/agents/subagents/spawn.ts lines 289-291",
+      "passes": false
+    },
+    {
+      "id": "qual-003",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Fix redundant confidence validation logic",
+      "acceptance_criteria": [
+        "Single hasValidConfidence variable replaces duplicate checks",
+        "Warning logged once, not checked twice",
+        "Same behavior preserved"
+      ],
+      "verification_steps": [
+        "Run npm run build (no type errors)",
+        "Run spawn tests",
+        "Verify warning logged for missing confidence"
+      ],
+      "dependencies": [],
+      "notes": "File: src/lib/agents/subagents/spawn.ts lines 272-278",
+      "passes": false
+    },
+    {
+      "id": "test-001",
+      "category": "testing",
+      "priority": "medium",
+      "description": "Add circuit breaker integration tests",
+      "acceptance_criteria": [
+        "Test circuit opens after threshold failures",
+        "Test circuit recovers after timeout",
+        "Test kill-switch activates at 3+ open circuits",
+        "All tests pass"
+      ],
+      "verification_steps": [
+        "npm run test -- --grep circuit-breaker",
+        "All new tests pass"
+      ],
+      "dependencies": ["cb-001", "cb-002", "cb-003", "cb-004"],
+      "notes": "File: src/lib/agents/__tests__/circuit-breaker.test.ts",
+      "passes": false
+    }
+  ]
+}

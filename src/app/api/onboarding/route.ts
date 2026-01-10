@@ -40,6 +40,8 @@ import {
   processDiscoveryToolCalls,
   type DiscoveryState,
 } from '@/lib/agents';
+import { resolveOnboardingContact } from '@/lib/agents/discovery/contact-resolution';
+import { parseLocationFromAddress, type DiscoveredBusiness } from '@/lib/tools/business-discovery';
 import { getChatModel, isGoogleAIEnabled } from '@/lib/ai/providers';
 import { logger } from '@/lib/logging';
 import type { Database, Json } from '@/types/database';
@@ -111,10 +113,32 @@ const uiMessageSchema = z
   })
   .passthrough();
 
+const selectedBusinessSchema = z
+  .object({
+    name: z.string().min(1),
+    address: z.string().nullable().optional(),
+    phone: z.string().nullable().optional(),
+    website: z.string().nullable().optional(),
+    rating: z.number().nullable().optional(),
+    reviewCount: z.number().nullable().optional(),
+    category: z.string().nullable().optional(),
+    googlePlaceId: z.string().nullable().optional(),
+    googleCid: z.string().nullable().optional(),
+    coordinates: z
+      .object({
+        lat: z.number(),
+        lng: z.number(),
+      })
+      .nullable()
+      .optional(),
+  })
+  .passthrough();
+
 const requestSchema = z
   .object({
     message: z.string().max(5000).optional(),
     messages: z.array(uiMessageSchema).max(200).optional(),
+    selectedBusiness: selectedBusinessSchema.optional(),
   })
   .refine(
     (data) => Boolean(data.message || (data.messages && data.messages.length > 0)),
@@ -363,6 +387,15 @@ async function requireOnboardingAuth(): Promise<OnboardingAuth | { error: string
     return { error: 'Failed to initialize business', status: 500 };
   }
 
+  const location =
+    business &&
+    business.location &&
+    typeof business.location === 'object' &&
+    !Array.isArray(business.location)
+      ? (business.location as Record<string, unknown>)
+      : null;
+  const hideAddress = Boolean(location?.hide_address);
+
   const hasBusinessProfile = business
     ? Boolean(
         business.name &&
@@ -370,8 +403,8 @@ async function requireOnboardingAuth(): Promise<OnboardingAuth | { error: string
           business.state &&
           business.services &&
           business.services.length > 0 &&
-          business.address &&
-          business.phone
+          business.phone &&
+          (hideAddress || business.address)
       )
     : false;
 
@@ -398,6 +431,66 @@ function buildMessage(role: 'user' | 'assistant', content: string): Conversation
     content,
     created_at: new Date().toISOString(),
   };
+}
+
+function applySelectedBusinessToState(
+  state: DiscoveryState,
+  selectedBusiness: DiscoveredBusiness
+): DiscoveryState {
+  const nextState: DiscoveryState = {
+    ...state,
+    services: [...state.services],
+    serviceAreas: [...state.serviceAreas],
+  };
+
+  nextState.discoveredData = selectedBusiness;
+  nextState.searchResults = undefined;
+
+  if (!nextState.businessName && selectedBusiness.name) {
+    nextState.businessName = selectedBusiness.name;
+  }
+  if (!nextState.address && selectedBusiness.address) {
+    nextState.address = selectedBusiness.address;
+  }
+  if (!nextState.phone && selectedBusiness.phone) {
+    nextState.phone = selectedBusiness.phone;
+  }
+  if (!nextState.website && selectedBusiness.website) {
+    nextState.website = selectedBusiness.website;
+  }
+  if (nextState.rating == null && selectedBusiness.rating != null) {
+    nextState.rating = selectedBusiness.rating;
+  }
+  if (nextState.reviewCount == null && selectedBusiness.reviewCount != null) {
+    nextState.reviewCount = selectedBusiness.reviewCount;
+  }
+  if (!nextState.googlePlaceId && selectedBusiness.googlePlaceId) {
+    nextState.googlePlaceId = selectedBusiness.googlePlaceId;
+  }
+  if (!nextState.googleCid && selectedBusiness.googleCid) {
+    nextState.googleCid = selectedBusiness.googleCid;
+  }
+
+  if (selectedBusiness.address && (!nextState.city || !nextState.state)) {
+    const parsedLocation = parseLocationFromAddress(selectedBusiness.address);
+    if (parsedLocation) {
+      if (!nextState.city) nextState.city = parsedLocation.city;
+      if (!nextState.state && parsedLocation.state) nextState.state = parsedLocation.state;
+    }
+  }
+
+  if (selectedBusiness.category && nextState.services.length === 0) {
+    const category = selectedBusiness.category.toLowerCase();
+    if (category.includes('masonry') || category.includes('mason')) {
+      nextState.services = ['masonry'];
+    } else if (category.includes('plumb')) {
+      nextState.services = ['plumbing'];
+    } else if (category.includes('electr')) {
+      nextState.services = ['electrical'];
+    }
+  }
+
+  return nextState;
 }
 
 /**
@@ -568,6 +661,7 @@ export async function POST(request: Request) {
     }
 
     const requestMessages = (parsed.data.messages ?? []) as UIMessage[];
+    const selectedBusiness = parsed.data.selectedBusiness as DiscoveredBusiness | undefined;
     const message = parsed.data.message?.trim() || getLatestUserMessage(requestMessages);
 
     // Message is required for POST
@@ -587,17 +681,21 @@ export async function POST(request: Request) {
       content: msg.content,
     }));
 
-    const currentState = conversation.extracted
+    const currentState: DiscoveryState = conversation.extracted
       ? { ...createEmptyDiscoveryState(), ...conversation.extracted }
       : createEmptyDiscoveryState();
 
-    const systemPrompt = buildDiscoverySystemPrompt(currentState);
+    const mergedState = selectedBusiness
+      ? applySelectedBusinessToState(currentState, selectedBusiness)
+      : currentState;
+
+    const systemPrompt = buildDiscoverySystemPrompt(mergedState);
 
     // Dynamically build tools based on current state to prevent invalid tool calls
     // If business is already confirmed (googlePlaceId exists), remove showBusinessSearchResults
     // to prevent the model from showing duplicate search results after confirmation.
     // @see /docs/specs/typeform-onboarding-spec.md - Preventing duplicate search results
-    const activeTools = getActiveDiscoveryTools(currentState);
+    const activeTools = getActiveDiscoveryTools(mergedState);
 
     const result = streamText({
       model: getChatModel(),
@@ -606,7 +704,7 @@ export async function POST(request: Request) {
       tools: activeTools,
       stopWhen: stepCountIs(3),
       onFinish: async ({ text, toolResults }) => {
-        const updatedState = processDiscoveryToolCalls(currentState, toolResults);
+        const updatedState = processDiscoveryToolCalls(mergedState, toolResults);
         // Update missingFields for UI display
         updatedState.missingFields = getMissingDiscoveryFields(updatedState);
         // IMPORTANT: Do NOT overwrite isComplete here!
@@ -642,13 +740,14 @@ export async function POST(request: Request) {
         }
 
         // If profile is complete, save to database
+        const resolvedContact = resolveOnboardingContact(updatedState);
         if (
           updatedState.isComplete &&
           updatedState.businessName &&
-          updatedState.address &&
-          updatedState.phone &&
-          updatedState.city &&
-          updatedState.state
+          resolvedContact.phone &&
+          resolvedContact.city &&
+          resolvedContact.state &&
+          updatedState.services.length > 0
         ) {
           await saveOnboardingProfile({
             businessId: auth.businessId,
@@ -672,7 +771,6 @@ export async function POST(request: Request) {
 // =============================================================================
 // Database Operations
 // =============================================================================
-
 async function saveOnboardingProfile(params: {
   businessId: string;
   contractorId?: string | null;
@@ -681,18 +779,23 @@ async function saveOnboardingProfile(params: {
   const { businessId, contractorId, state } = params;
   const adminClient = createAdminClient();
 
-  const discoveredAddress = state.discoveredData?.address || null;
-  const discoveredPhone = state.discoveredData?.phone || null;
-  const discoveredWebsite = state.discoveredData?.website || null;
-  const postalCodeMatch = discoveredAddress?.match(/\b\d{5}(?:-\d{4})?\b/);
-  const discoveredPostalCode = postalCodeMatch ? postalCodeMatch[0] : null;
+  const resolved = resolveOnboardingContact(state);
+  const postalCodeMatch = resolved.address?.match(/\b\d{5}(?:-\d{4})?\b/);
+  const resolvedPostalCode = postalCodeMatch ? postalCodeMatch[0] : null;
+  const sanitizedDiscoveredData = state.discoveredData
+    ? {
+        ...state.discoveredData,
+        address: resolved.hideAddress ? null : state.discoveredData.address,
+      }
+    : null;
 
   const locationJson = {
-    city: state.city,
-    state: state.state,
+    city: resolved.city,
+    state: resolved.state,
     service_areas: state.serviceAreas,
-    ...(discoveredAddress ? { address: discoveredAddress } : {}),
-    ...(discoveredPostalCode ? { postal_code: discoveredPostalCode } : {}),
+    ...(resolved.address ? { address: resolved.address } : {}),
+    ...(resolvedPostalCode ? { postal_code: resolvedPostalCode } : {}),
+    ...(resolved.hideAddress ? { hide_address: true } : {}),
   };
 
   const understandingJson = {
@@ -701,18 +804,18 @@ async function saveOnboardingProfile(params: {
 
   const businessUpdate = {
     name: state.businessName,
-    address: discoveredAddress,
-    postal_code: discoveredPostalCode,
-    phone: discoveredPhone,
-    website: discoveredWebsite,
-    city: state.city,
-    state: state.state,
+    address: resolved.address,
+    postal_code: resolvedPostalCode,
+    phone: resolved.phone,
+    website: resolved.website,
+    city: resolved.city,
+    state: resolved.state,
     services: state.services.length > 0 ? state.services : null,
     service_areas: state.serviceAreas.length > 0 ? state.serviceAreas : null,
     description: state.description || null,
     location: locationJson as unknown as Json,
     understanding: understandingJson as unknown as Json,
-    discovered_data: (state.discoveredData || null) as unknown as Json | null,
+    discovered_data: (sanitizedDiscoveredData || null) as unknown as Json | null,
     google_place_id: state.googlePlaceId || null,
     google_cid: state.googleCid || null,
     onboarding_method: 'conversation',
@@ -733,14 +836,14 @@ async function saveOnboardingProfile(params: {
         businessId,
         {
           name: state.businessName,
-          city: state.city,
-          state: state.state,
+          city: resolved.city,
+          state: resolved.state,
           services: state.services.length > 0 ? state.services : null,
           service_areas: state.serviceAreas.length > 0 ? state.serviceAreas : null,
           description: state.description || null,
           location: locationJson as unknown as Json,
           understanding: understandingJson as unknown as Json,
-          discovered_data: (state.discoveredData || null) as unknown as Json | null,
+          discovered_data: (sanitizedDiscoveredData || null) as unknown as Json | null,
           google_place_id: state.googlePlaceId || null,
           google_cid: state.googleCid || null,
           onboarding_method: 'conversation',
@@ -768,8 +871,8 @@ async function saveOnboardingProfile(params: {
   // Note: address, postal_code, phone, website do NOT exist in contractors table
   const { error } = await updateContractorOnboarding(adminClient, contractorId, {
     business_name: state.businessName,
-    city: state.city,
-    state: state.state,
+    city: resolved.city ?? state.city,
+    state: resolved.state ?? state.state,
     description: state.description || null,
     services: state.services.length > 0 ? state.services : null,
     service_areas: state.serviceAreas.length > 0 ? state.serviceAreas : null,

@@ -230,6 +230,8 @@ export interface BusinessSearchResultsData {
   prompt?: string;
   /** googlePlaceId of the selected business (shows loading state on that card) */
   selectedId?: string;
+  /** When set, shows a static confirmed card instead of the full search results */
+  confirmedBusiness?: DiscoveredBusiness;
 }
 
 /**
@@ -241,7 +243,8 @@ export interface BusinessSearchResultsData {
  */
 export interface ProfileRevealData {
   businessName: string;
-  address: string;
+  /** Street address - optional for service area businesses */
+  address?: string;
   city: string;
   state: string;
   phone?: string;
@@ -258,6 +261,8 @@ export interface ProfileRevealData {
   yearsInBusiness?: string;
   /** Project suggestions from reviews with photos or web portfolio */
   projectSuggestions?: ProfileRevealProjectSuggestion[];
+  /** If true, this is a service area business - address should not be displayed */
+  hideAddress?: boolean;
 }
 
 /**

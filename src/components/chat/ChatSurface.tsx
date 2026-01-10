@@ -10,6 +10,7 @@
 import type { ReactNode } from 'react';
 import type { UIMessage } from 'ai';
 import { ChatMessages } from './ChatMessages';
+import type { ActiveToolCall } from './AgentActivityIndicator';
 import { cn } from '@/lib/utils';
 
 interface ChatSurfaceProps {
@@ -17,6 +18,10 @@ interface ChatSurfaceProps {
   messages: UIMessage[];
   /** Whether the assistant is responding */
   isLoading?: boolean;
+  /** Active tool calls for activity indicator */
+  activeToolCalls?: ActiveToolCall[];
+  /** Whether text is currently streaming */
+  isTextStreaming?: boolean;
   /** Artifact actions (tool-driven) */
   onArtifactAction?: (action: { type: string; payload?: unknown }) => void;
   /** Optional message feedback handler */
@@ -42,6 +47,8 @@ interface ChatSurfaceProps {
 export function ChatSurface({
   messages,
   isLoading = false,
+  activeToolCalls = [],
+  isTextStreaming = false,
   onArtifactAction,
   onMessageFeedback,
   images,
@@ -59,6 +66,8 @@ export function ChatSurface({
       <ChatMessages
         messages={messages}
         isLoading={isLoading}
+        activeToolCalls={activeToolCalls}
+        isTextStreaming={isTextStreaming}
         onArtifactAction={onArtifactAction}
         onMessageFeedback={onMessageFeedback}
         images={images}

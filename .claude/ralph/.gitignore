@@ -1,0 +1,15 @@
+# Ralph local files
+# Keep templates, ignore active working files
+
+# Active PRD (project-specific, may contain sensitive info)
+prds/current.json
+
+# Progress files (session-specific)
+progress/*.txt
+!progress/.gitkeep
+
+# Logs from AFK runs
+logs/
+
+# Local state files
+*.local.*
