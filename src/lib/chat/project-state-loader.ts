@@ -207,7 +207,8 @@ export async function loadSessionExtractedData({
   if (!sessionId || !businessId) return null;
   const supabase = (await createClient()) as ChatSupabaseClient;
 
-  const { data: session, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: session, error } = await (supabase as any)
     .from('chat_sessions')
     .select('extracted_data')
     .eq('id', sessionId)

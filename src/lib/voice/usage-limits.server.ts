@@ -67,13 +67,16 @@ export async function checkVoiceQuota(
   const supabase = await createClient();
 
   // Get contractor's plan tier
-  const { data: contractor, error: contractorError } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: contractor, error: contractorError } = await (supabase as any)
     .from('contractors')
     .select('plan_tier')
     .eq('id', contractorId)
     .single();
 
-  if (contractorError || !contractor) {
+  const contractorData = contractor as { plan_tier?: string } | null;
+
+  if (contractorError || !contractorData) {
     // Default to free tier if contractor not found (shouldn't happen)
     logger.warn('[VoiceQuota] Contractor not found, defaulting to free tier', {
       contractorId,
@@ -81,7 +84,7 @@ export async function checkVoiceQuota(
     });
   }
 
-  const planTier = normalizePlanTier(contractor?.plan_tier);
+  const planTier = normalizePlanTier(contractorData?.plan_tier);
 
   // Get the daily quota for this mode and tier
   const dailyQuotaMinutes = getDailyQuotaMinutes(planTier, mode);
@@ -146,7 +149,8 @@ export async function getUsageToday(userId: string, mode?: VoiceMode): Promise<D
   const supabase = await createClient();
   const startOfDay = getStartOfDayUTC();
 
-  let query = supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase as any)
     .from('voice_usage')
     .select('duration_seconds')
     .eq('user_id', userId)
@@ -167,7 +171,7 @@ export async function getUsageToday(userId: string, mode?: VoiceMode): Promise<D
     };
   }
 
-  const records = data ?? [];
+  const records = (data ?? []) as Array<{ duration_seconds?: number }>;
   const totalSeconds = records.reduce(
     (sum, record) => sum + (record.duration_seconds ?? 0),
     0

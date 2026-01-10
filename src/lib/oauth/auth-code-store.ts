@@ -141,7 +141,8 @@ export async function storeAuthorizationCode(
 
   const supabase = createAdminClient() as OAuthSupabaseClient;
 
-  const { error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
     .from('oauth_authorization_codes')
     .insert({
       code,
@@ -181,13 +182,29 @@ export async function consumeAuthorizationCode(
   const supabase = createAdminClient() as OAuthSupabaseClient;
 
   // Fetch the code
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
     .from('oauth_authorization_codes')
     .select('*')
     .eq('code', code)
     .single();
 
-  const row = data ?? null;
+  // Type assertion for RLS-bypassed query result
+  interface OAuthCodeRow {
+    code: string;
+    used: boolean;
+    user_id: string;
+    contractor_id: string;
+    email: string;
+    expires_at: string;
+    client_id: string;
+    redirect_uri: string;
+    scopes: string[];
+    state: string | null;
+    code_challenge: string;
+    code_challenge_method: string;
+  }
+  const row = (data ?? null) as OAuthCodeRow | null;
 
   if (error || !row) {
     logger.warn('[OAuth] Auth code not found', { codePrefix: code.slice(0, 8) });
@@ -198,7 +215,8 @@ export async function consumeAuthorizationCode(
   if (row.used) {
     logger.warn('[OAuth] Auth code already used', { codePrefix: code.slice(0, 8) });
     // Security: delete all codes for this user (potential attack)
-    await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
       .from('oauth_authorization_codes')
       .delete()
       .eq('user_id', row.user_id);
@@ -210,7 +228,8 @@ export async function consumeAuthorizationCode(
   if (expiresAt < Date.now() / 1000) {
     logger.warn('[OAuth] Auth code expired', { codePrefix: code.slice(0, 8) });
     // Clean up expired code
-    await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
       .from('oauth_authorization_codes')
       .delete()
       .eq('code', code);
@@ -218,7 +237,8 @@ export async function consumeAuthorizationCode(
   }
 
   // Mark as used (single-use)
-  const { error: updateError } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: updateError } = await (supabase as any)
     .from('oauth_authorization_codes')
     .update({ used: true })
     .eq('code', code);
@@ -252,7 +272,8 @@ export async function consumeAuthorizationCode(
 export async function cleanupExpiredCodes(): Promise<number> {
   const supabase = createAdminClient() as OAuthSupabaseClient;
 
-  const { count, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { count, error } = await (supabase as any)
     .from('oauth_authorization_codes')
     .delete()
     .lt('expires_at', new Date().toISOString())

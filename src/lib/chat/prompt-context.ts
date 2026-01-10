@@ -65,8 +65,9 @@ export async function loadPromptContext({
 
   if (projectId) {
     // Load project with images in parallel
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [projectResult, imagesResult] = await Promise.all([
-      supabase
+      (supabase as any)
         .from('projects')
         .select(
           `
@@ -87,7 +88,7 @@ export async function loadPromptContext({
         .eq('id', projectId)
         .single(),
       // Fetch images separately to get metadata for agent context
-      supabase
+      (supabase as any)
         .from('project_images')
         .select('id, image_type, alt_text, display_order')
         .eq('project_id', projectId)
@@ -128,7 +129,8 @@ export async function loadPromptContext({
   }
 
   if (!summary && includeSummary && sessionId) {
-    const { data: session, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: session, error } = await (supabase as any)
       .from('chat_sessions')
       .select('session_summary')
       .eq('id', sessionId)
@@ -141,7 +143,8 @@ export async function loadPromptContext({
   let businessProfile: BusinessProfileContext | null = null;
   if (businessId) {
     // Load from businesses table (primary source)
-    const { data: business, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: business, error } = await (supabase as any)
       .from('businesses')
       .select('name, city, state, services, service_areas, description')
       .eq('id', businessId)

@@ -204,13 +204,60 @@ export function OnboardingChat({ className }: OnboardingChatProps) {
       setSearchPrompt(searchPart?.output?.prompt);
       setSearchResultsKey((prev) => prev + 1);
       setSearchResultsAnchorId(lastAssistant.id);
+      // Only clear confirmedBusiness if this is a NEW search (different anchor)
+      // This preserves the confirmed card when processing subsequent messages
       setConfirmedBusiness(null);
-    } else {
-      setSearchResults([]);
-      setSearchPrompt(undefined);
+      setSelectedBusinessId(null);
     }
+    // Don't clear searchResults/confirmedBusiness when there's no new search
+    // This preserves the confirmed card state after confirmation
 
-    setSelectedBusinessId(null);
+    // Bug 3 Fix: Extract confirmed business from confirmBusiness tool results
+    // This handles text confirmations like "yes" or "that's me"
+    const confirmPart = parts.find((part) => {
+      if (!isToolPart(part)) return false;
+      return (
+        part.type === 'tool-confirmBusiness' &&
+        (part as { state?: string }).state === 'output-available'
+      );
+    }) as {
+      output?: {
+        confirmed?: boolean;
+        data?: {
+          businessName: string;
+          googlePlaceId?: string;
+          googleCid?: string;
+          address?: string;
+          phone?: string;
+          website?: string;
+          rating?: number;
+          reviewCount?: number;
+          category?: string;
+          city?: string;
+          state?: string;
+        };
+      };
+    } | undefined;
+
+    if (confirmPart?.output?.confirmed && confirmPart.output.data) {
+      const confirmedData = confirmPart.output.data;
+      // Convert to DiscoveredBusiness format for the UI
+      const business: DiscoveredBusiness = {
+        name: confirmedData.businessName,
+        address: confirmedData.address ?? null,
+        phone: confirmedData.phone ?? null,
+        website: confirmedData.website ?? null,
+        rating: confirmedData.rating ?? null,
+        reviewCount: confirmedData.reviewCount ?? null,
+        category: confirmedData.category ?? null,
+        googlePlaceId: confirmedData.googlePlaceId ?? null,
+        googleCid: confirmedData.googleCid ?? null,
+        coordinates: null,
+      };
+      setConfirmedBusiness(business);
+      setSearchResults([]); // Clear the selection list after confirmation
+      setSelectedBusinessId(null);
+    }
 
     // Check for profile reveal artifact
     const profileRevealPart = parts.find((part) => {

@@ -48,7 +48,9 @@ function buildToolMeta(options: ToolMeta) {
  *
  */
 function toJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
-  const jsonSchema = zodToJsonSchema(schema, { target: 'openApi3' });
+  // Type assertion needed for Zod v4 compatibility with zod-to-json-schema
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const jsonSchema = zodToJsonSchema(schema as any, { target: 'openApi3' });
   const rest = { ...(jsonSchema as Record<string, unknown>) };
   delete rest.$schema;
   delete rest.definitions;

@@ -451,7 +451,8 @@ export async function getAllReviewArticles(): Promise<ArticleMeta[]> {
 export async function getAllReviewArticleSlugs(): Promise<string[]> {
   try {
     const supabase = createAdminClient() as ReviewSupabaseClient;
-    const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
       .from("review_articles")
       .select("slug")
       .eq("status", "published");
@@ -461,7 +462,8 @@ export async function getAllReviewArticleSlugs(): Promise<string[]> {
       return [];
     }
 
-    return (data || []).map((row) => row.slug);
+    const rows = (data || []) as Array<{ slug: string }>;
+    return rows.map((row) => row.slug);
   } catch (error) {
     logger.error("[getAllReviewArticleSlugs] Error loading slugs", { error });
     return [];

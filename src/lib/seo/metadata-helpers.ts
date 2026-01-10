@@ -33,7 +33,7 @@ export function buildOpenGraphMeta({
   return {
     title,
     description,
-    type,
+    type: type as 'website',
     url,
     images: imageUrl ? [{ url: imageUrl, alt: imageAlt }] : [],
   };

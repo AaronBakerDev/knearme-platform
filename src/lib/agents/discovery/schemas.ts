@@ -21,6 +21,7 @@ export const confirmBusinessSchema = z.object({
 
 export const fetchReviewsSchema = z.object({
   googleCid: z.string().describe('Google CID (customer ID) from the confirmed business'),
+  locationName: z.string().optional().describe('Country name for reviews lookup (e.g., "Canada", "United States"). Infer from the business location.'),
   maxReviews: z.number().optional().describe('Maximum number of reviews to fetch (default: 10)'),
 });
 

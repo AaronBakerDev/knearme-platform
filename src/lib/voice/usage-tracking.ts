@@ -56,7 +56,8 @@ export async function startVoiceSession(params: {
     started_at: new Date().toISOString(),
   };
 
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
     .from('voice_usage')
     .insert(insertPayload)
     .select('id')
@@ -80,7 +81,8 @@ export async function endVoiceSession(usageId: string): Promise<void> {
   const supabase = await createClient();
 
   // First get the start time to calculate duration
-  const { data: record } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: record } = await (supabase as any)
     .from('voice_usage')
     .select('started_at')
     .eq('id', usageId)
@@ -102,7 +104,8 @@ export async function endVoiceSession(usageId: string): Promise<void> {
     duration_seconds: durationSeconds,
   };
 
-  const { error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
     .from('voice_usage')
     .update(updatePayload)
     .eq('id', usageId);
@@ -127,7 +130,8 @@ export async function getMonthlyUsage(userId: string, mode?: VoiceMode): Promise
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  let query = supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase as any)
     .from('voice_usage')
     .select('duration_seconds')
     .eq('user_id', userId)
@@ -164,7 +168,8 @@ export async function getMonthlySessionCount(userId: string, mode?: VoiceMode): 
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  let query = supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase as any)
     .from('voice_usage')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)

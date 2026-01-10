@@ -28,8 +28,9 @@ import {
 } from './handlers';
 import type { ToolResult } from './shared';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ToolHandler = (
-  input: unknown,
+  input: any,
   auth: AuthContext,
   baseUrl: string
 ) => Promise<ToolResult<{ structuredContent: unknown; _meta?: unknown }>>;
@@ -39,58 +40,60 @@ type ToolEntry = {
   handler: ToolHandler;
 };
 
+// Handlers are typed with specific schemas but registry uses generic `unknown` input
+// The dispatch function validates input against schema before calling handler
 const toolRegistry: Record<string, ToolEntry> = {
   create_project_draft: {
     schema: createProjectDraftSchema,
-    handler: handleCreateProjectDraft,
+    handler: handleCreateProjectDraft as ToolHandler,
   },
   add_project_media: {
     schema: addProjectMediaSchema,
-    handler: handleAddProjectMedia,
+    handler: handleAddProjectMedia as ToolHandler,
   },
   reorder_project_media: {
     schema: reorderProjectMediaSchema,
-    handler: handleReorderProjectMedia,
+    handler: handleReorderProjectMedia as ToolHandler,
   },
   set_project_hero_media: {
     schema: setProjectHeroMediaSchema,
-    handler: handleSetProjectHeroMedia,
+    handler: handleSetProjectHeroMedia as ToolHandler,
   },
   set_project_media_labels: {
     schema: setProjectMediaLabelsSchema,
-    handler: handleSetProjectMediaLabels,
+    handler: handleSetProjectMediaLabels as ToolHandler,
   },
   update_project_sections: {
     schema: updateProjectSectionsSchema,
-    handler: handleUpdateProjectSections,
+    handler: handleUpdateProjectSections as ToolHandler,
   },
   update_project_meta: {
     schema: updateProjectMetaSchema,
-    handler: handleUpdateProjectMeta,
+    handler: handleUpdateProjectMeta as ToolHandler,
   },
   publish_project: {
     schema: finalizeProjectSchema,
-    handler: handlePublishProject,
+    handler: handlePublishProject as ToolHandler,
   },
   unpublish_project: {
     schema: finalizeProjectSchema,
-    handler: handleUnpublishProject,
+    handler: handleUnpublishProject as ToolHandler,
   },
   list_contractor_projects: {
     schema: listContractorProjectsSchema,
-    handler: handleListContractorProjects,
+    handler: handleListContractorProjects as ToolHandler,
   },
   list_projects: {
     schema: listContractorProjectsSchema,
-    handler: handleListContractorProjects,
+    handler: handleListContractorProjects as ToolHandler,
   },
   finalize_project: {
     schema: finalizeProjectSchema,
-    handler: handleFinalizeProject,
+    handler: handleFinalizeProject as ToolHandler,
   },
   get_project_status: {
     schema: getProjectStatusSchema,
-    handler: handleGetProjectStatus,
+    handler: handleGetProjectStatus as ToolHandler,
   },
 };
 

@@ -98,7 +98,8 @@ export async function selectBusinessById(
   client: DbClient,
   authUserId: string
 ): Promise<SupabaseQueryResult<Business>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('businesses')
     .select('*')
     .eq('auth_user_id', authUserId)
@@ -121,7 +122,8 @@ export async function selectBusinessByPrimaryId(
   client: DbClient,
   businessId: string
 ): Promise<SupabaseQueryResult<Business>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('businesses')
     .select('*')
     .eq('id', businessId)
@@ -144,7 +146,8 @@ export async function selectBusinessByContractorId(
   client: DbClient,
   contractorId: string
 ): Promise<SupabaseQueryResult<Business>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('businesses')
     .select('*')
     .eq('legacy_contractor_id', contractorId)
@@ -172,7 +175,8 @@ export async function insertBusiness(
     legacy_contractor_id?: string;
   }
 ): Promise<SupabaseQueryResult<{ id: string }>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('businesses')
     .insert(data)
     .select('id')
@@ -197,7 +201,8 @@ export async function updateBusiness(
   businessId: string,
   updates: BusinessUpdate
 ): Promise<SupabaseQueryResult<Business>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('businesses')
     .update(updates)
     .eq('id', businessId)
@@ -223,7 +228,8 @@ export async function updateBusinessByContractorId(
   contractorId: string,
   updates: BusinessUpdate
 ): Promise<SupabaseMutationResult> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('businesses')
     .update(updates)
     .eq('legacy_contractor_id', contractorId);
@@ -250,7 +256,8 @@ export async function selectContractorById(
   authUserId: string,
   columns: string = '*'
 ): Promise<SupabaseQueryResult<Contractor>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('contractors')
     .select(columns)
     .eq('auth_user_id', authUserId)
@@ -275,7 +282,8 @@ export async function selectContractorByPrimaryId(
   client: DbClient,
   contractorId: string
 ): Promise<SupabaseQueryResult<Contractor>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('contractors')
     .select('*')
     .eq('id', contractorId)
@@ -302,7 +310,8 @@ export async function updateContractor(
   contractorId: string,
   updates: ContractorUpdate
 ): Promise<SupabaseMutationResult> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('contractors')
     .update(updates)
     .eq('id', contractorId);
@@ -323,7 +332,8 @@ export async function insertContractor(
   client: DbClient,
   data: { auth_user_id: string; email?: string }
 ): Promise<SupabaseQueryResult<{ id: string }>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('contractors')
     .insert(data)
     .select('id')
@@ -350,7 +360,8 @@ export async function selectProjectById(
   client: DbClient,
   projectId: string
 ): Promise<SupabaseQueryResult<Project>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('projects')
     .select('*')
     .eq('id', projectId)
@@ -375,7 +386,8 @@ export async function selectProjectByIdForContractor(
   projectId: string,
   contractorId: string
 ): Promise<SupabaseQueryResult<Project>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('projects')
     .select('*')
     .eq('id', projectId)
@@ -403,7 +415,8 @@ export async function selectProjectColumns<T extends Record<string, unknown>>(
   columns: string,
   contractorId?: string
 ): Promise<SupabaseQueryResult<T>> {
-  let query = client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (client as any)
     .from('projects')
     .select(columns)
     .eq('id', projectId);
@@ -435,7 +448,8 @@ export async function updateProject(
   updates: ProjectUpdate,
   contractorId?: string
 ): Promise<SupabaseMutationResult> {
-  let query = client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (client as any)
     .from('projects')
     .update(updates)
     .eq('id', projectId);
@@ -464,7 +478,8 @@ export async function selectProjectImages(
   client: DbClient,
   projectId: string
 ): Promise<SupabaseArrayResult<ProjectImage>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('project_images')
     .select('*')
     .eq('project_id', projectId)
@@ -487,7 +502,8 @@ export async function countProjectImages(
   client: DbClient,
   projectId: string
 ): Promise<SupabaseCountResult> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('project_images')
     .select('*', { count: 'exact', head: true })
     .eq('project_id', projectId);
@@ -509,7 +525,8 @@ export async function insertProjectImage(
   client: DbClient,
   data: ProjectImageInsert
 ): Promise<SupabaseQueryResult<ProjectImage>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('project_images')
     .insert(data)
     .select('*')
@@ -532,7 +549,8 @@ export async function deleteProjectImage(
   client: DbClient,
   imageId: string
 ): Promise<SupabaseMutationResult> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('project_images')
     .delete()
     .eq('id', imageId);
@@ -553,7 +571,8 @@ export async function selectProjectImageWithProject(
   imageId: string,
   projectId: string
 ): Promise<SupabaseQueryResult<ProjectImage & { project: { contractor_id: string } }>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('project_images')
     .select(`
       *,
@@ -582,7 +601,8 @@ export async function updateProjectImageOrder(
   imageId: string,
   displayOrder: number
 ): Promise<SupabaseMutationResult> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('project_images')
     .update({ display_order: displayOrder })
     .eq('id', imageId);
@@ -603,7 +623,8 @@ export async function updateProjectImageLabels(
   imageId: string,
   updates: { image_type?: string | null; alt_text?: string | null }
 ): Promise<SupabaseMutationResult> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('project_images')
     .update(updates)
     .eq('id', imageId);
@@ -624,7 +645,8 @@ export async function verifyProjectImageIds(
   projectId: string,
   imageIds: string[]
 ): Promise<SupabaseArrayResult<{ id: string }>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('project_images')
     .select('id')
     .eq('project_id', projectId)
@@ -653,7 +675,8 @@ export async function selectConversationByBusinessId(
   businessId: string,
   purpose?: string
 ): Promise<SupabaseQueryResult<Conversation>> {
-  let query = client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (client as any)
     .from('conversations')
     .select('*')
     .eq('business_id', businessId);
@@ -681,7 +704,8 @@ export async function insertConversation(
   client: DbClient,
   data: ConversationInsert
 ): Promise<SupabaseQueryResult<Conversation>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('conversations')
     .insert(data)
     .select('*')
@@ -706,7 +730,8 @@ export async function updateConversation(
   conversationId: string,
   updates: ConversationUpdate
 ): Promise<SupabaseQueryResult<Conversation>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('conversations')
     .update(updates)
     .eq('id', conversationId)
@@ -731,7 +756,8 @@ export async function upsertConversation(
   client: DbClient,
   data: ConversationInsert
 ): Promise<SupabaseQueryResult<Conversation>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('conversations')
     .upsert(data, { onConflict: 'business_id,purpose' })
     .select('*')
@@ -758,7 +784,8 @@ export async function selectInterviewSession(
   client: DbClient,
   projectId: string
 ): Promise<SupabaseQueryResult<InterviewSession>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('interview_sessions')
     .select('*')
     .eq('project_id', projectId)
@@ -787,7 +814,8 @@ export async function upsertInterviewSession(
     status?: 'in_progress' | 'completed' | 'approved';
   }
 ): Promise<SupabaseMutationResult> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('interview_sessions')
     .upsert(data, { onConflict: 'project_id' });
 
@@ -812,7 +840,8 @@ export async function updateInterviewSession(
     status?: 'in_progress' | 'completed' | 'approved';
   }
 ): Promise<SupabaseMutationResult> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('interview_sessions')
     .update(updates)
     .eq('project_id', projectId);
@@ -857,7 +886,8 @@ export async function selectOnboardingConversation(
   businessId: string,
   purpose: string
 ): Promise<SupabaseQueryResult<ConversationRow>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('conversations')
     .select('id, messages, extracted, summary')
     .eq('business_id', businessId)
@@ -887,7 +917,8 @@ export async function insertOnboardingConversation(
     extracted: Record<string, unknown>;
   }
 ): Promise<SupabaseQueryResult<ConversationRow>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('conversations')
     .insert(data)
     .select('id, messages, extracted, summary')
@@ -916,7 +947,8 @@ export async function updateOnboardingConversation(
     status?: string;
   }
 ): Promise<SupabaseQueryResult<ConversationRow>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('conversations')
     .update(updates)
     .eq('id', conversationId)
@@ -946,7 +978,8 @@ export async function updateConversationMessages(
     status?: string;
   }
 ): Promise<SupabaseMutationResult> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('conversations')
     .update(updates)
     .eq('id', conversationId);
@@ -989,7 +1022,8 @@ export async function updateBusinessOnboarding(
     onboarding_completed_at?: string | null;
   }
 ): Promise<SupabaseMutationResult> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('businesses')
     .update(updates)
     .eq('id', businessId);
@@ -1024,7 +1058,8 @@ export async function updateContractorOnboarding(
     onboarding_method?: string | null;
   }
 ): Promise<SupabaseMutationResult> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('contractors')
     .update(updates)
     .eq('id', contractorId);
@@ -1054,7 +1089,8 @@ export async function insertProjectImageFull(
     height?: number | null;
   }
 ): Promise<SupabaseQueryResult<ProjectImage>> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('project_images')
     .insert(data)
     .select('*')
@@ -1081,7 +1117,8 @@ export async function updateProjectHeroImage(
   contractorId: string,
   heroImageId: string
 ): Promise<SupabaseMutationResult> {
-  const result = await client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any)
     .from('projects')
     .update({ hero_image_id: heroImageId })
     .eq('id', projectId)

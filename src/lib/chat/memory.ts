@@ -176,7 +176,8 @@ export async function updateProjectMemory(
   const supabase = (await createClient()) as ChatSupabaseClient;
 
   // Get existing memory
-  const { data: project, error: fetchError } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: project, error: fetchError } = await (supabase as any)
     .from('projects')
     .select('ai_memory')
     .eq('id', projectId)
@@ -191,7 +192,9 @@ export async function updateProjectMemory(
   }
 
   // Parse existing memory or create new
-  const existingMemory: ProjectMemory = project?.ai_memory || {
+  // Type assertion for RLS-bypassed query result
+  const projectData = project as { ai_memory?: ProjectMemory } | null;
+  const existingMemory: ProjectMemory = projectData?.ai_memory || {
     facts: [],
     preferences: {},
     updatedAt: new Date().toISOString(),
@@ -211,7 +214,8 @@ export async function updateProjectMemory(
   };
 
   // Save updated memory
-  const { error: updateError } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: updateError } = await (supabase as any)
     .from('projects')
     .update({ ai_memory: updatedMemory })
     .eq('id', projectId);
@@ -248,7 +252,8 @@ export async function buildSessionContext(
   const supabase = (await createClient()) as ChatSupabaseClient;
 
   // Get previous sessions with summaries (most recent first)
-  const { data: sessions, error: sessionsError } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: sessions, error: sessionsError } = await (supabase as any)
     .from('chat_sessions')
     .select('id, session_summary, key_facts, created_at')
     .eq('project_id', projectId)
@@ -271,7 +276,8 @@ export async function buildSessionContext(
   }
 
   // Get project memory
-  const { data: project, error: projectError } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: project, error: projectError } = await (supabase as any)
     .from('projects')
     .select('ai_memory')
     .eq('id', projectId)

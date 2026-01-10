@@ -435,7 +435,8 @@ export function createChatToolExecutors({
 
       // Update businesses table (primary)
       const businessUpdate = { [businessField]: args.value } as BusinessUpdate;
-      const { error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
         .from('businesses')
         .update(businessUpdate)
         .eq('id', toolContext.businessId);
@@ -466,18 +467,21 @@ export function createChatToolExecutors({
         fieldMapping[businessField] ?? (businessField as keyof ContractorUpdate);
 
       // Get the legacy_contractor_id to sync
-      const { data: business } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: business } = await (supabase as any)
         .from('businesses')
         .select('legacy_contractor_id')
         .eq('id', toolContext.businessId)
         .single();
 
-      if (business?.legacy_contractor_id) {
+      const businessData = business as { legacy_contractor_id?: string } | null;
+      if (businessData?.legacy_contractor_id) {
         const contractorUpdate = { [contractorField]: args.value } as ContractorUpdate;
-        await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
           .from('contractors')
           .update(contractorUpdate)
-          .eq('id', business.legacy_contractor_id);
+          .eq('id', businessData.legacy_contractor_id);
         // Don't fail if contractor sync fails - businesses is the source of truth
       }
 

@@ -34,6 +34,82 @@ const TASK_POLL_INTERVAL_MS = 3000;
 const TASK_INITIAL_WAIT_MS = 5000;
 
 /**
+ * DataForSEO location codes for different countries
+ * @see https://docs.dataforseo.com/v3/appendix/locations/
+ */
+const DATAFORSEO_LOCATION_CODES = {
+  US: 2840,     // United States
+  CA: 2124,     // Canada
+  GB: 2826,     // United Kingdom
+  AU: 2036,     // Australia
+} as const;
+
+/**
+ * Canadian province abbreviations for location detection
+ */
+const CANADA_PROVINCES = new Set([
+  'AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'
+]);
+
+/**
+ * Detect country from location string and return DataForSEO location code.
+ * Looks for Canadian province codes or country indicators.
+ *
+ * @param location - Location string (e.g., "Hamilton, ON", "Denver, CO", "Toronto, Canada")
+ * @returns DataForSEO location code (defaults to US if not detected)
+ *
+ * @example
+ * getLocationCode("Hamilton, ON") // → 2124 (Canada)
+ * getLocationCode("Denver, CO")   // → 2840 (US)
+ * getLocationCode("Toronto")      // → 2840 (US, default)
+ */
+function getLocationCode(location: string): number {
+  const upperLocation = location.toUpperCase();
+
+  // Check for Canadian province codes (e.g., "ON", "BC", "QC")
+  for (const province of CANADA_PROVINCES) {
+    // Match province code as word boundary (e.g., ", ON" or " ON " but not "ONTARIO")
+    const provinceRegex = new RegExp(`\\b${province}\\b`);
+    if (provinceRegex.test(upperLocation)) {
+      return DATAFORSEO_LOCATION_CODES.CA;
+    }
+  }
+
+  // Check for explicit country names
+  if (upperLocation.includes('CANADA') || upperLocation.includes(', CA')) {
+    return DATAFORSEO_LOCATION_CODES.CA;
+  }
+  if (upperLocation.includes('UNITED KINGDOM') || upperLocation.includes(', UK') || upperLocation.includes(', GB')) {
+    return DATAFORSEO_LOCATION_CODES.GB;
+  }
+  if (upperLocation.includes('AUSTRALIA') || upperLocation.includes(', AU')) {
+    return DATAFORSEO_LOCATION_CODES.AU;
+  }
+
+  // Default to US
+  return DATAFORSEO_LOCATION_CODES.US;
+}
+
+/**
+ * Get country name from location string for reviews API.
+ * @param location - Location string
+ * @returns Country name for DataForSEO reviews API
+ */
+export function getCountryName(location: string): string {
+  const locationCode = getLocationCode(location);
+  switch (locationCode) {
+    case DATAFORSEO_LOCATION_CODES.CA:
+      return 'Canada';
+    case DATAFORSEO_LOCATION_CODES.GB:
+      return 'United Kingdom';
+    case DATAFORSEO_LOCATION_CODES.AU:
+      return 'Australia';
+    default:
+      return 'United States';
+  }
+}
+
+/**
  * DataForSEO API Client
  *
  * Provides methods to search Google Maps for businesses and fetch their reviews.
@@ -171,7 +247,7 @@ export class DataForSEOClient {
     }>('/serp/google/maps/live/advanced', [
       {
         keyword,
-        location_code: 2840, // US national - city is in keyword
+        location_code: getLocationCode(location), // Dynamic: US, Canada, UK, etc.
         language_code: 'en',
         depth: Math.min(limit, 20),
       },

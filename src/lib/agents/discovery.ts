@@ -192,10 +192,13 @@ async function executeFetchReviews(
 ): Promise<FetchReviewsResult> {
   try {
     const maxReviews = params.maxReviews ?? 10;
+    // Use locationName from params, default to 'United States'
+    // Agent should infer this from the confirmed business location
+    const locationName = params.locationName || 'United States';
     // Wrap external API call with circuit breaker for resilience
     // DataForSEO reviews API has rate limits and can fail under load
     const reviewsResult = await withCircuitBreaker('dataforseo', async () => {
-      return getBusinessReviews(params.googleCid, 'United States', maxReviews);
+      return getBusinessReviews(params.googleCid, locationName, maxReviews);
     });
 
     if (!reviewsResult) {
