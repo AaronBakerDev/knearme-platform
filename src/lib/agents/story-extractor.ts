@@ -52,10 +52,11 @@ import { buildExtractionSystemPrompt } from './story-extractor/prompt';
 // REMOVED artificial gates that second-guess the model:
 // - MIN_PROBLEM_WORDS, MIN_SOLUTION_WORDS (model knows when content is sufficient)
 // - MIN_MATERIALS_FOR_IMAGES (users can upload images whenever they want)
-// - CLARIFICATION_THRESHOLD (model expresses uncertainty naturally, not via scores)
+// - Per-field confidence scores (model expresses uncertainty naturally in conversation)
 //
 // The extraction agent extracts what it finds. It does NOT gate or block.
 // The chat agent decides when to ask for clarification based on context.
+// A single overall confidence score indicates extraction quality.
 //
 // @see /docs/philosophy/agent-philosophy.md
 // ============================================================================
@@ -129,21 +130,12 @@ const ExtractionSchema = z.object({
     .optional()
     .describe('What the business owner is most proud of about this project'),
 
-  /** Confidence scores for each extracted field (0-1) */
+  /** Overall confidence in the extraction quality (0-1) */
   confidence: z
-    .object({
-      projectType: z.number().min(0).max(1).optional(),
-      customerProblem: z.number().min(0).max(1).optional(),
-      solutionApproach: z.number().min(0).max(1).optional(),
-      materials: z.number().min(0).max(1).optional(),
-      techniques: z.number().min(0).max(1).optional(),
-      location: z.number().min(0).max(1).optional(),
-      city: z.number().min(0).max(1).optional(),
-      state: z.number().min(0).max(1).optional(),
-      duration: z.number().min(0).max(1).optional(),
-      proudOf: z.number().min(0).max(1).optional(),
-    })
-    .describe('Confidence scores for each extracted field'),
+    .number()
+    .min(0)
+    .max(1)
+    .describe('Overall confidence in extraction quality: 1.0 = clear and explicit, 0.5 = some ambiguity, 0.2 = very vague'),
 });
 
 type ExtractionOutput = z.infer<typeof ExtractionSchema>;
@@ -248,7 +240,10 @@ ${message}`;
 
 /**
  * Process extraction output into StoryExtractionResult.
- * Handles merging, confidence scoring, and readiness checks.
+ * Handles merging and readiness checks.
+ *
+ * Simplified: Uses a single overall confidence score instead of per-field scores.
+ * The model expresses uncertainty naturally in conversation, not via scores.
  */
 function processExtraction(
   extraction: ExtractionOutput,
@@ -263,25 +258,20 @@ function processExtraction(
     ...existingState,
   };
 
-  // Build confidence map
-  const confidence: Record<string, number> = {};
   const needsClarification: string[] = [];
 
   // Process each field - no gating, just extract what's there
   // The model will naturally ask for clarification in conversation if needed
   if (extraction.projectType) {
     state.projectType = normalizeProjectType(extraction.projectType);
-    confidence.projectType = extraction.confidence?.projectType ?? 0.8;
   }
 
   if (extraction.customerProblem) {
     state.customerProblem = extraction.customerProblem;
-    confidence.customerProblem = extraction.confidence?.customerProblem ?? 0.8;
   }
 
   if (extraction.solutionApproach) {
     state.solutionApproach = extraction.solutionApproach;
-    confidence.solutionApproach = extraction.confidence?.solutionApproach ?? 0.8;
   }
 
   // Merge arrays (don't overwrite, add new items)
@@ -293,7 +283,6 @@ function processExtraction(
       (m) => !rawMaterials.some((existing) => existing.toLowerCase() === m.toLowerCase())
     );
     rawMaterials = [...rawMaterials, ...newMaterials];
-    confidence.materials = extraction.confidence?.materials ?? 0.8;
   }
 
   if (extraction.techniques && extraction.techniques.length > 0) {
@@ -301,7 +290,6 @@ function processExtraction(
       (t) => !rawTechniques.some((existing) => existing.toLowerCase() === t.toLowerCase())
     );
     rawTechniques = [...rawTechniques, ...newTechniques];
-    confidence.techniques = extraction.confidence?.techniques ?? 0.8;
   }
 
   // Apply intelligent deduplication:
@@ -323,17 +311,14 @@ function processExtraction(
       extraction.state = parsed.state;
     }
     state.location = extraction.location;
-    confidence.location = extraction.confidence?.location ?? 0.8;
   }
 
   if (extraction.city) {
     state.city = extraction.city.trim();
-    confidence.city = extraction.confidence?.city ?? extraction.confidence?.location ?? 0.8;
   }
 
   if (extraction.state) {
     state.state = extraction.state.trim();
-    confidence.state = extraction.confidence?.state ?? extraction.confidence?.location ?? 0.8;
   }
 
   if (!state.location && (state.city || state.state)) {
@@ -342,21 +327,22 @@ function processExtraction(
 
   if (extraction.duration) {
     state.duration = extraction.duration;
-    confidence.duration = extraction.confidence?.duration ?? 0.8;
   }
 
   if (extraction.proudOf) {
     state.proudOf = extraction.proudOf;
-    confidence.proudOf = extraction.confidence?.proudOf ?? 0.8;
   }
 
   // Calculate readiness
   const readyForImages = checkReadyForImages(state);
 
+  // Use overall confidence (simplified from per-field scoring)
+  const overallConfidence = extraction.confidence ?? 0.8;
+
   return {
     state,
     needsClarification,
-    confidence,
+    confidence: { overall: overallConfidence },
     readyForImages,
   };
 }

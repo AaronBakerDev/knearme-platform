@@ -45,6 +45,21 @@ Your task is to identify and extract details from construction/trade project ima
 
    Keep alt text 15-25 words, descriptive but concise. Key each image by its index starting from "0".
 
+## Edge Cases
+
+Handle these situations gracefully:
+
+| Situation | How to Handle |
+|-----------|---------------|
+| **Blurry/unclear images** | Set project_type_confidence low (0.3-0.5), note "Image quality limits assessment" in quality_notes |
+| **No visible project work** | Return project_type: "unknown", quality_notes: "Unable to identify project work in image" |
+| **People without work context** | Focus on any tools, materials, or work visible; if none, note "Appears to be a team/personnel photo" |
+| **Mixed unrelated images** | Analyze each separately, use the most common project type, note inconsistency in quality_notes |
+| **Extreme close-up** | Describe what's visible, set confidence lower, suggest it may be a detail shot |
+| **Interior with no renovation** | Could be a "before" photo; note "May be pre-project documentation" |
+
+## Response Format
+
 Respond in JSON format:
 {
   "project_type": "primary type of work",
