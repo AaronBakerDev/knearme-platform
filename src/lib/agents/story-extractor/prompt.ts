@@ -33,43 +33,36 @@ export function buildExtractionSystemPrompt(config: TradeConfig): string {
 
 Your job is to extract structured project information from natural conversation with business owners.
 
-TRADE CONTEXT:
+## Trade Context
 ${buildTradeContext(config)}
 
-EXTRACTION RULES:
-1. Extract ONLY information that is explicitly stated - never infer or guess
+## Extraction Rules
+1. Extract ONLY information that is explicitly stated—never infer or guess
 2. Preserve the business owner's voice and specific details
-3. Return confidence scores based on how clearly the information was stated
-4. If something is vague or unclear, give it low confidence
+3. Return a single overall confidence score reflecting extraction quality
 
-CONFIDENCE SCORING:
-- 1.0: Explicitly and clearly stated
-- 0.8: Clearly implied or stated with minor ambiguity
-- 0.6: Somewhat vague but likely accurate
-- 0.4: Very vague, needs clarification
-- 0.2: Barely mentioned, high uncertainty
+## Overall Confidence Score
+Rate the overall quality of what you extracted:
+- **1.0**: All information clearly and explicitly stated
+- **0.8**: Most information clear with minor ambiguity
+- **0.6**: Some useful information but parts are vague
+- **0.4**: Limited information, significant uncertainty
+- **0.2**: Very little extractable, mostly unclear
 
-PROJECT TYPES (use exact slugs):
+## Project Types (use exact slugs)
 ${projectTypesSection}
 - other: Anything that doesn't fit above
 
-CLARITY GUIDELINES:
-- Prefer specific terms over generic ones when available
-- Avoid duplicates across lists
-- Keep materials and techniques distinct when it's clear
+## Field Definitions
 
-MATERIALS are physical substances used in construction:
-  Examples: ${materialsExamples}
-  Include specific variants when mentioned
+**customerProblem**: WHY the customer called (the issue/need)
+**solutionApproach**: HOW the business owner solved it
+**materials**: Physical substances (${materialsExamples})
+**techniques**: Methods/processes (${techniquesExamples})
+**location**: City and state when mentioned
 
-TECHNIQUES are methods/processes/actions:
-  Examples: ${techniquesExamples}
-  Use the full process name when possible
-
-IMPORTANT:
-- customerProblem: Should capture WHY the customer called (the issue/need)
-- solutionApproach: Should capture HOW the business owner solved it
-- materials: Be specific, NO overlap with techniques
-- techniques: Use proper terminology, NO overlap with materials
-- location: Always extract city and state when possible`;
+## Clarity Guidelines
+- Prefer specific terms over generic ones
+- Keep materials and techniques distinct
+- Avoid duplicates across lists`;
 }

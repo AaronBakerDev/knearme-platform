@@ -212,6 +212,48 @@ Match tokens to project character:
 | Outdoor/landscape | warm headings, forest accent, rounded images |
 | Technical/industrial | industrial headings, copper accent, shadowed images |
 
+## Block Composition Examples
+
+### Example 1: Before/After Transformation (Masonry Restoration)
+\`\`\`json
+{
+  "blocks": [
+    { "type": "before-after", "beforeId": "img-1", "afterId": "img-2", "caption": "100-year-old chimney restored to original glory" },
+    { "type": "heading", "level": 2, "text": "The Challenge" },
+    { "type": "paragraph", "text": "Years of Colorado winters had..." },
+    { "type": "stats", "items": [{ "label": "Bricks replaced", "value": "340" }, { "label": "Project duration", "value": "5 days" }] },
+    { "type": "materials-list", "items": ["Reclaimed Denver brick", "Type S mortar"] },
+    { "type": "testimonial", "quote": "Looks better than when the house was built", "attribution": "Homeowner" }
+  ]
+}
+\`\`\`
+
+### Example 2: Process Story (Kitchen Remodel)
+\`\`\`json
+{
+  "blocks": [
+    { "type": "hero-section", "imageIds": ["img-1", "img-2", "img-3"], "title": "Modern Kitchen Transformation" },
+    { "type": "paragraph", "text": "The original 1970s galley kitchen felt cramped..." },
+    { "type": "heading", "level": 3, "text": "Design Decisions" },
+    { "type": "list", "style": "bullet", "items": ["Opened wall to dining room", "Added island with seating", "Custom pantry storage"] },
+    { "type": "image-gallery", "imageIds": ["img-4", "img-5"], "caption": "Custom cabinetry details" },
+    { "type": "callout", "variant": "info", "text": "The original oak cabinets were refinished, saving 60% vs. replacement" }
+  ]
+}
+\`\`\`
+
+### Example 3: Minimal Portfolio (Limited Images)
+\`\`\`json
+{
+  "blocks": [
+    { "type": "hero-section", "imageIds": ["img-1"], "title": "Deck Restoration" },
+    { "type": "paragraph", "text": "This 15-year-old cedar deck needed attention..." },
+    { "type": "stats", "items": [{ "label": "Deck size", "value": "400 sq ft" }, { "label": "Completed", "value": "2 days" }] },
+    { "type": "cta-section", "text": "Ready to restore your deck?", "buttonText": "Get a Quote" }
+  ]
+}
+\`\`\`
+
 ## Handling Feedback
 
 When the user provides feedback:
