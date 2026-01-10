@@ -9,6 +9,8 @@
  */
 
 import { STORAGE_BUCKETS, type BucketName } from './upload';
+import { createAdminClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
 
 /**
  * Result of validating storage images.
@@ -59,19 +61,26 @@ export async function checkImageExists(
   storagePath: string
 ): Promise<boolean> {
   try {
-    const url = buildPublicUrl(bucket, storagePath);
+    const bucketConfig = STORAGE_BUCKETS[bucket];
+    if (bucketConfig.public) {
+      const url = buildPublicUrl(bucket, storagePath);
 
-    const response = await fetch(url, {
-      method: 'HEAD',
-      // Don't follow redirects - we just want to check existence
-      redirect: 'manual',
-    });
+      const response = await fetch(url, {
+        method: 'HEAD',
+        // Don't follow redirects - we just want to check existence
+        redirect: 'manual',
+      });
 
-    // 200 = exists, anything else = doesn't exist or error
-    return response.status === 200;
+      // 200 = exists, anything else = doesn't exist or error
+      return response.status === 200;
+    }
+
+    const supabase = createAdminClient();
+    const { data, error } = await supabase.storage.from(bucket).download(storagePath);
+    return !error && Boolean(data);
   } catch (error) {
     // Network error or other issue - treat as not existing
-    console.error(`Error checking image existence: ${storagePath}`, error);
+    logger.error('Error checking image existence', { error, storagePath });
     return false;
   }
 }
@@ -148,7 +157,7 @@ export async function findOrphanedImageIds(
   if (images.length === 0) return [];
 
   const storagePaths = images.map((img) => img.storage_path);
-  const result = await validateStorageImages('project-images', storagePaths);
+  const result = await validateStorageImages('project-images-draft', storagePaths);
 
   // Find IDs of images with invalid (missing) storage paths
   const invalidPathSet = new Set(result.invalid);

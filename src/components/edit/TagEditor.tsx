@@ -11,7 +11,7 @@
  * - Duplicate prevention (case-insensitive)
  * - Touch-friendly with 44x44px targets
  *
- * @see src/app/(contractor)/projects/[id]/edit/page.tsx - Integration point
+ * @see src/app/(dashboard)/projects/[id]/edit/page.tsx - Integration point
  */
 
 import { useState, useRef, useCallback, useMemo, KeyboardEvent } from 'react'

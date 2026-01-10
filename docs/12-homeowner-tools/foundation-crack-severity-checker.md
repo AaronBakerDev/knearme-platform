@@ -9,7 +9,7 @@
 
 ## Overview
 
-A fast, rules‑based triage tool that helps homeowners understand whether a foundation crack is likely cosmetic, monitor‑worthy, or needs prompt professional inspection. The tool avoids engineering claims and is explicitly **planning / safety guidance only**.
+A fast, rules‑based triage tool that helps clients understand whether a foundation crack is likely cosmetic, monitor‑worthy, or needs prompt professional inspection. The tool avoids engineering claims and is explicitly **planning / safety guidance only**.
 
 ---
 

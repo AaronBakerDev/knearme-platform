@@ -15,6 +15,7 @@ import { validateToken } from '@/lib/mcp/token-validator';
 import { dispatchTool, toolDefinitions } from '@/lib/mcp/tools';
 import { widgetResource, getWidgetResourceResponse } from '@/lib/mcp/widget';
 import type { McpRequest, McpResponse, AuthContext } from '@/lib/mcp/types';
+import { logger } from '@/lib/logging';
 
 // Base URL for the portfolio API (same app)
 const PORTFOLIO_API_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -126,7 +127,7 @@ async function handleToolCall(
       _meta: result.result._meta,
     });
   } catch (err) {
-    console.error(`[MCP Tool ${toolName}] Error:`, err);
+    logger.error(`[MCP Tool ${toolName}] Error`, { error: err });
     const message = err instanceof Error ? err.message : 'Tool execution failed';
     return createErrorResponse(id, -32000, message);
   }
@@ -241,7 +242,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const response = await handleMcpRequest(mcpRequest, request);
     return NextResponse.json(response);
   } catch (err) {
-    console.error('[MCP Handler] Unexpected error:', err);
+    logger.error('[MCP Handler] Unexpected error', { error: err });
     return NextResponse.json(createErrorResponse(0, -32603, 'Internal error'), { status: 500 });
   }
 }

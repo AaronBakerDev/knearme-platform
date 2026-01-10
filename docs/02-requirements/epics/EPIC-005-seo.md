@@ -217,7 +217,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
 // app/sitemap.ts
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const projects = await getPublishedProjects();
-  const contractors = await getContractors();
+  const businesses = await getContractors();
 
   return [
     { url: 'https://knearme.com', lastModified: new Date() },
@@ -227,8 +227,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'monthly' as const,
       priority: 0.8,
     })),
-    ...contractors.map((c) => ({
-      url: `https://knearme.com/contractors/${c.city_slug}/${c.id}`,
+    ...businesses.map((c) => ({
+      url: `https://knearme.com/businesses/${c.city_slug}/${c.id}`,
       lastModified: c.updated_at,
       changeFrequency: 'weekly' as const,
       priority: 0.7,
@@ -528,16 +528,16 @@ const useOnlineStatus = () => {
 - Then format is: `/[city-slug]/masonry/[project-type-slug]/[project-slug]`
 - Example: `/denver-co/masonry/chimney-rebuild/historic-brick-2024`
 
-- Given a contractor profile URL
+- Given a business profile URL
 - When structured
-- Then format is: `/contractors/[city-slug]/[contractor-id]`
-- Example: `/contractors/denver-co/abc123-def456`
+- Then format is: `/businesses/[city-slug]/[business-slug]`
+- Example: `/businesses/denver-co/abc123-def456`
 
 **URL Patterns:**
 | Page Type | Pattern | Example |
 |-----------|---------|---------|
 | Project | `/[city]/masonry/[type]/[slug]` | `/denver-co/masonry/chimney-rebuild/abc123` |
-| Contractor | `/contractors/[city]/[id]` | `/contractors/denver-co/abc123-def456` |
+| Business | `/businesses/[city]/[slug]` | `/businesses/denver-co/abc123-def456` |
 | City Hub | `/[city]/masonry/` | `/denver-co/masonry/` |
 
 #### Technical Notes

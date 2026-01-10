@@ -1,7 +1,7 @@
-# PRD: Homeowner Tools Hub
+# PRD: Client Tools Hub
 
 > **Version:** 0.1
-> **Last Updated:** December 12, 2025
+> **Last Updated:** January 2, 2026
 > **Status:** Proposed
 > **Priority:** Must Have (Foundation)
 
@@ -9,7 +9,7 @@
 
 ## Overview
 
-Create a dedicated public “Tools” section that hosts multiple interactive, non‑AI homeowner utilities. The Tools Hub is a long‑term inbound marketing engine that:
+Create a dedicated public “Tools” section that hosts multiple interactive, non‑AI client utilities. The Tools Hub is a long‑term inbound marketing engine that:
 
 - Ranks for high‑intent DIY/planning searches.
 - Captures emails and lead intent before users are ready to hire.
@@ -17,17 +17,19 @@ Create a dedicated public “Tools” section that hosts multiple interactive, n
 
 This PRD defines shared UX, SEO, analytics, and technical patterns for all tools.
 
+**Vertical note:** The current tool library is masonry‑specific. The hub architecture should generalize to any portfolio‑based business category over time.
+
 ---
 
 ## Goals
 
-1. Launch a scalable hub for homeowner tools at `/tools`.
+1. Launch a scalable hub for client tools at `/tools`.
 2. Establish a repeatable “tool page” template and internal linking rules.
 3. Enable rapid shipping of new tools without custom infra.
 
 ### Non‑Goals (MVP)
 
-- User accounts or persistent dashboards for homeowners.
+- User accounts or persistent dashboards for clients.
 - AI/vision analysis.
 - Storing user inputs server‑side (except optional email capture).
 
@@ -35,9 +37,9 @@ This PRD defines shared UX, SEO, analytics, and technical patterns for all tools
 
 ## Target Users
 
-- Homeowners researching masonry repairs, costs, and DIY feasibility.
+- Clients researching masonry repairs, costs, and DIY feasibility.
 - DIYers planning materials and scope.
-- Homeowners who will later seek bids.
+- Clients who will later seek bids.
 
 ---
 
@@ -73,7 +75,7 @@ Every tool uses the same page skeleton:
    - When to DIY vs hire a pro.
 5. **Local Proof / Internal Links**
    - “See real projects like yours in {city}” → `/{city}/masonry/{type}`
-   - “Browse local pros” → `/contractors/{city}/{id}` (or waitlist CTA until supply exists).
+   - “Browse local pros” → `/businesses/{city}/{slug}` (current route)
 6. **Email Capture (optional but recommended)**
    - “Email me this report / checklist.”
    - Plain email + consent.
@@ -147,7 +149,7 @@ Track per tool:
 |---|---|---|
 | Organic entrances | Growing WoW | Primary KPI |
 | Tool completion rate | >50% | Inputs → results |
-| CTA clickthrough | >8% | To services/contractors |
+| CTA clickthrough | >8% | To services/business profiles |
 | Email capture | 1–3% of sessions | Depends on traffic |
 | Time on tool | >90s | Indicates usefulness |
 

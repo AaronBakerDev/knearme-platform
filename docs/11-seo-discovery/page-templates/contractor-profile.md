@@ -1,4 +1,4 @@
-# Contractor Profile Page Template
+# Business Profile Page Template (Contractor Schema)
 
 **Priority:** P0 (Implemented)
 **Status:** ✅ Complete
@@ -6,32 +6,32 @@
 
 ## Overview
 
-Contractor Profile pages are **public-facing portfolio showcases** for individual contractors. These pages serve as the primary conversion endpoint where homeowners can view a contractor's full body of work and decide to contact them.
+Business Profile pages are **public-facing portfolio showcases** for individual businesses. These pages serve as the primary conversion endpoint where clients can view a business’s body of work and decide to contact them. The current schema and routes still use `contractors`.
 
-**Implementation:** `app/(public)/contractors/[city]/[slug]/page.tsx` (510 lines)
+**Implementation:** `app/(public)/businesses/[city]/[slug]/page.tsx` (re-export; source lives under `/contractors`)
 
 **Business Purpose:**
-- Showcase contractor expertise and project diversity
+- Showcase business expertise and project diversity
 - Build trust through complete portfolio presentation
-- SEO landing pages for contractor names and locations
-- Conversion point for homeowner inquiries (Phase 2: contact forms)
+- SEO landing pages for business names and locations
+- Conversion point for client inquiries (Phase 2: contact forms)
 
 ## Route Configuration
 
 ### File Location
 ```
-app/(public)/contractors/[city]/[slug]/page.tsx
+app/(public)/businesses/[city]/[slug]/page.tsx
 ```
 
 ### URL Pattern
 ```
-/contractors/{city-slug}/{contractor-slug}
+/businesses/{city-slug}/{business-slug}
 ```
 
 ### Example URLs
-- `/contractors/denver-co/denver-masonry-pro`
-- `/contractors/lakewood-co/brickwise-masonry`
-- `/contractors/aurora-co/highlands-masonry-3`
+- `/businesses/denver-co/denver-masonry-pro`
+- `/businesses/lakewood-co/brickwise-masonry`
+- `/businesses/aurora-co/highlands-masonry-3`
 
 ### Dynamic Route Parameters
 
@@ -42,15 +42,15 @@ app/(public)/contractors/[city]/[slug]/page.tsx
 
 **Validation:**
 - Route returns 404 if contractor slug not found
-- Route returns 404 if contractor has zero published projects
 - City slug must match contractor's `city_slug` field
 - Contractor slug must be unique (stored as `profile_slug`)
+- **Indexing gate:** if zero published projects, page is public but `noindex` is applied
 
 **Slug Rules:**
 - Default `profile_slug` = `slugify(business_name)`
 - If slug collision, append a short suffix (e.g., `-2`, `-3`) to keep it unique
 - Contractors can edit the slug; uniqueness is enforced on save
-- Recommended: preserve old slugs and 301 redirect to the new URL
+- Recommended: preserve old slugs for future alias handling if needed
 
 ## Implemented Features
 
@@ -73,7 +73,7 @@ const { data, error } = await supabase
 ```
 
 **Returns:**
-- Full contractor profile (name, bio, services, location, contact info)
+- Full business profile (name, bio, services, location, contact info)
 - All projects (filtered to published only in component)
 - All project images for each project
 
@@ -125,7 +125,7 @@ export async function generateStaticParams() {
 - **Location Badge:** City, state with MapPin icon
 - **Project Count Badge:** Total published projects
 - **Services:** Badges with Briefcase icon
-- **Description:** Business bio (contractor-provided or AI-generated)
+- **Description:** Business bio (owner-provided or AI-generated)
 
 **Code:**
 ```tsx
@@ -174,6 +174,11 @@ export async function generateStaticParams() {
 })}
 ```
 
+#### Contact Card (NAP)
+- **Display:** Address, phone, and website when available
+- **Purpose:** Trust + conversion; aligns with LocalBusiness schema
+- **Conditional:** Renders only when at least one NAP field exists
+
 #### Project Portfolio Grid
 - **Layout:** 3 columns desktop, 2 tablet, 1 mobile
 - **Pagination:** 12 projects per page
@@ -189,7 +194,7 @@ export async function generateStaticParams() {
 ```tsx
 <nav className="flex items-center justify-center gap-2 mt-8">
   <Button disabled={page === 1} asChild={page > 1}>
-    <Link href={`/contractors/${city}/${slug}?page=${page - 1}`}>
+        <Link href={`/businesses/${city}/${slug}?page=${page - 1}`}>
       <ChevronLeft /> Previous
     </Link>
   </Button>
@@ -199,7 +204,7 @@ export async function generateStaticParams() {
   </span>
 
   <Button disabled={page >= totalPages} asChild={page < totalPages}>
-    <Link href={`/contractors/${city}/${slug}?page=${page + 1}`}>
+        <Link href={`/businesses/${city}/${slug}?page=${page + 1}`}>
       Next <ChevronRight />
     </Link>
   </Button>
@@ -207,7 +212,7 @@ export async function generateStaticParams() {
 ```
 
 #### Footer CTA
-- **Copy:** "Interested in masonry services in {City}, {State}?"
+- **Copy:** "Interested in local services in {City}, {State}?"
 - **Subtext:** "Contact {Business Name} to discuss your project."
 - **Design:** Gradient background, centered text
 - **Future:** Add contact form or phone number (Phase 2)
@@ -236,9 +241,9 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   const contractor = data;
   if (!contractor) return { title: 'Contractor Not Found' };
 
-  const title = `${contractor.business_name} | Masonry Contractor in ${contractor.city}, ${contractor.state}`;
+  const title = `${contractor.business_name} | Services in ${contractor.city}, ${contractor.state}`;
   const description = contractor.description?.slice(0, 160) ||
-    `${contractor.business_name} provides professional masonry services in ${contractor.city}. View their portfolio.`;
+    `${contractor.business_name} showcases real projects in ${contractor.city}. View their portfolio.`;
 
   // OG image priority: profile photo > first project cover image
   let imageUrl = contractor.profile_photo_url;
@@ -250,9 +255,10 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     title,
     description,
     keywords: contractor.services?.join(', '),
-    openGraph: { title: contractor.business_name, description, type: 'profile', url: `${siteUrl}/contractors/${city}/${slug}`, images: imageUrl ? [{ url: imageUrl }] : [] },
+    openGraph: { title: contractor.business_name, description, type: 'profile', url: `${siteUrl}/businesses/${city}/${slug}`, images: imageUrl ? [{ url: imageUrl }] : [] },
     twitter: { card: 'summary_large_image', title: contractor.business_name, description, images: imageUrl ? [imageUrl] : [] },
-    alternates: { canonical: `${siteUrl}/contractors/${city}/${slug}` },
+    robots: hasPublishedProjects ? undefined : { index: false, follow: true },
+    alternates: { canonical: `${siteUrl}/businesses/${city}/${slug}` },
   };
 }
 ```
@@ -274,22 +280,22 @@ const contractorSchema = generateContractorSchema(contractor);
 {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
-  "name": "Denver Masonry Pro",
-  "description": "Specializing in chimney repair, tuckpointing, and historic restoration...",
+  "name": "Denver Stone & Steel",
+  "description": "Specializing in custom installs, repairs, and restoration projects...",
   "address": {
     "@type": "PostalAddress",
     "addressLocality": "Denver",
     "addressRegion": "CO",
     "addressCountry": "US"
   },
-  "url": "https://knearme.com/contractors/denver-co/denver-masonry-pro",
+  "url": "https://knearme.com/businesses/denver-co/denver-masonry-pro",
   "telephone": "+1-303-555-0100",
   "email": "contact@denvermasonrypro.com",
   "priceRange": "$$",
   "image": "https://storage.supabase.co/profile-photos/abc123.jpg",
   "hasOfferCatalog": {
     "@type": "OfferCatalog",
-    "name": "Masonry Services",
+    "name": "Services",
     "itemListElement": [
       { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Chimney Repair" } },
       { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Tuckpointing" } }
@@ -306,16 +312,20 @@ const projectListSchema = generateProjectListSchema(
 );
 ```
 
+**Indexing Gate:**
+- If `hasPublishedProjects` is false, render the profile but set `noindex`.
+- Only render the project ItemList schema when at least one published project exists.
+
 **Breadcrumb Schema:**
 - Generated by `<Breadcrumbs>` component
-- Path: Home → Contractors → {Business Name}
+- Path: Home → Contractors (current route name) → {Business Name}
 
 ### 5. Internal Linking
 
 **Outbound Links (Implemented):**
 - Service areas → City Hub pages
 - Project cards → Project detail pages
-- Breadcrumb → /contractors (future index page)
+- Breadcrumb → /businesses (future index page)
 
 **Inbound Links (Expected):**
 - City Hub → Featured contractor cards
@@ -420,7 +430,7 @@ const projectListSchema = generateProjectListSchema(
 
 - ✅ URL resolution for valid contractor slugs
 - ✅ 404 for invalid slugs
-- ✅ 404 for contractors with zero published projects
+- ✅ Noindex for profiles with zero published projects (public but not indexed)
 - ✅ Profile header displays correctly
 - ✅ Service areas link to city hubs
 - ✅ Project grid populates with projects
@@ -442,9 +452,9 @@ const projectListSchema = generateProjectListSchema(
 ### Current Limitations
 
 1. **No Contact Form:**
-   - No way for homeowners to contact contractor
-   - **Impact:** High (conversion blocker)
-   - **Fix:** Phase 2 - Add contact form or phone/email display
+   - No lead form; contact relies on visible phone/address/website
+   - **Impact:** Medium (conversion opportunity)
+   - **Fix:** Phase 2 - Add contact form or inquiry capture
 
 2. **No Review System:**
    - No social proof or ratings
@@ -472,7 +482,7 @@ const projectListSchema = generateProjectListSchema(
 
 ### Implementation Files
 
-- **Route:** `app/(public)/contractors/[city]/[slug]/page.tsx`
+- **Route:** `app/(public)/businesses/[city]/[slug]/page.tsx`
 - **Components:** `src/components/seo/Breadcrumbs.tsx`, `src/components/ui/badge.tsx`, `src/components/ui/card.tsx`
 - **Utilities:** `src/lib/seo/structured-data.ts`, `src/lib/utils/slugify.ts`
 - **Types:** `src/types/database.ts`
@@ -488,7 +498,7 @@ const projectListSchema = generateProjectListSchema(
 
 ### Functional Requirements ✅
 
-- [x] URL `/contractors/{city}/{slug}` resolves to profile page
+- [x] URL `/businesses/{city}/{slug}` resolves to profile page
 - [x] Invalid slug shows 404
 - [x] Contractors with zero published projects show 404
 - [x] Profile header displays name, photo, location, services, bio

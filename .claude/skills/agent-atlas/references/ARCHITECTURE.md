@@ -18,12 +18,14 @@ graph TB
         TR[tools-runtime.ts]
     end
 
-    subgraph "Agent Layer"
-        OR[Orchestrator]
-        SE[Story Extractor]
-        CG[Content Generator]
-        LC[Layout Composer]
-        QC[Quality Checker]
+    subgraph "Agent Layer - Orchestrator + Subagents"
+        AM[Account Manager<br/>Orchestrator]
+        SA[Story Agent]
+        DA[Design Agent]
+        QA[Quality Agent]
+        AM --> SA
+        AM --> DA
+        AM --> QA
     end
 
     subgraph "Data Layer"
@@ -35,18 +37,57 @@ graph TB
     CR -->|streamText| CW
     CR --> TS
     CR --> TR
-    TR --> OR
-    OR --> SE
-    OR --> CG
-    OR --> LC
-    OR --> QC
+    TR --> AM
     TR -->|loadProjectState| SB
-    SE --> PS
-    CG --> PS
-    QC --> PS
+    SA --> PS
+    DA --> PS
+    QA --> PS
     CR -->|artifacts| AR
     AR --> CM
 ```
+
+---
+
+## Orchestrator + Subagents Architecture
+
+> **Pattern:** Account Manager coordinates specialist subagents.
+> See [AGENT-PERSONAS.md](AGENT-PERSONAS.md) for detailed agent definitions.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    ACCOUNT MANAGER (Orchestrator)                        │
+│              User-facing persona • Coordinates specialists               │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Role: Analyze request → Delegate complex tasks → Synthesize results    │
+│  Tools: Lightweight (read, routing) - delegates heavy work              │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+          ┌──────────────────────────┼──────────────────────────┐
+          │                          │                          │
+          ▼                          ▼                          ▼
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│   STORY AGENT    │    │   DESIGN AGENT   │    │  QUALITY AGENT   │
+│   (Subagent)     │    │   (Subagent)     │    │   (Subagent)     │
+├──────────────────┤    ├──────────────────┤    ├──────────────────┤
+│ • Conversation   │    │ • Layout tokens  │    │ • Assessment     │
+│ • Image analysis │    │ • Composition    │    │ • Contextual     │
+│ • Narrative      │    │ • Preview gen    │    │ • Advisory       │
+│ • Content write  │    │ • Design refine  │    │ • NOT blocking   │
+└──────────────────┘    └──────────────────┘    └──────────────────┘
+```
+
+### Key Architecture Principles
+
+1. **Don't overload orchestrator** - Delegate complex tasks to subagents
+2. **Subagents are specialists** - Each has focused expertise and tools
+3. **Context isolation** - Each subagent works in its own context
+4. **Parallel when possible** - Independent tasks run simultaneously
+5. **Orchestrator synthesizes** - Combines subagent outputs coherently
+6. **Quality is advisory** - Suggests, doesn't block
+
+See `todo/ai-sdk-phase-10-persona-agents.md` for implementation details.
+
+---
 
 ## Component Responsibilities
 
@@ -71,7 +112,7 @@ graph TB
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| **Orchestrator** | `src/lib/agents/orchestrator.ts` | Phase management, agent coordination |
+| **Orchestrator** | `src/lib/agents/orchestrator.ts` | Phase management (transitional → agent-initiated handoffs) |
 | **Story Extractor** | `src/lib/agents/story-extractor.ts` | Extracts structured data from conversation |
 | **Content Generator** | `src/lib/agents/content-generator.ts` | Creates title, description, SEO content |
 | **Layout Composer** | `src/lib/agents/layout-composer.ts` | Structures description blocks |

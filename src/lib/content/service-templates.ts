@@ -81,7 +81,7 @@ export function generateServicePageContent(
     description: content.longDescription.trim(),
     commonIssues: content.commonIssues,
     relatedServices: content.relatedServices,
-    faqs: content.faqs || [],
+    faqs: 'faqs' in content ? content.faqs ?? [] : [],
   };
 }
 

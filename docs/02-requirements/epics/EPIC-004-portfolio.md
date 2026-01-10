@@ -163,7 +163,7 @@ const publishProject = async (projectId: string) => {
 
   if (data) {
     // Invalidate caches
-    await revalidatePath(`/contractors/${data.city_slug}/${data.contractor_id}`);
+    await revalidatePath(`/businesses/${data.city_slug}/${data.contractor_id}`);
     await revalidatePath(`/${data.city_slug}/masonry/${data.project_type_slug}/${data.slug}`);
   }
 
@@ -187,7 +187,7 @@ const publishProject = async (projectId: string) => {
   - Project title
   - Photo gallery with thumbnails
   - Full description
-  - Contractor name/link
+  - Business name/link
   - Project details (type, location, duration)
   - Tags
 
@@ -239,15 +239,15 @@ const publishProject = async (projectId: string) => {
 
 ---
 
-### US-004-05: Contractor Profile Page
+### US-004-05: Business Profile Page
 
-**As a** homeowner researching contractors
-**I want to** view a contractor's full portfolio
+**As a** client researching businesses
+**I want to** view a business's full portfolio
 **So that** I can evaluate their work history
 
 #### Acceptance Criteria
 
-- Given I navigate to a contractor profile URL
+- Given I navigate to a business profile URL
 - When the page loads
 - Then I see:
   - Business name and logo
@@ -256,7 +256,7 @@ const publishProject = async (projectId: string) => {
   - Grid of published projects
   - Service areas list
 
-- Given the contractor has 10+ projects
+- Given the business has 10+ projects
 - When viewing the grid
 - Then pagination or infinite scroll is available
 - And projects are sorted by most recent
@@ -293,7 +293,7 @@ const publishProject = async (projectId: string) => {
 
 #### Technical Notes
 
-- **Route**: `/contractors/[city]/[id]`
+- **Route**: `/businesses/[city]/[slug]`
 - **Slug Format**: `{business-name-slug}-{city-slug}`
 - **Rendering**: SSG with ISR (revalidate: 3600)
 - **Schema.org**: LocalBusiness markup

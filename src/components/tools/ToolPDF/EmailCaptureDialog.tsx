@@ -7,16 +7,9 @@ import { z } from 'zod'
 import { Mail, Loader2 } from 'lucide-react'
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Button, Input, Label
+} from '@/components/ui'
 
 /**
  * Email validation schema for PDF download gate

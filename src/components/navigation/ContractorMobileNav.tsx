@@ -1,8 +1,8 @@
 /**
- * Mobile navigation for contractor dashboard.
+ * Mobile navigation for authenticated dashboard.
  *
  * Client Component that provides a hamburger menu for mobile users
- * accessing the authenticated contractor dashboard.
+ * accessing the authenticated business dashboard.
  *
  * Features:
  * - Sheet (slide-in drawer) from the right
@@ -11,7 +11,7 @@
  * - Settings and profile links
  * - Logout functionality
  *
- * @see /src/app/(contractor)/layout.tsx - Server Component parent
+ * @see /src/app/(dashboard)/layout.tsx - Server Component parent (renamed in 11.9)
  * @see /src/components/marketing/SiteHeader.tsx - Similar mobile menu pattern
  */
 
@@ -20,27 +20,28 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Menu, Home, Plus, User, Settings, LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+  Button,
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+  Avatar, AvatarFallback
+} from "@/components/ui";
 
-interface ContractorMobileNavProps {
+interface DashboardMobileNavProps {
   businessName: string | null;
   email: string;
   initials: string;
 }
 
-export function ContractorMobileNav({
+/**
+ * @deprecated Use DashboardMobileNav instead
+ */
+export type ContractorMobileNavProps = DashboardMobileNavProps;
+
+export function DashboardMobileNav({
   businessName,
   email,
   initials,
-}: ContractorMobileNavProps) {
+}: DashboardMobileNavProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -131,3 +132,8 @@ export function ContractorMobileNav({
     </Sheet>
   );
 }
+
+/**
+ * @deprecated Use DashboardMobileNav instead
+ */
+export const ContractorMobileNav = DashboardMobileNav;

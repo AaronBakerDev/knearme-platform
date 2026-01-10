@@ -129,7 +129,7 @@ function firstAction(inputs: WaterproofingRiskInputs, selected: SymptomKey[]): s
   }
 
   if (symptoms.mortarGaps) {
-    return 'Repoint/tuckpoint failing mortar joints before any sealing.'
+    return 'Repoint/tuckpoint failing mortar joints before sealing.'
   }
 
   if (selected.length === 0 && inputs.exposure === 'high') {
@@ -148,7 +148,7 @@ function buildPlan(inputs: WaterproofingRiskInputs): string[] {
   }
 
   if (symptoms.activeLeak) {
-    steps.push('Inspect roofline/chimney flashing and repair any entry points.')
+    steps.push('Inspect roofline/chimney flashing and repair entry points.')
     steps.push('If leaking continues, schedule a professional inspection.')
   }
 
@@ -164,7 +164,7 @@ function buildPlan(inputs: WaterproofingRiskInputs): string[] {
     steps.push('Dry and clean surface salts once moisture sources are addressed.')
   }
 
-  steps.push('Let masonry dry thoroughly before any sealing (several dry days).')
+  steps.push('Let masonry dry thoroughly before sealing (several dry days).')
 
   if (!symptoms.spalling && !symptoms.activeLeak && (inputs.exposure === 'high' || inputs.climate === 'freeze-thaw')) {
     steps.push('Apply a breathable masonry sealer if appropriate for your material.')
@@ -199,4 +199,3 @@ export function scoreWaterproofingRisk(inputs: WaterproofingRiskInputs): Waterpr
     assumptions: ASSUMPTIONS,
   }
 }
-

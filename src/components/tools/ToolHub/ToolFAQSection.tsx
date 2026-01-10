@@ -37,7 +37,7 @@ export const DEFAULT_TOOL_FAQS: FAQ[] = [
   {
     question: 'Do I need to create an account to use these tools?',
     answer:
-      'No! All homeowner tools are completely free and require no signup or account creation. Just visit any tool and start planning your project immediately.',
+      'No! All homeowner tools are completely free and require no signup or account creation. Just visit a tool and start planning your project immediately.',
   },
   {
     question: 'Can I save or share my estimate?',
@@ -47,7 +47,7 @@ export const DEFAULT_TOOL_FAQS: FAQ[] = [
   {
     question: 'What should I do after using a cost estimator?',
     answer:
-      'Use the estimate as a budget baseline, then request quotes from at least 3 licensed masonry contractors in your area. Compare their proposals against the estimate and ask about any significant differences. Our tools help you have informed conversations with contractors.',
+      'Use the estimate as a budget baseline, then request quotes from at least 3 licensed masonry contractors in your area. Compare their proposals against the estimate and ask about notable differences. Our tools help you have informed conversations with contractors.',
   },
   {
     question: 'Are these tools useful for contractors?',

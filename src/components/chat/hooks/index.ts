@@ -21,8 +21,12 @@ export type { ProjectPreviewData, HeroImageLayout } from './useProjectData';
 export { useKeyboardNavigation, useFocusTrap } from './useKeyboardNavigation';
 export { useAutoSummarize, useSessionActivity } from './useAutoSummarize';
 export { useSaveQueue } from './useSaveQueue';
+export { usePersistence } from './usePersistence';
+export { useProjectHydration } from './useProjectHydration';
+export { useUIState } from './useUIState';
 export { useQuickActions } from './useQuickActions';
 export type { QuickActionItem, QuickActionType } from './useQuickActions';
+export { useGeneratedContentSaver } from './useGeneratedContentSaver';
 export { useVoiceModeManager } from './useVoiceModeManager';
 export { useLiveVoiceSession } from './useLiveVoiceSession';
 

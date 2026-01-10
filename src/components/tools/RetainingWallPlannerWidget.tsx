@@ -10,11 +10,11 @@
 import { useMemo } from 'react'
 import Link from 'next/link'
 import { Ruler, Layers, ShieldAlert, Droplets } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
+import {
+  Card, CardContent, CardHeader, CardTitle,
+  Label, Input, Badge,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui'
 import { estimateRetainingWall, type BlockType, type SoilType, type DrainageOption } from '@/lib/tools/retaining-wall'
 import { useUrlState, ShareableLinkButton } from '@/components/tools/ToolSharing'
 import { StickyResultsBar } from '@/components/tools/ToolResults'

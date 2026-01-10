@@ -1,4 +1,7 @@
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
+
 export type RelatedProject = {
     id: string;
     title: string | null;
@@ -7,8 +10,8 @@ export type RelatedProject = {
     city: string | null;
     project_type_slug: string | null;
     project_type: string | null;
-    contractor_id: string;
-    contractor_business_name?: string;
+    business_id: string;
+    business_name?: string;
     cover_image?: {
         storage_path: string;
         alt_text: string | null;
@@ -19,7 +22,7 @@ export type RelatedProject = {
  * Server-side helper to fetch related projects with diverse matching.
  *
  * Algorithm:
- * 1. Fetch projects from same contractor (limit 2)
+ * 1. Fetch projects from same business (limit 2)
  * 2. Fetch projects of same type in different cities (limit 2)
  * 3. Fetch projects of different types in same city (limit 2)
  * 4. Deduplicate and return up to `limit` projects
@@ -29,29 +32,28 @@ export type RelatedProject = {
  * @param limit - Maximum number of related projects to return
  */
 export async function fetchRelatedProjects(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    supabase: any,
+    supabase: SupabaseClient<Database>,
     currentProject: {
         id: string;
-        contractor_id: string;
+        business_id: string;
         city_slug: string;
         project_type_slug: string;
     },
     limit: number = 6
 ): Promise<RelatedProject[]> {
-    const { id, contractor_id, city_slug, project_type_slug } = currentProject;
+    const { id, business_id, city_slug, project_type_slug } = currentProject;
 
     // Fetch all potential related projects in one query for efficiency
     const { data } = await supabase
         .from('projects')
         .select(`
-      id, title, slug, city_slug, city, project_type_slug, project_type, contractor_id,
-      contractor:contractors(business_name),
+      id, title, slug, city_slug, city, project_type_slug, project_type, business_id,
+      business:businesses(name),
       project_images!project_images_project_id_fkey(storage_path, alt_text, display_order)
     `)
         .eq('status', 'published')
         .neq('id', id)
-        .or(`contractor_id.eq.${contractor_id},city_slug.eq.${city_slug},project_type_slug.eq.${project_type_slug}`)
+        .or(`business_id.eq.${business_id},city_slug.eq.${city_slug},project_type_slug.eq.${project_type_slug}`)
         .order('published_at', { ascending: false })
         .limit(20);
 
@@ -66,15 +68,15 @@ export async function fetchRelatedProjects(
         city: string | null;
         project_type_slug: string | null;
         project_type: string | null;
-        contractor_id: string;
-        contractor: { business_name: string } | null;
+        business_id: string;
+        business: { name: string } | null;
         project_images: Array<{ storage_path: string; alt_text: string | null; display_order: number }>;
     };
 
     const projects = data as RawProject[];
 
     // Categorize projects
-    const sameContractor: RelatedProject[] = [];
+    const sameBusiness: RelatedProject[] = [];
     const sameTypeOtherCity: RelatedProject[] = [];
     const sameCityOtherType: RelatedProject[] = [];
 
@@ -93,16 +95,16 @@ export async function fetchRelatedProjects(
             city: p.city,
             project_type_slug: p.project_type_slug,
             project_type: p.project_type,
-            contractor_id: p.contractor_id,
-            contractor_business_name: p.contractor?.business_name || undefined,
+            business_id: p.business_id,
+            business_name: p.business?.name || undefined,
             cover_image: coverImage ? {
                 storage_path: coverImage.storage_path,
                 alt_text: coverImage.alt_text,
             } : undefined,
         };
 
-        if (p.contractor_id === contractor_id) {
-            sameContractor.push(relatedProject);
+        if (p.business_id === business_id) {
+            sameBusiness.push(relatedProject);
         } else if (p.project_type_slug === project_type_slug && p.city_slug !== city_slug) {
             sameTypeOtherCity.push(relatedProject);
         } else if (p.city_slug === city_slug && p.project_type_slug !== project_type_slug) {
@@ -114,8 +116,8 @@ export async function fetchRelatedProjects(
     const result: RelatedProject[] = [];
     const seen = new Set<string>();
 
-    // Add up to 2 from same contractor
-    for (const p of sameContractor.slice(0, 2)) {
+    // Add up to 2 from same business
+    for (const p of sameBusiness.slice(0, 2)) {
         if (!seen.has(p.id)) {
             result.push(p);
             seen.add(p.id);
@@ -139,7 +141,7 @@ export async function fetchRelatedProjects(
     }
 
     // Fill remaining slots with any other projects
-    const allRemaining = [...sameContractor, ...sameTypeOtherCity, ...sameCityOtherType];
+    const allRemaining = [...sameBusiness, ...sameTypeOtherCity, ...sameCityOtherType];
     for (const p of allRemaining) {
         if (!seen.has(p.id) && result.length < limit) {
             result.push(p);

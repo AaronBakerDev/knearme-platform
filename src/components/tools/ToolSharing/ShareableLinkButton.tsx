@@ -5,6 +5,7 @@ import { Link2, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { logger } from '@/lib/logging'
 
 interface ShareableLinkButtonProps {
   /** Function that returns the full shareable URL */
@@ -57,7 +58,7 @@ export function ShareableLinkButton({
         setCopied(false)
       }, 2000)
     } catch (error) {
-      console.error('Failed to copy URL:', error)
+      logger.error('[ShareableLinkButton] Failed to copy URL', { error })
       toast.error('Failed to copy link', {
         description: 'Please try again or copy the URL manually from the address bar.'
       })

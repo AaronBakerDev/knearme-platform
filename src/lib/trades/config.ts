@@ -1,9 +1,17 @@
 /**
  * Trade Configuration System
  *
- * Provides vocabulary and defaults for the masonry trade.
- * Designed to be extensible for future trades, but currently masonry-only.
+ * Provides vocabulary and defaults for contractor trades.
+ * The system defaults to GENERIC_CONFIG, which works for all businesses.
+ * Trade-specific configs (like MASONRY_CONFIG) are optional enhancements
+ * that provide richer vocabulary for content generation.
  *
+ * PHILOSOPHY ALIGNMENT:
+ * - Generic is the default, not masonry
+ * - Trade configs enhance, not require
+ * - Model infers terminology when config is generic
+ *
+ * @see /docs/philosophy/agent-philosophy.md
  * @see /docs/09-agent/multi-agent-architecture.md
  */
 
@@ -131,11 +139,92 @@ export const MASONRY_CONFIG: TradeConfig = {
 };
 
 /**
- * Get trade configuration.
- * Currently only masonry is supported.
+ * Generic trade configuration.
+ * THIS IS THE DEFAULT - works for all business types.
+ * The model will infer materials, techniques, and terminology from context.
+ * Intentionally minimal to let structure emerge from actual projects.
  */
-export function getTradeConfig(): TradeConfig {
-  return MASONRY_CONFIG;
+export const GENERIC_CONFIG: TradeConfig = {
+  id: 'construction',
+  displayName: 'Construction',
+  slug: 'construction',
+
+  terminology: {
+    projectTypes: [
+      'renovation',
+      'repair',
+      'installation',
+      'restoration',
+      'new construction',
+      'remodel',
+      'maintenance',
+      'custom work',
+    ],
+    materials: [
+      // Intentionally empty - model will infer from context
+    ],
+    techniques: [
+      // Intentionally empty - model will infer from context
+    ],
+    commonProblems: [
+      'wear and tear',
+      'damage',
+      'aging',
+      'deterioration',
+      'malfunction',
+      'code compliance',
+    ],
+    certifications: [
+      'Licensed',
+      'Insured',
+      'Bonded',
+    ],
+  },
+
+  defaults: {
+    projectType: 'project',
+    tags: [],
+  },
+
+  examplePrompts: [
+    'I just finished a project for a customer',
+    'Help me describe this work I completed',
+    'Show me how to present this job',
+  ],
+
+  imageGuidance: {
+    before: 'The condition before work began',
+    after: 'The completed work showing the finished result',
+    progress: 'Work in progress showing technique or process',
+    detail: 'Close-up of craftsmanship or specific features',
+  },
+};
+
+/**
+ * Map of trade slugs to their configurations.
+ * Add new trades here as they are supported.
+ */
+const TRADE_CONFIGS: Record<string, TradeConfig> = {
+  masonry: MASONRY_CONFIG,
+  // Future trades can be added here:
+  // plumbing: PLUMBING_CONFIG,
+  // electrical: ELECTRICAL_CONFIG,
+};
+
+/**
+ * Get trade configuration by trade slug.
+ * Returns GENERIC_CONFIG by default (philosophy-aligned).
+ * Specific trade configs are optional vocabulary enhancements.
+ *
+ * @param trade - Optional trade slug (e.g., 'masonry', 'plumbing')
+ * @returns The trade configuration (GENERIC_CONFIG if no specific match)
+ */
+export function getTradeConfig(trade?: string | null): TradeConfig {
+  if (trade && TRADE_CONFIGS[trade]) {
+    return TRADE_CONFIGS[trade];
+  }
+  // Philosophy: Generic is the default. Model infers from context.
+  return GENERIC_CONFIG;
 }
 
 /**

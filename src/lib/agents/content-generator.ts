@@ -3,7 +3,10 @@
  *
  * Creates polished, SEO-optimized content from extracted project data.
  * Uses Gemini AI to generate professional portfolio content that highlights
- * craftsmanship, problem-solving, and masonry expertise.
+ * craftsmanship, problem-solving, and trade expertise.
+ *
+ * Trade-agnostic: Works for any business type. The model infers
+ * appropriate terminology from the project data.
  *
  * @see /docs/09-agent/multi-agent-architecture.md
  * @see /src/lib/ai/providers.ts for model configuration
@@ -12,8 +15,10 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getGenerationModel, isGoogleAIEnabled, OUTPUT_LIMITS } from '@/lib/ai/providers';
+import { withCircuitBreaker } from '@/lib/agents/circuit-breaker';
 import { formatProjectLocation } from '@/lib/utils/location';
 import type { SharedProjectState, ContentGenerationResult } from './types';
+import { logger } from '@/lib/logging';
 
 // ============================================================================
 // Schema
@@ -37,35 +42,28 @@ const ContentGenerationSchema = z.object({
 
 /**
  * System prompt for content generation.
- * Establishes the AI as a masonry content specialist.
+ *
+ * Philosophy: Let the model tell the story naturally. Don't prescribe
+ * sections like "Problem → Solution → Results" - each project is unique
+ * and the model knows how to write compelling content.
  */
-const CONTENT_GENERATION_SYSTEM_PROMPT = `You are a professional content writer specializing in masonry contractor portfolios.
+const CONTENT_GENERATION_SYSTEM_PROMPT = `You are a professional content writer for business portfolios.
 
-Your role is to create compelling, SEO-optimized content that:
+Write compelling, authentic content that:
+- Tells this project's unique story in a natural way
 - Highlights craftsmanship and attention to detail
-- Uses masonry trade vocabulary (brick, mortar, tuckpointing, pointing, flashing, etc.)
-- Tells the story of the project from problem to solution
+- Uses appropriate trade vocabulary when relevant
 - Writes in third person for SEO pages
-- Appeals to homeowners looking for quality masonry work
+- Appeals to homeowners looking for quality work
 
-Content Guidelines:
-- Title: Compelling, includes location if available, max 60 characters
-- Description: Professional narrative (300-500 words) with:
-  - Opening hook describing the challenge
-  - Customer's problem/need
-  - Solution approach and techniques used
-  - Materials and craftsmanship details
-  - Final result and benefits
-- SEO Title: Optimized for search, includes project type and location
+Output Requirements:
+- Title: Compelling, includes location if natural, max 60 characters
+- Description: Professional narrative (300-500 words) that tells the project's story
+- SEO Title: Optimized for search, max 60 characters
 - SEO Description: Compelling meta description with call-to-action, max 160 chars
-- Tags: 5-10 relevant keywords for categorization
+- Tags: 5-10 relevant keywords
 
-Masonry Vocabulary to Use:
-- Brick types: face brick, fire brick, reclaimed brick, clinker brick
-- Mortar: portland cement, lime mortar, Type N/S/M mortar
-- Techniques: repointing, tuckpointing, parging, flashing, weep holes
-- Structures: chimney, fireplace, foundation, retaining wall, veneer
-- Craftsmanship: plumb, level, bond pattern, head joint, bed joint`;
+Let the project's actual details guide the structure. Don't force a template.`;
 
 /**
  * Build the user prompt with project data.
@@ -111,7 +109,7 @@ function buildContentPrompt(state: SharedProjectState): string {
 
   // What they're proud of
   if (state.proudOf) {
-    sections.push(`Contractor's Pride Point:\n${state.proudOf}`);
+    sections.push(`Pride Point:\n${state.proudOf}`);
   }
 
   // Number of images
@@ -123,7 +121,7 @@ function buildContentPrompt(state: SharedProjectState): string {
     sections.push(`Images: ${state.images.length} photos${imageTypes ? ` (${imageTypes})` : ''}`);
   }
 
-  return `Generate portfolio content for this masonry project:
+  return `Generate portfolio content for this project:
 
 ${sections.join('\n\n')}
 
@@ -193,12 +191,12 @@ export interface ContentGenerationError {
  * @example
  * ```typescript
  * const state: SharedProjectState = {
- *   projectType: 'chimney-rebuild',
+ *   projectType: 'kitchen-remodel',
  *   location: 'Denver, CO',
- *   customerProblem: 'Crumbling chimney with water damage...',
- *   solutionApproach: 'Complete tear-down and rebuild...',
- *   materials: ['reclaimed brick', 'Type S mortar'],
- *   techniques: ['tuckpointing', 'flashing installation'],
+ *   customerProblem: 'Outdated kitchen with poor layout...',
+ *   solutionApproach: 'Complete renovation with modern design...',
+ *   materials: ['quartz countertops', 'oak cabinets'],
+ *   techniques: ['custom carpentry', 'tile installation'],
  *   // ... other fields
  * };
  *
@@ -206,7 +204,7 @@ export interface ContentGenerationError {
  * if ('error' in result) {
  *   console.error(result.error);
  * } else {
- *   console.log(result.title); // "Historic Chimney Restoration in Denver"
+ *   console.log(result.title); // "Modern Kitchen Transformation in Denver"
  * }
  * ```
  */
@@ -231,20 +229,25 @@ export async function generateContent(
   }
 
   try {
-    const { object } = await generateObject({
-      model: getGenerationModel(),
-      schema: ContentGenerationSchema,
-      system: CONTENT_GENERATION_SYSTEM_PROMPT,
-      prompt: buildContentPrompt(state),
-      maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
-      temperature: 0.7, // Some creativity for engaging content
-      providerOptions: {
-        google: {
-          thinkingConfig: {
-            thinkingLevel: 'medium',
+    // Wrap AI call with circuit breaker for resilience
+    // Uses 'content-generator' agent type with failureThreshold: 3
+    // @see /docs/philosophy/operational-excellence.md - Resilience Strategy
+    const { object } = await withCircuitBreaker('content-generator', async () => {
+      return generateObject({
+        model: getGenerationModel(),
+        schema: ContentGenerationSchema,
+        system: CONTENT_GENERATION_SYSTEM_PROMPT,
+        prompt: buildContentPrompt(state),
+        maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
+        temperature: 0.7, // Some creativity for engaging content
+        providerOptions: {
+          google: {
+            thinkingConfig: {
+              thinkingLevel: 'medium',
+            },
           },
         },
-      },
+      });
     });
 
     // Post-process to ensure constraints are met
@@ -253,7 +256,7 @@ export async function generateContent(
     return result;
   } catch (error) {
     const parsed = parseGenerationError(error);
-    console.error('[ContentGenerator] Error:', parsed.error);
+    logger.error('[ContentGenerator] Error', { error: parsed.error });
     return parsed;
   }
 }

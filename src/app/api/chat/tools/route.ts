@@ -6,7 +6,7 @@
 
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { requireAuth, isAuthError } from '@/lib/api/auth';
+import { requireAuthBusiness, isBusinessAuthError } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import type { ToolContext } from '@/lib/chat/chat-types';
 import {
@@ -24,11 +24,11 @@ import {
   reorderImagesSchema,
   validateForPublishSchema,
   updateDescriptionBlocksSchema,
+  processParallelSchema,
 } from '@/lib/chat/tool-schemas';
 import {
   createChatToolExecutors,
   type AllowedToolName,
-  DEEP_CONTEXT_TOOLS,
 } from '@/lib/chat/tools-runtime';
 
 const toolCallSchema = z.object({
@@ -44,33 +44,9 @@ const requestSchema = z.object({
   latestUserMessage: z.string().optional(),
 });
 
-type DeepToolName = (typeof DEEP_CONTEXT_TOOLS)[number];
-
-function inferDeepToolChoice(text: string): DeepToolName | null {
-  const normalized = text.trim().toLowerCase();
-  if (!normalized) return null;
-
-  const wantsLayout =
-    /\blayout\b/.test(normalized) ||
-    /\b(description|content)\s+blocks\b/.test(normalized) ||
-    /\bblock\s+layout\b/.test(normalized) ||
-    /\bcontent\s+structure\b/.test(normalized);
-
-  if (wantsLayout) return 'composePortfolioLayout';
-
-  // Note: checkPublishReady was moved to FAST_TURN_TOOLS (2025-01-01)
-  // It's now auto-allowed and doesn't need explicit inference here.
-  // The model can call it directly without special deep-context handling.
-
-  const wantsGenerate =
-    /\b(generate|draft|write)\b/.test(normalized) &&
-    !/\bregenerate\b/.test(normalized) &&
-    /(content|description|portfolio|page|story|write up|write-up)/.test(normalized);
-
-  if (wantsGenerate) return 'generatePortfolioContent';
-
-  return null;
-}
+// PHILOSOPHY: Deep tool inference removed.
+// All tools are available to authenticated users. Model decides what to call.
+// @see /docs/philosophy/agent-philosophy.md
 
 const TOOL_INPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
   extractProjectData: extractProjectDataSchema,
@@ -87,13 +63,14 @@ const TOOL_INPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
   reorderImages: reorderImagesSchema,
   validateForPublish: validateForPublishSchema,
   updateDescriptionBlocks: updateDescriptionBlocksSchema,
+  processParallel: processParallelSchema,
 };
 
 export async function POST(request: NextRequest) {
   const start = Date.now();
   try {
-    const auth = await requireAuth();
-    if (isAuthError(auth)) {
+    const auth = await requireAuthBusiness();
+    if (isBusinessAuthError(auth)) {
       return apiError(auth.type === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : 'FORBIDDEN', auth.message);
     }
 
@@ -109,7 +86,7 @@ export async function POST(request: NextRequest) {
     const { toolCalls, projectId, sessionId, latestUserMessage } = parsed.data;
     const toolContext: ToolContext = {
       userId: auth.user.id,
-      contractorId: auth.contractor.id,
+      businessId: auth.business.id,
       projectId,
       sessionId,
     };
@@ -118,7 +95,10 @@ export async function POST(request: NextRequest) {
       toolContext,
       latestUserMessage: latestUserMessage ?? '',
     });
-    const allowedDeepTool = inferDeepToolChoice(latestUserMessage ?? '');
+
+    // PHILOSOPHY: All tools available to authenticated users.
+    // Removed deep tool gating that second-guessed the model.
+    // @see /docs/philosophy/agent-philosophy.md
 
     const results = [];
 
@@ -126,17 +106,6 @@ export async function POST(request: NextRequest) {
       const name = call.name as AllowedToolName;
       const executor = toolExecutors[name];
       const schema = TOOL_INPUT_SCHEMAS[name];
-
-      if (DEEP_CONTEXT_TOOLS.includes(name as DeepToolName) && name !== allowedDeepTool) {
-        results.push({
-          id: call.id ?? `${call.name}-${index}`,
-          name: call.name,
-          error: {
-            message: 'Deep tool requires an explicit user request.',
-          },
-        });
-        continue;
-      }
 
       if (!executor || !schema) {
         results.push({

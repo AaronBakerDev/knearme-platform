@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ProjectEditFormArtifact } from '@/components/chat/artifacts/ProjectEditFormArtifact';
-import { getPublicUrl } from '@/lib/storage/upload';
+import { resolveProjectImageUrl } from '@/lib/storage/project-images';
+import { logger } from '@/lib/logging';
 import type { ProjectWithImages, ProjectImage } from '@/types/database';
 
 interface ProjectEditFormPanelProps {
@@ -17,7 +18,7 @@ export function ProjectEditFormPanel({
   onProjectUpdate,
 }: ProjectEditFormPanelProps) {
   const [project, setProject] = useState<ProjectWithImages | null>(null);
-  const [contractorId, setContractorId] = useState<string>('');
+  const [businessId, setBusinessId] = useState<string>('');
   const [images, setImages] = useState<ImageWithUrl[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +29,7 @@ export function ProjectEditFormPanel({
       setError(null);
 
       const [meRes, projectRes] = await Promise.all([
-        fetch('/api/contractors/me'),
+        fetch('/api/businesses/me'),
         fetch(`/api/projects/${projectId}`),
       ]);
 
@@ -41,20 +42,27 @@ export function ProjectEditFormPanel({
       setProject(nextProject);
 
       const projectImages = nextProject.project_images || [];
+      const isPublished = nextProject.status === 'published';
       const imagesWithUrls: ImageWithUrl[] = projectImages
         .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
         .map((img) => ({
           ...img,
-          url: getPublicUrl('project-images', img.storage_path),
+          url: resolveProjectImageUrl({
+            projectId,
+            imageId: img.id,
+            storagePath: img.storage_path,
+            isPublished,
+          }),
         }));
       setImages(imagesWithUrls);
 
       if (meRes.ok) {
         const meData = await meRes.json();
-        setContractorId(meData.contractor?.id || '');
+        // API returns business, not contractor
+        setBusinessId(meData.business?.id || '');
       }
     } catch (err) {
-      console.error('[ProjectEditFormPanel] Failed to load project:', err);
+      logger.error('[ProjectEditFormPanel] Failed to load project', { error: err });
       setError(err instanceof Error ? err.message : 'Failed to load project');
     } finally {
       setIsLoading(false);
@@ -69,7 +77,7 @@ export function ProjectEditFormPanel({
         setImages(data.images || []);
       }
     } catch (err) {
-      console.error('[ProjectEditFormPanel] Failed to refresh images:', err);
+      logger.error('[ProjectEditFormPanel] Failed to refresh images', { error: err });
     }
   }, [projectId]);
 
@@ -107,7 +115,7 @@ export function ProjectEditFormPanel({
       projectId={projectId}
       project={project}
       images={images}
-      contractorId={contractorId}
+      businessId={businessId}
       onSave={async () => {
         await fetchProject();
         onProjectUpdate?.();

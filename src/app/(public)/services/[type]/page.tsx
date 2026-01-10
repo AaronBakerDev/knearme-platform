@@ -32,15 +32,10 @@ import {
   Star,
 } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/server';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
+  Badge, Button, Card, CardContent,
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger
+} from '@/components/ui';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 import {
   generateFAQSchema,
@@ -48,18 +43,21 @@ import {
   generateServiceHowToSchema,
   schemaToString,
 } from '@/lib/seo/structured-data';
+import {
+  buildOpenGraphMeta,
+  buildTwitterMeta,
+  selectCoverImage,
+} from '@/lib/seo/metadata-helpers';
 import { getPublicUrl } from '@/lib/storage/upload';
 import {
   getCitiesByServiceType,
   getFeaturedProjectsByService,
   getProjectCountByService,
   getContractorCountByService,
-  mapUrlSlugToServiceId,
-  isValidNationalServiceType,
 } from '@/lib/data/services';
-import { SERVICE_CONTENT, getServiceContent } from '@/lib/constants/service-content';
+import { getServiceBySlug, getServiceSlugs, getServiceCatalog } from '@/lib/services';
 import { RelatedArticles } from '@/components/content/RelatedArticles';
-import type { ServiceId } from '@/lib/constants/services';
+import { SERVICE_ICONS, getCanonicalUrl } from '@/lib/constants/page-descriptions';
 
 type PageParams = {
   params: Promise<{
@@ -67,34 +65,15 @@ type PageParams = {
   }>;
 };
 
-/**
- * Service icon mapping for visual variety.
- */
-const SERVICE_ICONS: Record<string, string> = {
-  'chimney-repair': '🏠',
-  tuckpointing: '🧱',
-  'brick-repair': '🔨',
-  'stone-masonry': '🪨',
-  'foundation-repair': '🏗️',
-  'historic-restoration': '🏛️',
-  'masonry-waterproofing': '💧',
-  'efflorescence-removal': '✨',
-};
+// SERVICE_ICONS imported from @/lib/constants/page-descriptions
 
 /**
- * Generate static params for all 8 national service pages.
+ * Generate static params for national service pages.
+ * Dynamically fetches service types from database.
  */
 export async function generateStaticParams() {
-  return [
-    { type: 'chimney-repair' },
-    { type: 'tuckpointing' },
-    { type: 'brick-repair' },
-    { type: 'stone-masonry' },
-    { type: 'foundation-repair' },
-    { type: 'historic-restoration' },
-    { type: 'masonry-waterproofing' },
-    { type: 'efflorescence-removal' },
-  ];
+  const slugs = await getServiceSlugs();
+  return slugs.map((slug) => ({ type: slug }));
 }
 
 /**
@@ -103,19 +82,13 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { type } = await params;
 
-  // Validate service type
-  if (!isValidNationalServiceType(type)) {
+  // Validate service type exists in catalog
+  const service = await getServiceBySlug(type);
+  if (!service) {
     return { title: 'Service Not Found' };
   }
 
-  const serviceId = mapUrlSlugToServiceId(type) as ServiceId;
-  const content = getServiceContent(serviceId);
-
-  if (!content) {
-    return { title: 'Service Not Found' };
-  }
-
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
+  const serviceId = service.serviceId;
 
   // Fetch cover image from most recent project for OG
   const supabase = createAdminClient();
@@ -133,42 +106,36 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   };
   const project = projectData as ProjectWithImages | null;
 
-  let imageUrl: string | undefined;
-  let imageAlt: string | undefined;
+  const coverImage = selectCoverImage(project?.project_images);
+  const imageUrl = coverImage
+    ? getPublicUrl('project-images', coverImage.storage_path)
+    : undefined;
+  const imageAlt = coverImage?.alt_text || `${service.label} project example`;
 
-  if (project?.project_images?.length) {
-    const sortedImages = [...project.project_images].sort(
-      (a, b) => a.display_order - b.display_order
-    );
-    const coverImage = sortedImages[0];
-    if (coverImage) {
-      imageUrl = getPublicUrl('project-images', coverImage.storage_path);
-      imageAlt = coverImage.alt_text || `${content.label} project example`;
-    }
-  }
-
-  const title = `${content.label}: Complete Guide, Costs & Local Contractors | KnearMe`;
-  const description = `Everything you need to know about ${content.label.toLowerCase()}: what it is, when you need it, typical costs, and how to find qualified contractors in your area.`;
+  const title = `${service.label}: Complete Guide, Costs & Local Contractors | KnearMe`;
+  const description = `Everything you need to know about ${service.label.toLowerCase()}: what it is, when you need it, typical costs, and how to find qualified contractors in your area.`;
+  const canonicalUrl = getCanonicalUrl(`/services/${type}`);
+  const openGraphTitle = `${service.label} Guide & Contractors`;
 
   return {
     title,
     description,
-    keywords: content.keywords.join(', '),
-    openGraph: {
-      title: `${content.label} Guide & Contractors`,
+    keywords: service.keywords.join(', '),
+    openGraph: buildOpenGraphMeta({
+      title: openGraphTitle,
       description,
       type: 'article',
-      url: `${siteUrl}/services/${type}`,
-      images: imageUrl ? [{ url: imageUrl, alt: imageAlt }] : [],
-    },
-    twitter: {
-      card: imageUrl ? 'summary_large_image' : 'summary',
+      url: canonicalUrl,
+      imageUrl,
+      imageAlt,
+    }),
+    twitter: buildTwitterMeta({
       title,
       description,
-      images: imageUrl ? [imageUrl] : [],
-    },
+      imageUrl,
+    }),
     alternates: {
-      canonical: `${siteUrl}/services/${type}`,
+      canonical: canonicalUrl,
     },
   };
 }
@@ -179,43 +146,43 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 export default async function NationalServicePage({ params }: PageParams) {
   const { type } = await params;
 
-  // Validate service type
-  if (!isValidNationalServiceType(type)) {
+  // Validate service type exists in catalog
+  const service = await getServiceBySlug(type);
+  if (!service) {
     notFound();
   }
 
-  const serviceId = mapUrlSlugToServiceId(type) as ServiceId;
-  const content = getServiceContent(serviceId);
-
-  if (!content) {
-    notFound();
-  }
+  const serviceId = service.serviceId;
 
   // Fetch data in parallel
-  const [cities, featuredProjects, projectCount, contractorCount] = await Promise.all([
+  const [cities, featuredProjects, projectCount, contractorCount, allServices] = await Promise.all([
     getCitiesByServiceType(serviceId),
     getFeaturedProjectsByService(serviceId, 6),
     getProjectCountByService(serviceId),
     getContractorCountByService(serviceId),
+    getServiceCatalog(), // For related services lookup
   ]);
 
-  const icon = SERVICE_ICONS[type] || '🔧';
+  // Build related services lookup
+  const servicesById = new Map(allServices.map((s) => [s.serviceId, s]));
+
+  const icon = service.iconEmoji || SERVICE_ICONS[type] || '🔧';
 
   // Breadcrumb items
   const breadcrumbItems = [
     { name: 'Home', url: '/' },
     { name: 'Services', url: '/services' },
-    { name: content.label, url: `/services/${type}` },
+    { name: service.label, url: `/services/${type}` },
   ];
 
   // Generate structured data
-  const faqSchema = content.faqs?.length ? generateFAQSchema(content.faqs) : null;
+  const faqSchema = service.faqs?.length ? generateFAQSchema(service.faqs) : null;
 
   const serviceSchema = generateNationalServiceSchema(
     {
-      name: content.label,
+      name: service.label,
       slug: type,
-      description: content.shortDescription,
+      description: service.shortDescription,
     },
     cities.map((c) => ({ cityName: c.cityName, state: c.state })),
     { projectCount, contractorCount }
@@ -223,11 +190,11 @@ export default async function NationalServicePage({ params }: PageParams) {
 
   const processSchema = generateServiceHowToSchema(
     {
-      name: content.label,
+      name: service.label,
       slug: type,
-      description: content.shortDescription,
+      description: service.shortDescription,
     },
-    content.processSteps
+    service.processSteps
   );
 
   return (
@@ -265,19 +232,19 @@ export default async function NationalServicePage({ params }: PageParams) {
                 <span
                   className="inline-block text-5xl md:text-6xl mb-6 animate-fade-up opacity-0 stagger-1"
                   role="img"
-                  aria-label={content.label}
+                  aria-label={service.label}
                 >
                   {icon}
                 </span>
 
                 {/* Headline */}
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-display tracking-tight text-balance mb-6 animate-fade-up opacity-0 stagger-2">
-                  {content.label}
+                  {service.label}
                 </h1>
 
                 {/* Subheadline */}
                 <p className="text-lg md:text-xl text-muted-foreground max-w-xl mb-8 animate-fade-up opacity-0 stagger-3">
-                  {content.shortDescription}
+                  {service.shortDescription}
                 </p>
 
                 {/* CTA Buttons */}
@@ -367,7 +334,7 @@ export default async function NationalServicePage({ params }: PageParams) {
                   <Lightbulb className="h-6 w-6 text-primary" />
                 </div>
                 <h2 className="text-3xl md:text-4xl font-display">
-                  What is {content.label}?
+                  What is {service.label}?
                 </h2>
               </div>
 
@@ -416,7 +383,7 @@ export default async function NationalServicePage({ params }: PageParams) {
               </div>
               <div
                 className="prose-earth max-w-[72ch] leading-relaxed prose-headings:tracking-tight prose-p:text-muted-foreground"
-                dangerouslySetInnerHTML={{ __html: content.longDescription }}
+                dangerouslySetInnerHTML={{ __html: service.longDescription }}
               />
             </div>
           </section>
@@ -435,7 +402,7 @@ export default async function NationalServicePage({ params }: PageParams) {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
-                  {content.commonIssues.map((issue, index) => (
+                  {service.commonIssues.map((issue, index) => (
                     <div
                       key={index}
                       className="group flex items-start gap-4 p-5 bg-card rounded-2xl shadow-depth hover:shadow-elevated transition-all duration-300"
@@ -452,7 +419,7 @@ export default async function NationalServicePage({ params }: PageParams) {
           </section>
 
           {/* Process Overview */}
-          {content.processSteps.length > 0 && (
+          {service.processSteps.length > 0 && (
             <section className="container mx-auto px-4 py-16 md:py-20">
               <div className="max-w-5xl mx-auto">
                 <div className="flex items-center gap-3 mb-8">
@@ -462,13 +429,13 @@ export default async function NationalServicePage({ params }: PageParams) {
                   <div>
                     <h2 className="text-3xl md:text-4xl font-display">Process Overview</h2>
                     <p className="text-muted-foreground">
-                      How professional contractors handle {content.label.toLowerCase()} from start to finish
+                      How professional contractors handle {service.label.toLowerCase()} from start to finish
                     </p>
                   </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
-                  {content.processSteps.map((step, index) => (
+                  {service.processSteps.map((step, index) => (
                     <Card
                       key={step.title}
                       className="border-0 shadow-depth bg-card h-full"
@@ -497,7 +464,7 @@ export default async function NationalServicePage({ params }: PageParams) {
           )}
 
           {/* Cost Factors */}
-          {content.costFactors.length > 0 && (
+          {service.costFactors.length > 0 && (
             <section className="bg-section-gradient py-16 md:py-20">
               <div className="container mx-auto px-4">
                 <div className="flex items-center gap-3 mb-8">
@@ -507,13 +474,13 @@ export default async function NationalServicePage({ params }: PageParams) {
                   <div>
                     <h2 className="text-3xl md:text-4xl font-display">Cost Factors</h2>
                     <p className="text-muted-foreground">
-                      What typically drives the price of {content.label.toLowerCase()}
+                      What typically drives the price of {service.label.toLowerCase()}
                     </p>
                   </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {content.costFactors.map((factor) => (
+                  {service.costFactors.map((factor) => (
                     <Card key={factor.label} className="border-0 shadow-depth bg-card h-full">
                       <CardContent className="p-5 space-y-2">
                         <h3 className="font-semibold">{factor.label}</h3>
@@ -588,8 +555,8 @@ export default async function NationalServicePage({ params }: PageParams) {
                         <div className="flex items-center justify-between text-sm text-muted-foreground">
                           <span className="flex items-center gap-1.5">
                             <MapPin className="h-4 w-4" />
-                            {project.contractor?.city || project.city},{' '}
-                            {project.contractor?.state || ''}
+                            {project.business?.city || project.city},{' '}
+                            {project.business?.state || ''}
                           </span>
                           {project.published_at && (
                             <span className="flex items-center gap-1.5">
@@ -632,7 +599,7 @@ export default async function NationalServicePage({ params }: PageParams) {
                   </div>
                   <div>
                     <h2 className="text-3xl md:text-4xl font-display">
-                      Find {content.label} by City
+                      Find {service.label} by City
                     </h2>
                     <p className="text-muted-foreground mt-1">
                       Connect with local contractors in your area
@@ -677,7 +644,7 @@ export default async function NationalServicePage({ params }: PageParams) {
           )}
 
           {/* FAQ Section */}
-          {content.faqs && content.faqs.length > 0 && (
+          {service.faqs && service.faqs.length > 0 && (
             <section id="faq" className="container mx-auto px-4 py-16 md:py-20 scroll-mt-8">
               <div className="max-w-4xl mx-auto">
                 <div className="flex items-center gap-3 mb-8">
@@ -690,7 +657,7 @@ export default async function NationalServicePage({ params }: PageParams) {
                 </div>
 
                 <Accordion type="single" collapsible className="space-y-4">
-                  {content.faqs.map((faq, index) => (
+                  {service.faqs.map((faq, index) => (
                     <AccordionItem
                       key={index}
                       value={`item-${index}`}
@@ -719,42 +686,30 @@ export default async function NationalServicePage({ params }: PageParams) {
           {/* Related Articles Section */}
           <RelatedArticles
             serviceSlug={serviceId}
-            title={`${content.label} Guides`}
+            title={`${service.label} Guides`}
             className="container mx-auto px-4 py-16 md:py-20"
           />
 
           {/* Related Services Section */}
-          {content.relatedServices.length > 0 && (
+          {service.relatedServices.length > 0 && (
             <section className="container mx-auto px-4 pb-16 md:pb-20">
               <div className="max-w-4xl mx-auto">
                 <Card className="border-0 shadow-depth bg-gradient-to-br from-primary/5 via-card to-card">
                   <CardContent className="p-8">
                     <h2 className="text-xl font-display mb-6">Related Services</h2>
                     <div className="flex flex-wrap gap-3">
-                      {content.relatedServices.map((relatedId) => {
-                        const relatedContent = SERVICE_CONTENT[relatedId];
-                        if (!relatedContent) return null;
-
-                        // Map service ID back to URL slug
-                        const urlSlug =
-                          relatedId === 'stone-work'
-                            ? 'stone-masonry'
-                            : relatedId === 'restoration'
-                            ? 'historic-restoration'
-                            : relatedId === 'waterproofing'
-                            ? 'masonry-waterproofing'
-                            : relatedId;
-
-                        const relatedIcon = SERVICE_ICONS[urlSlug] || '🔧';
+                      {service.relatedServices.map((relatedId) => {
+                        const related = servicesById.get(relatedId);
+                        if (!related) return null;
 
                         return (
-                          <Link key={relatedId} href={`/services/${urlSlug}`}>
+                          <Link key={relatedId} href={`/services/${related.urlSlug}`}>
                             <Badge
                               variant="secondary"
                               className="cursor-pointer bg-background hover:bg-primary/10 hover:border-primary/30 border border-transparent transition-all px-4 py-2 text-sm"
                             >
-                              <span className="mr-2">{relatedIcon}</span>
-                              {relatedContent.label}
+                              <span className="mr-2">{related.iconEmoji}</span>
+                              {related.label}
                             </Badge>
                           </Link>
                         );
@@ -777,11 +732,11 @@ export default async function NationalServicePage({ params }: PageParams) {
               </span>
 
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-display tracking-tight mb-4">
-                Need Professional {content.label}?
+                Need Professional {service.label}?
               </h2>
               <p className="text-lg md:text-xl opacity-90 mb-8">
                 Browse projects from verified contractors and find the right professional
-                for your {content.label.toLowerCase()} needs.
+                for your {service.label.toLowerCase()} needs.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

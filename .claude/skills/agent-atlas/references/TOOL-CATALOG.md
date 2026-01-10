@@ -2,6 +2,13 @@
 
 > Complete reference for all chat tools with schemas, executors, and artifact mappings.
 
+> **⚠️ Current Implementation** - This documents the existing tool system.
+> We're evolving toward agentic architecture where agents decide tool usage autonomously.
+> See [PHILOSOPHY.md](PHILOSOPHY.md) for target design principles.
+>
+> **Philosophy Note:** Tools should be *capabilities*, not prescribed workflows.
+> Agents should decide when to use them based on context, not fixed conditions.
+
 ## Tool Classification
 
 | Category | Tools | Characteristics |
@@ -20,7 +27,7 @@
 **Schema** (`tool-schemas.ts:44-100`):
 ```typescript
 {
-  project_type?: string,      // "chimney", "tuckpointing", etc.
+  project_type?: string,      // "kitchen-remodel", "bathroom-renovation", etc.
   customer_problem?: string,  // What issue the customer had
   solution_approach?: string, // How contractor solved it
   materials_mentioned?: string[],
@@ -31,15 +38,20 @@
   location?: string,          // DEPRECATED - use city/state
   challenges?: string,
   proud_of?: string,
-  ready_for_images?: boolean  // See conditions below
+  ready_for_images?: boolean  // DEPRECATED - always true now
 }
 ```
 
-**ready_for_images Conditions**:
-1. Specific project type (not "brick work")
-2. customer_problem >= 8 words
-3. solution_approach >= 8 words
-4. At least 1 specific material
+**ready_for_images Conditions** (DEPRECATED):
+
+> ⚠️ These thresholds have been removed from the codebase.
+> The function now returns `true` - images can be requested anytime.
+> See [MIGRATIONS.md](MIGRATIONS.md) Phase 2 for details.
+
+~~1. Specific project type (not "brick work")~~
+~~2. customer_problem >= 8 words~~
+~~3. solution_approach >= 8 words~~
+~~4. At least 1 specific material~~
 
 **Executor** (`tools-runtime.ts:303-320`):
 - Merges session data with new extraction
@@ -83,7 +95,7 @@
 ```typescript
 {
   existingCount: number,                    // Default: 0
-  suggestedCategories?: ('before'|'after'|'progress'|'detail')[],
+  suggestedCategories?: string[],           // Agent decides categories based on context
   message?: string                          // Optional prompt
 }
 ```
@@ -293,8 +305,8 @@
 **Artifact**: None (direct database update)
 
 **Usage Examples**:
-- "Update my services to include chimney repair"
-- "Change my business name to Smith Masonry LLC"
+- "Update my services to include bathroom remodels"
+- "Change my business name to Smith Home Services LLC"
 - "Add Denver and Boulder to my service areas"
 
 ---

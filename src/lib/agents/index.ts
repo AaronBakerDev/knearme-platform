@@ -1,7 +1,15 @@
 /**
  * Multi-Agent System Exports
  *
- * @see /docs/09-agent/multi-agent-architecture.md
+ * ARCHITECTURE: Orchestrator + Subagents Pattern
+ *
+ * Account Manager (orchestrator) coordinates specialist subagents:
+ * - Story Agent: Conversation, images, narrative (story-extractor.ts)
+ * - Design Agent: Layout, tokens, preview (ui-composer.ts)
+ * - Quality Agent: Assessment, advisory (quality-checker.ts)
+ *
+ * @see /.claude/skills/agent-atlas/references/AGENT-PERSONAS.md
+ * @see /todo/ai-sdk-phase-10-persona-agents.md
  */
 
 // Types
@@ -22,6 +30,11 @@ export {
 // Agents
 export { generateContent, type ContentGenerationError } from './content-generator';
 export { composePortfolioLayout } from './layout-composer';
+export {
+  composeUI,
+  type UIComposerOptions,
+  type UIComposerResult,
+} from './ui-composer';
 
 export {
   extractStory,
@@ -30,9 +43,11 @@ export {
   normalizeProjectType,
   getMissingFields,
   getExtractionProgress,
-  VALID_PROJECT_TYPES,
   type ProjectType,
 } from './story-extractor';
+
+// Note: VALID_PROJECT_TYPES removed - now derived dynamically from TradeConfig
+// Use getTradeConfig().terminology.projectTypes for valid project types
 
 export {
   checkQuality,
@@ -45,7 +60,40 @@ export {
   orchestrate,
   determinePhase,
   mergeProjectState,
+  // New delegation-based functions (Phase 10)
+  delegateToStoryAgent,
+  delegateToDesignAgent,
+  delegateToQualityAgent,
+  delegateParallel,
+  synthesizeResults,
   type OrchestratorAction,
   type OrchestratorResult,
   type OrchestratorContext,
+  type DelegationContext,
+  type PhaseHint,
 } from './orchestrator';
+
+// Subagent infrastructure (Phase 10)
+export * from './subagents';
+
+// Discovery Agent (onboarding)
+export {
+  runDiscoveryAgent,
+  createEmptyDiscoveryState,
+  buildDiscoverySystemPrompt,
+  isDiscoveryComplete,
+  getMissingDiscoveryFields,
+  getDiscoveryGreeting,
+  processDiscoveryToolCalls,
+  discoveryTools,
+  type DiscoveryState,
+  type DiscoveryResult,
+  type DiscoveryContext,
+} from './discovery';
+
+export {
+  runWebSearchAgent,
+  type WebSearchAgentInput,
+  type WebSearchAgentResult,
+  type WebSearchSource,
+} from './web-search';

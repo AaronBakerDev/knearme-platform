@@ -80,6 +80,3 @@ export function VoiceChatButton({
   );
 }
 
-// Re-export with old name for backwards compatibility during migration
-// TODO: Remove after all consumers are updated
-export { VoiceChatButton as VoiceModeButton };

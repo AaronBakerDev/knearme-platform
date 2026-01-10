@@ -6,7 +6,7 @@
  * Displays the complete edit form (Content, Images, SEO tabs) inside
  * the canvas panel of the chat-first edit interface.
  *
- * Extracted from /src/app/(contractor)/projects/[id]/edit/page.tsx
+ * Extracted from /src/app/(dashboard)/projects/[id]/edit/page.tsx
  * to be used as a canvas artifact in the three-panel layout.
  *
  * @see /docs/ai-sdk/chat-artifacts-spec.md
@@ -18,25 +18,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { Save, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+  Button, Input, Textarea,
+  Tabs, TabsContent, TabsList, TabsTrigger,
+  Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage
+} from '@/components/ui';
 import { TagEditor } from '@/components/edit/TagEditor';
 import { ChipEditor } from '@/components/edit/ChipEditor';
 import { SortableImageGrid } from '@/components/edit/SortableImageGrid';
 import { ImageUploader } from '@/components/upload/ImageUploader';
 import { UploadProgress } from '@/components/ui/upload-progress';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logging';
 import { BlockEditor } from '@/components/edit/BlockEditor';
 import {
   blocksToHtml,
@@ -74,8 +67,8 @@ interface ProjectEditFormArtifactProps {
   project: ProjectWithImages;
   /** Project images with URLs */
   images: ImageWithUrl[];
-  /** Contractor ID for uploads */
-  contractorId: string;
+  /** Business ID for uploads */
+  businessId: string;
   /** Callback when form saves */
   onSave?: () => void;
   /** Callback when images change */
@@ -93,7 +86,7 @@ export function ProjectEditFormArtifact({
   projectId,
   project,
   images: initialImages,
-  contractorId,
+  businessId,
   onSave,
   onImagesChange,
   activeTab: initialTab = 'content',
@@ -140,7 +133,7 @@ export function ProjectEditFormArtifact({
         onImagesChange?.();
       }
     } catch (error) {
-      console.error('Failed to refresh images:', error);
+      logger.error('[Project Edit] Failed to refresh images', { error });
     }
   }, [projectId, onImagesChange]);
 
@@ -181,7 +174,7 @@ export function ProjectEditFormArtifact({
         toast.error(error.message || 'Failed to save changes');
       }
     } catch (error) {
-      console.error('Failed to save:', error);
+      logger.error('[Project Edit] Failed to save', { error });
       toast.error('Failed to save changes');
     } finally {
       setIsSaving(false);
@@ -208,7 +201,7 @@ export function ProjectEditFormArtifact({
         toast.error('Failed to reorder images');
       }
     } catch (error) {
-      console.error('Failed to reorder:', error);
+      logger.error('[Project Edit] Failed to reorder', { error });
       await refreshImages();
       toast.error('Failed to reorder images');
     }
@@ -232,7 +225,7 @@ export function ProjectEditFormArtifact({
         toast.error('Failed to delete image');
       }
     } catch (error) {
-      console.error('Failed to delete:', error);
+      logger.error('[Project Edit] Failed to delete', { error });
       toast.error('Failed to delete image');
     }
   }
@@ -461,7 +454,7 @@ export function ProjectEditFormArtifact({
               onDelete={handleDeleteImage}
             />
 
-            {contractorId && images.length < 10 && (
+            {businessId && images.length < 10 && (
               <div className="pt-4 border-t">
                 <h4 className="text-xs font-medium mb-3">Add Images</h4>
                 {uploadingFile && (

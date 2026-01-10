@@ -11,6 +11,7 @@ export { ChatWizard } from './ChatWizard';
 export { ChatMessage } from './ChatMessage';
 export { ChatMessages } from './ChatMessages';
 export { ChatInput } from './ChatInput';
+export { ChatSurface } from './ChatSurface';
 export { ChatTypingIndicator } from './ChatTypingIndicator';
 export { ChatQuickReplies, QUICK_REPLY_PRESETS } from './ChatQuickReplies';
 export { ChatImageUpload } from './ChatImageUpload';

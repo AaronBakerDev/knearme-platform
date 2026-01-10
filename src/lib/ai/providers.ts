@@ -2,15 +2,14 @@
  * Centralized AI provider configuration.
  *
  * Uses Vercel AI SDK for provider-agnostic model access.
- * Primary provider: Google Gemini 3.0 Flash (vision, generation, chat)
- * Secondary provider: OpenAI Whisper (transcription only)
+ * Provider: Google Gemini (vision, generation, chat, transcription)
  *
  * @see https://ai-sdk.dev/docs/introduction
  * @see https://ai.google.dev/gemini-api/docs/models#gemini-3-flash
  */
 
 import { google } from '@ai-sdk/google';
-import { openai } from '@ai-sdk/openai';
+import { logger } from '@/lib/logging';
 
 // ============================================================================
 // Environment Validation
@@ -21,22 +20,14 @@ export function isGoogleAIEnabled(): boolean {
   return Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 }
 
-/** Check if OpenAI is configured (for Whisper transcription) */
-export function isOpenAIEnabled(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY);
-}
-
 /** Check if any AI provider is available */
 export function isAIEnabled(): boolean {
-  return isGoogleAIEnabled() || isOpenAIEnabled();
+  return isGoogleAIEnabled();
 }
 
 // Log warnings at module load
 if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-  console.warn('[AI Providers] GOOGLE_GENERATIVE_AI_API_KEY not set - Gemini features disabled');
-}
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('[AI Providers] OPENAI_API_KEY not set - Whisper transcription disabled');
+  logger.warn('[AI Providers] GOOGLE_GENERATIVE_AI_API_KEY not set - AI features disabled');
 }
 
 // ============================================================================
@@ -57,14 +48,19 @@ export const AI_MODELS = {
   vision: 'gemini-3-flash-preview',
   /** Generation model for content creation (Gemini 3.0 Flash) */
   generation: 'gemini-3-flash-preview',
-  /** Chat model for conversational AI (Gemini 3.0 Flash) */
-  chat: 'gemini-3-flash-preview',
+  /**
+   * Chat model for conversational AI (Gemini 2.5 Flash)
+   * Uses 2.5 Flash for caching support (90% discount on cached tokens).
+   * Discovery Agent and other conversational flows route through this.
+   */
+  chat: 'gemini-2.5-flash',
   /** Live audio model for Voice -> Voice sessions */
   live: 'gemini-2.5-flash-native-audio-preview-12-2025',
-  /** Stable fallback model for reliability-first flows */
-  fallback: 'gemini-2.0-flash',
-  /** Transcription model (OpenAI Whisper - AI SDK doesn't support Gemini transcription yet) */
-  transcription: 'whisper-1',
+  /**
+   * Stable fallback model for reliability-first flows.
+   * Upgraded from 2.0 to 2.5 Flash for better quality + 90% cache discount.
+   */
+  fallback: 'gemini-2.5-flash',
 } as const;
 
 /**
@@ -127,66 +123,73 @@ export function getChatModel() {
   return google(getGeminiModel('chat'));
 }
 
-/**
- * Get the transcription model for audio-to-text.
- * Uses OpenAI Whisper (AI SDK doesn't support Gemini transcription yet).
- */
-export function getTranscriptionModel() {
-  if (!isOpenAIEnabled()) {
-    throw new Error('OpenAI not configured. Set OPENAI_API_KEY for transcription.');
-  }
-  return openai.transcription(AI_MODELS.transcription);
-}
-
 // ============================================================================
 // Cost Estimation
 // ============================================================================
 
 /**
- * Pricing per 1M tokens (as of Dec 2025).
+ * Pricing per 1M tokens (as of Jan 2026).
  *
- * Gemini 3.0 Flash:
+ * Gemini 3.0 Flash Preview:
  * - Input: $0.50/1M tokens
  * - Output: $3.00/1M tokens
  * - Audio input: $1.00/1M tokens
+ * - Caching: NOT YET AVAILABLE
  *
- * OpenAI Whisper:
- * - $0.006/minute of audio
+ * Gemini 2.5 Flash:
+ * - Input: $0.15/1M tokens
+ * - Output: $0.60/1M tokens
+ * - Cached input: $0.015/1M tokens (90% discount)
+ *
+ * @see https://ai.google.dev/gemini-api/docs/pricing
  */
 const PRICING = {
-  'gemini-3-flash-preview': { input: 0.5, output: 3.0, audioInput: 1.0 },
-  'whisper-1': { perMinute: 0.006 },
+  'gemini-3-flash-preview': { input: 0.5, output: 3.0, audioInput: 1.0, cachedInput: 0.5 },
+  'gemini-2.5-flash': { input: 0.15, output: 0.6, audioInput: 1.0, cachedInput: 0.015 },
 } as const;
 
 /**
  * Estimate cost for a Gemini operation.
  *
- * @param inputTokens - Number of input tokens
+ * @param inputTokens - Number of input tokens (non-cached)
  * @param outputTokens - Number of output tokens
- * @param includeAudio - Whether input includes audio (higher rate)
+ * @param options - Optional settings for audio and caching
  * @returns Estimated cost in USD
+ *
+ * @example
+ * // Without caching (Gemini 3.0)
+ * estimateGeminiCost(10000, 5000)
+ *
+ * // With caching (Gemini 2.5)
+ * estimateGeminiCost(2000, 5000, {
+ *   model: 'gemini-2.5-flash',
+ *   cachedInputTokens: 8000  // System prompt cached
+ * })
  */
 export function estimateGeminiCost(
   inputTokens: number,
   outputTokens: number,
-  includeAudio = false
+  options: {
+    model?: keyof typeof PRICING;
+    includeAudio?: boolean;
+    cachedInputTokens?: number;
+  } = {}
 ): number {
-  const pricing = PRICING['gemini-3-flash-preview'];
-  const inputRate = includeAudio ? pricing.audioInput : pricing.input;
-  const inputCost = (inputTokens / 1_000_000) * inputRate;
-  const outputCost = (outputTokens / 1_000_000) * pricing.output;
-  return inputCost + outputCost;
-}
+  const {
+    model = 'gemini-3-flash-preview',
+    includeAudio = false,
+    cachedInputTokens = 0,
+  } = options;
 
-/**
- * Estimate cost for Whisper transcription.
- *
- * @param durationSeconds - Audio duration in seconds
- * @returns Estimated cost in USD
- */
-export function estimateWhisperCost(durationSeconds: number): number {
-  const durationMinutes = durationSeconds / 60;
-  return durationMinutes * PRICING['whisper-1'].perMinute;
+  const pricing = PRICING[model] ?? PRICING['gemini-3-flash-preview'];
+  const inputRate = includeAudio ? pricing.audioInput : pricing.input;
+  const cachedRate = 'cachedInput' in pricing ? pricing.cachedInput : inputRate;
+
+  const inputCost = (inputTokens / 1_000_000) * inputRate;
+  const cachedCost = (cachedInputTokens / 1_000_000) * cachedRate;
+  const outputCost = (outputTokens / 1_000_000) * pricing.output;
+
+  return inputCost + cachedCost + outputCost;
 }
 
 // ============================================================================

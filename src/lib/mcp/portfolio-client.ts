@@ -293,11 +293,14 @@ export function toProjectOutput(apiProject: Record<string, unknown>): ProjectOut
   };
 }
 
-export function toImageOutput(apiImage: Record<string, unknown>): ProjectImageOutput {
+export function toImageOutput(
+  apiImage: Record<string, unknown>,
+  options?: { isPublished?: boolean }
+): ProjectImageOutput {
   const storagePath = apiImage.storage_path as string | undefined;
   const resolvedUrl = typeof apiImage.url === 'string'
     ? (apiImage.url as string)
-    : storagePath
+    : storagePath && options?.isPublished
       ? getPublicUrl('project-images', storagePath)
       : '';
 

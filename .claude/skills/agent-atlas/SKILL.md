@@ -19,6 +19,39 @@ The solution: **Make documentation a byproduct of understanding, not a separate 
 
 ---
 
+## Agentic Design Philosophy
+
+> **This skill bridges implementation details with architectural vision.**
+
+The system follows **agentic architecture** principles—supporting any business type with AI-driven workflows.
+
+### Authoritative Sources
+| Document | Purpose |
+|----------|---------|
+| [`references/PHILOSOPHY.md`](references/PHILOSOPHY.md) | Core design principles |
+| [`references/AGENT-PERSONAS.md`](references/AGENT-PERSONAS.md) | 6 agent personas (target vision) |
+| `docs/philosophy/` | Full philosophy documentation |
+
+### The Litmus Test
+
+Before adding ANY agent logic, ask:
+
+1. **Would a smart human need this rule?** If not, neither does the model.
+2. **Am I solving a real problem or imagined one?** Most guardrails prevent problems that never happen.
+3. **Does this enable or constrain?** Tools enable. Workflows constrain.
+4. **Would I want this if I were the user?** Friction is bad. Trust is good.
+5. **Can the model figure this out?** Almost always, yes.
+
+### Philosophy Quick Links
+| Need | Read |
+|------|------|
+| Design principles | [`references/PHILOSOPHY.md`](references/PHILOSOPHY.md) |
+| Agent personas | [`references/AGENT-PERSONAS.md`](references/AGENT-PERSONAS.md) |
+| What NOT to do | `docs/philosophy/over-engineering-audit.md` |
+| Migration history | [`references/MIGRATIONS.md`](references/MIGRATIONS.md) |
+
+---
+
 ## When to Invoke This Skill
 
 ### Automatic Triggers (via session hooks)
@@ -27,26 +60,36 @@ The solution: **Make documentation a byproduct of understanding, not a separate 
 
 ### Manual Triggers
 ```
-/agent-atlas                    # Show current system state
-/agent-atlas audit              # Check for documentation drift
-/agent-atlas tool <name>        # Deep dive on specific tool
-/agent-atlas flow <scenario>    # Trace data flow for scenario
-/agent-atlas update             # Guided documentation update
+/atlas                          # Create session handoff document (default)
+/atlas handoff                  # Explicit handoff creation
+/atlas audit                    # Run philosophy audit
+/atlas status                   # Show migration status
+/atlas tool <name>              # Deep dive on specific tool
+/atlas flow <scenario>          # Trace data flow for scenario
 ```
 
 ---
 
 ## Core Reference Files
 
+### Philosophy Layer
+| File | Purpose | Update Frequency |
+|------|---------|------------------|
+| [`references/PHILOSOPHY.md`](references/PHILOSOPHY.md) | Agentic design principles | When philosophy evolves |
+| [`references/AGENT-PERSONAS.md`](references/AGENT-PERSONAS.md) | 6 agent personas | Agent architecture changes |
+| [`references/MIGRATIONS.md`](references/MIGRATIONS.md) | Migration history | Reference only |
+
+### Implementation Layer (Current State)
 | File | Purpose | Update Frequency |
 |------|---------|------------------|
 | [`references/ARCHITECTURE.md`](references/ARCHITECTURE.md) | High-level system map with mermaid diagrams | Major restructuring |
 | [`references/TOOL-CATALOG.md`](references/TOOL-CATALOG.md) | All tools with schemas, executors, artifacts | Any tool change |
 | [`references/STATE-MODELS.md`](references/STATE-MODELS.md) | Data shapes and transformations | State changes |
-| [`references/PHASE-FLOWS.md`](references/PHASE-FLOWS.md) | Chat phase state machine | Phase logic changes |
+| [`references/PHASE-FLOWS.md`](references/PHASE-FLOWS.md) | Orchestration and checkpoint coordination | Phase logic changes |
 | [`references/ARTIFACT-GUIDE.md`](references/ARTIFACT-GUIDE.md) | UI components rendered from tools | UI changes |
 | [`references/CHANGE-LOG.md`](references/CHANGE-LOG.md) | Chronological change history | Every significant change |
 | [`references/ROADMAP.md`](references/ROADMAP.md) | Implementation phases and progress | Phase transitions |
+| [`references/EXTENDING-AGENTS.md`](references/EXTENDING-AGENTS.md) | How to add tools or create new agents | When extending system |
 
 ## Related Documentation
 
@@ -57,6 +100,32 @@ The skill cross-references detailed planning docs:
 | `docs/09-agent/` | Design docs, implementation plan, interviewer specs |
 | `docs/09-agent/implementation-plan.md` | **Authoritative roadmap** with phases |
 | `docs/09-agent/README.md` | System overview and API reference |
+
+---
+
+## Session Handoff Protocol
+
+### The Handoff Rule
+> **Before ending a session, create a handoff document with `/atlas handoff`.**
+
+Session handoffs ensure continuity between work sessions by capturing:
+- What was accomplished
+- What remains to be done
+- Key decisions and their rationale
+- Files modified
+- Clear next steps
+
+### Handoff Location
+Handoff documents are saved to: `todo/handoffs/YYYY-MM-DD-<brief-title>.md`
+
+### When to Create Handoffs
+- End of any significant work session
+- Before context window fills up
+- When switching focus areas
+- After completing a migration phase
+
+### Handoff Template
+Use `templates/handoff-entry.md` for consistent format.
 
 ---
 
@@ -76,6 +145,11 @@ The skill cross-references detailed planning docs:
 - Phase transition logic changed
 - New UI artifact added
 - Bug fix that reveals system behavior
+
+**Philosophy-alignment changes:**
+- Follow "AI decides, we provide guardrails" principle
+- Keep structure emergent, not prescribed
+- Trust agent judgment over hardcoded thresholds
 
 **Skip documentation:**
 - Typo fixes
@@ -149,14 +223,24 @@ src/types/artifacts.ts
 - `generatePortfolioContent` - Full AI content generation
 - `composePortfolioLayout` - Block structure + image ordering
 
-### Agents
+### Agents (Orchestrator + Subagents Pattern)
+
+```
+Account Manager (Orchestrator)
+       │
+       ├── Story Agent → businessContext, project
+       ├── Design Agent → design (layout, tokens)
+       └── Quality Agent → assessment (advisory)
+```
 
 | Agent | File | Purpose |
 |-------|------|---------|
-| Story Extractor | `story-extractor.ts` | Interprets user messages, updates state |
-| Content Generator | `content-generator.ts` | Creates title, description, SEO |
-| Layout Composer | `layout-composer.ts` | Structures description blocks |
-| Quality Checker | `quality-checker.ts` | Validates publish readiness |
+| Account Manager | `orchestrator.ts` | Routes requests, delegates, synthesizes |
+| Story Agent | `story-extractor.ts` | Conversation, images, content extraction |
+| Design Agent | `ui-composer.ts` | Layout, tokens, preview generation |
+| Quality Agent | `quality-checker.ts` | Assessment (advisory, NOT blocking) |
+
+See [`EXTENDING-AGENTS.md`](references/EXTENDING-AGENTS.md) for how to add capabilities.
 
 ### State Flow
 
@@ -202,6 +286,9 @@ python .claude/skills/agent-atlas/scripts/audit_agent.py --since-last-change
 
 When adding new components, use these templates:
 
+### Session Handoff
+See `templates/handoff-entry.md` — End-of-session continuity document
+
 ### New Tool
 See `templates/tool-entry.md`
 
@@ -210,6 +297,7 @@ See `templates/agent-entry.md`
 
 ### Change Log Entry
 See `templates/change-entry.md`
+
 
 ---
 

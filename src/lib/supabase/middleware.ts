@@ -54,14 +54,31 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from auth pages
-  const isAuthRoute = request.nextUrl.pathname === '/login' ||
-    request.nextUrl.pathname === '/signup';
+  const getSafeRedirect = (requestToCheck: NextRequest) => {
+    const redirectParam = requestToCheck.nextUrl.searchParams.get('redirect') ??
+      requestToCheck.nextUrl.searchParams.get('next');
 
-  if (isAuthRoute && user && user.email_confirmed_at) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
+    if (!redirectParam) return null;
+    if (!redirectParam.startsWith('/')) return null;
+    if (redirectParam.startsWith('//')) return null;
+    if (redirectParam.includes('://')) return null;
+
+    return redirectParam;
+  };
+
+  // Redirect authenticated users away from auth pages
+  const authRoutes = new Set([
+    '/login',
+    '/signup',
+    '/reset-password',
+    '/reset-password/confirm',
+  ]);
+  const isAuthRoute = authRoutes.has(request.nextUrl.pathname);
+
+  if (isAuthRoute && user) {
+    const safeRedirect = getSafeRedirect(request);
+    const target = safeRedirect ?? '/dashboard';
+    return NextResponse.redirect(new URL(target, request.nextUrl.origin));
   }
 
   return supabaseResponse;

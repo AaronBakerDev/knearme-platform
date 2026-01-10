@@ -17,7 +17,9 @@ import { z } from 'zod';
 import { requireAuth, isAuthError, getAuthClient } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { analyzeProjectImages, projectTypeToSlug } from '@/lib/ai/image-analysis';
-import { getPublicUrl } from '@/lib/storage/upload';
+import { downloadProjectImage } from '@/lib/storage/upload.server';
+import { logger } from '@/lib/logging';
+import type { ProjectImage, ProjectUpdate } from '@/types/database';
 
 /**
  * Request schema for image analysis.
@@ -58,8 +60,7 @@ export async function POST(request: NextRequest) {
     const supabase = await getAuthClient(auth);
 
     // Step 1: Verify project ownership
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: projectData, error: projectError } = await (supabase as any)
+    const { data: projectData, error: projectError } = await supabase
       .from('projects')
       .select('id, contractor_id')
       .eq('id', project_id)
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (projectError || !projectData) {
-      console.error('[analyze-images] Project query failed:', {
+      logger.error('[analyze-images] Project query failed', {
         project_id,
         contractor_id: contractor.id,
         error: projectError,
@@ -76,32 +77,54 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2: Get images separately (avoids nested RLS issues)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: imagesData, error: imagesError } = await (supabase as any)
+    const { data: imagesData, error: imagesError } = await supabase
       .from('project_images')
       .select('id, storage_path, display_order')
       .eq('project_id', project_id)
       .order('display_order', { ascending: true });
 
     if (imagesError) {
-      console.error('[analyze-images] Images query failed:', {
+      logger.error('[analyze-images] Images query failed', {
         project_id,
         error: imagesError,
       });
     }
 
-    type ProjectImage = { id: string; storage_path: string; display_order: number | null };
-    const images = (imagesData || []) as ProjectImage[];
+    type AnalysisImage = Pick<ProjectImage, 'id' | 'storage_path' | 'display_order'>;
+    const images = (imagesData || []) as AnalysisImage[];
 
     if (!images || images.length === 0) {
       return apiError('VALIDATION_ERROR', 'No images to analyze. Please upload photos first.');
     }
 
-    // Get public URLs for images (already sorted by display_order from query)
-    const imageUrls = images.map((img) => getPublicUrl('project-images', img.storage_path));
+    // Limit analysis to first 4 images to control cost + keep prompt indexing consistent.
+    const analysisCandidates = images.slice(0, 4);
+    const analyzedImages: AnalysisImage[] = [];
+    const imageInputs: Array<{ data: Buffer; mediaType?: string }> = [];
+
+    for (const img of analysisCandidates) {
+      const downloadResult = await downloadProjectImage(img.storage_path);
+      if ('error' in downloadResult) {
+        logger.warn('[analyze-images] Failed to download image', {
+          error: downloadResult.error,
+          project_id,
+        });
+        continue;
+      }
+
+      analyzedImages.push(img);
+      imageInputs.push({
+        data: downloadResult.data,
+        mediaType: downloadResult.contentType,
+      });
+    }
+
+    if (imageInputs.length === 0) {
+      return apiError('VALIDATION_ERROR', 'Unable to load images for analysis.');
+    }
 
     // Analyze images with GPT-4V
-    const analysisResult = await analyzeProjectImages(imageUrls);
+    const analysisResult = await analyzeProjectImages(imageInputs);
 
     if ('error' in analysisResult) {
       return apiError('AI_SERVICE_ERROR', analysisResult.error);
@@ -125,28 +148,32 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (sessionError) {
-      console.error('[POST /api/ai/analyze-images] Session error:', sessionError);
+      logger.error('[POST /api/ai/analyze-images] Session error', {
+        error: sessionError,
+        project_id,
+      });
       // Don't fail - analysis still succeeded
     }
 
     // Update project with detected type if high confidence
     if (analysisResult.project_type_confidence > 0.7) {
+      const projectUpdate: ProjectUpdate = {
+        project_type: analysisResult.project_type,
+        project_type_slug: projectTypeToSlug(analysisResult.project_type),
+        materials: analysisResult.materials,
+        techniques: analysisResult.techniques,
+      };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase as any)
         .from('projects')
-        .update({
-          project_type: analysisResult.project_type,
-          project_type_slug: projectTypeToSlug(analysisResult.project_type),
-          materials: analysisResult.materials,
-          techniques: analysisResult.techniques,
-        })
+        .update(projectUpdate)
         .eq('id', project_id);
     }
 
     // Store generated alt texts in project_images table
     // Images are keyed by index ("0", "1", etc.) matching the order they were analyzed
     if (analysisResult.image_alt_texts && Object.keys(analysisResult.image_alt_texts).length > 0) {
-      const altTextUpdates = images.map((img, index) => {
+      const altTextUpdates = analyzedImages.map((img, index) => {
         const altText = analysisResult.image_alt_texts[String(index)];
         if (altText) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -156,7 +183,7 @@ export async function POST(request: NextRequest) {
             .eq('id', img.id);
         }
         return null;
-      }).filter(Boolean);
+      }).filter((update) => update !== null);
 
       // Execute all alt text updates in parallel
       await Promise.all(altTextUpdates);

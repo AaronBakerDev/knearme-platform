@@ -9,8 +9,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   checkReadyForImages,
+  countWords,
   extractStory,
+  getExtractionProgress,
   getMissingFields,
+  normalizeProjectType,
 } from '../story-extractor';
 import type { SharedProjectState } from '../types';
 
@@ -53,7 +56,13 @@ describe('StoryExtractor', () => {
       expect(checkReadyForImages(state)).toBe(true);
     });
 
-    it('returns false when story is too short', () => {
+    /**
+     * @deprecated checkReadyForImages now always returns true.
+     * Users can upload images anytime - no gating required.
+     * The model handles conversation flow naturally.
+     * @see /docs/philosophy/agent-philosophy.md
+     */
+    it('always returns true (no gating - users can upload images anytime)', () => {
       const state: Partial<SharedProjectState> = {
         projectType: 'chimney-rebuild',
         customerProblem: 'Chimney leak.',
@@ -61,7 +70,8 @@ describe('StoryExtractor', () => {
         materials: ['reclaimed brick'],
       };
 
-      expect(checkReadyForImages(state)).toBe(false);
+      // Philosophy: Users can upload images whenever they want
+      expect(checkReadyForImages(state)).toBe(true);
     });
   });
 
@@ -78,6 +88,43 @@ describe('StoryExtractor', () => {
 
       expect(missing).not.toContain('city');
       expect(missing).not.toContain('state');
+    });
+  });
+
+  describe('countWords', () => {
+    it('counts words and ignores extra whitespace', () => {
+      expect(countWords('  quick   brown  fox  ')).toBe(3);
+      expect(countWords('')).toBe(0);
+    });
+  });
+
+  describe('normalizeProjectType', () => {
+    it('normalizes fuzzy project type phrases', () => {
+      expect(normalizeProjectType('Kitchen Remodel')).toBe('remodel');
+      expect(normalizeProjectType('Custom Work')).toBe('custom-work');
+    });
+
+    it('falls back to other for unknown types', () => {
+      expect(normalizeProjectType('Unicorn Sculpture')).toBe('other');
+    });
+  });
+
+  describe('getExtractionProgress', () => {
+    it('treats location parsing as completed city/state', () => {
+      const progress = getExtractionProgress({
+        projectType: 'remodel',
+        customerProblem: 'Old layout.',
+        solutionApproach: 'Rebuilt the space.',
+        materials: ['tile'],
+        techniques: ['grouting'],
+        duration: '3 days',
+        proudOf: 'Precision work.',
+        location: 'Denver, CO',
+      });
+
+      expect(progress.percentComplete).toBe(100);
+      expect(progress.incomplete).not.toContain('city');
+      expect(progress.incomplete).not.toContain('state');
     });
   });
 

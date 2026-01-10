@@ -14,8 +14,16 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import {
+  selectInterviewSession,
+  selectProjectByIdForContractor,
+  updateInterviewSession,
+  updateProject,
+  upsertInterviewSession,
+} from '@/lib/supabase/typed-queries';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
+import { logger } from '@/lib/logging';
 import {
   generateInterviewQuestions,
   generatePortfolioContent,
@@ -23,6 +31,7 @@ import {
 } from '@/lib/ai/content-generation';
 import { trackInterviewCompleted, trackContentRegenerated } from '@/lib/observability/kpi-events';
 import type { ImageAnalysisResult } from '@/lib/ai/image-analysis';
+import type { Json } from '@/types/database';
 
 /**
  * Request schema for generating interview questions.
@@ -147,6 +156,17 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const supabase = await createClient();
+    const ensureProjectOwnership = async (projectId: string) => {
+      const { data: project, error } = await selectProjectByIdForContractor(
+        supabase,
+        projectId,
+        contractor.id
+      );
+      if (error || !project) {
+        return null;
+      }
+      return project;
+    };
 
     // Handle different actions
     switch (action) {
@@ -161,24 +181,16 @@ export async function POST(request: NextRequest) {
         const { project_id } = parsed.data;
 
         // Verify project ownership first
-        const { data: project, error: projectError } = await supabase
-          .from('projects')
-          .select('id, contractor_id')
-          .eq('id', project_id)
-          .eq('contractor_id', contractor.id)
-          .single();
-
-        if (projectError || !project) {
+        const project = await ensureProjectOwnership(project_id);
+        if (!project) {
           return apiError('NOT_FOUND', 'Project not found');
         }
 
         // Get interview session with image analysis
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: session } = await (supabase as any)
-          .from('interview_sessions')
-          .select('*')
-          .eq('project_id', project_id)
-          .single();
+        const { data: session } = await selectInterviewSession(
+          supabase,
+          project_id
+        );
 
         // Type assertion for session data
         type SessionData = {
@@ -203,18 +215,12 @@ export async function POST(request: NextRequest) {
         });
 
         // Persist questions so the interview steps stay consistent.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
-          .from('interview_sessions')
-          .upsert(
-            {
-              project_id,
-              image_analysis: sessionData?.image_analysis ?? null,
-              questions,
-              status: 'in_progress',
-            },
-            { onConflict: 'project_id' }
-          );
+        await upsertInterviewSession(supabase, {
+          project_id,
+          image_analysis: (sessionData?.image_analysis ?? null) as unknown as Json | null,
+          questions: questions as unknown as Json,
+          status: 'in_progress',
+        });
 
         return apiSuccess({ questions });
       }
@@ -230,24 +236,16 @@ export async function POST(request: NextRequest) {
         const { project_id, responses } = parsed.data;
 
         // Verify project ownership first
-        const { data: project, error: projectError } = await supabase
-          .from('projects')
-          .select('id, contractor_id')
-          .eq('id', project_id)
-          .eq('contractor_id', contractor.id)
-          .single();
-
-        if (projectError || !project) {
+        const project = await ensureProjectOwnership(project_id);
+        if (!project) {
           return apiError('NOT_FOUND', 'Project not found');
         }
 
         // Get existing session to preserve metadata
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: session } = await (supabase as any)
-          .from('interview_sessions')
-          .select('*')
-          .eq('project_id', project_id)
-          .single();
+        const { data: session } = await selectInterviewSession(
+          supabase,
+          project_id
+        );
 
         type ResponseSessionData = {
           image_analysis?: ImageAnalysisResult;
@@ -257,18 +255,12 @@ export async function POST(request: NextRequest) {
         const existingQuestions = (sessionData?.questions || []) as StoredQuestion[];
         const mergedQuestions = mergeInterviewResponses(existingQuestions, responses);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
-          .from('interview_sessions')
-          .upsert(
-            {
-              project_id,
-              image_analysis: sessionData?.image_analysis ?? null,
-              questions: mergedQuestions,
-              status: 'in_progress',
-            },
-            { onConflict: 'project_id' }
-          );
+        await upsertInterviewSession(supabase, {
+          project_id,
+          image_analysis: (sessionData?.image_analysis ?? null) as unknown as Json | null,
+          questions: mergedQuestions as unknown as Json,
+          status: 'in_progress',
+        });
 
         return apiSuccess({ questions: mergedQuestions });
       }
@@ -284,24 +276,16 @@ export async function POST(request: NextRequest) {
         const { project_id } = parsed.data;
 
         // Verify project ownership first
-        const { data: project, error: projectError } = await supabase
-          .from('projects')
-          .select('id, contractor_id')
-          .eq('id', project_id)
-          .eq('contractor_id', contractor.id)
-          .single();
-
-        if (projectError || !project) {
+        const project = await ensureProjectOwnership(project_id);
+        if (!project) {
           return apiError('NOT_FOUND', 'Project not found');
         }
 
         // Get interview session (may be empty if text-mode responses are provided)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: session, error: sessionError } = await (supabase as any)
-          .from('interview_sessions')
-          .select('*')
-          .eq('project_id', project_id)
-          .single();
+        const { data: session, error: sessionError } = await selectInterviewSession(
+          supabase,
+          project_id
+        );
 
         // Type assertion for session data
         type ContentSessionData = {
@@ -327,18 +311,12 @@ export async function POST(request: NextRequest) {
           const existingQuestions = (sessionData?.questions ?? []) as StoredQuestion[];
           const mergedQuestions = mergeInterviewResponses(existingQuestions, providedResponses);
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
-            .from('interview_sessions')
-            .upsert(
-              {
-                project_id,
-                image_analysis: sessionData?.image_analysis ?? null,
-                questions: mergedQuestions,
-                status: 'in_progress',
-              },
-              { onConflict: 'project_id' }
-            );
+          await upsertInterviewSession(supabase, {
+            project_id,
+            image_analysis: (sessionData?.image_analysis ?? null) as unknown as Json | null,
+            questions: mergedQuestions as unknown as Json,
+            status: 'in_progress',
+          });
         } else {
           if (sessionError || !sessionData) {
             return apiError('NOT_FOUND', 'Interview session not found. Please complete the interview first.');
@@ -371,14 +349,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Store generated content in session
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
-          .from('interview_sessions')
-          .update({
-            generated_content: result,
-            status: 'completed',
-          })
-          .eq('project_id', project_id);
+        await updateInterviewSession(supabase, project_id, {
+          generated_content: result as unknown as Json,
+          status: 'completed',
+        });
 
         // Track interview completion KPI
         // Fire-and-forget: don't block response on tracking
@@ -387,22 +361,18 @@ export async function POST(request: NextRequest) {
           projectId: project_id,
           questionCount: interviewResponses.length,
           contentLength: (result.description?.length || 0) + (result.title?.length || 0),
-        }).catch((err) => console.error('[KPI] trackInterviewCompleted failed:', err));
+        }).catch((err) => logger.error('[KPI] trackInterviewCompleted failed', { error: err }));
 
         // Update project with generated content
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
-          .from('projects')
-          .update({
-            title: result.title,
-            description: result.description,
-            seo_title: result.seo_title,
-            seo_description: result.seo_description,
-            tags: result.tags,
-            materials: result.materials,
-            techniques: result.techniques,
-          })
-          .eq('id', project_id);
+        await updateProject(supabase, project_id, {
+          title: result.title,
+          description: result.description,
+          seo_title: result.seo_title,
+          seo_description: result.seo_description,
+          tags: result.tags,
+          materials: result.materials,
+          techniques: result.techniques,
+        });
 
         return apiSuccess({ content: result });
       }
@@ -418,24 +388,16 @@ export async function POST(request: NextRequest) {
         const { project_id, feedback, previous_content } = parsed.data;
 
         // Verify project ownership first
-        const { data: project, error: projectError } = await supabase
-          .from('projects')
-          .select('id, contractor_id')
-          .eq('id', project_id)
-          .eq('contractor_id', contractor.id)
-          .single();
-
-        if (projectError || !project) {
+        const project = await ensureProjectOwnership(project_id);
+        if (!project) {
           return apiError('NOT_FOUND', 'Project not found');
         }
 
         // Get existing session with generated content (optional if previous_content provided)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: session, error: sessionError } = await (supabase as any)
-          .from('interview_sessions')
-          .select('*')
-          .eq('project_id', project_id)
-          .single();
+        const { data: session, error: sessionError } = await selectInterviewSession(
+          supabase,
+          project_id
+        );
 
         // Type assertion for regenerate session data
         type RegenerateSessionData = {
@@ -486,30 +448,24 @@ export async function POST(request: NextRequest) {
           projectId: project_id,
           section: 'all',
           feedbackProvided: feedback.length > 0,
-        }).catch((err) => console.error('[KPI] trackContentRegenerated failed:', err));
+        }).catch((err) => logger.error('[KPI] trackContentRegenerated failed', { error: err }));
 
         // Update session with new content if it exists
         if (!sessionError && sessionData) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any)
-            .from('interview_sessions')
-            .update({ generated_content: result })
-            .eq('project_id', project_id);
+          await updateInterviewSession(supabase, project_id, {
+            generated_content: result as unknown as Json,
+          });
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
-          .from('projects')
-          .update({
-            title: result.title,
-            description: result.description,
-            seo_title: result.seo_title,
-            seo_description: result.seo_description,
-            tags: result.tags,
-            materials: result.materials,
-            techniques: result.techniques,
-          })
-          .eq('id', project_id);
+        await updateProject(supabase, project_id, {
+          title: result.title,
+          description: result.description,
+          seo_title: result.seo_title,
+          seo_description: result.seo_description,
+          tags: result.tags,
+          materials: result.materials,
+          techniques: result.techniques,
+        });
 
         return apiSuccess({ content: result });
       }

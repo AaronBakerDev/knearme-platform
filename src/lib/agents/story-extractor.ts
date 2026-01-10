@@ -1,63 +1,64 @@
 /**
- * Story Extractor Agent
+ * Story Extractor Agent (STORY AGENT SUBAGENT)
  *
- * Extracts structured project data from natural conversation with contractors.
- * Runs after each contractor message to pull out key information and track
- * completion status.
+ * ARCHITECTURE: Subagent of Account Manager Orchestrator
+ *
+ * The Story Agent handles conversation, content extraction, and multimodal
+ * image understanding. It writes to the `businessContext` and `project`
+ * sections of the shared ProjectState.
+ *
+ * Persona: "I'm having a conversation with someone who has work to show.
+ * I listen, I see their images, I extract what matters, and I write in
+ * their voice—not mine."
+ *
+ * Trade-agnostic design: Uses TradeConfig to determine valid project types,
+ * materials, and techniques for the business's trade.
  *
  * Key extraction targets:
- * - projectType: chimney-rebuild, tuckpointing, stone-veneer, etc.
+ * - projectType: Derived from trade config (e.g., kitchen-remodel, deck-build)
  * - customerProblem: What issue brought the customer
  * - solutionApproach: How it was solved
- * - materials: Array of materials used
- * - techniques: Array of techniques
+ * - materials: Array of materials used (from trade vocabulary)
+ * - techniques: Array of techniques (from trade vocabulary)
  * - city/state: Project location
  * - duration: How long it took
  * - proudOf: What they're most proud of
  *
- * @see /docs/09-agent/multi-agent-architecture.md
+ * Tools: extractNarrative, analyzeImages, generateContent, signalCheckpoint
+ *
+ * @see /.claude/skills/agent-atlas/references/AGENT-PERSONAS.md
+ * @see /todo/ai-sdk-phase-10-persona-agents.md
+ * @see /src/lib/trades/config.ts for trade configuration
  */
 
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { google } from '@ai-sdk/google';
 import { isGoogleAIEnabled, AI_MODELS } from '@/lib/ai/providers';
+import { withCircuitBreaker } from '@/lib/agents/circuit-breaker';
 import { formatProjectLocation } from '@/lib/utils/location';
+import { getTradeConfig } from '@/lib/trades/config';
+import { logger } from '@/lib/logging';
 import type { SharedProjectState, StoryExtractionResult } from './types';
+import { buildTechniqueTerms, separateMaterialsAndTechniques } from './story-extractor/dedupe';
+import { extractWithoutAI, checkReadyForImages, normalizeProjectType } from './story-extractor/fallback';
+import { parseLocationString } from './story-extractor/location';
+import { buildExtractionSystemPrompt } from './story-extractor/prompt';
 
 // ============================================================================
-// Constants
+// Philosophy: Let the Model Be Agentic
 // ============================================================================
-
-/** Minimum word count for customerProblem to be considered complete */
-const MIN_PROBLEM_WORDS = 8;
-
-/** Minimum word count for solutionApproach to be considered complete */
-const MIN_SOLUTION_WORDS = 8;
-
-/** Minimum materials count before we're ready for images */
-const MIN_MATERIALS_FOR_IMAGES = 1;
-
-/** Confidence threshold below which we mark fields for clarification */
-const CLARIFICATION_THRESHOLD = 0.7;
-
-/** Valid project types for masonry work */
-export const VALID_PROJECT_TYPES = [
-  'chimney-rebuild',
-  'chimney-repair',
-  'tuckpointing',
-  'stone-veneer',
-  'brick-restoration',
-  'fireplace-repair',
-  'retaining-wall',
-  'patio-paver',
-  'foundation-repair',
-  'historic-restoration',
-  'custom-masonry',
-  'other',
-] as const;
-
-export type ProjectType = (typeof VALID_PROJECT_TYPES)[number];
+//
+// REMOVED artificial gates that second-guess the model:
+// - MIN_PROBLEM_WORDS, MIN_SOLUTION_WORDS (model knows when content is sufficient)
+// - MIN_MATERIALS_FOR_IMAGES (users can upload images whenever they want)
+// - CLARIFICATION_THRESHOLD (model expresses uncertainty naturally, not via scores)
+//
+// The extraction agent extracts what it finds. It does NOT gate or block.
+// The chat agent decides when to ask for clarification based on context.
+//
+// @see /docs/philosophy/agent-philosophy.md
+// ============================================================================
 
 // ============================================================================
 // Extraction Schema
@@ -72,7 +73,7 @@ const ExtractionSchema = z.object({
   projectType: z
     .string()
     .optional()
-    .describe('Project type: chimney-rebuild, tuckpointing, stone-veneer, etc.'),
+    .describe('Project type slug derived from trade config (e.g., kitchen-remodel, deck-build)'),
 
   /** What problem the customer had */
   customerProblem: z
@@ -80,11 +81,11 @@ const ExtractionSchema = z.object({
     .optional()
     .describe('The customer problem or need that led to this project'),
 
-  /** How the contractor solved it */
+  /** How the business owner solved it */
   solutionApproach: z
     .string()
     .optional()
-    .describe('How the contractor addressed the problem'),
+    .describe('How the business owner addressed the problem'),
 
   /** Materials used */
   materials: z
@@ -126,7 +127,7 @@ const ExtractionSchema = z.object({
   proudOf: z
     .string()
     .optional()
-    .describe('What the contractor is most proud of about this project'),
+    .describe('What the business owner is most proud of about this project'),
 
   /** Confidence scores for each extracted field (0-1) */
   confidence: z
@@ -148,61 +149,19 @@ const ExtractionSchema = z.object({
 type ExtractionOutput = z.infer<typeof ExtractionSchema>;
 
 // ============================================================================
-// System Prompt
-// ============================================================================
-
-const EXTRACTION_SYSTEM_PROMPT = `You are a data extraction agent for a masonry contractor portfolio system.
-
-Your job is to extract structured project information from natural conversation with contractors.
-
-EXTRACTION RULES:
-1. Extract ONLY information that is explicitly stated - never infer or guess
-2. Preserve the contractor's voice and specific details
-3. Return confidence scores based on how clearly the information was stated
-4. If something is vague or unclear, give it low confidence
-
-CONFIDENCE SCORING:
-- 1.0: Explicitly and clearly stated
-- 0.8: Clearly implied or stated with minor ambiguity
-- 0.6: Somewhat vague but likely accurate
-- 0.4: Very vague, needs clarification
-- 0.2: Barely mentioned, high uncertainty
-
-PROJECT TYPES (use exact slugs):
-- chimney-rebuild: Full chimney reconstruction
-- chimney-repair: Fixing existing chimney issues
-- tuckpointing: Mortar joint repair/replacement
-- stone-veneer: Stone facade installation
-- brick-restoration: Restoring damaged brick
-- fireplace-repair: Fireplace masonry work
-- retaining-wall: Building or repairing walls
-- patio-paver: Patio or walkway installation
-- foundation-repair: Foundation masonry work
-- historic-restoration: Historic building restoration
-- custom-masonry: Custom/unique masonry projects
-- other: Anything that doesn't fit above
-
-IMPORTANT:
-- customerProblem: Should capture WHY the customer called (the issue/need)
-- solutionApproach: Should capture HOW the contractor solved it
-- materials: Be specific (e.g., "reclaimed red brick" not just "brick")
-- techniques: Use proper masonry terminology
-- location: Always extract city and state when possible`;
-
-// ============================================================================
 // Main Extraction Function
 // ============================================================================
 
 /**
- * Extract structured project data from a contractor message.
+ * Extract structured project data from a user message.
  *
- * @param message - The contractor's message to extract from
+ * @param message - The user's message to extract from
  * @param existingState - Optional existing state to merge with
  * @returns StoryExtractionResult with extracted data, confidence scores, and readiness flags
  *
  * @example
  * const result = await extractStory(
- *   "We rebuilt a chimney in Denver. The homeowner had water damage from bad flashing. Used reclaimed brick and lime mortar.",
+ *   "We remodeled a kitchen in Denver. The homeowner wanted more counter space. Used quartz countertops and custom cabinetry.",
  *   existingState
  * );
  */
@@ -229,7 +188,7 @@ export async function extractStory(
     const extraction = await performAIExtraction(message, existingState);
     return processExtraction(extraction, existingState);
   } catch (error) {
-    console.error('[StoryExtractor] AI extraction failed:', error);
+    logger.error('[StoryExtractor] AI extraction failed', { error });
     // Fall back to basic extraction on error
     return extractWithoutAI(message, existingState);
   }
@@ -237,11 +196,20 @@ export async function extractStory(
 
 /**
  * Perform AI-powered extraction using Gemini.
+ *
+ * Uses generateText with Output.object for structured extraction.
+ * Trade-agnostic: Builds system prompt from TradeConfig.
+ *
+ * @see https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data
  */
 async function performAIExtraction(
   message: string,
   existingState?: Partial<SharedProjectState>
 ): Promise<ExtractionOutput> {
+  // Get trade config for dynamic prompt building
+  const tradeConfig = getTradeConfig();
+  const systemPrompt = buildExtractionSystemPrompt(tradeConfig);
+
   const contextPrompt = existingState
     ? `EXISTING DATA (merge with new information, don't overwrite with empty values):
 ${JSON.stringify(existingState, null, 2)}
@@ -251,17 +219,32 @@ ${message}`
     : `MESSAGE TO EXTRACT FROM:
 ${message}`;
 
-  const { object } = await generateObject({
-    model: google(AI_MODELS.generation),
-    schema: ExtractionSchema,
-    system: EXTRACTION_SYSTEM_PROMPT,
-    prompt: contextPrompt,
-    maxOutputTokens: 2048, // Increased from 1000 - structured response needs room for all fields
-    temperature: 0.2, // Low temperature for consistent extraction
+  // Wrap AI call with circuit breaker for resilience
+  // @see /docs/philosophy/operational-excellence.md - Resilience Strategy
+  const { output: object } = await withCircuitBreaker('story-extractor', async () => {
+    return generateText({
+      model: google(AI_MODELS.generation),
+      output: Output.object({ schema: ExtractionSchema }),
+      system: systemPrompt,
+      prompt: contextPrompt,
+      maxOutputTokens: 2048, // Increased from 1000 - structured response needs room for all fields
+      temperature: 0.2, // Low temperature for consistent extraction
+    });
   });
+
+  // Handle null output (schema validation failure)
+  if (!object) {
+    return {
+      confidence: {},
+    };
+  }
 
   return object;
 }
+
+// ============================================================================
+// Extraction Processing
+// ============================================================================
 
 /**
  * Process extraction output into StoryExtractionResult.
@@ -271,6 +254,10 @@ function processExtraction(
   extraction: ExtractionOutput,
   existingState?: Partial<SharedProjectState>
 ): StoryExtractionResult {
+  // Get trade config for vocabulary
+  const tradeConfig = getTradeConfig();
+  const techniqueTerms = buildTechniqueTerms(tradeConfig);
+
   // Build merged state
   const state: Partial<SharedProjectState> = {
     ...existingState,
@@ -280,53 +267,52 @@ function processExtraction(
   const confidence: Record<string, number> = {};
   const needsClarification: string[] = [];
 
-  // Process each field
+  // Process each field - no gating, just extract what's there
+  // The model will naturally ask for clarification in conversation if needed
   if (extraction.projectType) {
     state.projectType = normalizeProjectType(extraction.projectType);
     confidence.projectType = extraction.confidence?.projectType ?? 0.8;
-    if (confidence.projectType < CLARIFICATION_THRESHOLD) {
-      needsClarification.push('projectType');
-    }
   }
 
   if (extraction.customerProblem) {
     state.customerProblem = extraction.customerProblem;
     confidence.customerProblem = extraction.confidence?.customerProblem ?? 0.8;
-    if (confidence.customerProblem < CLARIFICATION_THRESHOLD) {
-      needsClarification.push('customerProblem');
-    }
   }
 
   if (extraction.solutionApproach) {
     state.solutionApproach = extraction.solutionApproach;
     confidence.solutionApproach = extraction.confidence?.solutionApproach ?? 0.8;
-    if (confidence.solutionApproach < CLARIFICATION_THRESHOLD) {
-      needsClarification.push('solutionApproach');
-    }
   }
 
   // Merge arrays (don't overwrite, add new items)
+  let rawMaterials: string[] = existingState?.materials || [];
+  let rawTechniques: string[] = existingState?.techniques || [];
+
   if (extraction.materials && extraction.materials.length > 0) {
-    const existingMaterials = existingState?.materials || [];
     const newMaterials = extraction.materials.filter(
-      (m) => !existingMaterials.includes(m)
+      (m) => !rawMaterials.some((existing) => existing.toLowerCase() === m.toLowerCase())
     );
-    state.materials = [...existingMaterials, ...newMaterials];
+    rawMaterials = [...rawMaterials, ...newMaterials];
     confidence.materials = extraction.confidence?.materials ?? 0.8;
-  } else {
-    state.materials = existingState?.materials || [];
   }
 
   if (extraction.techniques && extraction.techniques.length > 0) {
-    const existingTechniques = existingState?.techniques || [];
     const newTechniques = extraction.techniques.filter(
-      (t) => !existingTechniques.includes(t)
+      (t) => !rawTechniques.some((existing) => existing.toLowerCase() === t.toLowerCase())
     );
-    state.techniques = [...existingTechniques, ...newTechniques];
+    rawTechniques = [...rawTechniques, ...newTechniques];
     confidence.techniques = extraction.confidence?.techniques ?? 0.8;
-  } else {
-    state.techniques = existingState?.techniques || [];
   }
+
+  // Apply intelligent deduplication:
+  // 1. Remove generic terms when specific exists (e.g., "brick" when "reclaimed Denver brick" exists)
+  // 2. Move technique terms from materials to techniques (e.g., "flashing")
+  // 3. Remove substring duplicates (e.g., "flashing" when "flashing installation" exists)
+  const { materials: cleanMaterials, techniques: cleanTechniques } =
+    separateMaterialsAndTechniques(rawMaterials, rawTechniques, techniqueTerms);
+
+  state.materials = cleanMaterials;
+  state.techniques = cleanTechniques;
 
   if (extraction.location) {
     const parsed = parseLocationString(extraction.location);
@@ -343,17 +329,11 @@ function processExtraction(
   if (extraction.city) {
     state.city = extraction.city.trim();
     confidence.city = extraction.confidence?.city ?? extraction.confidence?.location ?? 0.8;
-    if (confidence.city < CLARIFICATION_THRESHOLD) {
-      needsClarification.push('city');
-    }
   }
 
   if (extraction.state) {
     state.state = extraction.state.trim();
     confidence.state = extraction.confidence?.state ?? extraction.confidence?.location ?? 0.8;
-    if (confidence.state < CLARIFICATION_THRESHOLD) {
-      needsClarification.push('state');
-    }
   }
 
   if (!state.location && (state.city || state.state)) {
@@ -381,311 +361,12 @@ function processExtraction(
   };
 }
 
-/**
- * Basic extraction without AI for fallback scenarios.
- * Uses simple keyword matching and pattern recognition.
- */
-function extractWithoutAI(
-  message: string,
-  existingState?: Partial<SharedProjectState>
-): StoryExtractionResult {
-  const state: Partial<SharedProjectState> = { ...existingState };
-  const confidence: Record<string, number> = {};
-  const needsClarification: string[] = [];
-  const lowerMessage = message.toLowerCase();
+export {
+  checkReadyForImages,
+  countWords,
+  getExtractionProgress,
+  getMissingFields,
+  normalizeProjectType,
+} from './story-extractor/fallback';
 
-  // Project type detection
-  for (const projectType of VALID_PROJECT_TYPES) {
-    const searchTerm = projectType.replace('-', ' ');
-    if (lowerMessage.includes(searchTerm)) {
-      state.projectType = projectType;
-      confidence.projectType = 0.7;
-      break;
-    }
-  }
-
-  // Chimney-specific detection
-  if (!state.projectType) {
-    if (lowerMessage.includes('chimney')) {
-      state.projectType = lowerMessage.includes('rebuild')
-        ? 'chimney-rebuild'
-        : 'chimney-repair';
-      confidence.projectType = 0.6;
-      needsClarification.push('projectType');
-    }
-  }
-
-  // Material detection (common masonry materials)
-  const materialKeywords = [
-    'brick', 'mortar', 'stone', 'concrete', 'limestone',
-    'granite', 'marble', 'sandstone', 'portland cement',
-    'lime mortar', 'reclaimed brick', 'natural stone',
-  ];
-  const foundMaterials = materialKeywords.filter((m) =>
-    lowerMessage.includes(m)
-  );
-  if (foundMaterials.length > 0) {
-    const existingMaterials = existingState?.materials || [];
-    state.materials = Array.from(new Set([...existingMaterials, ...foundMaterials]));
-    confidence.materials = 0.6;
-  } else {
-    state.materials = existingState?.materials || [];
-  }
-
-  // Technique detection
-  const techniqueKeywords = [
-    'repointing', 'tuckpointing', 'flashing', 'waterproofing',
-    'sealing', 'restoration', 'rebuild', 'repair',
-  ];
-  const foundTechniques = techniqueKeywords.filter((t) =>
-    lowerMessage.includes(t)
-  );
-  if (foundTechniques.length > 0) {
-    const existingTechniques = existingState?.techniques || [];
-    state.techniques = Array.from(new Set([...existingTechniques, ...foundTechniques]));
-    confidence.techniques = 0.6;
-  } else {
-    state.techniques = existingState?.techniques || [];
-  }
-
-  // Location detection (basic city/state patterns)
-  const locationMatch = message.match(
-    /\b(?:in|at|near)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)(?:,\s*([A-Z]{2}))?\b/
-  );
-  if (locationMatch) {
-    const city = locationMatch[1];
-    const stateCode = locationMatch[2];
-    state.city = city;
-    if (stateCode) {
-      state.state = stateCode;
-    } else {
-      needsClarification.push('state');
-    }
-    state.location = formatProjectLocation({ city, state: stateCode }) || city;
-    confidence.city = 0.5;
-    if (stateCode) {
-      confidence.state = 0.5;
-    }
-  }
-
-  // Duration detection
-  const durationMatch = message.match(
-    /(\d+)\s*(day|week|month|hour)s?/i
-  );
-  if (durationMatch) {
-    state.duration = durationMatch[0];
-    confidence.duration = 0.7;
-  }
-
-  const readyForImages = checkReadyForImages(state);
-
-  return {
-    state,
-    needsClarification,
-    confidence,
-    readyForImages,
-  };
-}
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Check if we have enough data to proceed to the image upload phase.
- *
- * Requirements:
- * - projectType is set
- * - customerProblem has at least MIN_PROBLEM_WORDS
- * - solutionApproach has at least MIN_SOLUTION_WORDS
- * - At least MIN_MATERIALS_FOR_IMAGES materials
- * - Location is helpful but not required to proceed to images
- */
-export function checkReadyForImages(
-  state: Partial<SharedProjectState>
-): boolean {
-  // Must have project type
-  if (!state.projectType) {
-    return false;
-  }
-
-  // Must have sufficient customer problem description
-  const problemWordCount = countWords(state.customerProblem);
-  if (problemWordCount < MIN_PROBLEM_WORDS) {
-    return false;
-  }
-
-  // Must have sufficient solution description
-  const solutionWordCount = countWords(state.solutionApproach);
-  if (solutionWordCount < MIN_SOLUTION_WORDS) {
-    return false;
-  }
-
-  // Must have minimum materials
-  const materialCount = state.materials?.length || 0;
-  if (materialCount < MIN_MATERIALS_FOR_IMAGES) {
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Count words in a string.
- */
-export function countWords(text?: string): number {
-  if (!text) return 0;
-  return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
-/**
- * Normalize project type to valid slug.
- */
-export function normalizeProjectType(type: string): ProjectType {
-  const normalized = type.toLowerCase().replace(/\s+/g, '-');
-
-  // Check if it's a valid type
-  if (VALID_PROJECT_TYPES.includes(normalized as ProjectType)) {
-    return normalized as ProjectType;
-  }
-
-  // Try to map common variations
-  const mappings: Record<string, ProjectType> = {
-    'chimney': 'chimney-repair',
-    'rebuild': 'chimney-rebuild',
-    'tuckpoint': 'tuckpointing',
-    'repoint': 'tuckpointing',
-    'stone': 'stone-veneer',
-    'veneer': 'stone-veneer',
-    'brick': 'brick-restoration',
-    'fireplace': 'fireplace-repair',
-    'wall': 'retaining-wall',
-    'patio': 'patio-paver',
-    'foundation': 'foundation-repair',
-    'historic': 'historic-restoration',
-  };
-
-  for (const [key, value] of Object.entries(mappings)) {
-    if (normalized.includes(key)) {
-      return value;
-    }
-  }
-
-  return 'other';
-}
-
-/**
- * Get list of fields that are still needed for completion.
- */
-export function getMissingFields(
-  state: Partial<SharedProjectState>
-): string[] {
-  const missing: string[] = [];
-
-  if (!state.projectType) {
-    missing.push('projectType');
-  }
-
-  if (countWords(state.customerProblem) < MIN_PROBLEM_WORDS) {
-    missing.push('customerProblem');
-  }
-
-  if (countWords(state.solutionApproach) < MIN_SOLUTION_WORDS) {
-    missing.push('solutionApproach');
-  }
-
-  if ((state.materials?.length || 0) < MIN_MATERIALS_FOR_IMAGES) {
-    missing.push('materials');
-  }
-
-  return missing;
-}
-
-/**
- * Get a human-readable summary of extraction progress.
- */
-export function getExtractionProgress(
-  state: Partial<SharedProjectState>
-): {
-  complete: string[];
-  incomplete: string[];
-  percentComplete: number;
-} {
-  const fields = [
-    'projectType',
-    'customerProblem',
-    'solutionApproach',
-    'materials',
-    'techniques',
-    'city',
-    'state',
-    'duration',
-    'proudOf',
-  ] as const;
-
-  const locationParts = resolveLocationParts(state);
-
-  const complete: string[] = [];
-  const incomplete: string[] = [];
-
-  for (const field of fields) {
-    const value =
-      field === 'city'
-        ? locationParts.city
-        : field === 'state'
-          ? locationParts.state
-          : state[field];
-    if (Array.isArray(value)) {
-      if (value.length > 0) {
-        complete.push(field);
-      } else {
-        incomplete.push(field);
-      }
-    } else if (value && typeof value === 'string' && value.trim().length > 0) {
-      complete.push(field);
-    } else {
-      incomplete.push(field);
-    }
-  }
-
-  const percentComplete = Math.round((complete.length / fields.length) * 100);
-
-  return { complete, incomplete, percentComplete };
-}
-
-function resolveLocationParts(
-  state: Partial<SharedProjectState>
-): { city?: string; state?: string } {
-  const city = state.city?.trim();
-  const stateCode = state.state?.trim();
-  if (city || stateCode) {
-    return { city, state: stateCode };
-  }
-  if (state.location) {
-    return parseLocationString(state.location);
-  }
-  return {};
-}
-
-function parseLocationString(location: string): { city?: string; state?: string } {
-  const trimmed = location.trim();
-  if (!trimmed) return {};
-
-  const commaMatch = trimmed.match(/^([^,]+),\s*([A-Z]{2,})$/);
-  if (commaMatch?.[1] && commaMatch?.[2]) {
-    return {
-      city: commaMatch[1].trim(),
-      state: commaMatch[2].trim(),
-    };
-  }
-
-  const spaceMatch = trimmed.match(/^(.+)\s+([A-Z]{2})$/);
-  if (spaceMatch?.[1] && spaceMatch?.[2]) {
-    return {
-      city: spaceMatch[1].trim(),
-      state: spaceMatch[2].trim(),
-    };
-  }
-
-  return { city: trimmed };
-}
+export type { ProjectType } from './story-extractor/shared-types';

@@ -10,6 +10,7 @@
 
 import type { ExtractedProjectData } from '@/lib/chat/chat-types';
 import type { DescriptionBlock } from '@/lib/content/description-blocks';
+import type { DiscoveredBusiness } from '@/lib/tools/business-discovery';
 
 /**
  * Tool part states from AI SDK 6.
@@ -40,6 +41,8 @@ export type ArtifactType =
   | 'updateDescriptionBlocks'
   | 'suggestQuickActions'
   | 'generatePortfolioContent'
+  | 'showBusinessSearchResults'
+  | 'showProfileReveal'
   | 'composePortfolioLayout'
   | 'checkPublishReady'
   | 'reorderImages'
@@ -220,6 +223,64 @@ export interface GeneratedContentData {
 }
 
 /**
+ * Business search results data from Discovery Agent.
+ */
+export interface BusinessSearchResultsData {
+  results: DiscoveredBusiness[];
+  prompt?: string;
+  /** googlePlaceId of the selected business (shows loading state on that card) */
+  selectedId?: string;
+  /** When set, shows a static confirmed card instead of the full search results */
+  confirmedBusiness?: DiscoveredBusiness;
+}
+
+/**
+ * Profile reveal data from Discovery Agent.
+ * Shown after profile is saved to celebrate the business.
+ * This is the "wow" moment with bio, review highlights, and project suggestions.
+ *
+ * @see /docs/specs/typeform-onboarding-spec.md - Discovery Reveal feature
+ */
+export interface ProfileRevealData {
+  businessName: string;
+  /** Street address - optional for service area businesses */
+  address?: string;
+  city: string;
+  state: string;
+  phone?: string;
+  website?: string;
+  services: string[];
+  rating?: number;
+  reviewCount?: number;
+  celebrationMessage: string;
+  /** AI-synthesized bio blending reviews + web content */
+  bio?: string;
+  /** 2-3 best review quotes */
+  highlights?: string[];
+  /** Years in business if discovered */
+  yearsInBusiness?: string;
+  /** Project suggestions from reviews with photos or web portfolio */
+  projectSuggestions?: ProfileRevealProjectSuggestion[];
+  /** If true, this is a service area business - address should not be displayed */
+  hideAddress?: boolean;
+}
+
+/**
+ * Project suggestion for profile reveal.
+ * Can come from reviews with photos or discovered web portfolio.
+ */
+export interface ProfileRevealProjectSuggestion {
+  /** Suggested project title */
+  title: string;
+  /** Brief description or context */
+  description?: string;
+  /** Source: 'review' if from a review, 'web' if from web portfolio */
+  source: 'review' | 'web';
+  /** Image URLs if available (from review photos or web) */
+  imageUrls?: string[];
+}
+
+/**
  * Layout composition data from Layout Composer agent.
  */
 export interface ComposePortfolioLayoutData {
@@ -247,6 +308,8 @@ export type ArtifactPart =
   | ToolPart<ClarificationData, ClarificationData> & { type: 'tool-requestClarification' }
   | ToolPart<UpdateFieldData, UpdateFieldData> & { type: 'tool-updateField' }
   | ToolPart<UpdateDescriptionBlocksData, UpdateDescriptionBlocksData> & { type: 'tool-updateDescriptionBlocks' }
+  | ToolPart<BusinessSearchResultsData, BusinessSearchResultsData> & { type: 'tool-showBusinessSearchResults' }
+  | ToolPart<ProfileRevealData, ProfileRevealData> & { type: 'tool-showProfileReveal' }
   | ToolPart<GeneratedContentData, GeneratedContentData> & { type: 'tool-generatePortfolioContent' }
   | ToolPart<ComposePortfolioLayoutData, ComposePortfolioLayoutData> & { type: 'tool-composePortfolioLayout' }
   | ToolPart<PublishReadinessData, PublishReadinessData> & { type: 'tool-checkPublishReady' };
@@ -265,41 +328,8 @@ export interface ArtifactAction {
 }
 
 // =============================================================================
-// Type Guards
+// Utilities
 // =============================================================================
-
-/**
- * Check if a part is a tool part (vs. text, image, etc.).
- */
-export function isToolPart(part: { type: string }): part is BaseToolPart {
-  return part.type.startsWith('tool-');
-}
-
-/**
- * Check if a tool part has output available.
- */
-export function hasOutput<T>(part: ToolPart<unknown, T>): part is ToolPart<unknown, T> & { output: T } {
-  return part.state === 'output-available' && 'output' in part && part.output !== undefined;
-}
-
-/**
- * Check if a tool part is still loading.
- */
-export function isLoading(part: BaseToolPart): boolean {
-  return (
-    part.state === 'input-streaming' ||
-    part.state === 'input-available' ||
-    part.state === 'approval-requested' ||
-    part.state === 'approval-responded'
-  );
-}
-
-/**
- * Check if a tool part has an error.
- */
-export function hasError(part: BaseToolPart): boolean {
-  return part.state === 'output-error' || part.state === 'output-denied';
-}
 
 /**
  * Extract tool name from part type.

@@ -1,7 +1,7 @@
 # SEO Success Metrics & Monitoring
 
-> **Version:** 1.0
-> **Last Updated:** December 2024
+> **Version:** 1.1
+> **Last Updated:** January 2, 2026
 > **Status:** Active
 > **Purpose:** Define KPIs, targets, and monitoring processes for SEO performance
 
@@ -24,7 +24,7 @@ This document defines measurable success criteria for the SEO & Discovery strate
 
 ### 2.1 Core SEO Metrics
 
-| Metric | Baseline (Dec 2024) | 3-Month Target (Mar 2025) | 6-Month Target (Jun 2025) | 12-Month Target (Dec 2025) | Tool |
+| Metric | Baseline (Dec 2026) | 3-Month Target (Mar 2026) | 6-Month Target (Jun 2026) | 12-Month Target (Dec 2026) | Tool |
 |--------|---------------------|---------------------------|---------------------------|----------------------------|------|
 | **Indexed Pages** | 50 | 200 | 500 | 2,000 | Google Search Console |
 | **Organic Clicks/Month** | 50 | 500 | 2,000 | 8,000 | Google Search Console |
@@ -48,7 +48,7 @@ This document defines measurable success criteria for the SEO & Discovery strate
 
 ### 2.2 Keyword Ranking Metrics
 
-| Metric | Baseline (Dec 2024) | 3-Month Target (Mar 2025) | 6-Month Target (Jun 2025) | 12-Month Target (Dec 2025) | Tool |
+| Metric | Baseline (Dec 2026) | 3-Month Target (Mar 2026) | 6-Month Target (Jun 2026) | 12-Month Target (Dec 2026) | Tool |
 |--------|---------------------|---------------------------|---------------------------|----------------------------|------|
 | **Keywords in Top 10** | 0 | 5 | 25 | 100 | Ahrefs / local-beacon |
 | **Keywords in Top 20** | 0 | 10 | 50 | 200 | Ahrefs / local-beacon |
@@ -56,6 +56,7 @@ This document defines measurable success criteria for the SEO & Discovery strate
 | **Featured Snippets Won** | 0 | 0 | 2 | 5 | Manual tracking + GSC |
 
 **Target Keywords (50-100 tracked):**
+_Current vertical examples use masonry terms until taxonomy is generalized._
 
 **Phase 2 (Priority Keywords):**
 - "chimney repair in Denver"
@@ -80,7 +81,7 @@ This document defines measurable success criteria for the SEO & Discovery strate
 
 ### 2.3 Backlink Metrics
 
-| Metric | Baseline (Dec 2024) | 3-Month Target (Mar 2025) | 6-Month Target (Jun 2025) | 12-Month Target (Dec 2025) | Tool |
+| Metric | Baseline (Dec 2026) | 3-Month Target (Mar 2026) | 6-Month Target (Jun 2026) | 12-Month Target (Dec 2026) | Tool |
 |--------|---------------------|---------------------------|---------------------------|----------------------------|------|
 | **Referring Domains (Backlinks)** | 1 | 5 | 15 | 50 | Ahrefs |
 | **Domain Authority (DA)** | 10 | 15 | 25 | 40 | Moz |
@@ -88,7 +89,7 @@ This document defines measurable success criteria for the SEO & Discovery strate
 | **Toxic Backlinks** | 0 | 0 | 0 | 0 | Ahrefs (monitor) |
 
 **Backlink Sources:**
-- **Phase 2:** Local directories (BBB, chambers of commerce), contractor websites
+- **Phase 2:** Local directories (BBB, chambers of commerce), business websites
 - **Phase 3:** Guest posts, PR mentions, industry associations
 - **Phase 4:** Contractor partnerships, content syndication
 
@@ -107,7 +108,7 @@ This document defines measurable success criteria for the SEO & Discovery strate
 
 ### 2.4 Technical SEO Metrics
 
-| Metric | Baseline (Dec 2024) | 3-Month Target (Mar 2025) | 6-Month Target (Jun 2025) | 12-Month Target (Dec 2025) | Tool |
+| Metric | Baseline (Dec 2026) | 3-Month Target (Mar 2026) | 6-Month Target (Jun 2026) | 12-Month Target (Dec 2026) | Tool |
 |--------|---------------------|---------------------------|---------------------------|----------------------------|------|
 | **Core Web Vitals - LCP** | 2.1s | <2.5s | <2.0s | <1.5s | PageSpeed Insights, GSC |
 | **Core Web Vitals - CLS** | 0.08 | <0.1 | <0.05 | <0.05 | PageSpeed Insights, GSC |
@@ -129,7 +130,7 @@ This document defines measurable success criteria for the SEO & Discovery strate
 
 ### 2.5 Rich Results Metrics
 
-| Metric | Baseline (Dec 2024) | 3-Month Target (Mar 2025) | 6-Month Target (Jun 2025) | 12-Month Target (Dec 2025) | Tool |
+| Metric | Baseline (Dec 2026) | 3-Month Target (Mar 2026) | 6-Month Target (Jun 2026) | 12-Month Target (Dec 2026) | Tool |
 |--------|---------------------|---------------------------|---------------------------|----------------------------|------|
 | **Pages with Valid Structured Data** | 50 | 200 | 500 | 2,000 | Google Search Console |
 | **Rich Result Impressions/Month** | 0 | 1,000 | 10,000 | 50,000 | Google Search Console |
@@ -150,23 +151,23 @@ This document defines measurable success criteria for the SEO & Discovery strate
 
 ## 3. Business Outcome KPIs
 
-### 3.1 Contractor Acquisition Metrics
+### 3.1 Business Acquisition Metrics
 
-| Metric | Baseline (Dec 2024) | 3-Month Target (Mar 2025) | 6-Month Target (Jun 2025) | 12-Month Target (Dec 2025) | Measurement Method |
+| Metric | Baseline (Dec 2026) | 3-Month Target (Mar 2026) | 6-Month Target (Jun 2026) | 12-Month Target (Dec 2026) | Measurement Method |
 |--------|---------------------|---------------------------|---------------------------|----------------------------|-------------------|
-| **Contractor Signups (Total)** | 5 | 25 | 75 | 250 | Supabase `contractors` table |
-| **Contractor Signups (Organic Search)** | 0 | 5 | 20 | 100 | GA4 attribution (source: `organic`) |
-| **Contractor Signups (Content)** | 0 | 3 | 10 | 40 | GA4 attribution (landing page: `/learn/*`, `/guides/*`) |
-| **Contractor Signups (Referral)** | 0 | 3 | 10 | 30 | Referral code tracking (future) |
-| **Active Contractors (≥1 Published Project)** | 3 | 15 | 50 | 150 | SQL: `SELECT COUNT(DISTINCT contractor_id) FROM projects WHERE status='published'` |
+| **Business Signups (Total)** | 5 | 25 | 75 | 250 | Supabase `contractors` table (current schema) |
+| **Business Signups (Organic Search)** | 0 | 5 | 20 | 100 | GA4 attribution (source: `organic`) |
+| **Business Signups (Content)** | 0 | 3 | 10 | 40 | GA4 attribution (landing page: `/learn/*`, `/guides/*`) |
+| **Business Signups (Referral)** | 0 | 3 | 10 | 30 | Referral code tracking (future) |
+| **Active Businesses (≥1 Published Project)** | 3 | 15 | 50 | 150 | SQL: `SELECT COUNT(DISTINCT contractor_id) FROM projects WHERE status='published'` |
 
 **Attribution Method (GA4):**
 - **Organic Search:** `utm_source=google` OR `source/medium=google/organic`
 - **Content-Attributed:** Landing page matches `/learn/*` or `/guides/*`
-- **Referral:** `utm_source=contractor_referral`
+- **Referral:** `utm_source=contractor_referral` (current tracking key)
 
 **Monitoring:**
-- **Weekly:** Check new contractor signups in Supabase
+- **Weekly:** Check new business signups in Supabase
 - **Monthly:** Analyze GA4 acquisition reports
 - **Quarterly:** Cohort analysis (retention by signup source)
 
@@ -174,10 +175,10 @@ This document defines measurable success criteria for the SEO & Discovery strate
 
 ### 3.2 Content Production Metrics
 
-| Metric | Baseline (Dec 2024) | 3-Month Target (Mar 2025) | 6-Month Target (Jun 2025) | 12-Month Target (Dec 2025) | Measurement Method |
+| Metric | Baseline (Dec 2026) | 3-Month Target (Mar 2026) | 6-Month Target (Jun 2026) | 12-Month Target (Dec 2026) | Measurement Method |
 |--------|---------------------|---------------------------|---------------------------|----------------------------|-------------------|
 | **Projects Published** | 15 | 75 | 300 | 1,200 | Supabase `projects` table (status=published) |
-| **Avg Projects per Contractor** | 5 | 5 | 6 | 8 | Total projects / active contractors |
+| **Avg Projects per Business** | 5 | 5 | 6 | 8 | Total projects / active contractors (current schema) |
 | **Service Type by City Pages** | 0 | 60 | 60 | 300 | Manual count (10 cities × 6 services → 50 cities × 6) |
 | **National Service Pages** | 0 | 0 | 8 | 8 | Manual count |
 | **Educational Articles** | 0 | 4 | 8 | 12 | Manual count |
@@ -192,12 +193,12 @@ This document defines measurable success criteria for the SEO & Discovery strate
 
 ### 3.3 User Engagement Metrics
 
-| Metric | Baseline (Dec 2024) | 3-Month Target (Mar 2025) | 6-Month Target (Jun 2025) | 12-Month Target (Dec 2025) | Tool |
+| Metric | Baseline (Dec 2026) | 3-Month Target (Mar 2026) | 6-Month Target (Jun 2026) | 12-Month Target (Dec 2026) | Tool |
 |--------|---------------------|---------------------------|---------------------------|----------------------------|------|
 | **Avg Session Duration** | 1:30 | 2:00 | 2:30 | 3:00 | GA4 |
 | **Pages per Session** | 2.0 | 3.0 | 3.5 | 4.0 | GA4 |
 | **Bounce Rate** | 60% | 50% | 45% | 40% | GA4 |
-| **Contractor Profile Clicks (from Projects)** | 10/week | 50/week | 200/week | 500/week | GA4 custom event |
+| **Business Profile Clicks (from Projects)** | 10/week | 50/week | 200/week | 500/week | GA4 custom event |
 
 **Engagement Strategy:**
 - **Related Projects Component:** Increase pages/session (Phase 2)
@@ -254,14 +255,14 @@ This document defines measurable success criteria for the SEO & Discovery strate
 2. Install tracking code via `@next/third-parties/google` or `react-ga4`
 3. Configure custom events:
    - `project_view` (when user views project detail page)
-   - `contractor_profile_click` (when user clicks contractor CTA)
-   - `contractor_signup` (when contractor completes registration)
+   - `contractor_profile_click` (when user clicks business CTA; event name unchanged)
+   - `contractor_signup` (when business completes registration; event name unchanged)
    - `related_project_click` (when user clicks related project link)
 
 **Key Reports:**
 - **Acquisition:** Traffic sources, campaigns, channels
 - **Engagement:** Pages per session, session duration, bounce rate
-- **Conversions:** Goal completions (contractor signups)
+- **Conversions:** Goal completions (business signups)
 
 **Monitoring Frequency:** Weekly (traffic trends), Monthly (detailed analysis)
 
@@ -548,6 +549,6 @@ This document defines measurable success criteria for the SEO & Discovery strate
 
 ---
 
-**Last Updated:** December 2024
+**Last Updated:** December 2025
 **Owner:** SEO Lead
 **Review Cadence:** Monthly (metrics), Quarterly (strategy)

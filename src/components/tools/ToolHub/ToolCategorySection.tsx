@@ -5,9 +5,10 @@
  * Handles both live tools and coming soon placeholders.
  */
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import {
+  Button, Badge,
+  Card, CardContent, CardDescription, CardHeader, CardTitle
+} from '@/components/ui'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import type { ToolCategory, ToolDefinition } from '@/lib/tools/catalog'

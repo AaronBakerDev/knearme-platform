@@ -24,7 +24,7 @@
  */
 export interface SharedProjectState {
   // --------------------------------------------------------------------------
-  // Extracted Data (from contractor conversation)
+  // Extracted Data (from user conversation)
   // --------------------------------------------------------------------------
 
   /** Project type (e.g., "chimney-rebuild", "tuckpointing") */
@@ -36,7 +36,7 @@ export interface SharedProjectState {
   /** Customer's problem/need that led to the project */
   customerProblem?: string;
 
-  /** How the contractor solved the problem */
+  /** How the business owner solved the problem */
   solutionApproach?: string;
 
   /** Materials used in the project */
@@ -57,7 +57,7 @@ export interface SharedProjectState {
   /** Project duration */
   duration?: string;
 
-  /** What the contractor is most proud of */
+  /** What the business owner is most proud of */
   proudOf?: string;
 
   // --------------------------------------------------------------------------
@@ -122,10 +122,34 @@ export interface SharedProjectState {
 export interface ProjectImageState {
   id: string;
   url: string;
+  storagePath?: string;
+  bucket?: 'project-images' | 'project-images-draft';
   filename?: string;
   imageType?: 'before' | 'after' | 'progress' | 'detail';
   altText?: string;
   displayOrder: number;
+}
+
+/**
+ * Group images by their type (before, after, progress, detail, other).
+ * Returns both counts and IDs for flexibility.
+ */
+export function groupImagesByType(images: ProjectImageState[]): {
+  byType: Record<string, { count: number; ids: string[] }>;
+  total: number;
+} {
+  const byType: Record<string, { count: number; ids: string[] }> = {};
+
+  for (const img of images) {
+    const type = img.imageType || 'other';
+    if (!byType[type]) {
+      byType[type] = { count: 0, ids: [] };
+    }
+    byType[type].count++;
+    byType[type].ids.push(img.id);
+  }
+
+  return { byType, total: images.length };
 }
 
 /**
@@ -204,36 +228,50 @@ export interface QualityCheckResult {
 }
 
 // ============================================================================
-// Publish Requirements
+// Publish Recommendations (Warnings Only)
+// ============================================================================
+//
+// PHILOSOPHY: The user decides when to publish, not arbitrary rules.
+// These are RECOMMENDATIONS that show warnings, not gates that block.
+// The API will warn but not reject. User can always override.
+//
+// @see /docs/philosophy/agent-philosophy.md
 // ============================================================================
 
 /**
- * Hard requirements that must be met before publishing.
- * Based on analysis of /src/app/api/projects/[id]/publish/route.ts
+ * @deprecated Use PUBLISH_RECOMMENDATIONS instead.
+ * Kept for backwards compatibility during migration.
+ * All "requirements" are now just recommendations that show warnings.
  */
 export const PUBLISH_REQUIREMENTS = {
-  /** Required fields that must have values */
-  required: [
+  /** Fields that SHOULD have values (warning if missing, not blocking) */
+  required: [] as const, // EMPTIED - nothing is truly required anymore
+
+  /** Recommended number of images (warning if missing) */
+  minImages: 0, // CHANGED from 1 - user decides
+
+  /** Hero image recommended but not required */
+  requireHeroImage: false, // CHANGED from true - user decides
+} as const;
+
+/**
+ * Recommendations that show helpful warnings but never block.
+ * The model explains these in conversation. User always has final say.
+ */
+export const PUBLISH_RECOMMENDATIONS = {
+  /** Fields that improve discoverability if present */
+  suggestedFields: [
     'title',
     'project_type',
-    'project_type_slug',
     'city',
     'state',
   ] as const,
 
-  /** Minimum number of images */
-  minImages: 1,
-
-  /** Must have a hero image selected */
-  requireHeroImage: true,
-} as const;
-
-/**
- * Recommended but not required for publishing.
- */
-export const PUBLISH_RECOMMENDATIONS = {
   /** Recommended minimum description length */
   minDescriptionWords: 200,
+
+  /** Recommended number of images for best results */
+  suggestedImages: 1,
 
   /** Recommended number of materials */
   minMaterials: 2,
@@ -243,4 +281,7 @@ export const PUBLISH_RECOMMENDATIONS = {
 
   /** Recommended to have SEO metadata */
   hasSeoMetadata: true,
+
+  /** Hero image improves visual appeal */
+  suggestHeroImage: true,
 } as const;

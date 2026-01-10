@@ -13,6 +13,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateText } from 'ai';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
@@ -23,6 +24,8 @@ import {
   getSummarizePrompt,
   type KeyFact,
 } from '@/lib/chat/memory';
+import { logger } from '@/lib/logging';
+import type { Database, Json } from '@/types/database';
 
 // Allow up to 30 seconds for summarization
 export const maxDuration = 30;
@@ -31,6 +34,38 @@ interface SummarizeResponse {
   summary: string;
   keyFacts: KeyFact[];
 }
+
+type ChatMessageRow = {
+  role: string;
+  content: string;
+  created_at: string;
+};
+
+type ChatSessionRow = {
+  id: string;
+  project_id: string | null;
+  contractor_id: string;
+  phase: string | null;
+  extracted_data: Json | null;
+};
+
+type ChatSessionWithMessages = ChatSessionRow & {
+  chat_messages: ChatMessageRow[];
+};
+
+type ChatDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      chat_sessions: {
+        Row: ChatSessionRow;
+        Insert: ChatSessionRow;
+        Update: Partial<ChatSessionRow>;
+      };
+    };
+  };
+};
+
+type ChatSupabaseClient = SupabaseClient<ChatDatabase>;
 
 /**
  * POST /api/chat/sessions/[id]/summarize
@@ -61,11 +96,10 @@ export async function POST(
       );
     }
 
-    const supabase = await createClient();
+    const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Get the session with messages
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: session, error: sessionError } = await (supabase as any)
+    const { data: session, error: sessionError } = await supabase
       .from('chat_sessions')
       .select(`
         id,
@@ -82,8 +116,10 @@ export async function POST(
       .eq('id', sessionId)
       .single();
 
-    if (sessionError) {
-      console.error('[Summarize] Session fetch error:', sessionError);
+    const sessionData = session as ChatSessionWithMessages | null;
+
+    if (sessionError || !sessionData) {
+      logger.error('[Summarize] Session fetch error', { error: sessionError });
       return NextResponse.json(
         { error: 'Session not found' },
         { status: 404 }
@@ -91,7 +127,7 @@ export async function POST(
     }
 
     // Verify ownership
-    if (session.contractor_id !== auth.contractor.id) {
+    if (sessionData.contractor_id !== auth.contractor.id) {
       return NextResponse.json(
         { error: 'Access denied' },
         { status: 403 }
@@ -99,7 +135,7 @@ export async function POST(
     }
 
     // Check if there are messages to summarize
-    const messages = session.chat_messages || [];
+    const messages = sessionData.chat_messages || [];
     if (messages.length < 2) {
       return NextResponse.json(
         { error: 'Not enough messages to summarize' },
@@ -142,7 +178,7 @@ ${conversationText}`,
       }));
     } catch {
       // If JSON parsing fails, use the raw text as summary
-      console.warn('[Summarize] Failed to parse AI response as JSON, using raw text');
+      logger.warn('[Summarize] Failed to parse AI response as JSON, using raw text');
       summary = responseText.slice(0, 500); // Limit length
     }
 
@@ -150,12 +186,12 @@ ${conversationText}`,
     await saveSessionSummary(sessionId, summary, keyFacts);
 
     // Update project memory with new facts
-    if (keyFacts.length > 0 && session.project_id) {
+    if (keyFacts.length > 0 && sessionData.project_id) {
       try {
-        await updateProjectMemory(session.project_id, keyFacts);
+        await updateProjectMemory(sessionData.project_id, keyFacts);
       } catch (memoryError) {
         // Log but don't fail the request
-        console.error('[Summarize] Failed to update project memory:', memoryError);
+        logger.error('[Summarize] Failed to update project memory', { error: memoryError });
       }
     }
 
@@ -165,7 +201,7 @@ ${conversationText}`,
       keyFacts,
     });
   } catch (error) {
-    console.error('[Summarize] Error:', error);
+    logger.error('[Summarize] Error', { error });
     return NextResponse.json(
       { error: 'Failed to summarize session' },
       { status: 500 }

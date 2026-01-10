@@ -5,20 +5,32 @@
  *
  * Shared between the full tool page and city cost SEO wrappers.
  * Uses deterministic national v2 base ranges + multipliers.
+ *
+ * Services are fetched dynamically from /api/services to ensure
+ * consistency with the Service Catalog.
+ *
+ * @see src/lib/services/catalog.ts
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Calculator, MapPin } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Calculator, MapPin, Loader2 } from 'lucide-react'
+import {
+  Card, CardContent, CardHeader, CardTitle,
+  Label, Input, Badge, Button,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui'
 import { SERVICE_CONTENT } from '@/lib/constants/service-content'
-import { MASONRY_SERVICES, type ServiceId } from '@/lib/constants/services'
 import { estimateCost, type AccessTier, type SeverityTier } from '@/lib/tools/cost-estimator'
+import type { ServiceId } from '@/lib/constants/services'
+import { logger } from '@/lib/logging'
+
+/** Service option from API */
+interface ServiceOption {
+  id: string
+  label: string
+  icon: string
+}
 import { useUrlState, ShareableLinkButton } from '@/components/tools/ToolSharing'
 import { StickyResultsBar } from '@/components/tools/ToolResults'
 import { PDFExportButton } from '@/components/tools/ToolPDF'
@@ -157,10 +169,33 @@ function ResultsContent({ estimate, serviceContent, nextStep, getShareableUrl, t
 }
 
 export interface MasonryCostEstimatorWidgetProps {
-  initialServiceId?: ServiceId
+  /** Service ID - accepts string for compatibility with Service Catalog */
+  initialServiceId?: string
 }
 
 export function MasonryCostEstimatorWidget({ initialServiceId = 'chimney-repair' }: MasonryCostEstimatorWidgetProps) {
+  // Dynamic services from API
+  const [services, setServices] = useState<ServiceOption[]>([])
+  const [isLoadingServices, setIsLoadingServices] = useState(true)
+
+  // Fetch services from catalog API
+  useEffect(() => {
+    async function fetchServices() {
+      try {
+        const res = await fetch('/api/services?trade=masonry')
+        if (res.ok) {
+          const data = await res.json()
+          setServices(data.services || [])
+        }
+      } catch (error) {
+        logger.error('[MasonryCostEstimatorWidget] Failed to fetch services', { error })
+      } finally {
+        setIsLoadingServices(false)
+      }
+    }
+    fetchServices()
+  }, [])
+
   // URL-synced state for all form fields
   const defaultState = {
     serviceId: initialServiceId,
@@ -172,19 +207,21 @@ export function MasonryCostEstimatorWidget({ initialServiceId = 'chimney-repair'
 
   const { state, setState, getShareableUrl } = useUrlState(defaultState)
 
-  const serviceContent = SERVICE_CONTENT[state.serviceId]
+  // Cast to ServiceId for type safety - cost estimator still uses legacy constant lookups
+  const typedServiceId = state.serviceId as ServiceId
+  const serviceContent = SERVICE_CONTENT[typedServiceId]
 
   const estimate = useMemo(() => {
     return estimateCost({
-      serviceId: state.serviceId,
+      serviceId: typedServiceId,
       size: state.size,
       severity: state.severity,
       access: state.access,
       historic: state.historic
     })
-  }, [state.serviceId, state.size, state.severity, state.access, state.historic])
+  }, [typedServiceId, state.size, state.severity, state.access, state.historic])
 
-  const nextStep = NEXT_STEP_LINKS[state.serviceId]
+  const nextStep = NEXT_STEP_LINKS[typedServiceId]
 
   return (
     <>
@@ -201,14 +238,28 @@ export function MasonryCostEstimatorWidget({ initialServiceId = 'chimney-repair'
           {/* Service */}
           <div className='space-y-2'>
             <Label>Service type</Label>
-            <Select value={state.serviceId} onValueChange={(v) => setState({ serviceId: v as ServiceId })}>
+            <Select
+              value={state.serviceId}
+              onValueChange={(v) => setState({ serviceId: v as ServiceId })}
+              disabled={isLoadingServices}
+            >
               <SelectTrigger>
-                <SelectValue placeholder='Select a service' />
+                {isLoadingServices ? (
+                  <span className='flex items-center gap-2 text-muted-foreground'>
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                    Loading services...
+                  </span>
+                ) : (
+                  <SelectValue placeholder='Select a service' />
+                )}
               </SelectTrigger>
               <SelectContent>
-                {MASONRY_SERVICES.map((s) => (
+                {services.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.label}
+                    <span className='flex items-center gap-2'>
+                      <span>{s.icon}</span>
+                      <span>{s.label}</span>
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -326,4 +377,3 @@ export function MasonryCostEstimatorWidget({ initialServiceId = 'chimney-repair'
 }
 
 export default MasonryCostEstimatorWidget
-

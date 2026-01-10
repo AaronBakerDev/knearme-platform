@@ -24,6 +24,8 @@ import { ProgressTracker } from './ProgressTracker';
 import { ClarificationCard } from './ClarificationCard';
 import { PublishReadinessCard } from './PublishReadinessCard';
 import { GeneratedContentCard } from './GeneratedContentCard';
+import { BusinessSearchResultsArtifact } from './BusinessSearchResultsArtifact';
+import { ProfileRevealArtifact } from './ProfileRevealArtifact';
 import { ArtifactSkeleton } from './shared/ArtifactSkeleton';
 import { ArtifactError } from './shared/ArtifactError';
 import { extractToolName, type ArtifactType } from '@/types/artifacts';
@@ -96,6 +98,8 @@ const ARTIFACT_COMPONENTS: Partial<Record<ArtifactType, ArtifactComponentType>> 
   requestClarification: ClarificationCard as ArtifactComponentType,
   checkPublishReady: PublishReadinessCard as ArtifactComponentType,
   generatePortfolioContent: GeneratedContentCard as ArtifactComponentType,
+  showBusinessSearchResults: BusinessSearchResultsArtifact as ArtifactComponentType,
+  showProfileReveal: ProfileRevealArtifact as ArtifactComponentType,
 };
 
 /**

@@ -71,10 +71,10 @@ const FIX_ORDERS: Record<LeakSourceCategory, string[]> = {
   'surface-runoff': [
     'Fix gutters and extend downspouts at least 6–10 ft away from the foundation.',
     'Regrade soil so water slopes away from the house for the first ~10 ft.',
-    'After drainage is improved, repair any visible cracks and consider breathable masonry sealing.',
+    'After drainage is improved, repair visible cracks and consider breathable masonry sealing.',
   ],
   'wall-cracks-mortar': [
-    'Repair cracks or deteriorated mortar (repoint/patch) before any waterproofing.',
+    'Repair cracks or deteriorated mortar (repoint/patch) before waterproofing.',
     'Improve exterior drainage to keep the wall dry (downspouts, grading).',
     'Only after repairs and drainage are addressed, consider a breathable sealer.',
   ],
@@ -246,4 +246,3 @@ export function triageBasementLeak(inputs: BasementLeakInputs): BasementLeakResu
     assumptions: ASSUMPTIONS,
   }
 }
-

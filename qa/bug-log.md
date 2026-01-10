@@ -50,3 +50,23 @@ Open Items
   - Root Cause: Migration `005` (fix for recursion) was not applied to the production database.
   - Status: fixed (2025-12-10) — Applied migration `007` effectively reapplying the fix (using `SECURITY DEFINER` function to break the loop).
   - Owner: Antigravity
+
+---
+
+## Sprint 11 Review (2026-01-02)
+
+**Scope:** Full contractors → businesses rename (Sub-Sprints 11.1-11.12)
+
+**Review Summary:**
+- Build passes: ✅
+- Route group rename `(contractor)` → `(dashboard)`: ✅
+- SEO structured data updated: ✅
+- Database migration verified (10 businesses, 71 projects): ✅
+- API routes use `business_id`: ✅
+
+**No new bugs identified during Sprint 11 review.**
+
+Legacy contractor references remain intentionally for:
+- Backward compatibility in API fallback layer
+- Variable names in public pages (refers to "contractors" generically)
+- Deprecated type aliases for gradual migration

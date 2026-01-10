@@ -30,8 +30,8 @@ export interface TelemetryMetadata {
   projectId?: string;
   /** Chat session ID */
   sessionId?: string;
-  /** Contractor ID */
-  contractorId?: string;
+  /** Business ID (replaces contractorId) */
+  businessId?: string;
   /** Custom tags for filtering */
   tags?: string[];
   /** Additional context (must be OTel-compatible values) */

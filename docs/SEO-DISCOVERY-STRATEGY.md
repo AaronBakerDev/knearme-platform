@@ -1,7 +1,7 @@
 # SEO & Discovery Strategy
 
-> **Version:** 1.0
-> **Last Updated:** December 2024
+> **Version:** 1.1
+> **Last Updated:** January 2, 2026
 > **Status:** Active
 > **Purpose:** Bridge workspace content strategy → project implementation
 
@@ -9,15 +9,15 @@
 
 ## 1. Executive Summary
 
-KNearMe Portfolio operates as a **two-sided marketplace** with asymmetric discovery strategies:
+KnearMe operates as a **two-sided marketplace** with asymmetric discovery strategies:
 
-**Homeowner Acquisition (Demand Side):**
+**Client Acquisition (Demand Side):**
 - **Primary Channel:** Organic search via programmatic SEO pages
 - **Strategy:** City-specific service pages targeting "{service} in {city}" queries
-- **User Intent:** Finding qualified contractors for specific masonry projects
-- **Conversion Path:** Search → City/Service Page → Project Gallery → Contractor Profile → Contact
+- **User Intent:** Finding qualified providers for a specific project type
+- **Conversion Path:** Search → City/Service Page → Project Gallery → Business Profile → Contact
 
-**Contractor Acquisition (Supply Side):**
+**Business Acquisition (Supply Side):**
 - **Primary Channel:** Word-of-mouth and organic referrals
 - **Secondary Channel:** Educational content marketing (Phase 2)
 - **Strategy:** Build trust through value-first content, not paid advertising
@@ -25,8 +25,8 @@ KNearMe Portfolio operates as a **two-sided marketplace** with asymmetric discov
 
 **Core Differentiator:**
 Programmatic SEO pages (City Hubs + Service Type by City) are the **primary competitive moat** in the MVP phase. These pages serve dual purposes:
-1. Homeowner discovery and contractor evaluation
-2. Contractor portfolio showcase and credibility building
+1. Client discovery and business evaluation
+2. Business portfolio showcase and credibility building
 
 **Source Documents:**
 - Workspace Strategy: `/docs/content-planning/masonry/content-plan.md`
@@ -37,18 +37,26 @@ This document translates workspace-level strategy into **implementation specific
 
 ---
 
+## Scope & Vertical Note
+
+- **Primary positioning:** Portfolio-first businesses across trades and services.
+- **Current vertical:** Masonry remains the initial SEO wedge and route structure (e.g., `/masonry/`) until the routing layer is generalized.
+- **Rule of thumb:** Keep conceptual strategy vendor-agnostic, keep masonry-specific examples where they map to current routes or datasets.
+
+---
+
 ## 2. Programmatic SEO Architecture
 
 ### 2.1 Page Type Taxonomy
 
 | Page Type | URL Pattern | Purpose | Priority | Status |
 |-----------|-------------|---------|----------|--------|
-| **City Hub** | `/{city}/masonry` | Aggregate all masonry services and projects in a specific city; primary landing page for "{city} masonry" queries | **P0** | ✅ Implemented |
-| **Service Type by City** | `/{city}/masonry/{type}` | Show all projects of a specific service type in a city (e.g., "chimney repair in Denver"); target long-tail "{service} in {city}" keywords | **P1** | 🔨 Next sprint |
+| **City Hub** | `/{city}/masonry` | Aggregate all services and projects in a specific city; primary landing page for "{city} {service}" queries | **P0** | ✅ Implemented |
+| **Service Type by City** | `/{city}/masonry/{type}` | Show projects of a specific service type in a city (e.g., "chimney repair in Denver"); target long-tail "{service} in {city}" keywords | **P1** | 🔨 Next sprint |
 | **Project Detail** | `/{city}/masonry/{type}/{project-slug}` | Individual project showcase with rich media, descriptions, structured data; builds trust and demonstrates quality | **P0** | ✅ Implemented |
-| **Contractor Profile** | `/contractors/{city-slug}/{contractor-id}` | Contractor's full portfolio, bio, contact info; conversion endpoint for homeowners | **P0** | ✅ Implemented |
+| **Business Profile** | `/businesses/{city-slug}/{business-slug}` | Business portfolio, bio, contact info; conversion endpoint for clients | **P0** | ✅ Implemented |
 | **National Service Landing** | `/services/{type}` | National-level service landing page linking to all cities offering that service; "what is tuckpointing" education + city links | **P2** | 📋 Phase 2 |
-| **Educational Content** | `/learn/{slug}` | How-to guides, cost guides, contractor selection advice; builds domain authority and captures informational queries | **P2** | 📋 Phase 2 |
+| **Educational Content** | `/learn/{slug}` | How-to guides, cost guides, provider selection advice; builds domain authority and captures informational queries | **P2** | 📋 Phase 2 |
 
 ### 2.2 Next.js Route Implementation
 
@@ -57,7 +65,7 @@ This document translates workspace-level strategy into **implementation specific
 | **City Hub** | `app/(public)/[city]/masonry/page.tsx` | `getProjectsByCity()` → Supabase `projects` table filtered by city | SSR (dynamic) |
 | **Service Type by City** | `app/(public)/[city]/masonry/[type]/page.tsx` | `getProjectsByCityAndType()` → Supabase `projects` filtered by city + `service_type` | SSR (dynamic) |
 | **Project Detail** | `app/(public)/[city]/masonry/[type]/[slug]/page.tsx` | `getProjectBySlug()` → Supabase `projects` joined with `contractors` | SSR (dynamic) |
-| **Contractor Profile** | `app/(public)/contractors/[city]/[id]/page.tsx` | `getContractorProfile()` → Supabase `contractors` + `projects` | SSR (dynamic) |
+| **Business Profile** | `app/(public)/businesses/[city]/[slug]/page.tsx` | `getContractorProfile()` → Supabase `contractors` + `projects` | SSR (dynamic) |
 | **National Service Landing** | `app/(public)/services/[type]/page.tsx` | `getCitiesByServiceType()` → Distinct cities offering service type | SSR (dynamic) |
 | **Educational Content** | `app/(public)/learn/[slug]/page.tsx` | Markdown files or CMS integration (TBD) | SSG (static) |
 
@@ -68,24 +76,24 @@ This document translates workspace-level strategy into **implementation specific
 
 ---
 
-## 3. Contractor Acquisition Funnel
+## 3. Business Acquisition Funnel
 
 ### 3.1 Organic Acquisition Channels
 
 | Channel | Strategy | Content Type | Target Audience | Timeline |
 |---------|----------|--------------|-----------------|----------|
-| **Google Search (B2B)** | Target "contractor portfolio website", "AI for contractors", "masonry business marketing" | Homepage + /for-contractors landing page (P2) | Contractors actively seeking marketing solutions | Phase 2 |
-| **Industry Forums** | Authentic participation in r/masonry, ContractorTalk, Masonry Forum; link to portfolio examples when helpful | Example portfolios, how-to content | Contractors seeking advice/tools | Ongoing |
-| **Trade Associations** | Partner with regional masonry associations; offer free portfolio tool to members | Co-branded landing pages, association testimonials | Association members looking to improve online presence | Phase 3 |
-| **Existing Contractor Referrals** | Incentivize early contractors to refer peers (e.g., premium features, revenue share) | Referral dashboard, email templates | Satisfied contractors with contractor networks | MVP launch |
-| **Local Outreach** | Direct outreach to highly-rated local contractors via email/phone; personalized demo of AI portfolio | One-on-one demos, custom portfolio previews | Top-rated contractors with weak online presence | Phase 1 |
+| **Google Search (B2B)** | Target "portfolio website for contractors", "portfolio for service businesses", "AI portfolio" | Homepage + /for-contractors landing page (P2) | Businesses actively seeking marketing help | Phase 2 |
+| **Industry Forums** | Authentic participation in trade forums; link to portfolio examples when helpful | Example portfolios, how-to content | Business owners seeking advice/tools | Ongoing |
+| **Trade Associations** | Partner with regional associations; offer free portfolio tool to members | Co-branded landing pages, association testimonials | Members looking to improve online presence | Phase 3 |
+| **Existing Referrals** | Incentivize early businesses to refer peers (e.g., premium features, revenue share) | Referral dashboard, email templates | Satisfied business networks | MVP launch |
+| **Local Outreach** | Direct outreach to highly-rated local businesses via email/phone; personalized demo of AI portfolio | One-on-one demos, custom portfolio previews | Top-rated businesses with weak online presence | Phase 1 |
 
 ### 3.2 Content Marketing Funnel
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         AWARENESS                                │
-│  Keywords: "how to market masonry business", "contractor SEO"    │
+│  Keywords: "how to market a service business", "portfolio SEO"    │
 │  Content: Blog posts, YouTube tutorials, LinkedIn articles       │
 │  Goal: Establish authority, build email list                     │
 └─────────────────────┬───────────────────────────────────────────┘
@@ -93,7 +101,7 @@ This document translates workspace-level strategy into **implementation specific
                       ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                       CONSIDERATION                              │
-│  Keywords: "best contractor portfolio website", "AI portfolio"   │
+│  Keywords: "best portfolio website", "AI portfolio"              │
 │  Content: Case studies, portfolio examples, comparison guides    │
 │  Goal: Demonstrate value, show before/after examples             │
 └─────────────────────┬───────────────────────────────────────────┘
@@ -101,7 +109,7 @@ This document translates workspace-level strategy into **implementation specific
                       ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                         DECISION                                 │
-│  Keywords: "knearme pricing", "contractor portfolio cost"        │
+│  Keywords: "knearme pricing", "portfolio cost"                   │
 │  Content: Pricing page, FAQ, onboarding video                    │
 │  Goal: Convert to signup, reduce friction in onboarding          │
 └─────────────────────────────────────────────────────────────────┘
@@ -110,27 +118,27 @@ This document translates workspace-level strategy into **implementation specific
 **Example Content Pieces by Stage:**
 
 - **Awareness:**
-  - "5 Ways Masonry Contractors Can Get More Leads Without Paying for Ads"
-  - "Why Every Contractor Needs a Portfolio in 2025"
+- "5 Ways Service Businesses Can Get More Leads Without Paying for Ads"
+- "Why Every Business Needs a Portfolio in 2026"
 
 - **Consideration:**
-  - "How AI Can Build Your Contractor Portfolio in 30 Minutes (Case Study)"
-  - "Traditional Website vs. AI Portfolio: What's Best for Your Business?"
+- "How AI Can Build Your Portfolio in 30 Minutes (Case Study)"
+- "Traditional Website vs. AI Portfolio: What's Best for Your Business?"
 
 - **Decision:**
-  - "How KNearMe Works: From Interview to Live Portfolio in 3 Steps"
+- "How KnearMe Works: From Interview to Live Portfolio in 3 Steps"
   - "Pricing & Plans: What's Included in the Free vs. Premium Portfolio"
 
 ### 3.3 Landing Page Strategy
 
 **Phase 1 (MVP):**
 - **Primary Landing Page:** Homepage (`app/page.tsx`)
-  - Dual messaging: Homeowners (find contractors) + Contractors (build portfolio)
-  - Above-the-fold split: "Find Masonry Contractors" vs. "Showcase Your Work"
-  - CTA: "Browse Projects" (homeowners) + "Create Free Portfolio" (contractors)
+  - Dual messaging: Clients (find providers) + Businesses (build portfolio)
+  - Above-the-fold split: "Find Local Pros" vs. "Showcase Your Work"
+  - CTA: "Browse Projects" (clients) + "Create Free Portfolio" (businesses)
 
 **Phase 2 (Post-MVP):**
-- **Contractor-Specific Landing:** `/for-masonry-contractors`
+- **Business-Specific Landing:** `/for-masonry-contractors` (current vertical; generalize to `/for-portfolio-businesses`)
   - Headline: "Build Your Portfolio in 30 Minutes with AI"
   - Social proof: Example portfolios, testimonials
   - Value props: No coding, voice interview, SEO optimized
@@ -150,7 +158,7 @@ This document translates workspace-level strategy into **implementation specific
 
 ## 4. Keyword Strategy
 
-### 4.1 Homeowner Search Keywords
+### 4.1 Client Search Keywords
 
 | Keyword Pattern | Example | Search Volume (Denver) | Competition | Priority |
 |-----------------|---------|------------------------|-------------|----------|
@@ -168,7 +176,7 @@ This document translates workspace-level strategy into **implementation specific
 - **On-Page Optimization:** H1 = "{Service} in {City}", rich project gallery, city-specific intro paragraph
 - **Structured Data:** LocalBusiness + Service schema with aggregateRating
 
-### 4.2 Target Service Keywords (Masonry)
+### 4.2 Target Service Keywords (Current Vertical: Masonry)
 
 Based on `/docs/content-planning/masonry/content-plan.md`, prioritize these service types:
 
@@ -186,7 +194,7 @@ Based on `/docs/content-planning/masonry/content-plan.md`, prioritize these serv
 - Service Type by City pages dynamically filter by these values
 - National Service Landing pages (`/services/{type}`) use these as route parameters
 
-### 4.3 Contractor Acquisition Keywords (B2B)
+### 4.3 Business Acquisition Keywords (B2B)
 
 | Keyword | Monthly Volume | Competition | Target Landing Page | Priority |
 |---------|----------------|-------------|---------------------|----------|
@@ -198,7 +206,7 @@ Based on `/docs/content-planning/masonry/content-plan.md`, prioritize these serv
 | **free contractor portfolio** | 210 | Low | Homepage CTA | **P2** |
 
 **Strategy Notes:**
-- **Phase 2 Focus:** Contractor keywords are lower priority than homeowner keywords in MVP
+- **Phase 2 Focus:** Business keywords are lower priority than client keywords in MVP
 - **Content-First Approach:** Target these via blog posts and educational content before building dedicated landing pages
 - **Conversion Metric:** Track "contractor signups from organic B2B search" separately from referrals
 
@@ -455,7 +463,7 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
 - **Contractor Attribution:**
   - Profile card with CTA to full profile
   - Company name, rating, project count
-  - Link: `/contractors/{city-slug}/{contractor-id}`
+  - Link: `/businesses/{city-slug}/{business-slug}`
 
 - **Related Projects:**
   - 3-4 similar projects (same service type or city)
@@ -581,7 +589,7 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
 
 **Source Content:** `/docs/content-planning/masonry/content-plan.md` Section 2
 - 8 educational articles planned
-- Topics cover homeowner pain points + SEO keywords
+- Topics cover client pain points + SEO keywords
 
 **JSON-LD Schema:**
 ```json
@@ -685,7 +693,7 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
   - Public profile with portfolio
   - Contact information
   - JSON-LD LocalBusiness schema
-  - File: `app/(public)/contractors/[city]/[id]/page.tsx`
+  - File: `app/(public)/businesses/[city]/[slug]/page.tsx`
 
 - [x] **Dynamic sitemap**
   - Auto-generates from database
@@ -756,7 +764,7 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
 
 - [ ] **Index coverage monitoring**
   - Weekly check for crawl errors
-  - Fix 404s, soft 404s, redirect chains
+  - Fix 404s, soft 404s, canonical issues
   - Target: 95%+ pages indexed within 30 days
 
 - [ ] **Google Analytics 4 setup**
@@ -1129,7 +1137,7 @@ High-priority underserved queries with low competition:
 | **`app/sitemap.ts`** | Dynamic XML sitemap generation |
 | **`app/(public)/[city]/masonry/page.tsx`** | City hub page template |
 | **`app/(public)/[city]/masonry/[project]/page.tsx`** | Project detail page template |
-| **`app/(public)/contractors/[city]/[id]/page.tsx`** | Contractor profile page template |
+| **`app/(public)/businesses/[city]/[slug]/page.tsx`** | Business profile page template |
 
 ### 11.4 External Documentation
 

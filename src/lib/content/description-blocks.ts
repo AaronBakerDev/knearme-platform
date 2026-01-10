@@ -197,6 +197,19 @@ export function blocksToPlainText(blocks: DescriptionBlock[]): string {
   return parts.join('\n\n').trim();
 }
 
+/**
+ * Check if a string contains HTML tags.
+ *
+ * Used to determine whether to render description as HTML or plain text.
+ * Extracted from public page components for reuse.
+ *
+ * @param text - Text to check for HTML tags
+ * @returns true if text contains HTML-like patterns
+ */
+export function hasHtmlTags(text: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(text);
+}
+
 export function blocksToHtml(blocks: DescriptionBlock[]): string {
   const htmlParts: string[] = [];
 

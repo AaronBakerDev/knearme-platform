@@ -12,6 +12,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import type { WidgetMetaFields } from './types';
+import { logger } from '@/lib/logging';
 
 /**
  * Widget resource definition for MCP resources/list.
@@ -144,15 +145,15 @@ export function getWidgetBundle(): string {
   try {
     if (existsSync(WIDGET_BUNDLE_PATH)) {
       widgetBundleCache = readFileSync(WIDGET_BUNDLE_PATH, 'utf-8');
-      console.log('[Widget] Loaded built widget bundle from:', WIDGET_BUNDLE_PATH);
+      logger.info('[Widget] Loaded built widget bundle', { path: WIDGET_BUNDLE_PATH });
       return widgetBundleCache;
     }
   } catch (error) {
-    console.warn('[Widget] Failed to load built widget bundle:', error);
+    logger.warn('[Widget] Failed to load built widget bundle', { error });
   }
 
   // Fall back to minimal inline widget
-  console.warn('[Widget] Using fallback widget. Run "npm run build" in mcp-server/widgets to build the full widget.');
+  logger.warn('[Widget] Using fallback widget. Run "npm run build" in mcp-server/widgets to build the full widget.');
   return FALLBACK_WIDGET_HTML;
 }
 

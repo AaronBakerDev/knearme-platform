@@ -28,6 +28,7 @@ import type {
   VoiceNetworkQuality,
 } from '@/types/voice';
 import { useNetworkQuality, getRecommendedMode } from '@/lib/voice/network-quality';
+import { logger } from '@/lib/logging';
 
 const MODE_STORAGE_KEY = 'knearme.voiceMode';
 
@@ -128,7 +129,7 @@ export function useVoiceModeManager(
 
   // Setter for manual network quality override (interface compatibility)
   const setNetworkQuality = useCallback((_quality: VoiceNetworkQuality) => {
-    console.debug('[VoiceModeManager] Manual network quality set ignored (using auto-detection)');
+    logger.info('[VoiceModeManager] Manual network quality set ignored (using auto-detection)');
   }, []);
 
   // Load stored preference with migration from old mode names
@@ -284,9 +285,9 @@ export function useVoiceModeManager(
         onNetworkQualitySwitch(mode, 'text', networkQuality);
       }
 
-      console.info(
-        `[VoiceModeManager] Auto-switched from voice_chat to text due to network quality: ${networkQuality}`
-      );
+      logger.info('[VoiceModeManager] Auto-switched from voice_chat to text', {
+        networkQuality,
+      });
     }
 
     // Restore voice_chat when network improves (if user originally wanted voice_chat)
@@ -298,7 +299,7 @@ export function useVoiceModeManager(
           onNetworkQualitySwitch('text', 'voice_chat', networkQuality);
         }
 
-        console.info('[VoiceModeManager] Restored voice_chat mode after network improvement');
+        logger.info('[VoiceModeManager] Restored voice_chat mode after network improvement');
       }
     }
   }, [

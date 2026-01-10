@@ -21,6 +21,7 @@ import {
   verifyRefreshToken,
 } from '@/lib/oauth/token-issuer';
 import { createAdminClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
 
 /**
  * OAuth client configuration.
@@ -180,7 +181,7 @@ async function handleAuthorizationCodeGrant(
       }
     );
   } catch (error) {
-    console.error('[OAuth Token] Failed to issue tokens:', error);
+    logger.error('[OAuth Token] Failed to issue tokens', { error });
     return errorResponse('server_error', 'Failed to issue tokens', 500);
   }
 }
@@ -207,9 +208,7 @@ async function handleRefreshTokenGrant(
   }
 
   // Look up the user to get current email
-  // Note: RLS types return `never` due to Row Level Security policies
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminClient() as any;
+  const supabase = createAdminClient();
   const { data: contractorData, error } = await supabase
     .from('contractors')
     .select('email')
@@ -254,7 +253,7 @@ async function handleRefreshTokenGrant(
       }
     );
   } catch (error) {
-    console.error('[OAuth Token] Failed to refresh tokens:', error);
+    logger.error('[OAuth Token] Failed to refresh tokens', { error });
     return errorResponse('server_error', 'Failed to issue tokens', 500);
   }
 }

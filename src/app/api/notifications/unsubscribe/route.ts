@@ -1,8 +1,10 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
+import type { Database } from '@/types/database';
 
 const unsubscribeSchema = z.object({
   endpoint: z.string().url(),
@@ -24,9 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { contractor, user } = auth;
-    const supabase = await createClient();
-
-    // Type assertion needed due to RLS type inference issues with new tables
+    const supabase = (await createClient()) as SupabaseClient<Database>;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: existing, error: fetchError } = await (supabase as any)
       .from('push_subscriptions')
@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
       return apiError('NOT_FOUND', 'Subscription not found');
     }
 
-    // Type assertion needed due to RLS type inference issues
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any)
       .from('push_subscriptions')

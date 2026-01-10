@@ -68,7 +68,9 @@ export function PhotoGridContent({
 
       {/* Photo grid - responsive columns */}
       <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-3">
-        {images.map((img) => (
+        {images.map((img) => {
+          const isProxyImage = img.url.startsWith('/api/');
+          return (
           <div
             key={img.id}
             className="relative aspect-square rounded-lg overflow-hidden bg-muted group"
@@ -77,6 +79,7 @@ export function PhotoGridContent({
               src={img.url}
               alt=""
               fill
+              unoptimized={isProxyImage}
               className="object-cover"
               sizes="(max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
             />
@@ -102,7 +105,8 @@ export function PhotoGridContent({
               </span>
             )}
           </div>
-        ))}
+          );
+        })}
 
         {/* Add photo button */}
         {canAddMore && (

@@ -22,7 +22,8 @@ export async function GET(request: Request) {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        const { data: contractorData } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: contractorData } = await (supabase as any)
           .from('contractors')
           .select('business_name, city, services')
           .eq('auth_user_id', user.id)

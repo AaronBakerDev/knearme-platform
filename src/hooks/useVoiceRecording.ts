@@ -382,7 +382,13 @@ export function useVoiceRecording(
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || `Transcription failed: ${response.status}`);
+        const apiMessage =
+          typeof data?.error?.message === 'string'
+            ? data.error.message
+            : typeof data?.message === 'string'
+              ? data.message
+              : null;
+        throw new Error(apiMessage || `Transcription failed: ${response.status}`);
       }
 
       /**

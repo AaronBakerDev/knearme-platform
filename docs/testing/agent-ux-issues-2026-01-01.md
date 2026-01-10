@@ -135,26 +135,28 @@ scrollDebounceRef.current = setTimeout(() => {
 
 ### 4. Preview Overlay Opens on Desktop (Should be Mobile Only)
 **Severity**: HIGH (annoying UX, interrupts workflow)
-**Location**: `src/components/chat/ChatWizard.tsx:2219-2226`
+**Status**: ✅ FIXED
+**Location**: `src/components/chat/ChatWizard.tsx:2261-2263`
 
 **Symptoms**:
 - Every time `showPortfolioPreview` tool is called, a full-screen modal opens
 - On desktop, this is redundant (sidebar preview already visible)
 - Forces user to dismiss modal repeatedly
 
-**Code Comment Acknowledges Bug**:
+**Fix Applied**:
 ```typescript
-// Side-effect from showPortfolioPreview tool - open mobile preview overlay
-// On desktop the preview is already visible in the split pane
+// Only open overlay on mobile - desktop has the sidebar preview visible
+if (isMobile) {
+  setShowPreviewOverlay(true);
+}
 ```
-But line 2226 calls `setShowPreviewOverlay(true)` unconditionally.
-
-**Fix**: Add screen size check before opening overlay on desktop.
+The `useIsMobile()` hook is used to gate the overlay display to mobile viewports only.
 
 ---
 
 ### 5. Recurring Chunk Loading Errors
-**Severity**: HIGH (app stability)
+**Severity**: MEDIUM (development mode issue)
+**Status**: ⚡ KNOWN ISSUE (dev mode only)
 **Location**: Next.js build/chunk loading
 
 **Symptoms**:
@@ -162,10 +164,22 @@ But line 2226 calls `setShowPreviewOverlay(true)` unconditionally.
 - Appears multiple times during session
 - Requires clicking "Try Again" to recover
 
-**Possible Causes**:
-- Hot reload issues
-- Build cache corruption
-- Webpack chunk splitting problems
+**Root Cause**:
+This is a common Next.js development mode issue, NOT a production bug:
+1. **Browser cache** - Old chunk hashes cached while dev server regenerates new ones
+2. **HMR conflicts** - Hot Module Reload can't update all chunks atomically
+3. **Multiple dev servers** - Running on alternate ports (3000 vs 3001) causes cache misses
+
+**Workaround** (development only):
+```bash
+# Clear .next cache and restart
+rm -rf .next && npm run dev
+
+# Or hard refresh in browser
+# Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows)
+```
+
+**Production Status**: Not reproducible in production builds - chunk hashes are stable after `npm run build`.
 
 ---
 
@@ -173,14 +187,25 @@ But line 2226 calls `setShowPreviewOverlay(true)` unconditionally.
 
 ### 6. Duplicate/Redundant Material Extraction
 **Severity**: MEDIUM
-**Location**: `extractProjectData` tool / story-extractor agent
+**Status**: ✅ FIXED
+**Location**: `src/lib/agents/story-extractor.ts`
 
 **Symptoms**:
 - Materials list includes both generic and specific: "brick" AND "reclaimed Denver common brick"
 - "flashing" appears as both material AND technique
 - "flashing installation" and "flashing" both in techniques list
 
-**Expected**: Deduplication or preference for specific over generic terms.
+**Fix Applied**:
+1. Updated AI extraction prompt with explicit deduplication rules and material/technique separation guidance
+2. Added `deduplicateTerms()` helper that removes generic terms when specific exists
+3. Added `separateMaterialsAndTechniques()` helper that moves technique terms (flashing, waterproofing, etc.) out of materials
+4. Applied same deduplication logic to both AI and non-AI extraction paths
+5. Migrated to new AI SDK pattern (`generateText` + `Output.object`)
+
+**Key Changes**:
+- `TECHNIQUE_TERMS` constant defines terms that are always techniques (flashing, waterproofing, etc.)
+- `isGenericOf()` checks if one term is a generic version of another
+- Both helpers applied after merging to ensure clean output
 
 ---
 
@@ -241,10 +266,18 @@ But line 2226 calls `setShowPreviewOverlay(true)` unconditionally.
 1. ~~**Content Generation Bug** - Blocking, investigate projectId passing~~ ✅ FULLY FIXED (2026-01-01 11:00PM - ChatWizard now passes projectId from route params to API)
 2. ~~**Content Generation Retry Loop** - Burning tokens, 100+ second requests~~ ✅ VERIFIED FIXED (2026-01-01 10:38PM - executor-level blocking prevents retries, request time reduced from 100s+ to ~15s)
 3. ~~**Chat Scroll Jumping** - Janky UX during tool calls~~ ✅ FIXED
-4. **Preview Overlay on Desktop** - Quick fix, high annoyance
-5. **Chunk Loading Errors** - May need build investigation
-6. **Duplicate Extraction** - Agent prompt/logic improvement
+4. ~~**Preview Overlay on Desktop** - Quick fix, high annoyance~~ ✅ FIXED (2026-01-02 - `isMobile` check added)
+5. ~~**Chunk Loading Errors** - May need build investigation~~ ⚡ KNOWN ISSUE (dev mode only - see workaround above)
+6. ~~**Duplicate Extraction** - Agent prompt/logic improvement~~ ✅ FIXED (2026-01-02 - deduplication helpers added)
 7. **Stale Quick Actions** - UI state management fix
+
+### Historical Error Cards (Cosmetic)
+The 63 "Try Again" buttons visible in test conversations are **data artifacts** from testing before fixes were applied. These are stored in conversation history and will persist until:
+- User starts a fresh conversation for the project
+- A "clear conversation" feature is added (future enhancement)
+- Data cleanup migration is run
+
+These do NOT indicate current bugs - the retry-blocking mechanism is working correctly.
 
 ## Verification Summary (2026-01-01 11:00PM)
 

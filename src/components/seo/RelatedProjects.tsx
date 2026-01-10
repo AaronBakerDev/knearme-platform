@@ -105,9 +105,9 @@ export function RelatedProjects({
                       {project.project_type}
                     </p>
                   )}
-                  {showContractor && project.contractor_business_name && (
+                  {showContractor && project.business_name && (
                     <p className="text-xs text-muted-foreground">
-                      by {project.contractor_business_name}
+                      by {project.business_name}
                     </p>
                   )}
                   {showCity && project.city && (

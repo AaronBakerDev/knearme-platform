@@ -1,6 +1,104 @@
 # Phase Flows
 
-> Chat phase state machine and orchestration logic.
+> Chat orchestration logic and agent coordination.
+
+> **⚠️ Architectural Evolution** - The rigid phase state machine is being replaced
+> by the **Orchestrator + Subagents** pattern. Phases become checkpoints that agents
+> signal, not gates that block progress.
+>
+> See [AGENT-PERSONAS.md](AGENT-PERSONAS.md) for the new architecture.
+> See [PHILOSOPHY.md](PHILOSOPHY.md) for design principles.
+
+---
+
+## Philosophy: Images as Context, Not Gates
+
+**Current (Legacy):** Images are a phase gate. The agent asks `readyForImages?` and transitions to an "images phase" before generating content.
+
+**Target (Agentic):** Images are **context that enriches the agent's understanding** of the project. The agent:
+
+1. **Knows images matter** - They reveal craftsmanship, scale, materials, and story details that conversation alone can't capture
+2. **Invites them naturally** - When it feels helpful ("Got any photos of that?"), not at a prescribed moment
+3. **Uses them as thinking context** - Images influence how the agent writes, what it emphasizes, and what questions it asks
+4. **Never blocks on them** - A project can progress without images, but images make it better
+
+### Why This Matters
+
+When the agent sees images, it thinks differently:
+- A before/after photo reveals transformation magnitude
+- A detail shot shows craftsmanship worth highlighting
+- A progress photo suggests process-focused storytelling
+
+The agent should be **goal-aware** (get images because they help) but **not procedure-bound** (don't force a specific phase).
+
+### Current vs Target
+
+| Aspect | Current (Phase-Based) | Target (Context-Based) |
+|--------|----------------------|------------------------|
+| When to ask | `readyForImages === true` | When it feels natural |
+| Blocking | Can't generate until images | Can generate anytime, images enhance |
+| Agent thinking | Images after story | Images inform story understanding |
+| User experience | "Now upload photos" | "Got any pics of that?" mid-conversation |
+
+---
+
+## Target: Orchestrator + Subagents Flow
+
+> **This is the target architecture.** See [AGENT-PERSONAS.md](AGENT-PERSONAS.md) for full details.
+
+```
+User Request
+      ↓
+┌─────────────────────────────────────────────────┐
+│           ACCOUNT MANAGER (Orchestrator)         │
+│       Lightweight tools • Delegates complex work │
+└───────────────────────┬─────────────────────────┘
+                        │
+        ┌───────────────┼───────────────┐
+        ▼               ▼               ▼
+   ┌─────────┐    ┌─────────┐    ┌─────────┐
+   │  STORY  │    │ DESIGN  │    │ QUALITY │
+   │  AGENT  │    │  AGENT  │    │  AGENT  │
+   └─────────┘    └─────────┘    └─────────┘
+        │               │               │
+        └───────────────┼───────────────┘
+                        ↓
+               Shared ProjectState
+```
+
+### Checkpoint-Based Coordination
+
+Instead of rigid phase gates, agents signal checkpoints:
+
+| Checkpoint | Triggered By | What Happens |
+|------------|--------------|--------------|
+| `images_uploaded` | User uploads images | Story Agent sees images, Design Agent can start layout |
+| `basic_info` | Story Agent has enough context | Design Agent composes initial layout |
+| `story_complete` | Story Agent signals done | Quality Agent begins assessment |
+| `design_complete` | Design Agent renders preview | Quality Agent includes design in assessment |
+| `ready_to_publish` | Quality Agent approves | Account Manager offers publish action |
+
+### Parallel Execution
+
+Independent subagents can run simultaneously:
+
+```
+User uploads images
+         │
+    ┌────┴────┐
+    ▼         ▼
+ Story     Design
+ Agent     Agent
+(analyze)  (initial
+           layout)
+    │         │
+    └────┬────┘
+         ▼
+   Account Manager
+   (synthesize)
+```
+
+---
 
 ## Project-First Entry Flow
 
@@ -47,6 +145,10 @@ Based on `ProjectState`, the agent greets appropriately:
 
 ## Phase State Machine
 
+> **⚠️ Legacy Pattern** - This rigid state machine is being replaced by fluid, context-aware behavior.
+> In the target architecture, there are no enforced phases - just an agent that knows what good looks like
+> and naturally guides the conversation toward a publishable portfolio.
+
 ```mermaid
 stateDiagram-v2
     [*] --> gathering
@@ -65,6 +167,12 @@ stateDiagram-v2
 
     ready --> [*]: publish
 ```
+
+**Target Vision:** Replace this with goal-based behavior:
+- Agent knows the goal: create a compelling, publishable portfolio page
+- Agent naturally gathers story, invites images, generates content - in whatever order makes sense
+- Images can arrive anytime and enrich the agent's understanding
+- No `readyForImages` gate - just "would photos help here?"
 
 ## Phase Definitions
 
@@ -118,9 +226,19 @@ flowchart TD
 **Transition Trigger**:
 - `readyForImages === true`
 
+**Target Vision:**
+- No rigid "gathering" phase - conversation flows naturally
+- Images can arrive during gathering and inform the agent's questions
+- Agent knows the goal (publishable portfolio) and guides conversation toward it
+- No `readyForImages` gate - agent invites photos when it feels natural
+
 ---
 
 ### 2. Images Phase
+
+> **⚠️ Legacy Pattern** - In the target architecture, there is no "images phase."
+> Images flow into the conversation naturally and enrich the agent's context at any time.
+> See [Philosophy: Images as Context](#philosophy-images-as-context-not-gates) above.
 
 **Entry**: Story data complete, waiting for photos
 
@@ -145,6 +263,12 @@ flowchart TD
 
 **Transition Trigger**:
 - `images.length > 0 && heroImageId`
+
+**Target Vision:**
+- No dedicated "images phase" - images can arrive anytime
+- Agent invites images naturally: "Got any photos of that work?"
+- When images arrive, agent's understanding deepens
+- Content generation can happen before, during, or after images
 
 ---
 

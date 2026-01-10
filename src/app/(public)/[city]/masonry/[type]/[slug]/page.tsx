@@ -17,27 +17,36 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Calendar, Wrench, ArrowLeft } from 'lucide-react';
+import { MapPin, Calendar, Wrench, ArrowLeft, Phone, Globe } from 'lucide-react';
 import sanitizeHtml from 'sanitize-html';
 import { createAdminClient } from '@/lib/supabase/server';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Badge, Card, CardContent, Button } from '@/components/ui';
 import { PhotoGallery } from '@/components/portfolio/PhotoGallery';
 import { DescriptionBlocks } from '@/components/portfolio/DescriptionBlocks';
+import { DynamicPortfolioRenderer } from '@/components/portfolio/DynamicPortfolioRenderer';
+import type { PortfolioImage } from '@/components/portfolio/types';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
+import type { DesignTokens } from '@/lib/design/tokens';
+import type { SemanticBlock } from '@/lib/design/semantic-blocks';
 import { RelatedProjects } from '@/components/seo/RelatedProjects';
 import { fetchRelatedProjects } from '@/lib/data/projects';
 import {
   generateProjectSchema,
   schemaToString,
 } from '@/lib/seo/structured-data';
+import {
+  buildOpenGraphMeta,
+  buildTwitterMeta,
+  selectCoverImage,
+} from '@/lib/seo/metadata-helpers';
 import { getPublicUrl } from '@/lib/storage/upload';
-import { sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
+import { sanitizeDescriptionBlocks, hasHtmlTags } from '@/lib/content/description-blocks';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { slugify } from '@/lib/utils/slugify';
 import { isDemoSlug, getDemoProject, getAllDemoProjects, type DemoProject } from '@/lib/data/demo-projects';
-import type { Project, Contractor, ProjectImage } from '@/types/database';
+import { getCanonicalUrl } from '@/lib/constants/page-descriptions';
+import { logger } from '@/lib/logging';
+import type { Project, Business, ProjectImage } from '@/types/database';
 
 type PageParams = {
   params: Promise<{
@@ -63,7 +72,7 @@ export async function generateStaticParams() {
   // Skip DB static generation if service role key is missing
   // Next.js will use ISR/dynamic rendering instead
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.log('[generateStaticParams] Skipping DB projects: SUPABASE_SERVICE_ROLE_KEY not configured');
+    logger.info('[generateStaticParams] Skipping DB projects: SUPABASE_SERVICE_ROLE_KEY not configured');
     return demoParams;
   }
 
@@ -89,22 +98,19 @@ export async function generateStaticParams() {
 
     return [...demoParams, ...dbParams];
   } catch (error) {
-    console.error('[generateStaticParams] Error fetching projects:', error);
+    logger.error('[generateStaticParams] Error fetching projects', { error });
     return demoParams;
   }
 }
 
 // Type for project with nested relations
 type ProjectWithRelations = Project & {
-  contractor: Contractor;
+  business: Business;
   project_images: ProjectImage[];
+  portfolio_layout?: unknown; // JSONB column for AI-generated layouts
 };
 
 const ALLOWED_DESCRIPTION_TAGS = ['p', 'strong', 'em', 'ul', 'ol', 'li', 'br'];
-
-function hasHtmlTags(text: string): boolean {
-  return /<\/?[a-z][\s\S]*>/i.test(text);
-}
 
 function renderDescription(description: string | null | undefined, blocks: unknown) {
   const parsedBlocks = sanitizeDescriptionBlocks(blocks);
@@ -193,30 +199,33 @@ function buildDemoProjectSchema(demoProject: DemoProject): Record<string, unknow
  */
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { city, type, slug } = await params;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
+  const canonicalUrl = getCanonicalUrl(`/${city}/masonry/${type}/${slug}`);
 
   // Check for demo project first
   if (isDemoSlug(slug)) {
     const demoProject = getDemoProject(city, type, slug);
     if (demoProject) {
       const coverImage = demoProject.images[0];
+      const imageUrl = coverImage?.url;
+      const imageAlt = coverImage?.alt_text;
+
       return {
         title: `${demoProject.seo_title} | Example Project`,
         description: demoProject.seo_description,
         keywords: demoProject.tags?.join(', '),
-        openGraph: {
+        openGraph: buildOpenGraphMeta({
           title: `${demoProject.title} | Example Project`,
           description: demoProject.seo_description,
           type: 'article',
-          url: `${siteUrl}/${city}/masonry/${type}/${slug}`,
-          images: coverImage ? [{ url: coverImage.url, alt: coverImage.alt_text }] : [],
-        },
-        twitter: {
-          card: 'summary_large_image',
+          url: canonicalUrl,
+          imageUrl,
+          imageAlt,
+        }),
+        twitter: buildTwitterMeta({
           title: `${demoProject.title} | Example Project`,
           description: demoProject.seo_description,
-          images: coverImage ? [coverImage.url] : [],
-        },
+          imageUrl,
+        }),
       };
     }
   }
@@ -227,7 +236,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     .from('projects')
     .select(`
       *,
-      contractor:contractors(business_name, city, state),
+      business:businesses(name, city, state),
       project_images!project_images_project_id_fkey(storage_path, alt_text, display_order)
     `)
     .eq('slug', slug)
@@ -236,7 +245,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 
   // Type assertion for the query result
   type ProjectWithImages = Project & {
-    contractor: Partial<Contractor>;
+    business: Partial<Business>;
     project_images: Array<{ storage_path: string; alt_text: string | null; display_order: number }>;
   };
   const project = data as ProjectWithImages | null;
@@ -247,38 +256,32 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     };
   }
 
-  const contractor = project.contractor;
+  const business = project.business;
 
-  // Get cover image URL for OG/Twitter (first image by display_order)
-  const sortedImages = [...(project.project_images || [])].sort(
-    (a, b) => a.display_order - b.display_order
-  );
-  const coverImage = sortedImages[0];
+  const coverImage = selectCoverImage(project.project_images);
   const imageUrl = coverImage
     ? getPublicUrl('project-images', coverImage.storage_path)
     : undefined;
 
   return {
-    title: project.seo_title || `${project.title} | ${contractor?.business_name}`,
+    title: project.seo_title || `${project.title} | ${business?.name}`,
     description: project.seo_description || project.description?.slice(0, 160),
     keywords: project.tags?.join(', '),
-    openGraph: {
+    openGraph: buildOpenGraphMeta({
       title: project.title || 'Masonry Project',
-      description: project.seo_description || project.description?.slice(0, 160),
+      description: project.seo_description || project.description?.slice(0, 160) || '',
       type: 'article',
-      url: `${siteUrl}/${project.city_slug}/masonry/${project.project_type_slug}/${project.slug}`,
-      images: imageUrl
-        ? [{ url: imageUrl, alt: coverImage?.alt_text || project.title || 'Project image' }]
-        : [],
-    },
-    twitter: {
-      card: 'summary_large_image',
+      url: canonicalUrl,
+      imageUrl,
+      imageAlt: coverImage?.alt_text || project.title || 'Project image',
+    }),
+    twitter: buildTwitterMeta({
       title: project.title || 'Masonry Project',
-      description: project.seo_description || project.description?.slice(0, 160),
-      images: imageUrl ? [imageUrl] : [],
-    },
+      description: project.seo_description || project.description?.slice(0, 160) || '',
+      imageUrl,
+    }),
     alternates: {
-      canonical: `${siteUrl}/${project.city_slug}/masonry/${project.project_type_slug}/${project.slug}`,
+      canonical: canonicalUrl,
     },
   };
 }
@@ -302,6 +305,11 @@ export default async function ProjectPage({ params }: PageParams) {
     title: string;
     description: string;
     description_blocks: unknown;
+    portfolio_layout: {
+      tokens: DesignTokens;
+      blocks: SemanticBlock[];
+      rationale?: string;
+    } | null;
     city: string;
     neighborhood?: string;
     state: string;
@@ -321,6 +329,10 @@ export default async function ProjectPage({ params }: PageParams) {
     state: string;
     services: string[];
     profile_photo_url?: string;
+    address?: string | null;
+    postal_code?: string | null;
+    phone?: string | null;
+    website?: string | null;
   };
   let imagesData: Array<{
     id: string;
@@ -339,6 +351,7 @@ export default async function ProjectPage({ params }: PageParams) {
       title: demoProject.title,
       description: demoProject.description,
       description_blocks: demoProject.description_blocks,
+      portfolio_layout: null, // Demo projects don't have dynamic layouts yet
       city: demoProject.city,
       neighborhood: demoProject.neighborhood,
       state: demoProject.state,
@@ -352,6 +365,10 @@ export default async function ProjectPage({ params }: PageParams) {
     contractorData = {
       ...demoProject.contractor,
       profile_slug: slugify(demoProject.contractor.business_name),
+      address: null,
+      postal_code: null,
+      phone: null,
+      website: null,
     };
     imagesData = demoProject.images.map((img) => ({
       id: img.id,
@@ -367,7 +384,7 @@ export default async function ProjectPage({ params }: PageParams) {
       .from('projects')
       .select(`
         *,
-        contractor:contractors(*),
+        business:businesses(*),
         project_images!project_images_project_id_fkey(*)
       `)
       .eq('slug', slug)
@@ -382,19 +399,41 @@ export default async function ProjectPage({ params }: PageParams) {
       notFound();
     }
 
-    const contractor = project.contractor;
+    const business = project.business;
     const images = project.project_images.sort(
       (a, b) => a.display_order - b.display_order
     );
+
+    // Parse portfolio_layout from JSONB column
+    let parsedLayout: typeof projectData.portfolio_layout = null;
+    if (project.portfolio_layout) {
+      try {
+        const layout = project.portfolio_layout as {
+          tokens?: unknown;
+          blocks?: unknown[];
+          rationale?: string;
+        };
+        if (layout.tokens && Array.isArray(layout.blocks)) {
+          parsedLayout = {
+            tokens: layout.tokens as DesignTokens,
+            blocks: layout.blocks as SemanticBlock[],
+            rationale: layout.rationale,
+          };
+        }
+      } catch {
+        // Invalid JSON, fall back to standard rendering
+      }
+    }
 
     projectData = {
       id: project.id,
       title: project.title || '',
       description: project.description || '',
       description_blocks: project.description_blocks,
+      portfolio_layout: parsedLayout,
       city: project.city || '',
       neighborhood: project.neighborhood ?? undefined,
-      state: project.state ?? contractor.state ?? '',
+      state: project.state ?? business.state ?? '',
       project_type: project.project_type || '',
       tags: project.tags || [],
       materials: project.materials || [],
@@ -403,14 +442,18 @@ export default async function ProjectPage({ params }: PageParams) {
       published_at: project.published_at,
     };
     contractorData = {
-      id: contractor.id,
-      profile_slug: contractor.profile_slug || contractor.id,
-      business_name: contractor.business_name || '',
-      city: contractor.city || '',
-      city_slug: contractor.city_slug || '',
-      state: contractor.state || '',
-      services: contractor.services || [],
-      profile_photo_url: contractor.profile_photo_url ?? undefined,
+      id: business.id,
+      profile_slug: business.slug || business.id,
+      business_name: business.name || '',
+      city: business.city || '',
+      city_slug: business.city_slug || '',
+      state: business.state || '',
+      services: business.services || [],
+      profile_photo_url: business.profile_photo_url ?? undefined,
+      address: business.address ?? null,
+      postal_code: business.postal_code ?? null,
+      phone: business.phone ?? null,
+      website: business.website ?? null,
     };
     imagesData = images.map((img) => ({
       id: img.id,
@@ -420,12 +463,12 @@ export default async function ProjectPage({ params }: PageParams) {
       height: img.height || undefined,
     }));
 
-    projectSchema = generateProjectSchema(project, contractor, images);
+    projectSchema = generateProjectSchema(project, business, images);
 
     // Fetch related projects
     relatedProjects = await fetchRelatedProjects(supabase, {
       id: project.id,
-      contractor_id: project.contractor_id,
+      business_id: project.business_id,
       city_slug: city,
       project_type_slug: type,
     }, 6);
@@ -455,6 +498,15 @@ export default async function ProjectPage({ params }: PageParams) {
       day: 'numeric',
     })
     : null;
+
+  const contactAddress =
+    contractorData.address?.trim() ||
+    [contractorData.city, contractorData.state, contractorData.postal_code]
+      .filter(Boolean)
+      .join(', ');
+  const contactPhone = contractorData.phone?.trim() || '';
+  const contactWebsite = contractorData.website?.trim() || '';
+  const hasContactInfo = Boolean(contactAddress || contactPhone || contactWebsite);
 
   return (
     <>
@@ -503,7 +555,7 @@ export default async function ProjectPage({ params }: PageParams) {
               </Link>
             ) : (
               <Link
-                href={`/contractors/${contractorData.city_slug}/${contractorData.profile_slug}`}
+                href={`/businesses/${contractorData.city_slug}/${contractorData.profile_slug}`}
                 className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
               >
                 <ArrowLeft className="h-4 w-4 mr-1" />
@@ -537,71 +589,90 @@ export default async function ProjectPage({ params }: PageParams) {
               </div>
             </div>
 
-            {/* Image Gallery with Lightbox */}
-            {imagesData.length > 0 && (
-              <PhotoGallery
-                images={imagesData}
-                title={projectData.title || 'Project Gallery'}
-                className="mb-8"
-              />
-            )}
-
-            {/* Tags */}
-            {projectData.tags && projectData.tags.length > 0 && (
-              <div className="bg-muted/30 rounded-lg p-4 mb-8">
-                <div className="flex flex-wrap gap-2">
-                  {projectData.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="bg-background hover:bg-background/80">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
+            {/* Dynamic Layout - AI-generated portfolio page */}
+            {projectData.portfolio_layout ? (
+              <div className="mb-8">
+                <DynamicPortfolioRenderer
+                  tokens={projectData.portfolio_layout.tokens}
+                  blocks={projectData.portfolio_layout.blocks}
+                  images={imagesData.map((img): PortfolioImage => ({
+                    id: img.id,
+                    url: img.src,
+                    alt: img.alt,
+                    width: img.width || 800,
+                    height: img.height || 600,
+                  }))}
+                />
               </div>
+            ) : (
+              <>
+                {/* Image Gallery with Lightbox */}
+                {imagesData.length > 0 && (
+                  <PhotoGallery
+                    images={imagesData}
+                    title={projectData.title || 'Project Gallery'}
+                    className="mb-8"
+                  />
+                )}
+
+                {/* Tags */}
+                {projectData.tags && projectData.tags.length > 0 && (
+                  <div className="bg-muted/30 rounded-lg p-4 mb-8">
+                    <div className="flex flex-wrap gap-2">
+                      {projectData.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="bg-background hover:bg-background/80">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Description */}
+                {renderDescription(projectData.description, projectData.description_blocks)}
+
+                {/* Materials & Techniques */}
+                <div className="grid md:grid-cols-2 gap-6 mb-8">
+                  {projectData.materials && projectData.materials.length > 0 && (
+                    <Card className="border-0 bg-gradient-to-br from-muted/50 to-muted/30 shadow-sm">
+                      <CardContent className="pt-6">
+                        <h3 className="font-display mb-4 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          Materials Used
+                        </h3>
+                        <ul className="space-y-2">
+                          {projectData.materials.map((material) => (
+                            <li key={material} className="text-sm text-muted-foreground flex items-start gap-2">
+                              <span className="text-primary mt-1">•</span>
+                              <span>{material}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {projectData.techniques && projectData.techniques.length > 0 && (
+                    <Card className="border-0 bg-gradient-to-br from-muted/50 to-muted/30 shadow-sm">
+                      <CardContent className="pt-6">
+                        <h3 className="font-display mb-4 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          Techniques
+                        </h3>
+                        <ul className="space-y-2">
+                          {projectData.techniques.map((technique) => (
+                            <li key={technique} className="text-sm text-muted-foreground flex items-start gap-2">
+                              <span className="text-primary mt-1">•</span>
+                              <span>{technique}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </>
             )}
-
-            {/* Description */}
-            {renderDescription(projectData.description, projectData.description_blocks)}
-
-            {/* Materials & Techniques */}
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-              {projectData.materials && projectData.materials.length > 0 && (
-                <Card className="border-0 bg-gradient-to-br from-muted/50 to-muted/30 shadow-sm">
-                  <CardContent className="pt-6">
-                    <h3 className="font-display mb-4 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      Materials Used
-                    </h3>
-                    <ul className="space-y-2">
-                      {projectData.materials.map((material) => (
-                        <li key={material} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <span className="text-primary mt-1">•</span>
-                          <span>{material}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-
-              {projectData.techniques && projectData.techniques.length > 0 && (
-                <Card className="border-0 bg-gradient-to-br from-muted/50 to-muted/30 shadow-sm">
-                  <CardContent className="pt-6">
-                    <h3 className="font-display mb-4 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      Techniques
-                    </h3>
-                    <ul className="space-y-2">
-                      {projectData.techniques.map((technique) => (
-                        <li key={technique} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <span className="text-primary mt-1">•</span>
-                          <span>{technique}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
 
             {/* Contractor CTA */}
             <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 shadow-md py-0">
@@ -640,12 +711,43 @@ export default async function ProjectPage({ params }: PageParams) {
                     </Button>
                   ) : (
                     <Button asChild size="lg" className="shadow-sm">
-                      <Link href={`/contractors/${contractorData.city_slug}/${contractorData.profile_slug}`}>
+                      <Link href={`/businesses/${contractorData.city_slug}/${contractorData.profile_slug}`}>
                         View All Projects
                       </Link>
                     </Button>
                   )}
                 </div>
+                {!isDemo && hasContactInfo && (
+                  <div className="mt-5 pt-5 border-t border-primary/10 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                    {contactAddress && (
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-4 w-4 text-primary mt-0.5" />
+                        <span>{contactAddress}</span>
+                      </div>
+                    )}
+                    {contactPhone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-primary" />
+                        <a href={`tel:${contactPhone}`} className="hover:text-primary transition-colors">
+                          {contactPhone}
+                        </a>
+                      </div>
+                    )}
+                    {contactWebsite && (
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-primary" />
+                        <a
+                          href={contactWebsite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-primary transition-colors break-all"
+                        >
+                          {contactWebsite.replace(/^https?:\/\//, '')}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

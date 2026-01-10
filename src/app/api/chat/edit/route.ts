@@ -6,6 +6,7 @@
  */
 
 import { POST as unifiedPost, maxDuration } from '@/app/api/chat/route';
+import { logger } from '@/lib/logging';
 
 export { maxDuration };
 
@@ -15,6 +16,6 @@ export { maxDuration };
  * Forward to unified chat handler.
  */
 export async function POST(request: Request) {
-  console.warn('[POST /api/chat/edit] Deprecated. Forwarding to /api/chat.');
+  logger.warn('[POST /api/chat/edit] Deprecated. Forwarding to /api/chat.');
   return unifiedPost(request);
 }

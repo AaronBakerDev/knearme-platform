@@ -16,9 +16,22 @@ import { apiError, apiSuccess, apiCreated, handleApiError } from '@/lib/api/erro
 import {
   buildStoragePath,
   generateUniqueFilename,
-  getPublicUrl,
 } from '@/lib/storage/upload';
 import { createSignedUploadUrl } from '@/lib/storage/upload.server';
+import { resolveProjectImageUrl } from '@/lib/storage/project-images';
+import {
+  countProjectImages,
+  deleteProjectImage,
+  insertProjectImageFull,
+  selectProjectByIdForContractor,
+  selectProjectImageWithProject,
+  selectProjectImages,
+  updateProjectHeroImage,
+  updateProjectImageLabels,
+  updateProjectImageOrder,
+  verifyProjectImageIds,
+} from '@/lib/supabase/typed-queries';
+import { logger } from '@/lib/logging';
 import type { ProjectImage } from '@/types/database';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -82,37 +95,35 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Verify project ownership
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('id')
-      .eq('id', projectId)
-      .eq('contractor_id', contractor.id)
-      .single();
+    const { data: project, error: projectError } = await selectProjectByIdForContractor(
+      supabase,
+      projectId,
+      contractor.id
+    );
 
     if (projectError || !project) {
       return apiError('NOT_FOUND', 'Project not found');
     }
 
     // Get images
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: images, error } = await (supabase as any)
-      .from('project_images')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('display_order', { ascending: true });
+    const { data: images, error } = await selectProjectImages(supabase, projectId);
 
     if (error) {
       return handleApiError(error);
     }
 
-    // Type assertion for images
-    type ImageData = ProjectImage & { storage_path: string };
-    const imagesList = (images ?? []) as ImageData[];
+    const imagesList = images ?? [];
 
-    // Add public URLs to images
+    // Add URLs to images
+    const isPublished = project.status === 'published';
     const imagesWithUrls = imagesList.map((img) => ({
       ...img,
-      url: getPublicUrl('project-images', img.storage_path),
+      url: resolveProjectImageUrl({
+        projectId,
+        imageId: img.id,
+        storagePath: img.storage_path,
+        isPublished,
+      }),
     }));
 
     return apiSuccess({ images: imagesWithUrls });
@@ -156,15 +167,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Verify project ownership
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: project, error: projectError } = await (supabase as any)
-      .from('projects')
-      .select('id, hero_image_id')
-      .eq('id', projectId)
-      .eq('contractor_id', contractor.id)
-      .single();
-
-    const typedProject = project as { id: string; hero_image_id: string | null } | null;
+    const { data: typedProject, error: projectError } = await selectProjectByIdForContractor(
+      supabase,
+      projectId,
+      contractor.id
+    );
 
     if (projectError || !typedProject) {
       return apiError('NOT_FOUND', 'Project not found');
@@ -173,63 +180,55 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Generate unique filename and storage path
     const extension = content_type === 'image/heic' ? 'jpg' : content_type.split('/')[1];
     const uniqueFilename = generateUniqueFilename(filename, extension);
-    const storagePath = buildStoragePath('project-images', contractor.id, uniqueFilename, projectId);
+    const storagePath = buildStoragePath('project-images-draft', contractor.id, uniqueFilename, projectId);
 
     // Get next display order if not provided
     let order = display_order;
     if (order === undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { count } = await (supabase as any)
-        .from('project_images')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', projectId);
-      order = count ?? 0;
+      const { count } = await countProjectImages(supabase, projectId);
+      order = count;
     }
 
     // Create image record (will be updated after successful upload)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: image, error: insertError } = await (supabase as any)
-      .from('project_images')
-      .insert({
-        project_id: projectId,
-        storage_path: storagePath,
-        image_type: image_type ?? null,
-        display_order: order,
-        width: width ?? null,
-        height: height ?? null,
-      })
-      .select('*')
-      .single();
+    const { data: image, error: insertError } = await insertProjectImageFull(supabase, {
+      project_id: projectId,
+      storage_path: storagePath,
+      image_type: image_type ?? null,
+      display_order: order,
+      width: width ?? null,
+      height: height ?? null,
+    });
 
-    if (insertError) {
-      console.error('[POST /api/projects/[id]/images] Insert error:', insertError);
+    if (insertError || !image) {
+      logger.error('[POST /api/projects/[id]/images] Insert error', { error: insertError });
       return handleApiError(insertError);
     }
 
-    // Generate signed upload URL
-    const uploadResult = await createSignedUploadUrl('project-images', storagePath);
+    // Generate signed upload URL (draft bucket)
+    const uploadResult = await createSignedUploadUrl('project-images-draft', storagePath);
 
     if ('error' in uploadResult) {
       // Rollback image record
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any).from('project_images').delete().eq('id', image.id);
+      await deleteProjectImage(supabase, image.id);
       return apiError('STORAGE_ERROR', uploadResult.error);
     }
 
     // Auto-set hero image if missing
     if (typedProject && !typedProject.hero_image_id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any)
-        .from('projects')
-        .update({ hero_image_id: image.id })
-        .eq('id', projectId)
-        .eq('contractor_id', contractor.id);
+      await updateProjectHeroImage(supabase, projectId, contractor.id, image.id);
     }
+
+    const isPublished = typedProject?.status === 'published';
 
     return apiCreated({
       image: {
         ...image,
-        url: getPublicUrl('project-images', storagePath),
+        url: resolveProjectImageUrl({
+          projectId,
+          imageId: image.id,
+          storagePath,
+          isPublished,
+        }),
       } as ProjectImage & { url: string },
       upload: {
         signed_url: uploadResult.signedUrl,
@@ -272,24 +271,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Verify project ownership and get image
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: image, error: fetchError } = await (supabase as any)
-      .from('project_images')
-      .select(`
-        *,
-        project:projects!inner(contractor_id)
-      `)
-      .eq('id', image_id)
-      .eq('project_id', projectId)
-      .single();
-
-    // Type assertion for image with project
-    type ImageWithProject = {
-      id: string;
-      storage_path: string;
-      project: { contractor_id: string };
-    };
-    const imageData = image as ImageWithProject | null;
+    const { data: imageData, error: fetchError } = await selectProjectImageWithProject(
+      supabase,
+      image_id,
+      projectId
+    );
 
     if (fetchError || !imageData) {
       return apiError('NOT_FOUND', 'Image not found');
@@ -301,11 +287,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Delete from database (RLS ensures ownership)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: deleteError } = await (supabase as any)
-      .from('project_images')
-      .delete()
-      .eq('id', image_id);
+    const { error: deleteError } = await deleteProjectImage(supabase, image_id);
 
     if (deleteError) {
       return handleApiError(deleteError);
@@ -313,9 +295,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // Delete from storage (fire and forget)
     supabase.storage
+      .from('project-images-draft')
+      .remove([imageData.storage_path])
+      .catch((err: Error) => logger.error('[Draft storage delete failed]', { error: err }));
+    supabase.storage
       .from('project-images')
       .remove([imageData.storage_path])
-      .catch((err: Error) => console.error('[Storage delete failed]', err));
+      .catch((err: Error) => logger.error('[Public storage delete failed]', { error: err }));
 
     return apiSuccess({ deleted: true });
   } catch (error) {
@@ -353,12 +339,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const supabase = await getAuthClient(auth);
 
     // Verify project ownership
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('id')
-      .eq('id', projectId)
-      .eq('contractor_id', contractor.id)
-      .single();
+    const { data: project, error: projectError } = await selectProjectByIdForContractor(
+      supabase,
+      projectId,
+      contractor.id
+    );
 
     if (projectError || !project) {
       return apiError('NOT_FOUND', 'Project not found');
@@ -369,18 +354,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     (labels || []).forEach((label) => idsToVerify.add(label.image_id));
 
     // Verify all image IDs belong to this project
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: existingImages, error: fetchError } = await (supabase as any)
-      .from('project_images')
-      .select('id')
-      .eq('project_id', projectId)
-      .in('id', Array.from(idsToVerify));
+    const { data: existingImages, error: fetchError } = await verifyProjectImageIds(
+      supabase,
+      projectId,
+      Array.from(idsToVerify)
+    );
 
     if (fetchError) {
       return handleApiError(fetchError);
     }
 
-    const existingIds = new Set((existingImages || []).map((img: { id: string }) => img.id));
+    const existingIds = new Set(existingImages.map((img) => img.id));
     const invalidIds = Array.from(idsToVerify).filter((id) => !existingIds.has(id));
 
     if (invalidIds.length > 0) {
@@ -395,17 +379,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (image_ids && image_ids.length > 0) {
       const reorderPromises = image_ids.map((imageId, index) =>
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (supabase as any)
-          .from('project_images')
-          .update({ display_order: index })
-          .eq('id', imageId)
+        updateProjectImageOrder(supabase, imageId, index)
       );
 
       const reorderResults = await Promise.all(reorderPromises);
       const reorderErrors = reorderResults.filter((r) => r.error);
       if (reorderErrors.length > 0) {
-        console.error('[PATCH /api/projects/[id]/images] Reorder errors:', reorderErrors);
+        logger.error('[PATCH /api/projects/[id]/images] Reorder errors', { errors: reorderErrors });
         return apiError('INTERNAL_ERROR', 'Failed to reorder some images');
       }
       reorderedCount = image_ids.length;
@@ -413,7 +393,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (labels && labels.length > 0) {
       const labelPromises = labels.map((label) => {
-        const updatePayload: Record<string, unknown> = {};
+        const updatePayload: { image_type?: string | null; alt_text?: string | null } = {};
         if (Object.prototype.hasOwnProperty.call(label, 'image_type')) {
           updatePayload.image_type = label.image_type ?? null;
         }
@@ -423,17 +403,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         if (Object.keys(updatePayload).length === 0) {
           return Promise.resolve({ error: null });
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (supabase as any)
-          .from('project_images')
-          .update(updatePayload)
-          .eq('id', label.image_id);
+        return updateProjectImageLabels(supabase, label.image_id, updatePayload);
       });
 
       const labelResults = await Promise.all(labelPromises);
       const labelErrors = labelResults.filter((r) => r.error);
       if (labelErrors.length > 0) {
-        console.error('[PATCH /api/projects/[id]/images] Label update errors:', labelErrors);
+        logger.error('[PATCH /api/projects/[id]/images] Label update errors', { errors: labelErrors });
         return apiError('INTERNAL_ERROR', 'Failed to update some image labels');
       }
       labelsUpdatedCount = labels.length;

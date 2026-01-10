@@ -9,12 +9,61 @@
  */
 
 import { NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
+import { logger } from '@/lib/logging';
+import type { Database, Json } from '@/types/database';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
+
+type ChatSessionRow = {
+  id: string;
+  project_id: string | null;
+  contractor_id: string | null;
+  title: string | null;
+  phase: string | null;
+  extracted_data: Json | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type ChatSessionUpdate = {
+  title?: string | null;
+  phase?: string | null;
+  extracted_data?: Json | null;
+  updated_at?: string | null;
+};
+
+type ChatMessageRow = {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  metadata: Json | null;
+  created_at: string;
+  session_id: string;
+};
+
+type ChatDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      chat_sessions: {
+        Row: ChatSessionRow;
+        Update: ChatSessionUpdate;
+        Insert: ChatSessionRow;
+      };
+      chat_messages: {
+        Row: ChatMessageRow;
+        Update: Partial<ChatMessageRow>;
+        Insert: ChatMessageRow;
+      };
+    };
+  };
+};
+
+type ChatSupabaseClient = SupabaseClient<ChatDatabase>;
 
 /**
  * GET /api/chat/sessions/[id]
@@ -33,11 +82,11 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Get session
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: session, error: sessionError } = await (supabase as any)
+    const { data: sessionData, error: sessionError } = await (supabase as any)
       .from('chat_sessions')
       .select(`
         id,
@@ -53,7 +102,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       .single();
 
     if (sessionError) {
-      if (sessionError.code === 'PGRST116') {
+      if ('code' in sessionError && sessionError.code === 'PGRST116') {
         return NextResponse.json(
           { error: 'Session not found' },
           { status: 404 }
@@ -62,9 +111,11 @@ export async function GET(request: Request, { params }: RouteParams) {
       throw sessionError;
     }
 
+    const session = sessionData as ChatSessionRow;
+
     // Get messages
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: messages, error: messagesError } = await (supabase as any)
+    const { data: messagesData, error: messagesError } = await (supabase as any)
       .from('chat_messages')
       .select('id, role, content, metadata, created_at')
       .eq('session_id', id)
@@ -74,17 +125,16 @@ export async function GET(request: Request, { params }: RouteParams) {
       throw messagesError;
     }
 
-    // Type assertion for RLS tables
-    const typedSession = session as Record<string, unknown> | null;
+    const messages = messagesData as ChatMessageRow[] | null;
 
     return NextResponse.json({
       session: {
-        ...typedSession,
+        ...session,
         messages: messages || [],
       },
     });
   } catch (error) {
-    console.error('[GET /api/chat/sessions/[id]] Error:', error);
+    logger.error('[GET /api/chat/sessions/[id]] Error', { error });
     return NextResponse.json(
       { error: 'Failed to fetch chat session' },
       { status: 500 }
@@ -112,10 +162,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const body = await request.json();
     const { title, phase, extracted_data } = body;
 
-    const supabase = await createClient();
+    const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Build update object
-    const updates: Record<string, unknown> = {
+    const updates: ChatSessionUpdate = {
       updated_at: new Date().toISOString(),
     };
 
@@ -133,7 +183,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
+      if ('code' in error && error.code === 'PGRST116') {
         return NextResponse.json(
           { error: 'Session not found' },
           { status: 404 }
@@ -144,7 +194,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ session });
   } catch (error) {
-    console.error('[PATCH /api/chat/sessions/[id]] Error:', error);
+    logger.error('[PATCH /api/chat/sessions/[id]] Error', { error });
     return NextResponse.json(
       { error: 'Failed to update chat session' },
       { status: 500 }
@@ -169,7 +219,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = (await createClient()) as ChatSupabaseClient;
 
     // Delete session (messages will cascade delete)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -184,7 +234,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[DELETE /api/chat/sessions/[id]] Error:', error);
+    logger.error('[DELETE /api/chat/sessions/[id]] Error', { error });
     return NextResponse.json(
       { error: 'Failed to delete chat session' },
       { status: 500 }

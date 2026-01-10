@@ -31,13 +31,18 @@ interface UseQuickActionsInput {
  *
  * Heuristic-based baseline. Agent-driven suggestions can be merged
  * on top of this list in the ChatWizard without changing the UI.
+ *
+ * PHILOSOPHY: No phase gating. Actions are always available.
+ * The phase param is kept for backwards compatibility but not used for gating.
+ *
+ * @see /docs/philosophy/agent-philosophy.md
  */
 export function useQuickActions({
   extractedData,
   completeness,
   imageCount,
   allowGenerate,
-  phase,
+  phase: _phase, // Kept for backwards compatibility, not used for gating
 }: UseQuickActionsInput): QuickActionItem[] {
   return useMemo(() => {
     const actions: QuickActionItem[] = [];
@@ -58,7 +63,9 @@ export function useQuickActions({
       });
     }
 
-    if (phase === 'review') {
+    // PHILOSOPHY: Always show layout/publish actions when we have content
+    // No phase gate - user decides when these are relevant
+    if (allowGenerate) {
       actions.push({
         id: 'compose-layout',
         label: 'Compose layout',
@@ -152,6 +159,6 @@ export function useQuickActions({
     extractedData.solution_approach,
     extractedData.state,
     imageCount,
-    phase,
+    // phase removed - no longer used for gating
   ]);
 }

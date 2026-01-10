@@ -16,19 +16,27 @@
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
-import { Building2, Wrench, ArrowRight } from 'lucide-react';
+import { Building2, Wrench } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/server';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
+import { PublicBreadcrumbHeader } from '@/components/seo/PublicBreadcrumbHeader';
 import { NearbyCities, fetchCitiesWithProjects } from '@/components/seo/NearbyCities';
+import { ProjectGridCard } from '@/components/seo/ProjectGridCard';
+import { ServiceProviderCard } from '@/components/seo/ServiceProviderCard';
 import {
   generateProjectListSchema,
   schemaToString,
 } from '@/lib/seo/structured-data';
+import {
+  buildOpenGraphMeta,
+  buildTwitterMeta,
+  selectCoverImage,
+  type CoverImage,
+} from '@/lib/seo/metadata-helpers';
 import { getPublicUrl } from '@/lib/storage/upload';
+import { formatCityName, getCanonicalUrl } from '@/lib/constants/page-descriptions';
+import { logger } from '@/lib/logging';
 import type { Contractor, Project, ProjectImage } from '@/types/database';
 
 type PageParams = {
@@ -42,7 +50,7 @@ type PageParams = {
  */
 type ProjectWithDetails = Project & {
   contractor: Contractor;
-  cover_image?: ProjectImage;
+  cover_image?: CoverImage;
 };
 
 /**
@@ -51,7 +59,7 @@ type ProjectWithDetails = Project & {
  */
 export async function generateStaticParams() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.log('[generateStaticParams] Skipping: SUPABASE_SERVICE_ROLE_KEY not configured');
+    logger.info('[generateStaticParams] Skipping: SUPABASE_SERVICE_ROLE_KEY not configured');
     return [];
   }
 
@@ -74,25 +82,9 @@ export async function generateStaticParams() {
 
     return Array.from(cities).map((city) => ({ city }));
   } catch (error) {
-    console.error('[generateStaticParams] Error fetching cities:', error);
+    logger.error('[generateStaticParams] Error fetching cities', { error });
     return [];
   }
-}
-
-/**
- * Extract city name from slug for display.
- * @example "denver-co" -> "Denver, CO"
- */
-function formatCityName(citySlug: string): string {
-  const parts = citySlug.split('-');
-  if (parts.length < 2) return citySlug;
-
-  const state = parts.pop()?.toUpperCase() || '';
-  const city = parts
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-
-  return `${city}, ${state}`;
 }
 
 /**
@@ -104,7 +96,6 @@ function formatCityName(citySlug: string): string {
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { city } = await params;
   const cityName = formatCityName(city);
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
   const supabase = createAdminClient();
 
   // Fetch first published project's cover image for OG
@@ -122,43 +113,34 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   };
   const project = projectData as ProjectWithImages | null;
 
-  // Get cover image URL from first project
-  let imageUrl: string | undefined;
-  let imageAlt: string | undefined;
-
-  if (project?.project_images?.length) {
-    const sortedImages = [...project.project_images].sort(
-      (a, b) => a.display_order - b.display_order
-    );
-    const coverImage = sortedImages[0];
-    if (coverImage) {
-      imageUrl = getPublicUrl('project-images', coverImage.storage_path);
-      imageAlt = coverImage.alt_text || `Masonry project in ${cityName}`;
-    }
-  }
+  const coverImage = selectCoverImage(project?.project_images);
+  const imageUrl = coverImage
+    ? getPublicUrl('project-images', coverImage.storage_path)
+    : undefined;
+  const imageAlt = coverImage?.alt_text || `Masonry project in ${cityName}`;
 
   const title = `Masonry Services in ${cityName} | Local Contractors & Projects`;
   const description = `Browse masonry projects and find local contractors in ${cityName}. View portfolios of chimney repair, tuckpointing, stone work, and more.`;
+  const canonicalUrl = getCanonicalUrl(`/${city}/masonry`);
 
   return {
     title,
     description,
     keywords: `masonry ${cityName}, brick work ${cityName}, chimney repair ${cityName}, tuckpointing ${cityName}`,
-    openGraph: {
+    openGraph: buildOpenGraphMeta({
       title,
       description,
-      type: 'website',
-      url: `${siteUrl}/${city}/masonry`,
-      images: imageUrl ? [{ url: imageUrl, alt: imageAlt }] : [],
-    },
-    twitter: {
-      card: imageUrl ? 'summary_large_image' : 'summary',
+      url: canonicalUrl,
+      imageUrl,
+      imageAlt,
+    }),
+    twitter: buildTwitterMeta({
       title,
       description,
-      images: imageUrl ? [imageUrl] : [],
-    },
+      imageUrl,
+    }),
     alternates: {
-      canonical: `${siteUrl}/${city}/masonry`,
+      canonical: canonicalUrl,
     },
   };
 }
@@ -184,7 +166,7 @@ export default async function CityHubPage({ params }: PageParams) {
     .limit(50);
 
   if (projectsError) {
-    console.error('[CityHubPage] Error fetching projects:', projectsError);
+    logger.error('[CityHubPage] Error fetching projects', { error: projectsError });
   }
 
   // Type assertion for query result
@@ -200,15 +182,10 @@ export default async function CityHubPage({ params }: PageParams) {
   }
 
   // Add cover image to each project
-  const projectsWithDetails: ProjectWithDetails[] = projects.map((project) => {
-    const sortedImages = project.project_images.sort(
-      (a, b) => a.display_order - b.display_order
-    );
-    return {
-      ...project,
-      cover_image: sortedImages[0],
-    };
-  });
+  const projectsWithDetails: ProjectWithDetails[] = projects.map((project) => ({
+    ...project,
+    cover_image: selectCoverImage(project.project_images) ?? undefined,
+  }));
 
   // Get unique contractors serving this city
   const contractorsMap = new Map<string, Contractor>();
@@ -267,11 +244,7 @@ export default async function CityHubPage({ params }: PageParams) {
 
       <div className="min-h-screen bg-background">
         {/* Header with Breadcrumbs */}
-        <header className="border-b">
-          <div className="container mx-auto px-4 py-4">
-            <Breadcrumbs items={breadcrumbItems} />
-          </div>
-        </header>
+        <PublicBreadcrumbHeader items={breadcrumbItems} />
 
         <main className="container mx-auto px-4 py-8">
           {/* Hero Section */}
@@ -320,45 +293,13 @@ export default async function CityHubPage({ params }: PageParams) {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {contractors.slice(0, 4).map((contractor) => (
-                  <Link
+                  <ServiceProviderCard
                     key={contractor.id}
-                    href={`/contractors/${contractor.city_slug}/${contractor.profile_slug || contractor.id}`}
-                    className="group"
-                  >
-                    <Card className="shadow-sm hover:shadow-md transition-all duration-200 border-0 bg-card">
-                      <CardContent className="p-4 flex items-center gap-4">
-                        {/* Contractor Photo */}
-                        <div className="relative w-14 h-14 rounded-full overflow-hidden flex-shrink-0 bg-muted ring-2 ring-background shadow-sm">
-                          {contractor.profile_photo_url ? (
-                            <Image
-                              src={contractor.profile_photo_url}
-                              alt={contractor.business_name || 'Contractor'}
-                              fill
-                              className="object-cover"
-                              sizes="56px"
-                              placeholder="blur"
-                              blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB2aWV3Qm94PSIwIDAgMSAxIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlNWU3ZWIiLz48L3N2Zz4="
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-bold text-lg">
-                              {contractor.business_name?.charAt(0) || 'C'}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium truncate group-hover:text-primary transition-colors">
-                            {contractor.business_name}
-                          </h3>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {contractor.services?.slice(0, 2).join(', ')}
-                          </p>
-                        </div>
-
-                        <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                      </CardContent>
-                    </Card>
-                  </Link>
+                    href={`/businesses/${contractor.city_slug}/${contractor.profile_slug || contractor.id}`}
+                    name={contractor.business_name || 'Contractor'}
+                    photoUrl={contractor.profile_photo_url}
+                    subtitle={contractor.services?.slice(0, 2).join(', ') || ''}
+                  />
                 ))}
               </div>
               {contractors.length > 4 && (
@@ -375,51 +316,17 @@ export default async function CityHubPage({ params }: PageParams) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {projectsWithDetails.map((project) => (
-                <Link
+                <ProjectGridCard
                   key={project.id}
                   href={`/${project.city_slug}/masonry/${project.project_type_slug}/${project.slug}`}
-                  className="group"
-                >
-                  <Card className="overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 h-full border-0 bg-card">
-                    {/* Project Image */}
-                    <div className="relative aspect-video bg-muted overflow-hidden">
-                      {project.cover_image ? (
-                        <Image
-                          src={getPublicUrl('project-images', project.cover_image.storage_path)}
-                          alt={project.cover_image.alt_text || project.title || 'Project'}
-                          fill
-                          className="object-cover transition-transform duration-300 group-hover:scale-105"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          placeholder="blur"
-                          blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB2aWV3Qm94PSIwIDAgMSAxIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlNWU3ZWIiLz48L3N2Zz4="
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                          <Building2 className="h-12 w-12" />
-                        </div>
-                      )}
-                      {/* Hover overlay */}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
-                    </div>
-
-                    <CardContent className="p-4">
-                      <h3 className="font-semibold line-clamp-2 mb-2 group-hover:text-primary transition-colors">
-                        {project.title}
-                      </h3>
-
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        {project.project_type && (
-                          <Badge variant="outline" className="text-xs">
-                            {project.project_type}
-                          </Badge>
-                        )}
-                        <span className="truncate ml-2">
-                          by {project.contractor.business_name}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                  title={project.title || 'Project'}
+                  imageUrl={project.cover_image
+                    ? getPublicUrl('project-images', project.cover_image.storage_path)
+                    : undefined}
+                  imageAlt={project.cover_image?.alt_text || project.title}
+                  badgeLabel={project.project_type || undefined}
+                  subtitle={`by ${project.contractor.business_name}`}
+                />
               ))}
             </div>
           </div>

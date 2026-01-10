@@ -1,7 +1,7 @@
 # Data Model Documentation
 
 > **Version:** 1.0
-> **Last Updated:** December 26, 2025
+> **Last Updated:** January 2, 2026
 > **Database:** PostgreSQL 15 (Supabase)
 
 ---
@@ -22,6 +22,10 @@ erDiagram
         uuid auth_user_id FK
         string email
         string business_name
+        string address
+        string postal_code
+        string phone
+        string website
         string city
         string state
         string city_slug
@@ -109,6 +113,10 @@ Primary table for contractor business profiles.
 | `auth_user_id` | `uuid` | NO | - | FK to `auth.users.id` |
 | `email` | `text` | NO | - | Unique, from Supabase Auth |
 | `business_name` | `text` | NO | - | Display name for portfolio |
+| `address` | `text` | YES | `NULL` | Public street address (NAP) |
+| `postal_code` | `text` | YES | `NULL` | Postal/ZIP code (NAP) |
+| `phone` | `text` | YES | `NULL` | Public phone number (NAP) |
+| `website` | `text` | YES | `NULL` | Public website URL |
 | `profile_slug` | `text` | YES | `NULL` | Public profile slug (unique, editable) |
 | `city` | `text` | NO | - | City for filtering |
 | `state` | `text` | NO | - | Two-letter state code |
@@ -137,6 +145,10 @@ CREATE TABLE contractors (
     auth_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL UNIQUE,
     business_name TEXT NOT NULL,
+    address TEXT,
+    postal_code TEXT,
+    phone TEXT,
+    website TEXT,
     profile_slug TEXT,
     city TEXT NOT NULL,
     state TEXT NOT NULL CHECK (length(state) = 2),

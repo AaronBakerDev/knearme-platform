@@ -76,7 +76,7 @@ This document breaks down the SEO implementation into four phases over 12 months
 - Contact information and business details
 - JSON-LD LocalBusiness schema
 
-**File:** `app/(public)/contractors/[city]/[id]/page.tsx`
+**File:** `app/(public)/businesses/[city]/[slug]/page.tsx`
 
 **Validation:**
 - [ ] Profile loads from database
@@ -338,7 +338,7 @@ export async function getRelatedProjects(
 
 **Monitoring:**
 - [ ] Weekly index coverage check
-- [ ] Fix 404s, soft 404s, redirect chains
+- [ ] Fix 404s, soft 404s, canonical issues
 - [ ] Target: 95%+ pages indexed within 30 days
 
 ---

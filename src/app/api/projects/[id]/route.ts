@@ -16,7 +16,8 @@ import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
 import { slugify } from '@/lib/utils/slugify';
 import { composeProjectDescription } from '@/lib/projects/compose-description';
 import { blocksToHtml, descriptionBlocksSchema, sanitizeDescriptionBlocks } from '@/lib/content/description-blocks';
-import type { ProjectWithImages } from '@/types/database';
+import { logger } from '@/lib/logging';
+import type { Project, ProjectImage, ProjectUpdate, ProjectWithImages } from '@/types/database';
 
 /**
  * Allowed HTML tags for sanitized description content.
@@ -157,21 +158,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .single();
 
     // Type assertion for existing project
-    type ExistingProject = {
-      id: string;
-      contractor_id: string;
-      title?: string | null;
-      city?: string | null;
-      state?: string | null;
-      project_type?: string | null;
-      description_manual?: boolean | null;
-      summary?: string | null;
-      challenge?: string | null;
-      solution?: string | null;
-      results?: string | null;
-      outcome_highlights?: string[] | null;
-      status?: 'draft' | 'published' | 'archived' | null;
-    };
+    type ExistingProject = Pick<
+      Project,
+      | 'id'
+      | 'contractor_id'
+      | 'title'
+      | 'city'
+      | 'state'
+      | 'project_type'
+      | 'description_manual'
+      | 'summary'
+      | 'challenge'
+      | 'solution'
+      | 'results'
+      | 'outcome_highlights'
+      | 'status'
+    >;
     const existingProject = existing as ExistingProject | null;
 
     if (fetchError || !existingProject) {
@@ -179,7 +181,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Build update payload with generated slugs
-    const updatePayload: Record<string, unknown> = { ...updates };
+    const updatePayload: ProjectUpdate = { ...updates } as ProjectUpdate;
 
     // Regenerate city_slug if city or state changed
     const cityChanged = typeof updates.city !== 'undefined' && updates.city !== existingProject.city;
@@ -239,7 +241,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .single();
 
     if (updateError) {
-      console.error('[PATCH /api/projects/[id]] Update error:', updateError);
+      logger.error('[PATCH /api/projects/[id]] Update error', { error: updateError, projectId: id });
       return handleApiError(updateError);
     }
 
@@ -274,8 +276,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .select('storage_path')
       .eq('project_id', id);
 
-    // Type assertion
-    const imagesList = (images ?? []) as Array<{ storage_path: string }>;
+    const imagesList = (images ?? []) as Array<Pick<ProjectImage, 'storage_path'>>;
 
     // Delete project (cascades to images and interviews)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -286,7 +287,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .eq('contractor_id', contractor.id);
 
     if (error) {
-      console.error('[DELETE /api/projects/[id]] Delete error:', error);
+      logger.error('[DELETE /api/projects/[id]] Delete error', { error, projectId: id });
       return handleApiError(error);
     }
 
@@ -294,9 +295,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     if (imagesList.length > 0) {
       const paths = imagesList.map((img) => img.storage_path);
       supabase.storage
+        .from('project-images-draft')
+        .remove(paths)
+        .catch((err: Error) => logger.error('[Draft storage cleanup failed]', { error: err }));
+      supabase.storage
         .from('project-images')
         .remove(paths)
-        .catch((err: Error) => console.error('[Storage cleanup failed]', err));
+        .catch((err: Error) => logger.error('[Public storage cleanup failed]', { error: err }));
     }
 
     return apiSuccess({ deleted: true });

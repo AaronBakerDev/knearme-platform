@@ -12,11 +12,10 @@
  * - Saves order to API on change
  *
  * @see https://docs.dndkit.com/presets/sortable
- * @see src/app/(contractor)/projects/[id]/edit/page.tsx - Integration point
+ * @see src/app/(dashboard)/projects/[id]/edit/page.tsx - Integration point
  */
 
 import { useCallback, useState } from 'react'
-import { SafeImage } from '@/components/ui/safe-image'
 import {
   DndContext,
   closestCenter,
@@ -35,8 +34,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { SafeImage, Badge, Button } from '@/components/ui'
 import { GripVertical, Trash2, Star, AlertTriangle } from 'lucide-react'
 import type { ProjectImage } from '@/types/database'
 

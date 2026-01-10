@@ -269,3 +269,87 @@ export function handleApiError(
 
   return apiError('INTERNAL_ERROR', 'An unexpected error occurred. Please try again.', undefined, requestId);
 }
+
+// ============================================================================
+// Error Type Detection Helpers
+// ============================================================================
+
+/**
+ * Check if an error indicates a rate limit (429) response.
+ * Handles Error instances, HTTP responses, and unknown error types.
+ *
+ * Patterns detected:
+ * - HTTP 429 status codes
+ * - "rate limit" text in error messages
+ * - AI provider rate limit errors
+ *
+ * @see src/lib/agents/subagents/spawn.ts - Used for retry logic
+ */
+export function isRateLimitError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    return (
+      message.includes('429') ||
+      message.includes('rate limit') ||
+      message.includes('too many requests') ||
+      message.includes('quota exceeded')
+    );
+  }
+
+  // Handle HTTP response-like objects
+  if (typeof error === 'object' && error !== null) {
+    const errObj = error as Record<string, unknown>;
+    if (errObj.status === 429 || errObj.statusCode === 429) {
+      return true;
+    }
+    if (typeof errObj.message === 'string') {
+      const message = errObj.message.toLowerCase();
+      return message.includes('429') || message.includes('rate limit');
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Check if an error indicates a timeout (AbortError, ETIMEDOUT, etc).
+ * Handles Error instances and unknown error types.
+ *
+ * Patterns detected:
+ * - AbortError (from fetch/AbortController)
+ * - ETIMEDOUT (from Node.js network errors)
+ * - Explicit timeout messages
+ *
+ * @see src/lib/agents/subagents/spawn.ts - Used for download timeouts
+ */
+export function isTimeoutError(error: unknown): boolean {
+  if (error instanceof Error) {
+    // AbortError from AbortController
+    if (error.name === 'AbortError') {
+      return true;
+    }
+
+    const message = error.message.toLowerCase();
+    return (
+      message.includes('timeout') ||
+      message.includes('etimedout') ||
+      message.includes('aborted')
+    );
+  }
+
+  // Handle error-like objects
+  if (typeof error === 'object' && error !== null) {
+    const errObj = error as Record<string, unknown>;
+    if (errObj.name === 'AbortError') {
+      return true;
+    }
+    if (errObj.code === 'ETIMEDOUT' || errObj.code === 'ECONNABORTED') {
+      return true;
+    }
+    if (typeof errObj.message === 'string') {
+      return errObj.message.toLowerCase().includes('timeout');
+    }
+  }
+
+  return false;
+}

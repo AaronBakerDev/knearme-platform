@@ -22,15 +22,18 @@ import {
   Maximize2,
   Minimize2,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Button, Tabs, TabsList, TabsTrigger,
+  Tooltip, TooltipContent, TooltipTrigger
+} from '@/components/ui';
 import { LivePortfolioCanvas } from './LivePortfolioCanvas';
 import { cn } from '@/lib/utils';
 import type { ProjectPreviewData } from './hooks/useProjectData';
 import type { CompletenessState } from './hooks/useCompleteness';
-import type { Project, Contractor, ProjectImage } from '@/types/database';
+import type { Project, Business, Contractor, ProjectImage } from '@/types/database';
 import type { RelatedProject } from '@/lib/data/projects';
+import type { DesignTokens } from '@/lib/design/tokens';
+import type { SemanticBlock } from '@/lib/design/semantic-blocks';
 
 /**
  * Canvas panel size states.
@@ -65,12 +68,21 @@ interface CanvasPanelProps {
   /** Optional public preview data for full parity rendering */
   publicPreview?: {
     project: Project;
-    contractor: Contractor;
+    /** Business data for the preview */
+    business: Business | Contractor;
     images: (ProjectImage & { url?: string })[];
     relatedProjects?: RelatedProject[];
+    /** @deprecated Use business instead */
+    contractor?: Contractor;
   };
   /** Optional override title (e.g. saved project title in edit mode) */
   titleOverride?: string | null;
+  /** Optional dynamic portfolio layout from AI-generated design tokens and blocks */
+  portfolioLayout?: {
+    tokens: DesignTokens;
+    blocks: SemanticBlock[];
+    rationale?: string;
+  } | null;
   /** Current panel size */
   size: CanvasPanelSize;
   /** Callback when size changes */
@@ -252,6 +264,7 @@ export function CanvasPanel({
   previewMessage,
   publicPreview,
   titleOverride,
+  portfolioLayout,
   size,
   onSizeChange,
   activeTab,
@@ -336,6 +349,7 @@ export function CanvasPanel({
                 completeness={completeness}
                 publicPreview={publicPreview}
                 titleOverride={titleOverride}
+                portfolioLayout={portfolioLayout}
                 highlightFields={highlightFields}
                 previewMessage={previewMessage}
                 className="h-full"

@@ -37,7 +37,7 @@ export function generateContractorSchema(contractor: Contractor) {
   return {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    '@id': `${SITE_URL}/contractors/${contractor.city_slug}/${contractor.id}`,
+    '@id': `${SITE_URL}/businesses/${contractor.city_slug}/${contractor.id}`,
     name: contractor.business_name,
     description: contractor.description,
     address: {
@@ -583,7 +583,7 @@ export function generateContractorWithRatingSchema(
   return {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    '@id': `${SITE_URL}/contractors/${contractor.city_slug}/${contractor.id}`,
+    '@id': `${SITE_URL}/businesses/${contractor.city_slug}/${contractor.id}`,
     name: contractor.business_name,
     // ... other LocalBusiness fields
     aggregateRating: {
@@ -814,7 +814,7 @@ describe('generateServiceSchema', () => {
 // Good: Reference entity by @id
 {
   "@type": "CreativeWork",
-  "creator": { "@id": "/contractors/denver-co/123" }
+  "creator": { "@id": "/businesses/denver-co/123" }
 }
 
 // Avoid: Repeat full entity

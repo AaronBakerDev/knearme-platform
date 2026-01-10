@@ -18,6 +18,7 @@ import { Mic, MicOff, Play, Pause, X, RefreshCw, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logging';
 
 export interface VoiceRecorderProps {
   /** Called when recording is complete */
@@ -154,7 +155,7 @@ export function VoiceRecorder({
         });
       }, 1000);
     } catch (err) {
-      console.error('[VoiceRecorder] Error accessing microphone:', err);
+      logger.error('[VoiceRecorder] Error accessing microphone', { error: err });
       setError('Could not access microphone. Please check permissions.');
       setState('text-mode'); // Fallback to text
     }

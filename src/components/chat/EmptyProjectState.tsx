@@ -8,9 +8,9 @@
  * - Shows example prompts users can click to start
  * - Creates a welcoming first impression
  *
- * Design: Warm industrial aesthetic for masonry contractors
- * - Subtle brick/stone pattern texture
- * - Craft-inspired iconography
+ * Design: Craft-forward aesthetic for working pros
+ * - Subtle texture and depth
+ * - Practical, welcoming tone
  * - Warm, inviting color palette
  *
  * @see LivePortfolioCanvas for integration
@@ -41,28 +41,28 @@ interface EmptyProjectStateProps {
  */
 const EXAMPLE_PROMPTS = [
   {
-    id: 'chimney',
+    id: 'remodel',
     icon: Building2,
-    label: 'Chimney work',
-    description: 'Rebuilds, repairs, or relining',
+    label: 'Remodel',
+    description: 'Kitchens, baths, or full spaces',
     prompt:
-      'I just finished a chimney project. The customer had issues with water damage and crumbling mortar.',
+      'I just finished a kitchen remodel. The family wanted more storage and better lighting.',
   },
   {
-    id: 'tuckpointing',
+    id: 'custom',
     icon: Layers,
-    label: 'Tuckpointing',
-    description: 'Mortar repair and restoration',
+    label: 'Custom build',
+    description: 'One-off pieces or installs',
     prompt:
-      'I did a tuckpointing job on a historic brick building. The old mortar was falling out in chunks.',
+      'I built a custom dining table for a couple who needed something durable for their kids.',
   },
   {
-    id: 'stone',
+    id: 'repair',
     icon: Hammer,
-    label: 'Stone work',
-    description: 'Walls, patios, or custom features',
+    label: 'Repair',
+    description: 'Fixes, upgrades, or tune-ups',
     prompt:
-      'I built a natural stone retaining wall. The homeowner wanted something that looked like it had been there for decades.',
+      'I repaired a leaking skylight and replaced the damaged trim to stop water issues.',
   },
 ] as const;
 
@@ -284,7 +284,7 @@ export function EmptyProjectState({
 
         {/* Footer hint */}
         <p className="text-xs text-muted-foreground/70 pt-2 max-w-[280px] mx-auto leading-relaxed">
-          Tell me about any masonry project — chimneys, walls, patios, repairs,
+          Tell me about any project — a remodel, repair, custom build,
           and more. I&apos;ll help create your portfolio.
         </p>
       </div>

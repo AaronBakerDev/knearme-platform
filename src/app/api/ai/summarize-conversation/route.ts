@@ -11,19 +11,57 @@
  */
 
 import { NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthError } from '@/lib/api/auth';
 import {
   compactConversation,
   saveConversationSummary,
 } from '@/lib/chat/context-compactor';
+import { logger } from '@/lib/logging';
 import type { UIMessage } from 'ai';
 import type { ProjectContextData } from '@/lib/chat/context-loader';
+import type { ExtractedProjectData } from '@/lib/chat/chat-types';
+import type { Database, Project } from '@/types/database';
 
 interface SummarizeRequest {
   sessionId: string;
   projectId: string;
 }
+
+type ChatSessionRow = {
+  id: string;
+  contractor_id: string;
+  project_id: string;
+};
+
+type ChatMessageRow = {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  metadata: unknown | null;
+  created_at: string;
+  session_id: string;
+};
+
+type ChatDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      chat_sessions: {
+        Row: ChatSessionRow;
+        Update: Partial<ChatSessionRow>;
+        Insert: ChatSessionRow;
+      };
+      chat_messages: {
+        Row: ChatMessageRow;
+        Update: Partial<ChatMessageRow>;
+        Insert: ChatMessageRow;
+      };
+    };
+  };
+};
+
+type ChatSupabaseClient = SupabaseClient<ChatDatabase>;
 
 /**
  * POST /api/ai/summarize-conversation
@@ -52,16 +90,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = (await createClient()) as ChatSupabaseClient;
 
     // 3. Verify ownership of session and project
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: session, error: sessionError } = await (supabase as any)
+    const { data: sessionData, error: sessionError } = await (supabase as any)
       .from('chat_sessions')
       .select('id, contractor_id, project_id')
       .eq('id', sessionId)
       .eq('contractor_id', auth.contractor.id)
       .single();
+
+    const session = sessionData as ChatSessionRow | null;
 
     if (sessionError || !session) {
       return NextResponse.json(
@@ -78,18 +118,16 @@ export async function POST(request: Request) {
     }
 
     // 4. Load all messages from the session
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: messages, error: messagesError } = await (supabase as any)
+    const { data: messages, error: messagesError } = await supabase
       .from('chat_messages')
       .select('id, role, content, metadata, created_at')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true });
 
     if (messagesError) {
-      console.error(
-        '[SummarizeConversation] Failed to load messages:',
-        messagesError
-      );
+      logger.error('[SummarizeConversation] Failed to load messages', {
+        error: messagesError,
+      });
       return NextResponse.json(
         { error: 'Failed to load messages' },
         { status: 500 }
@@ -104,8 +142,7 @@ export async function POST(request: Request) {
     }
 
     // 5. Load project data for context
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: project, error: projectError } = await (supabase as any)
+    const { data: project, error: projectError } = await supabase
       .from('projects')
       .select(
         `
@@ -125,10 +162,9 @@ export async function POST(request: Request) {
       .single();
 
     if (projectError) {
-      console.error(
-        '[SummarizeConversation] Failed to load project:',
-        projectError
-      );
+      logger.error('[SummarizeConversation] Failed to load project', {
+        error: projectError,
+      });
       return NextResponse.json(
         { error: 'Failed to load project' },
         { status: 500 }
@@ -136,26 +172,25 @@ export async function POST(request: Request) {
     }
 
     // 6. Convert messages to UIMessage format
-    const uiMessages: UIMessage[] = messages.map(
-      (m: { id: string; role: string; content: string }) => ({
+    const uiMessages: UIMessage[] = messages.map((m: ChatMessageRow) => ({
         id: m.id,
-        role: m.role as 'user' | 'assistant' | 'system',
+        role: m.role,
         parts: [{ type: 'text', text: m.content }],
-      })
-    );
+      }));
 
     // 7. Build project context data
+    const projectDataRow = project as Project;
     const projectData: ProjectContextData = {
-      id: project.id,
-      title: project.title,
-      description: project.description,
-      project_type: project.project_type,
-      city: project.city,
-      state: project.state,
-      materials: project.materials,
-      techniques: project.techniques,
-      status: project.status,
-      extractedData: project.ai_context || {},
+      id: projectDataRow.id,
+      title: projectDataRow.title,
+      description: projectDataRow.description,
+      project_type: projectDataRow.project_type,
+      city: projectDataRow.city,
+      state: projectDataRow.state,
+      materials: projectDataRow.materials,
+      techniques: projectDataRow.techniques,
+      status: projectDataRow.status,
+      extractedData: (projectDataRow.ai_context || {}) as ExtractedProjectData,
       conversationSummary: null,
     };
 
@@ -173,7 +208,7 @@ export async function POST(request: Request) {
       estimatedTokens: result.estimatedTokens,
     });
   } catch (error) {
-    console.error('[SummarizeConversation] Error:', error);
+    logger.error('[SummarizeConversation] Error', { error });
     return NextResponse.json(
       { error: 'Failed to summarize conversation' },
       { status: 500 }

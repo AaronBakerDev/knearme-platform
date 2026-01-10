@@ -35,15 +35,16 @@ const INTERVIEWER_PROMPT = `You are the KnearMe Interviewer, a personal marketin
 
 ## Voice and tone
 - Friendly, direct, teammate-like. Plain language.
-- No jargon like "case study", "SEO", or "AI".
+- Avoid leading with technical marketing terms ("case study", "SEO", "AI").
+- If the contractor uses those terms, acknowledge briefly and return to plain language.
 - Keep responses short unless the contractor asks for more.
 
-## Interview strategy (collaborative)
-1) Start with a wide-open prompt.
-2) Propose a story angle based on what you heard, and get a quick yes/no.
-3) Ask 2-3 targeted follow-ups (scope, constraint, outcome).
-4) Recap what you have so far and invite corrections.
-5) Ask for location early (city/state). Photos are optional and never blocking.
+## Conversation approach
+- Start broad, then follow their lead.
+- Ask one short question at a time.
+- Offer a quick recap when you think you have enough.
+- Ask for location when it will help sharing or publishing.
+- Photos are optional; invite them when it feels helpful, never as a requirement.
 
 ## Business-aware, trade-agnostic
 - Use business context (services, location, brand) to decide what matters.
@@ -51,11 +52,10 @@ const INTERVIEWER_PROMPT = `You are the KnearMe Interviewer, a personal marketin
 - If the contractor mentions a service not in their profile, ask permission to add it.
 - Suggest a missing logo or brand asset once, after delivering value.
 
-## Tool usage rules
-- After each contractor message with project info: call extractProjectData.
-- Update description blocks only when a new detail improves the story.
-- Call showPortfolioPreview after meaningful updates to show momentum.
-- Suggest photos but never require them for drafting.
+## Tools
+- Use tools when they help capture details, show progress, or reduce ambiguity.
+- Extract structured data when it preserves a key detail or removes confusion.
+- Show previews when it helps the contractor see momentum.
 - Never change the contractor profile without permission.
 
 ## Do not
@@ -86,7 +86,7 @@ export const CONVERSATION_SYSTEM_PROMPT = buildConversationPrompt();
  * System prompt for when the AI has gathered enough info.
  * This triggers the image upload prompt.
  */
-export const READY_FOR_IMAGES_PROMPT = `Great work on gathering the project details! Now naturally ask the contractor if they have photos to share. Keep it casual - something like "Got any pics of the finished work?" or "Would love to see some photos if you have them!"`;
+export const READY_FOR_IMAGES_PROMPT = `Great work on gathering the project details! Now naturally ask the contractor if they have photos to share. Keep it casual - something like "Got pics of the finished work?" or "Would love to see some photos if you have them!"`;
 
 /**
  * Opening message to start the conversation.
@@ -118,7 +118,7 @@ export const FOLLOW_UP_PROMPTS = {
   needsMoreDetail: "Tell me a bit more about that - what was the main issue?",
   needsMaterials: "What materials did you end up using?",
   needsSolution: "How'd you tackle it?",
-  askForPhotos: "Got any photos of the work? Would love to see them!",
+  askForPhotos: "Got photos of the work? Would love to see them!",
 };
 
 /**
@@ -261,6 +261,8 @@ export interface BuildSystemPromptOptions {
   projectData?: ProjectContextData | null;
   /** Business profile context to inject */
   businessProfile?: BusinessProfileContext | null;
+  /** Optional memory/preferences context */
+  memory?: string | null;
 }
 
 /**
@@ -278,10 +280,10 @@ export interface BuildSystemPromptOptions {
  * ```typescript
  * const prompt = buildSystemPromptWithContext({
  *   basePrompt: CONVERSATION_SYSTEM_PROMPT,
- *   summary: "User discussed a chimney rebuild in Denver...",
+ *   summary: "User discussed a kitchen remodel in Denver...",
  *   projectData: {
- *     title: "Historic Chimney Restoration",
- *     project_type: "chimney-rebuild",
+ *     title: "Modern Kitchen Transformation",
+ *     project_type: "kitchen-remodel",
  *     // ...
  *   }
  * });
@@ -293,7 +295,7 @@ export interface BuildSystemPromptOptions {
 export function buildSystemPromptWithContext(
   options: BuildSystemPromptOptions
 ): string {
-  const { basePrompt, summary, projectData, businessProfile } = options;
+  const { basePrompt, summary, projectData, businessProfile, memory } = options;
 
   const contextSections: string[] = [];
 
@@ -304,6 +306,11 @@ export function buildSystemPromptWithContext(
       contextSections.push('## Business Profile');
       contextSections.push(formattedProfile);
     }
+  }
+
+  if (memory) {
+    contextSections.push('## User Preferences & Memory');
+    contextSections.push(memory);
   }
 
   // Add project state if provided
@@ -383,7 +390,7 @@ export function getAdaptiveOpeningMessage(options: AdaptiveOpeningOptions): stri
     if (title) {
       return `"${title}" is live - anything you want to update?`;
     }
-    return "This project is published - need to make any changes?";
+    return "This project is published - need to make changes?";
   }
 
   // Has content (draft state) - refinement mode
@@ -392,7 +399,7 @@ export function getAdaptiveOpeningMessage(options: AdaptiveOpeningOptions): stri
       title
         ? `Back to work on "${title}" - what needs tweaking?`
         : "Back to polish this one - what do you want to change?",
-      "Ready to update this project? Title, description, photos - I can help with any of it.",
+      "Ready to update this project? Title, description, photos - I can help with all of it.",
       title
         ? `Let's refine "${title}" - what's on your mind?`
         : "Let's make some improvements - what would you like to change?",

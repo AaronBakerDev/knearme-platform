@@ -5,9 +5,10 @@
  * Highlights the best entry tool with clear CTA.
  */
 
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import {
+  Button, Badge,
+  Card, CardContent, CardDescription, CardHeader, CardTitle
+} from '@/components/ui'
 import { ArrowRight, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import type { ToolDefinition } from '@/lib/tools/catalog'

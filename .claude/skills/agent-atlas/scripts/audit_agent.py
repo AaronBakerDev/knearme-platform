@@ -4,6 +4,7 @@ Agent Atlas Audit Script
 
 Compares current code state against documented state in reference files.
 Detects drift and generates reports for updating documentation.
+Also checks for philosophy-alignment issues (over-engineering patterns).
 
 Usage:
     python audit_agent.py              # Full audit
@@ -11,6 +12,8 @@ Usage:
     python audit_agent.py --agents     # Agents only
     python audit_agent.py --quick      # Quick check (no details)
     python audit_agent.py --generate-catalog  # Regenerate TOOL-CATALOG.md
+    python audit_agent.py --philosophy # Check philosophy alignment
+    python audit_agent.py --masonry    # Find masonry-specific language
 """
 
 import argparse
@@ -273,6 +276,200 @@ def check_recent_changes() -> List[str]:
     return relevant
 
 
+# =============================================================================
+# PHILOSOPHY ALIGNMENT CHECKS
+# =============================================================================
+
+# Masonry-specific terms that should be generalized
+MASONRY_PATTERNS = [
+    (r'\bmasonry\b', 'masonry'),
+    (r'\bchimney\b', 'chimney'),
+    (r'\btuckpointing\b', 'tuckpointing'),
+    (r'\bbrick\s+repair\b', 'brick repair'),
+    (r'\bstone\s+masonry\b', 'stone masonry'),
+    (r'\bfoundation\s+repair\b', 'foundation repair'),
+    (r'\befflorescence\b', 'efflorescence'),
+    (r'\bmortar\b', 'mortar'),
+]
+
+# Files to check for masonry-specific language
+PHILOSOPHY_CHECK_FILES = [
+    "src/lib/ai/prompts.ts",
+    "src/lib/agents/story-extractor.ts",
+    "src/lib/agents/content-generator.ts",
+    "src/lib/agents/quality-checker.ts",
+    "src/lib/chat/tool-schemas.ts",
+    "src/lib/chat/chat-prompts.ts",
+    "src/lib/trades/config.ts",
+    "src/lib/data/services.ts",
+]
+
+# Magic number patterns (thresholds that should be removed)
+MAGIC_NUMBER_PATTERNS = [
+    (r'MIN_\w+_WORDS\s*=\s*\d+', 'MIN_*_WORDS threshold'),
+    (r'MIN_\w+\s*=\s*\d+', 'MIN_* threshold'),
+    (r'THRESHOLD\s*=\s*[\d.]+', 'THRESHOLD value'),
+    (r'\.\s*min\s*\(\s*\d+\s*\)', '.min() validation'),
+    (r'\.\s*max\s*\(\s*\d+\s*\)', '.max() validation'),
+    (r'>=\s*\d+\s*words', 'word count check'),
+    (r'<\s*\d+\s*words', 'word count check'),
+]
+
+# Prescriptive workflow patterns
+PRESCRIPTIVE_PATTERNS = [
+    (r'step\s*1[:\)]', 'numbered step'),
+    (r'step\s*2[:\)]', 'numbered step'),
+    (r'step\s*3[:\)]', 'numbered step'),
+    (r'1\)\s+\w+', 'numbered procedure'),
+    (r'2\)\s+\w+', 'numbered procedure'),
+    (r'MUST\s+call\s+\w+\s+first', 'forced ordering'),
+    (r'ONLY\s+set\s+true\s+when', 'rigid condition'),
+    (r'ALWAYS\s+call\s+\w+\s+after', 'forced sequence'),
+]
+
+
+def check_masonry_language(verbose: bool = True) -> List[Tuple[str, str, int, str]]:
+    """
+    Find masonry-specific language in monitored files.
+
+    Returns list of (file, pattern_name, line_number, line_content) tuples.
+    """
+    findings = []
+
+    for file_path in PHILOSOPHY_CHECK_FILES:
+        full_path = PROJECT_ROOT / file_path
+        if not full_path.exists():
+            continue
+
+        content = full_path.read_text()
+        lines = content.split('\n')
+
+        for line_num, line in enumerate(lines, 1):
+            # Skip comments that might be documenting the issue
+            if '// TODO' in line or '// FIXME' in line or '# NOTE' in line:
+                continue
+
+            for pattern, name in MASONRY_PATTERNS:
+                if re.search(pattern, line, re.IGNORECASE):
+                    # Skip if it's in a comment explaining the issue
+                    if 'masonry-specific' in line.lower() or 'to be removed' in line.lower():
+                        continue
+                    findings.append((file_path, name, line_num, line.strip()[:80]))
+
+    if verbose and findings:
+        print(f"\n  Found {len(findings)} masonry-specific references:")
+        # Group by file
+        by_file: Dict[str, List] = {}
+        for f, name, line, content in findings:
+            by_file.setdefault(f, []).append((name, line, content))
+
+        for file_path, items in by_file.items():
+            print(f"\n  📄 {file_path}:")
+            for name, line, content in items[:5]:  # Show first 5 per file
+                print(f"     Line {line}: '{name}' - {content[:50]}...")
+            if len(items) > 5:
+                print(f"     ... and {len(items) - 5} more")
+
+    return findings
+
+
+def check_magic_numbers(verbose: bool = True) -> List[Tuple[str, str, int, str]]:
+    """
+    Find magic numbers and thresholds that should be removed.
+
+    Returns list of (file, pattern_name, line_number, line_content) tuples.
+    """
+    findings = []
+
+    for file_path in PHILOSOPHY_CHECK_FILES:
+        full_path = PROJECT_ROOT / file_path
+        if not full_path.exists():
+            continue
+
+        content = full_path.read_text()
+        lines = content.split('\n')
+
+        for line_num, line in enumerate(lines, 1):
+            for pattern, name in MAGIC_NUMBER_PATTERNS:
+                if re.search(pattern, line, re.IGNORECASE):
+                    findings.append((file_path, name, line_num, line.strip()[:80]))
+
+    if verbose and findings:
+        print(f"\n  Found {len(findings)} magic number/threshold patterns:")
+        for f, name, line, content in findings[:10]:
+            print(f"     {f}:{line} - {name}")
+        if len(findings) > 10:
+            print(f"     ... and {len(findings) - 10} more")
+
+    return findings
+
+
+def check_prescriptive_patterns(verbose: bool = True) -> List[Tuple[str, str, int, str]]:
+    """
+    Find prescriptive workflow patterns (numbered steps, forced sequences).
+
+    Returns list of (file, pattern_name, line_number, line_content) tuples.
+    """
+    findings = []
+
+    # Focus on prompt files where prescriptive patterns are most problematic
+    prompt_files = [
+        "src/lib/chat/chat-prompts.ts",
+        "src/lib/agents/story-extractor.ts",
+    ]
+
+    for file_path in prompt_files:
+        full_path = PROJECT_ROOT / file_path
+        if not full_path.exists():
+            continue
+
+        content = full_path.read_text()
+        lines = content.split('\n')
+
+        for line_num, line in enumerate(lines, 1):
+            for pattern, name in PRESCRIPTIVE_PATTERNS:
+                if re.search(pattern, line, re.IGNORECASE):
+                    findings.append((file_path, name, line_num, line.strip()[:80]))
+
+    if verbose and findings:
+        print(f"\n  Found {len(findings)} prescriptive workflow patterns:")
+        for f, name, line, content in findings[:10]:
+            print(f"     {f}:{line} - {name}")
+        if len(findings) > 10:
+            print(f"     ... and {len(findings) - 10} more")
+
+    return findings
+
+
+def audit_philosophy(verbose: bool = True) -> List[str]:
+    """
+    Full philosophy alignment audit.
+
+    Checks for:
+    - Masonry-specific language
+    - Magic numbers and thresholds
+    - Prescriptive workflow patterns
+    """
+    issues = []
+
+    print("\n  Checking masonry-specific language...")
+    masonry = check_masonry_language(verbose=verbose)
+    if masonry:
+        issues.append(f"Found {len(masonry)} masonry-specific references to generalize")
+
+    print("\n  Checking magic numbers and thresholds...")
+    magic = check_magic_numbers(verbose=verbose)
+    if magic:
+        issues.append(f"Found {len(magic)} magic number/threshold patterns to remove")
+
+    print("\n  Checking prescriptive workflow patterns...")
+    prescriptive = check_prescriptive_patterns(verbose=verbose)
+    if prescriptive:
+        issues.append(f"Found {len(prescriptive)} prescriptive patterns to soften")
+
+    return issues
+
+
 def main():
     parser = argparse.ArgumentParser(description="Audit agent system documentation")
     parser.add_argument("--tools", action="store_true", help="Audit tools only")
@@ -281,6 +478,8 @@ def main():
     parser.add_argument("--quick", action="store_true", help="Quick check, no details")
     parser.add_argument("--since-last-change", action="store_true", help="Show changes since last changelog")
     parser.add_argument("--generate-catalog", action="store_true", help="Generate TOOL-CATALOG.md")
+    parser.add_argument("--philosophy", action="store_true", help="Check philosophy alignment")
+    parser.add_argument("--masonry", action="store_true", help="Find masonry-specific language only")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -289,42 +488,79 @@ def main():
     print("=" * 60)
 
     all_issues = []
+    philosophy_issues = []
 
-    # Check for recent changes first
-    if args.since_last_change or not any([args.tools, args.agents, args.artifacts]):
-        print("\n📋 Changes since last changelog entry:")
-        changes = check_recent_changes()
-        if changes:
-            for change in changes:
-                print(f"  ⚠️  {change}")
+    # Determine if any specific audit was requested
+    specific_audit = any([args.tools, args.agents, args.artifacts, args.philosophy, args.masonry])
+
+    # Philosophy-only audits
+    if args.masonry:
+        print("\n🧱 Masonry Language Check:")
+        findings = check_masonry_language(verbose=not args.quick)
+        if findings:
+            philosophy_issues.append(f"Found {len(findings)} masonry-specific references")
         else:
-            print("  ✅ No relevant changes detected")
+            print("  ✅ No masonry-specific language found")
 
-    # Audit tools
-    if args.tools or not any([args.tools, args.agents, args.artifacts]):
-        print("\n🔧 Tool Audit:")
-        issues = audit_tools(verbose=not args.quick)
-        all_issues.extend(issues)
+    elif args.philosophy:
+        print("\n📜 Philosophy Alignment Audit:")
+        issues = audit_philosophy(verbose=not args.quick)
+        philosophy_issues.extend(issues)
+        if not issues:
+            print("\n  ✅ No philosophy-alignment issues found")
 
-    # Audit agents
-    if args.agents or not any([args.tools, args.agents, args.artifacts]):
-        print("\n🤖 Agent Audit:")
-        issues = audit_agents(verbose=not args.quick)
-        all_issues.extend(issues)
+    # Standard audits
+    else:
+        # Check for recent changes first
+        if args.since_last_change or not specific_audit:
+            print("\n📋 Changes since last changelog entry:")
+            changes = check_recent_changes()
+            if changes:
+                for change in changes:
+                    print(f"  ⚠️  {change}")
+            else:
+                print("  ✅ No relevant changes detected")
 
-    # Audit artifacts
-    if args.artifacts or not any([args.tools, args.agents, args.artifacts]):
-        print("\n🎨 Artifact Audit:")
-        issues = audit_artifacts(verbose=not args.quick)
-        all_issues.extend(issues)
+        # Audit tools
+        if args.tools or not specific_audit:
+            print("\n🔧 Tool Audit:")
+            issues = audit_tools(verbose=not args.quick)
+            all_issues.extend(issues)
+
+        # Audit agents
+        if args.agents or not specific_audit:
+            print("\n🤖 Agent Audit:")
+            issues = audit_agents(verbose=not args.quick)
+            all_issues.extend(issues)
+
+        # Audit artifacts
+        if args.artifacts or not specific_audit:
+            print("\n🎨 Artifact Audit:")
+            issues = audit_artifacts(verbose=not args.quick)
+            all_issues.extend(issues)
 
     # Summary
     print("\n" + "=" * 60)
-    if all_issues:
-        print(f"❌ Found {len(all_issues)} issue(s):")
-        for issue in all_issues:
-            print(f"  • {issue}")
-        sys.exit(1)
+
+    total_issues = len(all_issues) + len(philosophy_issues)
+
+    if total_issues > 0:
+        if all_issues:
+            print(f"❌ Found {len(all_issues)} documentation issue(s):")
+            for issue in all_issues:
+                print(f"  • {issue}")
+        if philosophy_issues:
+            print(f"⚠️  Found {len(philosophy_issues)} philosophy-alignment issue(s):")
+            for issue in philosophy_issues:
+                print(f"  • {issue}")
+            print("\n  See: references/MIGRATIONS.md for migration tracking")
+            print("  See: references/PHILOSOPHY.md for principles")
+
+        # Philosophy issues are warnings, not failures (exit 0)
+        if all_issues:
+            sys.exit(1)
+        else:
+            sys.exit(0)
     else:
         print("✅ All documentation is in sync with code")
         sys.exit(0)

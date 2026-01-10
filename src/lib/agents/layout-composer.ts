@@ -2,7 +2,7 @@
  * Layout Composer Agent
  *
  * Generates structured description blocks and optional image ordering
- * for a contractor portfolio project.
+ * for a business portfolio project.
  *
  * @see /docs/09-agent/multi-agent-architecture.md
  */
@@ -10,6 +10,7 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { descriptionBlocksSchema, type DescriptionBlock } from '@/lib/content/description-blocks';
+import { logger } from '@/lib/logging';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { getGenerationModel, isGoogleAIEnabled, OUTPUT_LIMITS } from '@/lib/ai/providers';
 import type { SharedProjectState } from './types';
@@ -36,17 +37,20 @@ const LayoutComposerSchema = z.object({
   confidence: z.number().min(0).max(1).optional(),
 });
 
-const LAYOUT_SYSTEM_PROMPT = `You are a layout composer for contractor portfolio pages.
+/**
+ * Philosophy: Let the model decide structure based on the actual story.
+ * Don't prescribe sections like "Problem → Solution → Results" - each
+ * project is unique and deserves authentic presentation.
+ */
+const LAYOUT_SYSTEM_PROMPT = `You are a layout composer for business portfolio pages.
 
 Turn the provided project context into structured description blocks.
 
 Rules:
-- Use ONLY provided facts. Do not invent materials, timelines, or outcomes.
-- Keep blocks concise and skimmable (4-10 blocks when possible).
-- Start with a short overview paragraph.
-- Use headings for key sections (e.g., Project Overview, The Problem, The Solution, Results, Craft).
-- Use lists for materials or techniques when present.
-- Use callouts for timeline or "proud of" details when present.
+- Use ONLY provided facts. Do not invent details.
+- Keep blocks concise and skimmable.
+- Let the project's story guide structure - don't force a template.
+- Use the block types (paragraph, heading, list, callout, stats, quote) as building blocks.
 - If includeImageOrder is true, return imageOrder as a list of provided image IDs.
 
 Return JSON that matches the schema exactly.`;
@@ -151,36 +155,36 @@ function normalizeImageOrder(
   return [...filtered, ...remainder];
 }
 
+/**
+ * Simple fallback when AI is unavailable.
+ * Just presents the data naturally without forced sections.
+ */
 function buildFallbackBlocks(state: SharedProjectState): DescriptionBlock[] {
   const blocks: DescriptionBlock[] = [];
   const locationLabel = getLocationLabel(state);
-  const summaryParts: string[] = [];
 
-  if (state.projectType) summaryParts.push(`Project: ${state.projectType}.`);
-  if (state.customerProblem) summaryParts.push(`Problem: ${state.customerProblem}`);
-  if (state.solutionApproach) summaryParts.push(`Solution: ${state.solutionApproach}`);
-  if (locationLabel) summaryParts.push(`Location: ${locationLabel}.`);
+  // Build a natural summary from available data
+  const summaryParts: string[] = [];
+  if (state.customerProblem) summaryParts.push(state.customerProblem);
+  if (state.solutionApproach) summaryParts.push(state.solutionApproach);
+  if (state.proudOf) summaryParts.push(state.proudOf);
 
   if (summaryParts.length > 0) {
     blocks.push({ type: 'paragraph', text: summaryParts.join(' ') });
   }
 
-  if (state.materials.length > 0) {
-    blocks.push({ type: 'heading', level: '2', text: 'Materials Used' });
-    blocks.push({ type: 'list', style: 'bullet', items: state.materials });
+  // Combine materials and techniques into one list if present
+  const craftDetails = [...state.materials, ...state.techniques];
+  if (craftDetails.length > 0) {
+    blocks.push({ type: 'list', style: 'bullet', items: craftDetails });
   }
 
-  if (state.techniques.length > 0) {
-    blocks.push({ type: 'heading', level: '2', text: 'Techniques' });
-    blocks.push({ type: 'list', style: 'bullet', items: state.techniques });
-  }
-
-  if (state.duration) {
-    blocks.push({ type: 'callout', variant: 'info', title: 'Timeline', text: state.duration });
-  }
-
-  if (state.proudOf) {
-    blocks.push({ type: 'callout', variant: 'tip', title: 'Proud Of', text: state.proudOf });
+  // Add location and duration as simple stats if present
+  const stats: Array<{ label: string; value: string }> = [];
+  if (locationLabel) stats.push({ label: 'Location', value: locationLabel });
+  if (state.duration) stats.push({ label: 'Timeline', value: state.duration });
+  if (stats.length > 0) {
+    blocks.push({ type: 'stats', items: stats });
   }
 
   return blocks;
@@ -224,7 +228,7 @@ export async function composePortfolioLayout(
       missingContext: mergeMissingContext(object.missingContext, detectedMissing),
     };
   } catch (error) {
-    console.error('[LayoutComposer] Error:', error);
+    logger.error('[LayoutComposer] Error', { error });
     return {
       blocks: buildFallbackBlocks(state),
       imageOrder: normalizeImageOrder(undefined, state, options.includeImageOrder),

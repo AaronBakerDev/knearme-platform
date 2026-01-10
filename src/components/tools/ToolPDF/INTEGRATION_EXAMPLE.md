@@ -7,7 +7,7 @@ Complete example showing how to integrate PDFExportButton into a tool results pa
 ### 1. Tool Results Page Component
 
 ```tsx
-// src/app/(contractor)/tools/seo-analyzer/results/page.tsx
+// src/app/(dashboard)/tools/seo-analyzer/results/page.tsx
 'use client'
 
 import { useSearchParams } from 'next/navigation'

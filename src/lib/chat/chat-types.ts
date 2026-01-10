@@ -124,7 +124,20 @@ export interface GeneratedContent {
   techniques: string[];
 }
 
-/** Wizard phases - tracks overall progress */
+/**
+ * Wizard phases - tracks overall progress.
+ *
+ * @deprecated Phase tracking is now informational only, not for gating.
+ * The model decides what to do based on conversation context.
+ * All UI controls are always available regardless of phase.
+ *
+ * Kept for:
+ * - Backwards compatibility with session persistence
+ * - Analytics and observability
+ * - Visual progress indicators (non-blocking)
+ *
+ * @see /docs/philosophy/agent-philosophy.md
+ */
 export type ChatPhase =
   | 'conversation'  // Gathering project info via chat
   | 'uploading'     // User is uploading images
@@ -208,7 +221,7 @@ export interface ChatRequest {
  * // In route handler after auth:
  * const context: ToolContext = {
  *   userId: auth.user.id,
- *   contractorId: auth.contractor.id,
+ *   businessId: auth.business.id,
  *   projectId: requestBody.projectId,  // from request
  *   sessionId: requestBody.sessionId,  // from request
  * };
@@ -223,7 +236,7 @@ export interface ChatRequest {
  *       .from('projects')
  *       .select('*')
  *       .eq('id', context.projectId)
- *       .eq('contractor_id', context.contractorId)
+ *       .eq('business_id', context.businessId)
  *       .single();
  *     return { ...args, data };
  *   },
@@ -235,7 +248,7 @@ export interface ChatRequest {
  * The Vercel AI SDK's tool execute function only receives the model's
  * output (args). Context must be provided via closure because:
  *
- * 1. Security: Model can't manipulate context (userId, contractorId)
+ * 1. Security: Model can't manipulate context (userId, businessId)
  * 2. Type safety: Context is typed separately from tool input schema
  * 3. Consistency: Same pattern as other Next.js route handlers
  *
@@ -263,8 +276,8 @@ export interface ToolContext {
   userId: string;
 
   /**
-   * Authenticated user's contractor ID from contractors table.
+   * Authenticated user's business ID from businesses table.
    * Always required - used for RLS and data access.
    */
-  contractorId: string;
+  businessId: string;
 }

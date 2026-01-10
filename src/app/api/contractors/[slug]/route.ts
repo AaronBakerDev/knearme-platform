@@ -10,9 +10,11 @@
  */
 
 import { NextRequest } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { apiError, apiSuccess, handleApiError } from '@/lib/api/errors';
-import type { Contractor, Project, ProjectImage } from '@/types/database';
+import { logger } from '@/lib/logging';
+import type { Contractor, Database, Project, ProjectImage } from '@/types/database';
 
 /**
  * Public contractor profile response.
@@ -67,23 +69,23 @@ export async function GET(
       return apiError('VALIDATION_ERROR', 'Contractor slug is required');
     }
 
-    const supabase = await createClient();
+    const supabase = (await createClient()) as SupabaseClient<Database>;
 
     // Fetch contractor by profile_slug
     // Note: profile_slug is the URL-friendly business slug (unique)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: contractor, error: contractorError } = await (supabase as any)
+    const { data: contractorData, error: contractorError } = await (supabase as any)
       .from('contractors')
       .select('*')
       .eq('profile_slug', slug)
       .not('business_name', 'is', null)  // Only complete profiles
       .single();
 
-    if (contractorError || !contractor) {
+    if (contractorError || !contractorData) {
       return apiError('NOT_FOUND', 'Contractor not found');
     }
 
-    const typedContractor = contractor as Contractor;
+    const contractor = contractorData as Contractor;
 
     // Fetch published projects for this contractor
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -106,27 +108,27 @@ export async function GET(
           display_order
         )
       `)
-      .eq('contractor_id', typedContractor.id)
+      .eq('contractor_id', contractor.id)
       .eq('status', 'published')
       .order('published_at', { ascending: false });
 
     if (projectsError) {
-      console.error('[GET /api/contractors/[slug]] Projects error:', projectsError);
+      logger.error('[GET /api/contractors/[slug]] Projects error', { error: projectsError });
       // Continue without projects rather than failing completely
     }
 
     // Transform to public shape (strip sensitive data)
     const publicContractor: PublicContractor = {
-      id: typedContractor.id,
-      business_name: typedContractor.business_name!,
-      profile_slug: typedContractor.profile_slug!,
-      city: typedContractor.city!,
-      state: typedContractor.state!,
-      city_slug: typedContractor.city_slug!,
-      services: typedContractor.services ?? [],
-      service_areas: typedContractor.service_areas ?? [],
-      description: typedContractor.description,
-      profile_photo_url: typedContractor.profile_photo_url,
+      id: contractor.id,
+      business_name: contractor.business_name!,
+      profile_slug: contractor.profile_slug!,
+      city: contractor.city!,
+      state: contractor.state!,
+      city_slug: contractor.city_slug!,
+      services: contractor.services ?? [],
+      service_areas: contractor.service_areas ?? [],
+      description: contractor.description,
+      profile_photo_url: contractor.profile_photo_url,
     };
 
     // Transform projects with thumbnail from first image
@@ -153,8 +155,8 @@ export async function GET(
         slug: project.slug ?? project.id,
         project_type: project.project_type ?? 'General',
         project_type_slug: project.project_type_slug ?? 'general',
-        city: project.city ?? typedContractor.city ?? '',
-        city_slug: project.city_slug ?? typedContractor.city_slug ?? '',
+        city: project.city ?? contractor.city ?? '',
+        city_slug: project.city_slug ?? contractor.city_slug ?? '',
         description: project.description ?? '',
         seo_description: project.seo_description,
         published_at: project.published_at ?? project.created_at,

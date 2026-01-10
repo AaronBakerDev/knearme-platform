@@ -9,8 +9,7 @@
 
 import Link from 'next/link';
 import { Home, Search, ArrowLeft, Building2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
 
 export default function NotFound() {
   return (

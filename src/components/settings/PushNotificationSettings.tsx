@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bell, BellOff, BellRing, Info, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button, Badge, Alert, AlertDescription } from '@/components/ui';
 import {
   getExistingPushSubscription,
   isPushSupported,
@@ -13,6 +11,7 @@ import {
   subscribeAndPersist,
   unsubscribeAndRemove,
 } from '@/lib/notifications';
+import { logger } from '@/lib/logging';
 
 type PermissionState = 'default' | 'granted' | 'denied';
 
@@ -55,7 +54,7 @@ export function PushNotificationSettings() {
       setHasSubscription(!!subscription);
       setError(null);
     } catch (err) {
-      console.error('[Settings] Push subscription check failed', err);
+      logger.error('[Settings] Push subscription check failed', { error: err });
       setError('We could not verify notification status. Try again.');
     } finally {
       setIsLoading(false);
@@ -82,7 +81,7 @@ export function PushNotificationSettings() {
       await subscribeAndPersist();
       toast.success('Notifications enabled.');
     } catch (err) {
-      console.error('[Settings] Push enable failed', err);
+      logger.error('[Settings] Push enable failed', { error: err });
       toast.error('Failed to enable notifications.');
       setError('We could not enable notifications.');
     } finally {
@@ -99,7 +98,7 @@ export function PushNotificationSettings() {
       await unsubscribeAndRemove();
       toast.success('Notifications disabled.');
     } catch (err) {
-      console.error('[Settings] Push disable failed', err);
+      logger.error('[Settings] Push disable failed', { error: err });
       toast.error('Failed to disable notifications.');
       setError('We could not disable notifications.');
     } finally {

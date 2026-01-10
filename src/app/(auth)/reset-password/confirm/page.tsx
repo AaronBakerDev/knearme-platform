@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { PasswordInput } from '@/components/ui/password-input';
-import { PasswordRequirements, validatePassword } from '@/components/ui/password-requirements';
+import {
+  Button, Label,
+  Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle,
+  PasswordInput, PasswordRequirements, validatePassword
+} from '@/components/ui';
 import { Lock, Loader2, AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 /**

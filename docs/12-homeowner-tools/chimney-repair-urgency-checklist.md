@@ -9,7 +9,7 @@
 
 ## Overview
 
-A rules‑based checklist that helps homeowners determine whether chimney issues are low‑risk, need a scheduled repair, or require urgent professional attention.
+A rules‑based checklist that helps clients determine whether chimney issues are low‑risk, need a scheduled repair, or require urgent professional attention.
 
 ---
 

@@ -90,6 +90,7 @@ const LIVE_TOOL_DEFINITIONS: LiveToolDefinition[] = [
 ];
 
 function toJsonSchema(schema: LiveToolDefinition['schema']) {
+  // Cast to any for Zod v4 compatibility with zod-to-json-schema
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const jsonSchema = zodToJsonSchema(schema as any, { $refStrategy: 'none' }) as Record<string, unknown>;
   delete jsonSchema.$schema;

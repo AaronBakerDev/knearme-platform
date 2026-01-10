@@ -35,8 +35,7 @@ export async function GET(): Promise<NextResponse<HealthResponse>> {
     // Test database connectivity with a simple query
     const supabase = await createClient();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('contractors')
       .select('id')
       .limit(1);

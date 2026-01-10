@@ -3,16 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check, Shield } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
+  Button, Badge, Switch,
+  Card, CardContent, CardDescription, CardHeader, CardTitle
+} from "@/components/ui";
 
 /**
  * Pricing Section
@@ -58,7 +52,11 @@ const tiers = [
   },
 ];
 
-export function Pricing() {
+type PricingProps = {
+  authCta?: { href: string; label: string } | null;
+};
+
+export function Pricing({ authCta }: PricingProps) {
   const [isAnnual, setIsAnnual] = useState(false);
 
   const getPrice = (tier: (typeof tiers)[0]) => {
@@ -156,9 +154,9 @@ export function Pricing() {
                   ))}
                 </ul>
 
-                <Link href="/signup" className="block">
+                <Link href={authCta?.href ?? "/signup"} className="block">
                   <Button variant={tier.ctaVariant} className="w-full h-11">
-                    {tier.cta}
+                    {authCta?.label ?? tier.cta}
                   </Button>
                 </Link>
 

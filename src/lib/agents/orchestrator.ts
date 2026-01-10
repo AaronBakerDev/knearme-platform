@@ -1,84 +1,49 @@
 /**
  * Agent Orchestrator - Account Manager Persona
  *
- * The orchestrator is the "Account Manager" that contractors talk to.
- * It delegates to specialized agents behind the scenes:
- * - Story Extractor: Extracts structured data from conversation
- * - Content Generator: Creates polished content
- * - Quality Checker: Validates publish readiness
+ * ARCHITECTURE: Orchestrator + Subagents Pattern
  *
- * The contractor only ever sees the Account Manager persona.
+ * The Account Manager is the user-facing persona that coordinates specialist
+ * subagents. It has lightweight tools (read, delegateTask) and delegates
+ * complex work to:
  *
- * @see /docs/09-agent/multi-agent-architecture.md
+ * - Story Agent: Conversation, images, narrative extraction
+ * - Design Agent: Layout, tokens, preview generation
+ * - Quality Agent: Assessment, advisory suggestions (NOT blocking)
+ *
+ * KEY PRINCIPLE: Don't overload the orchestrator with all the tools.
+ * Each subagent has focused expertise and tools.
+ *
+ * The user only ever sees the Account Manager persona.
+ *
+ * PHILOSOPHY: The orchestrator no longer forces phase progression.
+ * It coordinates via checkpoints, not gates. Subagents signal when ready.
+ *
+ * @see /.claude/skills/agent-atlas/references/AGENT-PERSONAS.md
+ * @see /todo/ai-sdk-phase-10-persona-agents.md
+ * @see /docs/philosophy/agent-philosophy.md
  */
 
 import type { SharedProjectState } from './types';
-
-// Agent imports
 import { extractStory } from './story-extractor';
 import { generateContent } from './content-generator';
 import { checkQuality } from './quality-checker';
+import { determinePhase } from './orchestrator/state';
+import type {
+  OrchestratorAction,
+  OrchestratorContext,
+  OrchestratorResult,
+} from './orchestrator/types';
 
 /**
- * Actions the orchestrator can take.
- */
-export type OrchestratorAction =
-  | { type: 'extract_story'; message: string }
-  | { type: 'generate_content' }
-  | { type: 'check_quality' }
-  | { type: 'request_clarification'; fields: string[] }
-  | { type: 'prompt_images' }
-  | { type: 'ready_to_publish' };
-
-/**
- * Result from orchestrator processing.
- */
-export interface OrchestratorResult {
-  /** Updated project state */
-  state: SharedProjectState;
-
-  /** Actions to take (may be multiple) */
-  actions: OrchestratorAction[];
-
-  /** Response message for the contractor */
-  message?: string;
-
-  /** Optional error details (for non-AI callers) */
-  error?: { message: string; retryable: boolean };
-}
-
-/**
- * Orchestrator context for processing messages.
- */
-export interface OrchestratorContext {
-  /** Current project state */
-  state: SharedProjectState;
-
-  /** Contractor message to process */
-  message: string;
-
-  /** Current phase of the conversation */
-  phase: 'gathering' | 'images' | 'generating' | 'review' | 'ready';
-}
-
-/**
- * Determine the current phase based on state.
- */
-export function determinePhase(state: SharedProjectState): OrchestratorContext['phase'] {
-  if (state.readyToPublish) return 'ready';
-  if (state.title && state.description) return 'review';
-  if (state.readyForContent) return 'generating';
-  if (state.readyForImages) return 'images';
-  return 'gathering';
-}
-
-/**
- * Process a contractor message through the agent system.
+ * Process a user message through the agent system.
  *
- * This is the main entry point for the orchestrator. It:
- * 1. Determines the current phase
- * 2. Delegates to appropriate agents
- * 3. Returns updated state and next actions
+ * PHILOSOPHY: This function no longer forces linear phase progression.
+ * It handles the requested operation and returns results. The model
+ * decides what operation to request based on conversation context.
+ *
+ * If no phase hint is provided, the orchestrator will determine
+ * the best action based on current state.
  *
  * @param context - Current context with state and message
  * @returns Orchestrator result with updated state and actions
@@ -86,15 +51,20 @@ export function determinePhase(state: SharedProjectState): OrchestratorContext['
 export async function orchestrate(
   context: OrchestratorContext
 ): Promise<OrchestratorResult> {
-  const { state, message, phase } = context;
+  const { state, message } = context;
 
-  // Handle based on current phase
+  // Derive phase from hint or state (backwards compatible)
+  const phase = context.phase ?? determinePhase(state);
+
+  // Handle based on derived operation (not forced progression)
+  // The phase tells us what operation makes sense given current context
   switch (phase) {
     case 'gathering':
       return handleGatheringPhase(state, message);
 
     case 'images':
-      return handleImagesPhase(state, message);
+      // No longer gates on images - just return current state
+      return { state, actions: [] };
 
     case 'generating':
       return handleGeneratingPhase(state);
@@ -106,7 +76,8 @@ export async function orchestrate(
       return handleReadyPhase(state, message);
 
     default:
-      return { state, actions: [] };
+      // Default to gathering if no phase matches
+      return handleGatheringPhase(state, message);
   }
 }
 
@@ -146,23 +117,18 @@ async function handleGatheringPhase(
 }
 
 /**
- * Handle the images phase - waiting for image uploads.
+ * Handle the images phase - no longer gates on image presence.
+ *
+ * @deprecated This phase handler is a no-op. The model decides
+ * when to generate content, not the orchestrator.
  */
-async function handleImagesPhase(
+async function _handleImagesPhase(
   state: SharedProjectState,
   _message: string
 ): Promise<OrchestratorResult> {
-  // In this phase, we're waiting for images
-  // The message might contain additional context or be a signal to proceed
-
-  // Check if we have images and can generate content
-  if (state.images.length > 0 && state.heroImageId) {
-    return {
-      state: { ...state, readyForContent: true },
-      actions: [{ type: 'generate_content' }],
-    };
-  }
-
+  // PHILOSOPHY: No longer gates on images.
+  // The model decides when to generate content based on context.
+  // Users can generate content with or without images.
   return { state, actions: [] };
 }
 
@@ -260,29 +226,18 @@ async function handleReadyPhase(
   };
 }
 
-/**
- * Merge extracted data into existing state.
- * Later values override earlier ones for the same field.
- */
-export function mergeProjectState(
-  existing: SharedProjectState,
-  updates: Partial<SharedProjectState>
-): SharedProjectState {
-  return {
-    ...existing,
-    ...updates,
-    // Merge arrays intelligently (dedupe)
-    materials: [...new Set([...existing.materials, ...(updates.materials || [])])],
-    techniques: [...new Set([...existing.techniques, ...(updates.techniques || [])])],
-    tags: [...new Set([...existing.tags, ...(updates.tags || [])])],
-    images: updates.images || existing.images,
-    // Merge clarification tracking
-    needsClarification: updates.needsClarification || existing.needsClarification,
-    clarifiedFields: [
-      ...new Set([
-        ...existing.clarifiedFields,
-        ...(updates.clarifiedFields || []),
-      ]),
-    ],
-  };
-}
+export {
+  delegateParallel,
+  delegateToDesignAgent,
+  delegateToQualityAgent,
+  delegateToStoryAgent,
+  synthesizeResults,
+} from './orchestrator/delegates';
+export { determinePhase, mergeProjectState } from './orchestrator/state';
+export type {
+  DelegationContext,
+  OrchestratorAction,
+  OrchestratorContext,
+  OrchestratorResult,
+  PhaseHint,
+} from './orchestrator/types';

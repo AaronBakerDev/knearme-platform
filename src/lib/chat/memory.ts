@@ -15,7 +15,63 @@
  * @see /supabase/migrations/XXX_add_memory_columns.sql
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logging';
+import type { Database } from '@/types/database';
+
+type ChatSessionRow = {
+  id: string;
+  project_id: string | null;
+  session_summary: string | null;
+  key_facts: KeyFact[] | null;
+  created_at: string;
+};
+
+type ChatSessionInsert = {
+  id?: string;
+  project_id?: string | null;
+  session_summary?: string | null;
+  key_facts?: KeyFact[] | null;
+  created_at?: string;
+};
+
+type ChatSessionUpdate = {
+  session_summary?: string | null;
+  key_facts?: KeyFact[] | null;
+  updated_at?: string | null;
+};
+
+type ProjectRow = Database['public']['Tables']['projects']['Row'] & {
+  ai_memory: ProjectMemory | null;
+};
+
+type ProjectInsert = Database['public']['Tables']['projects']['Insert'] & {
+  ai_memory?: ProjectMemory | null;
+};
+
+type ProjectUpdate = Database['public']['Tables']['projects']['Update'] & {
+  ai_memory?: ProjectMemory | null;
+};
+
+type ChatDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      chat_sessions: {
+        Row: ChatSessionRow;
+        Insert: ChatSessionInsert;
+        Update: ChatSessionUpdate;
+      };
+      projects: {
+        Row: ProjectRow;
+        Insert: ProjectInsert;
+        Update: ProjectUpdate;
+      };
+    };
+  };
+};
+
+type ChatSupabaseClient = SupabaseClient<ChatDatabase>;
 
 /**
  * A key fact extracted from conversation.
@@ -81,7 +137,7 @@ export async function saveSessionSummary(
   summary: string,
   keyFacts: KeyFact[]
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as ChatSupabaseClient;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
@@ -94,7 +150,10 @@ export async function saveSessionSummary(
     .eq('id', sessionId);
 
   if (error) {
-    console.error('[Memory] Failed to save session summary:', error);
+    logger.error('[Memory] Failed to save session summary', {
+      error,
+      sessionId,
+    });
     throw error;
   }
 }
@@ -114,7 +173,7 @@ export async function updateProjectMemory(
   newFacts: KeyFact[],
   preferences?: Partial<ProjectMemory['preferences']>
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as ChatSupabaseClient;
 
   // Get existing memory
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,12 +184,17 @@ export async function updateProjectMemory(
     .single();
 
   if (fetchError) {
-    console.error('[Memory] Failed to fetch project memory:', fetchError);
+    logger.error('[Memory] Failed to fetch project memory', {
+      error: fetchError,
+      projectId,
+    });
     throw fetchError;
   }
 
   // Parse existing memory or create new
-  const existingMemory: ProjectMemory = project?.ai_memory || {
+  // Type assertion for RLS-bypassed query result
+  const projectData = project as { ai_memory?: ProjectMemory } | null;
+  const existingMemory: ProjectMemory = projectData?.ai_memory || {
     facts: [],
     preferences: {},
     updatedAt: new Date().toISOString(),
@@ -157,7 +221,10 @@ export async function updateProjectMemory(
     .eq('id', projectId);
 
   if (updateError) {
-    console.error('[Memory] Failed to update project memory:', updateError);
+    logger.error('[Memory] Failed to update project memory', {
+      error: updateError,
+      projectId,
+    });
     throw updateError;
   }
 }
@@ -182,7 +249,7 @@ export async function buildSessionContext(
   projectId: string,
   limit = 5
 ): Promise<SessionContext> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as ChatSupabaseClient;
 
   // Get previous sessions with summaries (most recent first)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -195,7 +262,10 @@ export async function buildSessionContext(
     .limit(limit);
 
   if (sessionsError) {
-    console.error('[Memory] Failed to fetch previous sessions:', sessionsError);
+    logger.error('[Memory] Failed to fetch previous sessions', {
+      error: sessionsError,
+      projectId,
+    });
     // Return empty context on error rather than failing
     return {
       previousSummaries: [],
@@ -215,7 +285,10 @@ export async function buildSessionContext(
 
   if (projectError && projectError.code !== 'PGRST116') {
     // PGRST116 = no rows (project not found) - that's OK
-    console.error('[Memory] Failed to fetch project memory:', projectError);
+    logger.error('[Memory] Failed to fetch project memory', {
+      error: projectError,
+      projectId,
+    });
   }
 
   // Collect summaries and facts
@@ -227,7 +300,7 @@ export async function buildSessionContext(
       previousSummaries.push(session.session_summary);
     }
     if (session.key_facts && Array.isArray(session.key_facts)) {
-      allKeyFacts.push(...(session.key_facts as KeyFact[]));
+      allKeyFacts.push(...session.key_facts);
     }
   }
 
@@ -291,6 +364,37 @@ export function formatContextForPrompt(context: SessionContext): string {
   if (context.previousSummaries.length > 0 && context.previousSummaries[0]) {
     parts.push('\nMost recent conversation summary:');
     parts.push(context.previousSummaries[0]);
+  }
+
+  return parts.length > 0 ? parts.join('\n') : '';
+}
+
+/**
+ * Format memory/preference context for inclusion in the system prompt.
+ *
+ * Focuses on durable preferences and key facts, avoids repeating summaries.
+ */
+export function formatMemoryForPrompt(context: SessionContext): string {
+  const parts: string[] = [];
+
+  const prefs = context.projectMemory?.preferences;
+  if (prefs?.tone) {
+    parts.push(`Preferred tone: ${prefs.tone}`);
+  }
+  if (prefs?.focusAreas?.length) {
+    parts.push(`Focus areas: ${prefs.focusAreas.join(', ')}`);
+  }
+  if (prefs?.avoidTopics?.length) {
+    parts.push(`Avoid: ${prefs.avoidTopics.join(', ')}`);
+  }
+
+  const memoryFacts =
+    context.projectMemory?.facts?.length ? context.projectMemory.facts : context.keyFacts;
+  if (memoryFacts.length > 0) {
+    parts.push('\nKey facts to remember:');
+    for (const fact of memoryFacts.slice(0, 10)) {
+      parts.push(`- [${fact.type}] ${fact.content}`);
+    }
   }
 
   return parts.length > 0 ? parts.join('\n') : '';

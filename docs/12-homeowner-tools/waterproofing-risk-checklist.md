@@ -9,7 +9,7 @@
 
 ## Overview
 
-A rules‑based homeowner tool that (1) scores moisture/water‑damage risk for brick/stone masonry and (2) recommends the **most appropriate path**: drainage first, repointing, flashing repair, sealing, or professional inspection.
+A rules‑based client tool that (1) scores moisture/water‑damage risk for brick/stone masonry and (2) recommends the **most appropriate path**: drainage first, repointing, flashing repair, sealing, or professional inspection.
 
 The tool is intentionally conservative and explanatory. No AI.
 

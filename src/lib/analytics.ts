@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { logger } from '@/lib/logging';
 
 const GA_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
@@ -46,9 +47,9 @@ export const sendMeasurementEvent = async (
   options: MeasurementEventOptions = {},
 ) => {
   if (!GA_MEASUREMENT_ID || !GA_MEASUREMENT_PROTOCOL_SECRET) {
-    console.warn(
-      `[analytics] Missing GA4 env vars, skipping server event "${eventName}"`,
-    );
+    logger.warn('[analytics] Missing GA4 env vars, skipping server event', {
+      eventName,
+    });
     return { success: false, error: 'GA4 env vars not configured' };
   }
 
@@ -80,7 +81,7 @@ export const sendMeasurementEvent = async (
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('[analytics] Measurement Protocol error:', errorText);
+    logger.error('[analytics] Measurement Protocol error', { error: errorText });
     return { success: false, error: errorText };
   }
 
@@ -101,9 +102,9 @@ export const trackClientEvent = (
   if (typeof window === 'undefined') return;
   if (!GA_MEASUREMENT_ID) {
     if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        `[analytics] GA measurement ID missing, event "${eventName}" not sent`,
-      );
+      logger.warn('[analytics] GA measurement ID missing, event not sent', {
+        eventName,
+      });
     }
     return;
   }
@@ -119,4 +120,3 @@ export const trackClientEvent = (
     ...params,
   });
 };
-

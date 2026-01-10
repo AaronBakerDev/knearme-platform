@@ -6,15 +6,17 @@
 
 ## Overview
 
-Project Detail pages are individual **portfolio showcases** for completed masonry projects. These pages are the deepest level of the content hierarchy and target specific long-tail keywords based on AI-generated project titles.
+Project Detail pages are individual **portfolio showcases** for completed projects. These pages are the deepest level of the content hierarchy and target specific long-tail keywords based on AI-generated project titles.
 
 **Implementation:** `app/(public)/[city]/masonry/[type]/[slug]/page.tsx` (474 lines)
 
 **Business Purpose:**
-- Showcase contractor quality and expertise
-- Build homeowner trust through rich project stories
+- Showcase business quality and expertise
+- Build client trust through rich project stories
 - SEO landing pages for specific project types and techniques
-- Internal linking hubs to related projects and contractors
+- Internal linking hubs to related projects and business profiles
+
+**Vertical note:** Current routes and examples use the masonry wedge (`/masonry/`) until routing is generalized.
 
 ## Route Configuration
 
@@ -117,7 +119,7 @@ export async function generateStaticParams() {
 ### 3. Page Structure (Implemented)
 
 #### Breadcrumb Navigation
-- Home → {City} → Masonry → {Service Type} → {Project Title}
+- Home → {City} → Masonry (current vertical) → {Service Type} → {Project Title}
 - Includes JSON-LD BreadcrumbList schema
 - Fully clickable navigation trail
 
@@ -181,6 +183,7 @@ export async function generateStaticParams() {
 - **Design:** Gradient card backgrounds
 - **Lists:** Bulleted with custom styling
 - **Conditional:** Only displays if data exists
+- **Note:** These fields are masonry‑specific today; future verticals will map to equivalent “process/inputs” fields.
 
 **Example:**
 ```tsx
@@ -203,10 +206,10 @@ export async function generateStaticParams() {
 )}
 ```
 
-#### Contractor CTA
-- **Purpose:** Convert viewers to contractor profile visits
+#### Business CTA
+- **Purpose:** Convert viewers to business profile visits
 - **Design:** Prominent card with gradient background, border accent
-- **Content:** Contractor photo, name, location, services, "View All Projects" CTA
+- **Content:** Photo, name, location, services, optional NAP fields, "View All Projects" CTA
 - **Placement:** Below project content, above related projects
 
 #### Related Projects
@@ -301,7 +304,7 @@ const projectSchema = generateProjectSchema(project, contractor, images);
       "addressLocality": "Denver",
       "addressRegion": "CO"
     },
-    "url": "https://knearme.com/contractors/denver-co/contractor-id"
+    "url": "https://knearme.com/businesses/denver-co/contractor-id"
   },
   "datePublished": "2024-12-01T00:00:00Z",
   "keywords": ["chimney repair", "historic restoration", "brick masonry"]
@@ -310,7 +313,7 @@ const projectSchema = generateProjectSchema(project, contractor, images);
 
 **Additional Schemas:**
 - ImageGallery (for rich results in Google Images)
-- LocalBusiness (contractor attribution)
+- LocalBusiness (business attribution)
 
 **Breadcrumb Schema:**
 - Generated automatically by `<Breadcrumbs>` component
@@ -320,20 +323,20 @@ const projectSchema = generateProjectSchema(project, contractor, images);
 **Outbound Links (Implemented):**
 - Breadcrumb → City Hub page
 - Breadcrumb → Service Type by City page (Phase 2)
-- "More projects by {contractor}" → Contractor profile
-- Contractor CTA → Contractor profile
+- "More projects by {contractor}" → Business profile
+- Business CTA → Business profile
 - Related projects → Other project detail pages
 
 **Inbound Links (Expected):**
 - City Hub → Project cards
 - Service Type by City → Project cards (Phase 2)
-- Contractor Profile → Project portfolio
+- Business Profile → Project portfolio
 - Related Projects → This project
 
 **Link Context:**
 - All links use descriptive anchor text (not "click here")
 - Project links include city context in anchor text
-- Contractor links use business name
+- Business links use business name
 
 ## What's Implemented
 
@@ -343,7 +346,7 @@ const projectSchema = generateProjectSchema(project, contractor, images);
 - Static generation for top 100 published projects
 - Full project detail display (title, description, tags, materials, techniques)
 - Responsive photo gallery with lightbox
-- Contractor CTA card with profile link
+- Business CTA card with profile link
 - Related projects grid (4 projects)
 - SEO metadata (title, description, OG tags, Twitter cards)
 - JSON-LD schemas (CreativeWork, ImageGallery, LocalBusiness, Breadcrumbs)
@@ -359,8 +362,8 @@ const projectSchema = generateProjectSchema(project, contractor, images);
 - **Print Stylesheet:** Print-friendly version of project (Phase 3)
 - **Schema.org Review Integration:** When review system implemented (Phase 3)
 - **Before/After Toggle:** Interactive comparison for before/after images (Phase 2)
-- **Project Cost Estimates:** If contractors choose to share (Phase 3)
-- **Homeowner Testimonials:** Quote/review from homeowner (Phase 3)
+- **Project Cost Estimates:** If businesses choose to share (Phase 3)
+- **Client Testimonials:** Quote/review from client (Phase 3)
 
 ## Data Model Requirements
 
@@ -383,7 +386,7 @@ const projectSchema = generateProjectSchema(project, contractor, images);
 - `contractor_id` (uuid, FK) - Links to contractor
 
 **contractors:**
-- All fields from contractor table (see Contractor Profile template)
+- All fields from contractor table (see Business Profile template)
 
 **project_images:**
 - `project_id` (uuid, FK)
@@ -459,7 +462,7 @@ function generateProjectSlug(title: string): string {
 - ✅ 404 for draft/archived projects
 - ✅ Gallery lightbox navigation works
 - ✅ Related projects display correctly
-- ✅ Contractor CTA links to profile
+- ✅ Business CTA links to profile
 - ✅ Breadcrumbs navigate properly
 - ✅ Responsive layout (375px, 768px, 1920px)
 - ✅ Dark mode compatibility
@@ -469,7 +472,7 @@ function generateProjectSlug(title: string): string {
 ### Automated Testing (Not Implemented)
 
 **Recommended for Phase 2:**
-- E2E test: Full user journey (City Hub → Project → Contractor)
+- E2E test: Full user journey (City Hub → Project → Business)
 - Visual regression: Screenshot comparisons
 - Accessibility audit: WCAG AA compliance
 - Schema validation: Automated JSON-LD testing
@@ -549,7 +552,7 @@ function generateProjectSlug(title: string): string {
 - [SEO Discovery Strategy](../../SEO-DISCOVERY-STRATEGY.md) - Section 2.1, 6.1
 - [City Hub Template](./city-hub.md) - Parent page pattern
 - [Service Type by City Template](./service-type-city.md) - Parent page pattern (Phase 2)
-- [Contractor Profile Template](./contractor-profile.md) - Linked from CTA
+- [Business Profile Template](./contractor-profile.md) - Linked from CTA
 - [Data Model](../../03-architecture/data-model.md) - Database schema
 - [AI Content Generation](../../03-architecture/ai-pipeline.md) - How descriptions are created
 
@@ -564,7 +567,7 @@ function generateProjectSlug(title: string): string {
 - [x] Photo gallery with lightbox works
 - [x] Materials and techniques displayed (if present)
 - [x] Tags displayed as badges
-- [x] Contractor CTA links to profile
+- [x] Business CTA links to profile
 - [x] Related projects displayed (up to 4)
 - [x] Breadcrumbs navigate correctly
 
@@ -637,7 +640,7 @@ function generateProjectSlug(title: string): string {
    - Disclaimer: "Actual costs vary"
 
 7. **Homeowner Testimonial:**
-   - Quote from homeowner (if available)
+   - Quote from client (if available)
    - Star rating (if review system implemented)
    - Integration with future review feature
 

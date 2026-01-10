@@ -13,6 +13,7 @@
 
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
+import { logger } from '@/lib/logging';
 import type { TradeConfig } from '@/lib/trades/config';
 
 /**
@@ -106,7 +107,7 @@ Respond in this exact JSON format:
 
     return parsed;
   } catch (error) {
-    console.error('Image identification failed:', error);
+    logger.error('[ImageUtils] Image identification failed', { error });
     return createFallbackIdentification(tradeConfig);
   }
 }

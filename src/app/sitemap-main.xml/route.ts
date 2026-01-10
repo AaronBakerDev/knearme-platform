@@ -3,12 +3,12 @@
  *
  * Contains all static and dynamic pages.
  * Includes:
- * - Static pages (home, contractors, etc.)
+ * - Static pages (home, businesses, etc.)
  * - National service landing pages
  * - Learning center articles
  * - Homeowner tools
  * - Published portfolio projects
- * - Contractor profiles
+ * - Business profiles
  * - City landing pages
  * - City masonry hub pages
  * - Service type by city pages
@@ -16,16 +16,43 @@
  * @see /src/app/sitemap.ts (old implementation - being replaced)
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { NATIONAL_SERVICE_TYPES } from '@/lib/data/services';
+import { getServiceTypeSlugs } from '@/lib/data/services';
 import { getAllArticles } from '@/lib/content/mdx';
 import { LIVE_TOOLS } from '@/lib/tools/catalog';
+import { logger } from '@/lib/logging';
+import type { Database } from '@/types/database';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600; // 1 hour
+
+interface ReviewArticleRow {
+  slug: string;
+  generated_at: string;
+  status: string;
+}
+
+type ReviewArticleInsert = ReviewArticleRow;
+type ReviewArticleUpdate = Partial<ReviewArticleRow>;
+
+type SitemapDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & {
+      review_articles: {
+        Row: ReviewArticleRow;
+        Insert: ReviewArticleInsert;
+        Update: ReviewArticleUpdate;
+        Relationships: [];
+      };
+    };
+  };
+};
+
+type SitemapSupabaseClient = SupabaseClient<SitemapDatabase>;
 
 /**
  * Generates sitemap entry XML for a single URL
@@ -51,11 +78,12 @@ export async function GET() {
     // Static pages
     urls.push(
       generateUrlEntry(SITE_URL, new Date(), 'daily', 1.0),
-      generateUrlEntry(`${SITE_URL}/contractors`, new Date(), 'daily', 0.8)
+      generateUrlEntry(`${SITE_URL}/businesses`, new Date(), 'daily', 0.8)
     );
 
-    // National service landing pages
-    NATIONAL_SERVICE_TYPES.forEach((type) => {
+    // National service landing pages (from database)
+    const serviceSlugs = await getServiceTypeSlugs();
+    serviceSlugs.forEach((type) => {
       urls.push(
         generateUrlEntry(`${SITE_URL}/services/${type}`, new Date(), 'weekly', 0.75)
       );
@@ -88,7 +116,7 @@ export async function GET() {
 
     // Dynamic content from database (if service role key is available)
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      const supabase = createAdminClient();
+      const supabase = createAdminClient() as SitemapSupabaseClient;
 
       // Review articles from database (Learning center)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,8 +125,7 @@ export async function GET() {
         .select('slug, generated_at')
         .eq('status', 'published');
 
-      type ReviewArticle = { slug: string; generated_at: string };
-      const reviewList = (reviewArticles || []) as ReviewArticle[];
+      const reviewList = (reviewArticles ?? []) as ReviewArticleRow[];
 
       reviewList.forEach((article) => {
         urls.push(
@@ -128,7 +155,7 @@ export async function GET() {
         updated_at: string | null;
         published_at: string | null;
       };
-      const projectsList = (projects || []) as SitemapProject[];
+      const projectsList = (projects ?? []) as SitemapProject[];
 
       projectsList.forEach((project) => {
         const lastmod = new Date(project.updated_at || project.published_at!);
@@ -142,9 +169,8 @@ export async function GET() {
         );
       });
 
-      // Contractors with published projects
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: contractors } = await (supabase as any)
+      // Businesses with published projects (contractors table)
+      const { data: contractors } = await supabase
         .from('contractors')
         .select(`
           id,
@@ -163,7 +189,7 @@ export async function GET() {
         city_slug: string;
         updated_at: string;
       };
-      const contractorsList = (contractors || []) as SitemapContractor[];
+      const contractorsList = (contractors ?? []) as SitemapContractor[];
 
       // Deduplicate contractors (join may return duplicates)
       const uniqueContractors = new Map<string, SitemapContractor>();
@@ -176,7 +202,7 @@ export async function GET() {
       Array.from(uniqueContractors.values()).forEach((contractor) => {
         urls.push(
           generateUrlEntry(
-            `${SITE_URL}/contractors/${contractor.city_slug}/${contractor.profile_slug}`,
+            `${SITE_URL}/businesses/${contractor.city_slug}/${contractor.profile_slug}`,
             new Date(contractor.updated_at),
             'weekly',
             0.6
@@ -244,7 +270,7 @@ ${urls.join('\n')}
       },
     });
   } catch (error) {
-    console.error('[sitemap-main.xml] Error generating sitemap:', error);
+    logger.error('[sitemap-main.xml] Error generating sitemap', { error });
 
     // Return minimal sitemap on error
     const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>

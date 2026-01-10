@@ -14,6 +14,7 @@ import { normalizePlanTier } from '@/lib/billing/plan-limits';
 import { getDailyQuotaMinutes, PLAN_LIMITS } from './usage-limits';
 import type { VoiceMode } from './usage-tracking';
 import type { VoiceQuotaResult, DailyUsage } from './usage-limits';
+import { logger } from '@/lib/logging';
 
 /**
  * Get the start of today in UTC for database queries.
@@ -73,13 +74,16 @@ export async function checkVoiceQuota(
     .eq('id', contractorId)
     .single();
 
-  if (contractorError || !contractor) {
+  const contractorData = contractor as { plan_tier?: string } | null;
+
+  if (contractorError || !contractorData) {
     // Default to free tier if contractor not found (shouldn't happen)
-    console.warn('[VoiceQuota] Contractor not found, defaulting to free tier:', contractorId);
+    logger.warn('[VoiceQuota] Contractor not found, defaulting to free tier', {
+      contractorId,
+      error: contractorError,
+    });
   }
 
-  // Type assertion for the query result
-  const contractorData = contractor as { plan_tier?: string | null } | null;
   const planTier = normalizePlanTier(contractorData?.plan_tier);
 
   // Get the daily quota for this mode and tier
@@ -159,7 +163,7 @@ export async function getUsageToday(userId: string, mode?: VoiceMode): Promise<D
   const { data, error } = await query;
 
   if (error) {
-    console.error('[VoiceQuota] Failed to get daily usage:', error);
+    logger.error('[VoiceQuota] Failed to get daily usage', { error });
     return {
       totalMinutes: 0,
       sessions: 0,
@@ -167,9 +171,9 @@ export async function getUsageToday(userId: string, mode?: VoiceMode): Promise<D
     };
   }
 
-  const records = data as Array<{ duration_seconds: number | null }>;
+  const records = (data ?? []) as Array<{ duration_seconds?: number }>;
   const totalSeconds = records.reduce(
-    (sum, r) => sum + (r.duration_seconds || 0),
+    (sum, record) => sum + (record.duration_seconds ?? 0),
     0
   );
 

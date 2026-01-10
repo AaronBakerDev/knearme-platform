@@ -14,6 +14,7 @@
  */
 
 import { Langfuse } from 'langfuse';
+import { logger } from '@/lib/logging';
 
 // ============================================================================
 // Langfuse Client Singleton
@@ -138,10 +139,13 @@ export async function trackProjectPublished(metadata: {
     await langfuse.flushAsync();
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[KPI] Project published: ${metadata.projectId} (${durationMinutes} min)`);
+      logger.info('[KPI] Project published', {
+        projectId: metadata.projectId,
+        durationMinutes,
+      });
     }
   } catch (error) {
-    console.error('[KPI] Failed to track project published:', error);
+    logger.error('[KPI] Failed to track project published', { error });
   }
 }
 
@@ -225,10 +229,10 @@ export async function trackInterviewCompleted(metadata: {
     await langfuse.flushAsync();
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[KPI] Interview completed: ${metadata.projectId}`);
+      logger.info('[KPI] Interview completed', { projectId: metadata.projectId });
     }
   } catch (error) {
-    console.error('[KPI] Failed to track interview completed:', error);
+    logger.error('[KPI] Failed to track interview completed', { error });
   }
 }
 
@@ -301,10 +305,13 @@ export async function trackContentRegenerated(metadata: {
     await langfuse.flushAsync();
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[KPI] Content regenerated: ${metadata.projectId} (${metadata.section || 'all'})`);
+      logger.info('[KPI] Content regenerated', {
+        projectId: metadata.projectId,
+        section: metadata.section || 'all',
+      });
     }
   } catch (error) {
-    console.error('[KPI] Failed to track content regenerated:', error);
+    logger.error('[KPI] Failed to track content regenerated', { error });
   }
 }
 
@@ -352,10 +359,10 @@ export async function trackProjectCreated(metadata: {
     await langfuse.flushAsync();
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[KPI] Project created: ${metadata.projectId}`);
+      logger.info('[KPI] Project created', { projectId: metadata.projectId });
     }
   } catch (error) {
-    console.error('[KPI] Failed to track project created:', error);
+    logger.error('[KPI] Failed to track project created', { error });
   }
 }
 

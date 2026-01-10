@@ -1,175 +1,166 @@
 # User Personas
 
-> **Version:** 1.0
-> **Last Updated:** December 8, 2025
+> **Version:** 1.1
+> **Last Updated:** January 2, 2026
 
 ---
 
-## Primary Persona: Mike the Mason
+## Primary Persona: Mike the Portfolio Owner
 
 ### Demographics
 - **Age:** 45
 - **Location:** Denver, CO metro area
-- **Business:** Heritage Masonry LLC (3 employees)
-- **Experience:** 22 years in masonry trade
-- **Revenue:** ~$400K/year
+- **Business:** Stone & Steel Works (3 employees)
+- **Experience:** 18 years in hands-on services
+- **Revenue:** ~$350K/year
 
 ### Background
-Mike started as an apprentice bricklayer right out of high school. After 15 years working for other companies, he started his own business 7 years ago. He has a great reputation in his community—most of his work comes from referrals and repeat customers. His company specializes in chimney work, tuckpointing, and stone retaining walls.
+Mike started as an apprentice and worked his way up. He now runs a small specialty services business focused on custom installs, repairs, and restorations. His reputation is strong, but most of his work comes from referrals. He knows great work sells itself—if people can actually see it.
 
 ### Technology Profile
 | Aspect | Detail |
 |--------|--------|
 | **Primary Device** | iPhone 13 Pro (upgraded for camera) |
 | **Computer Use** | Laptop for invoicing, rarely |
-| **Software** | Jobber (job management), QuickBooks, personal Facebook |
-| **Tech Comfort** | Moderate - can use apps, hates typing on phone |
-| **Website** | 5-year-old WordPress site, hasn't been updated in 3 years |
+| **Software** | Scheduling/invoicing app, QuickBooks, personal Facebook |
+| **Tech Comfort** | Moderate — can use apps, hates typing |
+| **Website** | 5-year-old site, rarely updated |
 
 ### Daily Routine
 ```
-5:30 AM  - Wake up, check Jobber for day's schedule
+5:30 AM  - Wake up, check schedule
 6:00 AM  - Load truck, drive to job site
 7:00 AM  - Start work
 12:00 PM - Lunch break, check phone for messages
 12:30 PM - Back to work
 4:30 PM  - Clean up, take photos of completed work
-5:00 PM  - Drive home, call wife about dinner
+5:00 PM  - Drive home, call family
 5:30 PM  - Answer customer calls/texts
-7:00 PM  - Family dinner
-8:00 PM  - Watch TV, maybe check Facebook
+7:00 PM  - Dinner
+8:00 PM  - Relax, maybe check Facebook
 10:00 PM - Bed
 ```
 
 ### Goals
-1. **Stay fully booked** - Keep his crew working year-round
-2. **Find quality leads** - Tired of low-budget price shoppers
-3. **Build reputation** - Wants to be known as THE chimney guy in Denver
-4. **Spend less time on marketing** - Would rather be on a job site
+1. **Stay fully booked** — Keep his crew working year-round
+2. **Find quality leads** — Fewer price-shoppers, more serious clients
+3. **Build reputation** — Be the go-to name for his specialty
+4. **Spend less time on marketing** — More time on job sites
 
 ### Frustrations
-- "I do beautiful work but no one can see it online"
-- "My website is embarrassing but I don't have time to fix it"
-- "I spend too much time explaining my work to potential customers"
-- "HomeAdvisor sends me garbage leads that waste my time"
-- "Younger competitors have better Instagram presence"
+- "I do great work but no one can see it online"
+- "My website is embarrassing but I don’t have time to fix it"
+- "I keep explaining the same things to every new lead"
+- "Directories are full of noise"
+- "Competitors have better online presence"
 
 ### Quotes
-> "I'd love to post my projects somewhere, but after a 10-hour day, the last thing I want to do is sit down and write about it."
+> "If I could post a project in two minutes on my phone, I’d do it. But anything longer? Not happening."
 
-> "I take photos of every job—I send them to my wife, sometimes post on Facebook. But making it look professional? That's not happening."
-
-> "If you told me I could do it in 2 minutes on my phone, maybe. But anything more than that? Forget it."
+> "The photos are already on my phone. I just need them to look professional."
 
 ### How KnearMe Helps Mike
 | Pain Point | KnearMe Solution |
 |------------|------------------|
-| No time to write | AI generates professional descriptions |
-| Hates typing | Voice-first interview (talk while driving home) |
+| No time to write | Agents generate professional descriptions |
+| Hates typing | Voice-first interview |
 | Website is outdated | Portfolio auto-builds with each job |
 | Explaining work to prospects | Showcase speaks for itself |
-| Missing online visibility | SEO-optimized pages rank for local searches |
+| Missing online visibility | SEO-ready project pages |
 
 ### Success Scenario
-Mike finishes a chimney rebuild on Thursday afternoon. While cleaning up, he snaps 5 photos with his phone. Driving home, he opens KnearMe and uploads the photos. The app asks him 4 questions—he answers by voice while driving. By the time he gets home, there's a draft to approve. He taps "Looks good" and the project is live on his portfolio.
+Mike finishes a custom install on Thursday afternoon. While cleaning up, he snaps 5 photos with his phone. Driving home, he opens KnearMe and uploads the photos. The app asks him 4 questions—he answers by voice. By the time he gets home, there's a draft to approve. He taps "Looks good" and the project is live on his portfolio.
 
-**Total time invested: 3 minutes**
-**Result: Professional showcase page ranking for "chimney rebuild Denver"**
+**Total time invested: 3 minutes**  
+**Result: A professional showcase page ranking for "custom installs Denver"**
 
 ---
 
-## Secondary Persona: Sarah the Searcher
+## Secondary Persona: Jordan the Decision Maker
 
-> **Note:** Sarah is a Phase 2 persona. MVP focuses on contractor supply-side first.
+> **Note:** This is a Phase 2 persona. MVP focuses on the supply side first.
 
 ### Demographics
 - **Age:** 38
 - **Location:** Denver, CO suburb
 - **Occupation:** Marketing Manager (remote)
-- **Home:** 1920s brick bungalow, purchased 2 years ago
+- **Project:** Hiring a specialist for a home or business project
 - **Income:** $120K household
 
 ### Background
-Sarah and her husband bought their "forever home"—a charming 100-year-old brick house. They love the character but are learning that old homes need constant maintenance. The chimney has been leaking, and their home inspector flagged it as needing repair. This is their first time hiring a masonry contractor.
+Jordan needs a specialist for a specific job. They want to see real proof of similar work, not stock images. They’re willing to pay more for the right fit, but only if the work looks credible and relevant.
 
 ### Technology Profile
 | Aspect | Detail |
 |--------|--------|
 | **Primary Device** | iPhone 14, MacBook Pro |
-| **Research Style** | Thorough - reads reviews, views portfolios, compares multiple options |
-| **Social Media** | Instagram, Pinterest (follows home improvement accounts) |
-| **Trust Signals** | Photos of actual work, detailed explanations, local presence |
+| **Research Style** | Thorough — reads reviews, views portfolios, compares multiple options |
+| **Social Media** | Instagram, Pinterest (visual inspiration) |
+| **Trust Signals** | Real project photos, detailed explanations, local presence |
 
 ### The Search Journey
 ```mermaid
 graph LR
-    A[Problem:<br/>Chimney leaking] --> B[Research:<br/>What's involved?]
-    B --> C[Search:<br/>Contractors near me]
-    C --> D[Evaluate:<br/>Compare options]
+    A[Need:<br/>Project comes up] --> B[Research:<br/>What’s involved?]
+    B --> C[Search:<br/>Local options]
+    C --> D[Evaluate:<br/>Compare proof]
     D --> E[Decide:<br/>Request quotes]
     E --> F[Hire:<br/>Best fit]
 ```
 
 ### Current Experience (Pain Points)
 1. **Search results are unhelpful**
-   - Generic directories with no real information
-   - Stock photos instead of actual work
-   - Ratings with no context
+   - Generic directories with thin info
+   - Stock photos instead of real work
+   - Reviews with no context
 
 2. **Hard to verify quality**
-   - "How do I know they can do historic brick?"
-   - "All the reviews are 5 stars—are they real?"
-   - "I can't see examples of their actual chimney work"
+   - "How do I know they’ve done this exact type of work?"
+   - "All the reviews look the same"
+   - "I can’t see their style"
 
 3. **Comparison is difficult**
    - "Every website looks the same"
-   - "I can't tell who specializes in what"
-   - "There's no way to see their work style"
+   - "I can’t tell who specializes in what"
+   - "No clear way to compare real outcomes"
 
-### What Sarah Wants
+### What Jordan Wants
 | Need | Ideal Solution |
 |------|----------------|
-| **See real work** | Project portfolios with before/after photos |
-| **Verify expertise** | Filter by project type (chimney, historic, etc.) |
-| **Local focus** | Contractors who work in her specific area |
-| **Understand process** | Descriptions that explain what was done and why |
-| **Make confident decision** | Enough information to choose without 10 phone calls |
+| **See real work** | Project portfolios with real photos |
+| **Verify expertise** | Filter by project type or service |
+| **Local focus** | Providers who work nearby |
+| **Understand process** | Clear descriptions of what was done |
+| **Make confident decision** | Enough proof to choose fast |
 
-### Decision Factors (Priority Order)
-1. **Evidence of quality work** (photos, descriptions)
-2. **Relevant experience** (similar projects completed)
-3. **Local presence** (works in her neighborhood)
-4. **Professionalism** (how they present themselves)
-5. **Price** (willing to pay more for quality)
-
-### How KnearMe Helps Sarah (Phase 2)
-- Browse projects by location: "chimney work in Denver suburbs"
-- See actual project photos with detailed descriptions
-- Find contractors who have done similar work on similar homes
-- Understand what to expect (process, duration, techniques)
-- Contact contractor directly through platform
+### How KnearMe Helps Jordan (Phase 2)
+- Browse projects by location and service
+- See real project photos with detailed descriptions
+- Find businesses who’ve done similar work
+- Understand the approach and outcomes
+- Contact businesses directly through the platform
 
 ### Success Scenario (Phase 2)
-Sarah searches "brick chimney repair Denver" and finds KnearMe. She browses local projects and sees Mike's portfolio—he's done 5 chimney projects on similar 1920s homes. She reads the detailed descriptions, sees before/after photos, and understands exactly what's involved. She requests a quote directly through the platform.
+Jordan searches for a specialist and finds KnearMe. They browse local projects and find a portfolio with multiple similar jobs. The descriptions explain the work clearly, and the photos show results. Jordan contacts the business directly.
 
-**From search to qualified lead: 15 minutes**
-**Confidence level: High (she's seen the work)**
+**From search to qualified lead: 15 minutes**  
+**Confidence level: High (they’ve seen the work)**
 
 ---
 
-## Tertiary Persona: Alex the Aspiring Pro
+## Tertiary Persona: Alex the Growth-Stage Pro
 
-> **Note:** Alex represents the growth opportunity in capturing newer contractors.
+> **Note:** Alex represents the growth opportunity in capturing newer businesses.
 
 ### Demographics
 - **Age:** 28
 - **Location:** Austin, TX
 - **Business:** Solo operation, 2 years in business
-- **Experience:** Journeyman mason, learning the business side
+- **Experience:** Strong craft skills, still learning the business side
 - **Revenue:** ~$80K/year (growing)
 
 ### Background
-Alex completed his apprenticeship and recently went out on his own. He's skilled at the craft but struggling with the business side—especially marketing. He's tech-savvy compared to older contractors and active on Instagram, but his posts are inconsistent and amateur-looking.
+Alex is skilled but early. They know they need credibility fast, and they already post work online—but it’s inconsistent and unpolished.
 
 ### Key Differences from Mike
 | Aspect | Mike | Alex |
@@ -181,23 +172,23 @@ Alex completed his apprenticeship and recently went out on his own. He's skilled
 | Primary need | Efficiency | Growth |
 
 ### How KnearMe Helps Alex
-- **Levels up his content** - AI makes his posts look professional
-- **Builds portfolio fast** - No backlog of projects to catch up on
-- **Establishes credibility** - Looks established despite being new
-- **SEO foundation** - Starts ranking before competitors
+- **Levels up content** — Professional pages without design work
+- **Builds portfolio fast** — No backlog to catch up on
+- **Establishes credibility** — Looks established despite being new
+- **SEO foundation** — Starts ranking before competitors
 
 ---
 
 ## Persona Comparison Matrix
 
-| Attribute | Mike (Primary) | Sarah (Secondary) | Alex (Tertiary) |
+| Attribute | Mike (Primary) | Jordan (Secondary) | Alex (Tertiary) |
 |-----------|----------------|-------------------|-----------------|
-| **Role** | Contractor | Homeowner | New Contractor |
+| **Role** | Business owner | Client/Buyer | New business owner |
 | **Age** | 45 | 38 | 28 |
 | **Tech Comfort** | Moderate | High | High |
 | **Time for Platform** | 2 min max | 15-30 min research | 5-10 min |
 | **Primary Value** | Efficiency | Discovery | Growth |
-| **Key Feature** | Voice interview | Browse & filter | AI content |
+| **Key Feature** | Voice interview | Browse & filter | Agent-written content |
 | **Willingness to Pay** | $29/mo if saves time | N/A (free browse) | $29/mo for growth |
 | **MVP Priority** | Yes | Phase 2 | Yes (same as Mike) |
 
@@ -205,40 +196,40 @@ Alex completed his apprenticeship and recently went out on his own. He's skilled
 
 ## Design Implications
 
-### For Mike (Contractor UX)
-- **Voice-first everything** - Minimize typing
-- **Large touch targets** - Calloused fingers, often wearing work gloves
-- **Quick actions** - Complete tasks in under 60 seconds
-- **Offline tolerance** - Job sites may have poor connectivity
-- **Push notifications** - Remind to post after marking job complete in Jobber
+### For Mike (Business Owner UX)
+- **Voice-first everything** — Minimize typing
+- **Large touch targets** — Often on a phone, sometimes on site
+- **Quick actions** — Complete tasks in under 60 seconds
+- **Offline tolerance** — Job sites may have poor connectivity
+- **Smart reminders** — Prompt to publish after a project is done
 
-### For Sarah (Homeowner UX - Phase 2)
-- **Visual browsing** - Photo-forward design
-- **Powerful filters** - Location, project type, materials
-- **Trust indicators** - Number of projects, years on platform
-- **Mobile-optimized** - Research on the go
-- **Quick contact** - Low-friction quote request
+### For Jordan (Client UX - Phase 2)
+- **Visual browsing** — Photo-forward design
+- **Powerful filters** — Location, project type, outcomes
+- **Trust indicators** — Number of projects, years on platform
+- **Mobile-optimized** — Research on the go
+- **Quick contact** — Low-friction outreach
 
 ### For Alex (Same UX as Mike)
 - Alex uses the same interface as Mike
 - Difference is in onboarding messaging ("grow your business" vs "save time")
-- May be more responsive to tips/suggestions for improving content
+- More responsive to tips/suggestions that improve presentation
 
 ---
 
 ## Validation Questions (User Research)
 
-### For Mike-type Contractors
+### For Mike-type Business Owners
 1. "Walk me through what you do when you finish a job. Do you take photos?"
 2. "How often do you update your website or post your work online?"
 3. "If you could post a project in 2 minutes by answering questions with your voice, would you?"
 4. "Would you pay $29/month for a tool that automatically built your portfolio?"
 
-### For Sarah-type Homeowners
-1. "How did you find your last contractor? What was frustrating about that process?"
-2. "What would make you trust a contractor you found online?"
-3. "If you could see a portfolio of their actual projects, would that change your decision process?"
+### For Jordan-type Clients
+1. "How did you find your last provider? What was frustrating about that process?"
+2. "What would make you trust a business you found online?"
+3. "If you could see a portfolio of real projects, would that change your decision?"
 
 ---
 
-*Personas based on market research and domain expertise. Validate with user interviews before MVP launch.*
+*Personas are directional. Validate with interviews before MVP launch.*

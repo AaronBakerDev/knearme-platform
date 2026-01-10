@@ -94,9 +94,28 @@ Needed additions:
 - When should the agent switch from "interviewing" to "composing" blocks?
 - What is the minimal info required to generate a useful draft?
 
+## Implementation Status
+
+### Trade-Agnostic Architecture ✅
+The story extractor (`src/lib/agents/story-extractor.ts`) now uses the trade config system:
+- Project types derived from `TradeConfig.terminology.projectTypes`
+- Materials vocabulary from `TradeConfig.terminology.materials`
+- Techniques vocabulary from `TradeConfig.terminology.techniques`
+- System prompt built dynamically using `buildTradeContext(config)`
+- Deduplication helpers use trade-aware vocabulary
+
+To add a new trade:
+1. Create a new config in `src/lib/trades/config.ts`
+2. Update `getTradeConfig()` to return the appropriate config (e.g., based on contractor trade)
+3. All extraction and prompts automatically adapt
+
+### Current Trade: Masonry
+The `MASONRY_CONFIG` in `src/lib/trades/config.ts` defines the current vocabulary.
+
 ## Next Steps
 
-- Update system prompts to reflect interviewer principles and trade-agnostic logic.
+- ~~Update system prompts to reflect interviewer principles and trade-agnostic logic.~~ ✅ Done
 - Relax generation gates (allow no photos; keep city/state priority).
 - Add contractor logo field and profile update tool.
 - Add back office recommendations (services, service areas, brand assets).
+- Add additional trades (plumbing, roofing, etc.) when ready to expand.

@@ -4,6 +4,7 @@ import * as React from 'react'
 import { FileDown, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { logger } from '@/lib/logging'
 import { EmailCaptureDialog } from './EmailCaptureDialog'
 
 export interface PDFExportButtonProps {
@@ -139,7 +140,7 @@ export function PDFExportButton({
         setIsDialogOpen(false)
         setCapturedEmail(null)
       } catch (error) {
-        console.error('PDF generation failed:', error)
+        logger.error('[PDFExportButton] PDF generation failed', { error })
         alert(
           error instanceof Error
             ? error.message

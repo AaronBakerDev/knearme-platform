@@ -13,6 +13,8 @@
  * @see https://cloud.google.com/apis/design/errors#retrying_errors
  */
 
+import { logger } from '@/lib/logging';
+
 export interface RetryOptions {
   /** Maximum number of retry attempts (default: 3) */
   maxRetries?: number;
@@ -187,8 +189,10 @@ export const AI_RETRY_OPTIONS: RetryOptions = {
   maxDelayMs: 30000,
   backoffMultiplier: 2,
   onRetry: (attempt, error, delayMs) => {
-    console.warn(
-      `[AI Retry] Attempt ${attempt} failed: ${error.message}. Retrying in ${Math.round(delayMs)}ms...`
-    );
+    logger.warn('[AI Retry] Attempt failed, retrying', {
+      attempt,
+      error: error.message,
+      delayMs: Math.round(delayMs),
+    });
   },
 };

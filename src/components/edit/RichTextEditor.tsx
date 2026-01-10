@@ -12,7 +12,7 @@
  * - Placeholder text
  *
  * @see https://tiptap.dev/docs/editor/introduction
- * @see src/app/(contractor)/projects/[id]/edit/page.tsx - Integration point
+ * @see src/app/(dashboard)/projects/[id]/edit/page.tsx - Integration point
  */
 
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'

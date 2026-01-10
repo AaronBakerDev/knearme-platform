@@ -9,6 +9,7 @@
 
 import * as jose from 'jose';
 import type { TokenPayload } from './types';
+import { logger } from '@/lib/logging';
 
 // ECC P-256 public key for verification (ES256 algorithm)
 const JWT_PUBLIC_KEY = process.env.JWT_PUBLIC_KEY || '';
@@ -39,7 +40,7 @@ export type TokenValidationResult =
  */
 export async function validateToken(token: string): Promise<TokenValidationResult> {
   if (!JWT_PUBLIC_KEY) {
-    console.error('[MCP Token Validator] JWT_PUBLIC_KEY not configured');
+    logger.error('[MCP Token Validator] JWT_PUBLIC_KEY not configured');
     return { success: false, error: 'Server configuration error' };
   }
 
@@ -84,7 +85,7 @@ export async function validateToken(token: string): Promise<TokenValidationResul
       return { success: false, error: 'Token signature invalid' };
     }
 
-    console.error('[MCP Token Validator] Unexpected error:', err);
+    logger.error('[MCP Token Validator] Unexpected error', { error: err });
     return { success: false, error: 'Token validation failed' };
   }
 }

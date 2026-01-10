@@ -38,6 +38,8 @@ const LOADING_MESSAGES: Record<ArtifactType, string> = {
   reorderImages: 'Reordering images...',
   validateForPublish: 'Validating publish readiness...',
   generatePortfolioContent: 'Generating portfolio content...',
+  showBusinessSearchResults: 'Searching for business...',
+  showProfileReveal: 'Loading profile reveal...',
   composePortfolioLayout: 'Composing portfolio layout...',
   checkPublishReady: 'Checking publish readiness...',
 };

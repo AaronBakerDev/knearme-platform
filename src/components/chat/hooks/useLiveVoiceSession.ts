@@ -12,7 +12,7 @@
  * @see src/lib/voice/voice-telemetry.ts - Telemetry implementation
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type {
   FunctionCall,
   LiveConnectConfig,
@@ -31,8 +31,27 @@ import {
   trackFallback,
   trackError,
 } from '@/lib/voice/voice-telemetry';
-
-type LiveVoiceStatus = 'idle' | 'connecting' | 'listening' | 'speaking' | 'error';
+import {
+  calculateRMS,
+  encodeInt16ToBase64,
+  downsampleTo16k,
+  INPUT_SAMPLE_RATE,
+  OUTPUT_CHUNK_SIZE,
+  SILENCE_THRESHOLD,
+} from '@/lib/voice/audio-utils';
+import {
+  liveVoiceConnectionReducer,
+  initialLiveVoiceConnectionState,
+  type LiveVoiceStatus,
+} from './live-voice-state';
+import { createPlaybackController } from './voice/audio-playback';
+import { mergeTranscriptText, shouldCommitTranscript } from './voice/transcript-utils';
+import {
+  buildToolCallsPayload,
+  buildToolResponses,
+  persistToolResult,
+} from './voice/tool-call-utils';
+import { logger } from '@/lib/logging';
 
 interface LiveVoiceSessionOptions {
   enabled: boolean;
@@ -85,111 +104,11 @@ interface LiveVoiceSessionState {
   disconnect: () => void;
 }
 
-const OUTPUT_SAMPLE_RATE = 24000;
-const INPUT_SAMPLE_RATE = 16000;
-const OUTPUT_CHUNK_SIZE = 1600;
+/** Throttle interval for transcript UI updates (ms) */
 const TRANSCRIPT_THROTTLE_MS = 120;
-const MAX_SESSION_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
-/**
- * Silence detection threshold for RMS (Root Mean Square) audio level.
- * Audio chunks with RMS below this value are considered silent and skipped
- * in push-to-talk mode to save bandwidth. Value of 0.01 corresponds to
- * approximately -40dB, which filters out background noise and silence
- * while preserving speech. Only applied in non-continuous mode since
- * continuous mode uses Gemini's built-in VAD.
- */
-const SILENCE_THRESHOLD = 0.01;
-
-/**
- * Calculate Root Mean Square (RMS) of audio samples to detect silence.
- * RMS provides a measure of the average power/volume of the audio signal.
- * @param samples - Int16Array of PCM audio samples
- * @returns RMS value between 0 and 1 (normalized)
- */
-function calculateRMS(samples: Int16Array): number {
-  if (samples.length === 0) return 0;
-  let sum = 0;
-  for (let i = 0; i < samples.length; i++) {
-    // Normalize Int16 sample to -1.0 to 1.0 range
-    // TypeScript noUncheckedIndexedAccess requires explicit check
-    const sample = samples[i] ?? 0;
-    const normalized = sample / 0x7fff;
-    sum += normalized * normalized;
-  }
-  return Math.sqrt(sum / samples.length);
-}
-
-function decodeBase64ToInt16(base64: string): Int16Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return new Int16Array(bytes.buffer);
-}
-
-function encodeInt16ToBase64(int16: Int16Array): string {
-  const bytes = new Uint8Array(int16.buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i] ?? 0);
-  }
-  return btoa(binary);
-}
-
-function downsampleTo16k(input: Float32Array, inputRate: number): Int16Array {
-  if (inputRate === INPUT_SAMPLE_RATE) {
-    const result = new Int16Array(input.length);
-    for (let i = 0; i < input.length; i += 1) {
-      const clamped = Math.max(-1, Math.min(1, input[i] ?? 0));
-      result[i] = clamped * 0x7fff;
-    }
-    return result;
-  }
-
-  const ratio = inputRate / INPUT_SAMPLE_RATE;
-  const outputLength = Math.round(input.length / ratio);
-  const result = new Int16Array(outputLength);
-  let offsetResult = 0;
-  let offsetBuffer = 0;
-
-  while (offsetResult < result.length) {
-    const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
-    let accum = 0;
-    let count = 0;
-    for (let i = offsetBuffer; i < nextOffsetBuffer && i < input.length; i += 1) {
-      accum += input[i] ?? 0;
-      count += 1;
-    }
-    const averaged = count > 0 ? accum / count : 0;
-    const clamped = Math.max(-1, Math.min(1, averaged));
-    result[offsetResult] = clamped * 0x7fff;
-    offsetResult += 1;
-    offsetBuffer = nextOffsetBuffer;
-  }
-
-  return result;
-}
-
-function parseSampleRate(mimeType?: string): number {
-  if (!mimeType) return OUTPUT_SAMPLE_RATE;
-  const match = mimeType.match(/rate=(\d+)/i);
-  if (match) {
-    const value = Number(match[1]);
-    return Number.isFinite(value) ? value : OUTPUT_SAMPLE_RATE;
-  }
-  return OUTPUT_SAMPLE_RATE;
-}
-
-async function _getResponseError(response: Response): Promise<string> {
-  try {
-    const data = await response.json();
-    return data?.error?.message ?? data?.message ?? response.statusText;
-  } catch {
-    return response.statusText || 'Request failed';
-  }
-}
+/** Maximum session duration before auto-disconnect (10 minutes) */
+const MAX_SESSION_DURATION_MS = 10 * 60 * 1000;
 
 export function useLiveVoiceSession({
   enabled,
@@ -200,8 +119,11 @@ export function useLiveVoiceSession({
   onToolResult,
   onFallback,
 }: LiveVoiceSessionOptions): LiveVoiceSessionState {
-  const [status, setStatus] = useState<LiveVoiceStatus>('idle');
-  const [isConnected, setIsConnected] = useState(false);
+  const [connectionState, dispatchConnection] = useReducer(
+    liveVoiceConnectionReducer,
+    initialLiveVoiceConnectionState
+  );
+  const { status, isConnected } = connectionState;
   const [liveUserTranscript, setLiveUserTranscript] = useState('');
   const [liveAssistantTranscript, setLiveAssistantTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -234,59 +156,22 @@ export function useLiveVoiceSession({
   // Track whether this session was created in continuous mode
   const continuousModeRef = useRef(continuousMode);
 
-  const flushPlayback = useCallback(() => {
-    activeSourcesRef.current.forEach((source) => {
-      try {
-        source.stop();
-      } catch {
-        // Ignore stop errors.
-      }
-    });
-    activeSourcesRef.current = [];
-    if (outputContextRef.current) {
-      nextPlaybackTimeRef.current = outputContextRef.current.currentTime;
-    }
-  }, []);
-
-  const enqueueAudioChunk = useCallback((base64: string, mimeType?: string) => {
-    if (!base64) return;
-
-    const sampleRate = parseSampleRate(mimeType);
-    const pcm16 = decodeBase64ToInt16(base64);
-    const float32 = new Float32Array(pcm16.length);
-    for (let i = 0; i < pcm16.length; i += 1) {
-      float32[i] = (pcm16[i] ?? 0) / 0x7fff;
-    }
-
-    if (!outputContextRef.current) {
-      outputContextRef.current = new AudioContext({ sampleRate });
-      nextPlaybackTimeRef.current = outputContextRef.current.currentTime;
-    }
-
-    const context = outputContextRef.current;
-    if (!context) return;
-
-    const buffer = context.createBuffer(1, float32.length, sampleRate);
-    buffer.copyToChannel(float32, 0);
-
-    const source = context.createBufferSource();
-    source.buffer = buffer;
-    source.connect(context.destination);
-    source.onended = () => {
-      activeSourcesRef.current = activeSourcesRef.current.filter((item) => item !== source);
-    };
-
-    const startAt = Math.max(context.currentTime, nextPlaybackTimeRef.current);
-    source.start(startAt);
-    nextPlaybackTimeRef.current = startAt + buffer.duration;
-    activeSourcesRef.current.push(source);
-  }, []);
+  const { enqueueAudioChunk, flushPlayback } = useMemo(
+    () =>
+      createPlaybackController({
+        outputContextRef,
+        nextPlaybackTimeRef,
+        activeSourcesRef,
+      }),
+    [activeSourcesRef, nextPlaybackTimeRef, outputContextRef]
+  );
 
   const commitUserTranscript = useCallback(() => {
-    const text = pendingUserTranscriptRef.current.trim();
-    if (!text || text === lastUserTranscriptRef.current) {
+    const rawText = pendingUserTranscriptRef.current;
+    if (!shouldCommitTranscript(rawText, lastUserTranscriptRef.current)) {
       return;
     }
+    const text = rawText.trim();
     lastUserTranscriptRef.current = text;
     pendingUserTranscriptRef.current = '';
     transcriptBufferRef.current.user = '';
@@ -303,10 +188,11 @@ export function useLiveVoiceSession({
   }, [onUserMessage]);
 
   const commitAssistantTranscript = useCallback(() => {
-    const text = pendingAssistantTranscriptRef.current.trim();
-    if (!text || text === lastAssistantTranscriptRef.current) {
+    const rawText = pendingAssistantTranscriptRef.current;
+    if (!shouldCommitTranscript(rawText, lastAssistantTranscriptRef.current)) {
       return;
     }
+    const text = rawText.trim();
     lastAssistantTranscriptRef.current = text;
     pendingAssistantTranscriptRef.current = '';
     transcriptBufferRef.current.assistant = '';
@@ -353,52 +239,6 @@ export function useLiveVoiceSession({
     []
   );
 
-  /**
-   * Persist tool result to chat_messages for context continuity.
-   * This ensures tool call results are saved even after the voice session ends.
-   * Fires asynchronously and does not block voice flow on failure.
-   *
-   * @see /src/app/api/chat/sessions/[id]/messages/route.ts - Messages API endpoint
-   */
-  const persistToolResult = useCallback(
-    async (
-      sessionId: string,
-      toolName: string,
-      output?: unknown,
-      error?: { message?: string }
-    ) => {
-      try {
-        const response = await fetch(`/api/chat/sessions/${sessionId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            role: 'assistant',
-            content: `[Tool: ${toolName}]`,
-            metadata: {
-              parts: [
-                {
-                  type: 'tool-result',
-                  toolName,
-                  output: error ? { error: error.message ?? 'Tool execution failed' } : output,
-                },
-              ],
-            },
-          }),
-        });
-
-        if (!response.ok) {
-          console.warn(
-            `[LiveVoice] Failed to persist tool result for ${toolName}: ${response.status}`
-          );
-        }
-      } catch (err) {
-        // Log but don't block voice flow - persistence is best-effort
-        console.warn('[LiveVoice] Error persisting tool result:', err);
-      }
-    },
-    []
-  );
-
   const handleToolCalls = useCallback(async (calls: FunctionCall[]) => {
     const session = sessionRef.current;
     const context = sessionContextRef.current;
@@ -407,11 +247,7 @@ export function useLiveVoiceSession({
     const latestUserMessage =
       pendingUserTranscriptRef.current || lastUserTranscriptRef.current;
 
-    const toolCallsPayload = calls.map((call, index) => ({
-      id: call.id ?? `${call.name ?? 'tool'}-${index}`,
-      name: call.name ?? 'unknown',
-      args: call.args ?? {},
-    }));
+    const toolCallsPayload = buildToolCallsPayload(calls);
 
     // Telemetry: Track tool execution starts
     toolCallsPayload.forEach((tool) => {
@@ -442,11 +278,7 @@ export function useLiveVoiceSession({
       const results = Array.isArray(data.results) ? data.results : [];
 
       session.sendToolResponse({
-        functionResponses: results.map((result: { id?: string; name?: string; output?: unknown; error?: unknown }) => ({
-          id: result.id,
-          name: result.name,
-          response: result.error ? { error: result.error } : { output: result.output },
-        })),
+        functionResponses: buildToolResponses(results),
       });
 
       results.forEach((result: { id?: string; name?: string; output?: unknown; error?: { message?: string } }) => {
@@ -476,7 +308,7 @@ export function useLiveVoiceSession({
         }
       });
     } catch (err) {
-      console.error('[LiveVoice] Tool execution error:', err);
+      logger.error('[LiveVoice] Tool execution error', { error: err });
 
       // Telemetry: Track tool error
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -484,7 +316,7 @@ export function useLiveVoiceSession({
 
       setError('Tool execution failed. I can keep listening and respond in text.');
     }
-  }, [onToolResult, persistToolResult]);
+  }, [onToolResult]);
 
   const handleMessage = useCallback((message: LiveServerMessage) => {
     const serverContent = message.serverContent;
@@ -496,21 +328,16 @@ export function useLiveVoiceSession({
     if (serverContent?.inputTranscription?.text) {
       const newText = serverContent.inputTranscription.text;
       const currentText = pendingUserTranscriptRef.current;
-      // Gemini sends full accumulated transcripts, but use the longer one
-      // as a safeguard against any partial/incremental messages
-      if (newText.length >= currentText.length || serverContent.inputTranscription.finished) {
-        pendingUserTranscriptRef.current = newText;
+      const nextText = mergeTranscriptText({
+        currentText,
+        incomingText: newText,
+        isFinal: Boolean(serverContent.inputTranscription.finished),
+      });
+      if (nextText !== currentText) {
+        pendingUserTranscriptRef.current = nextText;
         scheduleTranscriptUpdate(
           'user',
-          newText,
-          Boolean(serverContent.inputTranscription.finished)
-        );
-      } else if (!currentText.includes(newText)) {
-        // New text is shorter but not contained - might be incremental, accumulate it
-        pendingUserTranscriptRef.current = `${currentText} ${newText}`.trim();
-        scheduleTranscriptUpdate(
-          'user',
-          pendingUserTranscriptRef.current,
+          nextText,
           Boolean(serverContent.inputTranscription.finished)
         );
       }
@@ -522,21 +349,16 @@ export function useLiveVoiceSession({
     if (serverContent?.outputTranscription?.text && !isTalkingRef.current) {
       const newText = serverContent.outputTranscription.text;
       const currentText = pendingAssistantTranscriptRef.current;
-      // Gemini sends full accumulated transcripts, but use the longer one
-      // as a safeguard against any partial/incremental messages
-      if (newText.length >= currentText.length || serverContent.outputTranscription.finished) {
-        pendingAssistantTranscriptRef.current = newText;
+      const nextText = mergeTranscriptText({
+        currentText,
+        incomingText: newText,
+        isFinal: Boolean(serverContent.outputTranscription.finished),
+      });
+      if (nextText !== currentText) {
+        pendingAssistantTranscriptRef.current = nextText;
         scheduleTranscriptUpdate(
           'assistant',
-          newText,
-          Boolean(serverContent.outputTranscription.finished)
-        );
-      } else if (!currentText.includes(newText)) {
-        // New text is shorter but not contained - might be incremental, accumulate it
-        pendingAssistantTranscriptRef.current = `${currentText} ${newText}`.trim();
-        scheduleTranscriptUpdate(
-          'assistant',
-          pendingAssistantTranscriptRef.current,
+          nextText,
           Boolean(serverContent.outputTranscription.finished)
         );
       }
@@ -554,14 +376,15 @@ export function useLiveVoiceSession({
         // Only use modelTurn text if we don't have outputTranscription
         // outputTranscription provides the full accumulated transcript for audio
         if (!serverContent?.outputTranscription?.text) {
-          // Accumulate text from model parts (these may arrive incrementally)
           const currentText = pendingAssistantTranscriptRef.current;
-          // Check if this text is already contained to avoid duplicates
-          if (!currentText.includes(part.text)) {
-            pendingAssistantTranscriptRef.current = currentText
-              ? `${currentText} ${part.text}`.trim()
-              : part.text;
-            scheduleTranscriptUpdate('assistant', pendingAssistantTranscriptRef.current);
+          const nextText = mergeTranscriptText({
+            currentText,
+            incomingText: part.text,
+            isFinal: false,
+          });
+          if (nextText !== currentText) {
+            pendingAssistantTranscriptRef.current = nextText;
+            scheduleTranscriptUpdate('assistant', nextText);
           }
         }
       }
@@ -572,14 +395,14 @@ export function useLiveVoiceSession({
           continue;
         }
         enqueueAudioChunk(part.inlineData.data, part.inlineData.mimeType);
-        setStatus('speaking');
+        dispatchConnection({ type: 'SPEAKING' });
       }
     }
 
     if (serverContent?.turnComplete) {
       commitAssistantTranscript();
       if (!isTalkingRef.current) {
-        setStatus('idle');
+        dispatchConnection({ type: 'IDLE' });
       }
     }
 
@@ -598,7 +421,7 @@ export function useLiveVoiceSession({
   const connectSession = useCallback(async () => {
     if (sessionRef.current) return sessionRef.current;
 
-    setStatus('connecting');
+    dispatchConnection({ type: 'CONNECTING' });
     setError(null);
 
     const { projectId, sessionId } = await ensureSessionReady();
@@ -672,8 +495,7 @@ export function useLiveVoiceSession({
       config: payload.config,
       callbacks: {
         onopen: () => {
-          setIsConnected(true);
-          setStatus('idle');
+          dispatchConnection({ type: 'CONNECTED' });
           // Telemetry: Track session connected
           trackSessionConnected();
         },
@@ -681,19 +503,18 @@ export function useLiveVoiceSession({
           handleMessage(message);
         },
         onerror: (err) => {
-          console.error('[LiveVoice] Session error:', err);
+          logger.error('[LiveVoice] Session error', { error: err });
           // Telemetry: Track session error
           const errorMsg = err instanceof Error ? err.message : 'Session error';
           trackError('session', errorMsg, false);
           setError('Live voice session error. Switching to text responses.');
-          setStatus('error');
+          dispatchConnection({ type: 'ERROR' });
           // Telemetry: Track fallback due to error
           trackFallback('live-error');
           onFallback('live-error');
         },
         onclose: () => {
-          setIsConnected(false);
-          setStatus('idle');
+          dispatchConnection({ type: 'DISCONNECTED' });
         },
       },
     });
@@ -702,7 +523,7 @@ export function useLiveVoiceSession({
 
     // Start session duration timer to prevent runaway costs
     sessionDurationTimerRef.current = window.setTimeout(() => {
-      console.warn('[LiveVoice] Session duration limit reached (10 minutes)');
+      logger.warn('[LiveVoice] Session duration limit reached (10 minutes)');
       // Telemetry: Track fallback due to timeout
       trackFallback('session-timeout');
       disconnectRef.current?.('session-timeout');
@@ -804,9 +625,9 @@ export function useLiveVoiceSession({
         session.sendRealtimeInput({ activityStart: {} });
       }
       pcmBufferRef.current = [];
-      setStatus('listening');
+      dispatchConnection({ type: 'LISTENING' });
     } catch (err) {
-      console.error('[LiveVoice] Start error:', err);
+      logger.error('[LiveVoice] Start error', { error: err });
       const message = err instanceof Error ? err.message : 'Unable to start live voice.';
 
       // Telemetry: Track start error and fallback
@@ -814,7 +635,7 @@ export function useLiveVoiceSession({
       trackFallback('start-failed');
 
       setError(`${message} Switching to text responses.`);
-      setStatus('error');
+      dispatchConnection({ type: 'ERROR' });
       onFallback('start-failed');
     }
   }, [connectSession, flushPlayback, initAudioInput, onFallback]);
@@ -851,7 +672,7 @@ export function useLiveVoiceSession({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usageId: usageIdRef.current }),
       }).catch((err) => {
-        console.warn('[LiveVoice] Failed to report session end:', err);
+        logger.warn('[LiveVoice] Failed to report session end', { error: err });
       });
       usageIdRef.current = null;
     }
@@ -860,7 +681,7 @@ export function useLiveVoiceSession({
     pcmBufferRef.current = [];
     sessionRef.current?.close();
     sessionRef.current = null;
-    setIsConnected(false);
+    dispatchConnection({ type: 'DISCONNECTED' });
 
     if (inputWorkletRef.current) {
       inputWorkletRef.current.disconnect();
@@ -894,7 +715,6 @@ export function useLiveVoiceSession({
     }
     transcriptBufferRef.current.user = '';
     transcriptBufferRef.current.assistant = '';
-    setStatus('idle');
     setLiveUserTranscript('');
     setLiveAssistantTranscript('');
   }, [flushPlayback]);
