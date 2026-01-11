@@ -14,6 +14,7 @@ import {
   parseLocationFromAddress,
   profileFormToConversation,
   projectFormToConversation,
+  type ProjectWizardFormData,
 } from '../state-transfer';
 import type { SharedProjectState } from '@/lib/agents/types';
 
@@ -166,7 +167,7 @@ describe('state-transfer mapping helpers', () => {
   });
 
   it('maps project form data back to extracted and state payloads', () => {
-    const formData = {
+    const formData: ProjectWizardFormData = {
       projectType: 'chimney-repair',
       customerProblem: 'Leak',
       solutionApproach: 'Repaired',

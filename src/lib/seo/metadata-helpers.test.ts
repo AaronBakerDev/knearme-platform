@@ -43,8 +43,7 @@ describe('buildOpenGraphMeta', () => {
       url: 'https://knearme.com/test',
     });
 
-    expect(meta.type).toBe('website');
-    expect(meta.images).toEqual([]);
+    expect(meta).toMatchObject({ type: 'website', images: [] });
   });
 
   it('includes image when provided', () => {
@@ -57,8 +56,10 @@ describe('buildOpenGraphMeta', () => {
       type: 'article',
     });
 
-    expect(meta.type).toBe('article');
-    expect(meta.images).toEqual([{ url: 'https://example.com/image.jpg', alt: 'Preview' }]);
+    expect(meta).toMatchObject({
+      type: 'article',
+      images: [{ url: 'https://example.com/image.jpg', alt: 'Preview' }],
+    });
   });
 });
 
@@ -69,8 +70,7 @@ describe('buildTwitterMeta', () => {
       description: 'Test description',
     });
 
-    expect(meta.card).toBe('summary');
-    expect(meta.images).toEqual([]);
+    expect(meta).toMatchObject({ card: 'summary', images: [] });
   });
 
   it('returns summary_large_image when image is provided', () => {
@@ -80,7 +80,9 @@ describe('buildTwitterMeta', () => {
       imageUrl: 'https://example.com/image.jpg',
     });
 
-    expect(meta.card).toBe('summary_large_image');
-    expect(meta.images).toEqual(['https://example.com/image.jpg']);
+    expect(meta).toMatchObject({
+      card: 'summary_large_image',
+      images: ['https://example.com/image.jpg'],
+    });
   });
 });

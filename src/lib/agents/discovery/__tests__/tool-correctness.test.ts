@@ -186,8 +186,8 @@ describe('Discovery Agent Tool Correctness', () => {
         const newState = processDiscoveryToolCalls(currentState, toolResults);
 
         expect(newState.searchResults).toHaveLength(1);
-        expect(newState.searchResults?.[0].name).toBe('ABC Masonry');
-        expect(newState.searchResults?.[0].googlePlaceId).toBe('ChIJ123');
+        expect(newState.searchResults?.[0]?.name).toBe('ABC Masonry');
+        expect(newState.searchResults?.[0]?.googlePlaceId).toBe('ChIJ123');
       });
 
       it('clears search results when not found', () => {
@@ -597,9 +597,9 @@ describe('Discovery Agent Tool Correctness', () => {
         const newState = processDiscoveryToolCalls(currentState, toolResults);
 
         expect(newState.reviews).toHaveLength(2);
-        expect(newState.reviews?.[0].text).toBe('Great work! The chimney looks amazing.');
-        expect(newState.reviews?.[0].rating).toBe(5);
-        expect(newState.reviews?.[0].hasImages).toBe(true);
+        expect(newState.reviews?.[0]?.text).toBe('Great work! The chimney looks amazing.');
+        expect(newState.reviews?.[0]?.rating).toBe(5);
+        expect(newState.reviews?.[0]?.hasImages).toBe(true);
         expect(newState.rating).toBe(4.8);
         expect(newState.reviewCount).toBe(42);
       });
@@ -719,7 +719,7 @@ describe('Discovery Agent Tool Correctness', () => {
 
         // Reviews from fetchReviews
         expect(newState.reviews).toHaveLength(1);
-        expect(newState.reviews?.[0].text).toBe('Amazing stonework!');
+        expect(newState.reviews?.[0]?.text).toBe('Amazing stonework!');
 
         // Rating/count should be from fetchReviews (more recent)
         expect(newState.rating).toBe(4.8);

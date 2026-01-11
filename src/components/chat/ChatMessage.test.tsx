@@ -151,6 +151,10 @@ describe('ChatMessage', () => {
       render(<ChatMessage role="assistant" content="Copy this text" />);
 
       const copyButton = screen.getAllByRole('button')[0]; // First button is copy
+      expect(copyButton).toBeDefined();
+      if (!copyButton) {
+        throw new Error('Expected copy button to be rendered');
+      }
       fireEvent.click(copyButton);
 
       await waitFor(() => {
@@ -178,6 +182,10 @@ describe('ChatMessage', () => {
 
       const buttons = screen.getAllByRole('button');
       const thumbsUpButton = buttons[1]; // Second button is thumbs up
+      expect(thumbsUpButton).toBeDefined();
+      if (!thumbsUpButton) {
+        throw new Error('Expected thumbs up button to be rendered');
+      }
       fireEvent.click(thumbsUpButton);
 
       expect(onFeedback).toHaveBeenCalledWith('msg-123', 'positive');
@@ -197,6 +205,10 @@ describe('ChatMessage', () => {
 
       const buttons = screen.getAllByRole('button');
       const thumbsDownButton = buttons[2]; // Third button is thumbs down
+      expect(thumbsDownButton).toBeDefined();
+      if (!thumbsDownButton) {
+        throw new Error('Expected thumbs down button to be rendered');
+      }
       fireEvent.click(thumbsDownButton);
 
       expect(onFeedback).toHaveBeenCalledWith('msg-123', 'negative');
@@ -214,7 +226,12 @@ describe('ChatMessage', () => {
       );
 
       const buttons = screen.getAllByRole('button');
-      fireEvent.click(buttons[1]); // Thumbs up
+      const thumbsUpButton = buttons[1];
+      expect(thumbsUpButton).toBeDefined();
+      if (!thumbsUpButton) {
+        throw new Error('Expected thumbs up button to be rendered');
+      }
+      fireEvent.click(thumbsUpButton); // Thumbs up
 
       expect(onFeedback).not.toHaveBeenCalled();
     });
