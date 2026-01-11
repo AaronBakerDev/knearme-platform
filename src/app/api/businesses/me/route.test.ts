@@ -29,7 +29,7 @@ vi.mock('@/lib/supabase/server', () => ({
 
 function createRequest(method: string, body?: unknown): NextRequest {
   const url = 'http://localhost:3000/api/businesses/me';
-  const init: RequestInit = { method };
+  const init: NonNullable<ConstructorParameters<typeof NextRequest>[1]> = { method };
   if (body) {
     init.body = JSON.stringify(body);
     init.headers = { 'Content-Type': 'application/json' };

@@ -213,7 +213,12 @@ describe('Onboarding API', () => {
     expect(data.messages.length).toBe(1);
     expect(data.messages[0].content).toBe('Hello there');
     expect(db.conversations.length).toBe(1);
-    expect(db.conversations[0].purpose).toBe('onboarding');
+    const conversation = db.conversations[0];
+    expect(conversation).toBeDefined();
+    if (!conversation) {
+      throw new Error('Expected onboarding conversation to be created');
+    }
+    expect(conversation.purpose).toBe('onboarding');
   });
 
   it('appends messages to existing onboarding conversation on POST', async () => {
@@ -251,6 +256,11 @@ describe('Onboarding API', () => {
 
     expect(response.status).toBe(200);
     expect(db.conversations.length).toBe(1);
-    expect((db.conversations[0].messages as DbTable[]).length).toBe(3);
+    const conversation = db.conversations[0];
+    expect(conversation).toBeDefined();
+    if (!conversation) {
+      throw new Error('Expected onboarding conversation to be updated');
+    }
+    expect((conversation.messages as DbTable[]).length).toBe(3);
   });
 });

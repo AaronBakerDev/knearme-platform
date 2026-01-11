@@ -31,9 +31,9 @@ describe('Project Suggestions', () => {
       const suggestions = extractProjectSuggestions(input);
 
       expect(suggestions.length).toBe(1);
-      expect(suggestions[0].title).toBe('Chimney Rebuild');
-      expect(suggestions[0].source).toBe('review');
-      expect(suggestions[0].imageUrls).toEqual([
+      expect(suggestions[0]?.title).toBe('Chimney Rebuild');
+      expect(suggestions[0]?.source).toBe('review');
+      expect(suggestions[0]?.imageUrls).toEqual([
         'https://example.com/photo1.jpg',
         'https://example.com/photo2.jpg',
       ]);
@@ -119,9 +119,9 @@ describe('Project Suggestions', () => {
       const suggestions = extractProjectSuggestions(input);
 
       expect(suggestions.length).toBe(1);
-      expect(suggestions[0].title).toBe('Brick Restoration');
-      expect(suggestions[0].source).toBe('review');
-      expect(suggestions[0].imageUrls).toBeUndefined();
+      expect(suggestions[0]?.title).toBe('Brick Restoration');
+      expect(suggestions[0]?.source).toBe('review');
+      expect(suggestions[0]?.imageUrls).toBeUndefined();
     });
 
     it('uses service names to generate titles', () => {
@@ -143,7 +143,7 @@ describe('Project Suggestions', () => {
       const suggestions = extractProjectSuggestions(input);
 
       expect(suggestions.length).toBe(1);
-      expect(suggestions[0].title).toBe('Siding Project');
+      expect(suggestions[0]?.title).toBe('Siding Project');
     });
   });
 
@@ -169,8 +169,8 @@ describe('Project Suggestions', () => {
       const suggestions = extractProjectSuggestions(input);
 
       expect(suggestions.length).toBe(2);
-      expect(suggestions[0].source).toBe('web');
-      expect(suggestions[1].source).toBe('web');
+      expect(suggestions[0]?.source).toBe('web');
+      expect(suggestions[1]?.source).toBe('web');
     });
 
     it('cleans up portfolio titles', () => {
@@ -190,7 +190,7 @@ describe('Project Suggestions', () => {
       const suggestions = extractProjectSuggestions(input);
 
       expect(suggestions.length).toBe(1);
-      expect(suggestions[0].title).toBe('Project Gallery');
+      expect(suggestions[0]?.title).toBe('Project Gallery');
     });
 
     it('only uses portfolio-like URLs', () => {
@@ -254,8 +254,8 @@ describe('Project Suggestions', () => {
 
       // Should have photo review first
       expect(suggestions.length).toBeGreaterThanOrEqual(1);
-      expect(suggestions[0].source).toBe('review');
-      expect(suggestions[0].imageUrls).toBeDefined();
+      expect(suggestions[0]?.source).toBe('review');
+      expect(suggestions[0]?.imageUrls).toBeDefined();
     });
 
     it('limits total suggestions to 3', () => {

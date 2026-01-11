@@ -62,10 +62,19 @@ function createMockServiceType(overrides: Partial<ServiceType> = {}): ServiceTyp
 type ChainMethod = 'from' | 'select' | 'eq' | 'order' | 'not' | 'limit';
 
 function createQueryChain(methods: ChainMethod[]) {
-  const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+  const chain: Record<ChainMethod, ReturnType<typeof vi.fn>> = {
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    not: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+  };
+
   for (const method of methods) {
     chain[method] = vi.fn().mockReturnThis();
   }
+
   return chain;
 }
 
@@ -174,7 +183,7 @@ describe('getServiceTypes', () => {
     const result = await getServiceTypes();
 
     expect(result).toHaveLength(2);
-    expect(result[0].service_id).toBe('chimney-repair');
+    expect(result[0]?.service_id).toBe('chimney-repair');
   });
 
   it('uses cache on subsequent calls', async () => {
@@ -220,7 +229,7 @@ describe('getServiceTypes', () => {
 
     // First call succeeds
     const firstResult = await getServiceTypes();
-    expect(firstResult[0].service_id).toBe('first-call');
+    expect(firstResult[0]?.service_id).toBe('first-call');
 
     // Clear and force error
     clearServiceTypesCache();
@@ -252,7 +261,7 @@ describe('getServiceTypes', () => {
 
     // Second call should use cache
     const result = await getServiceTypes();
-    expect(result[0].service_id).toBe('cached-data');
+    expect(result[0]?.service_id).toBe('cached-data');
     expect(chainMock.from).toHaveBeenCalledTimes(1); // Still only 1 call
 
     vi.useRealTimers();
@@ -269,7 +278,7 @@ describe('getServiceTypes', () => {
 
     // First call (caches)
     const firstResult = await getServiceTypes();
-    expect(firstResult[0].service_id).toBe('old-data');
+    expect(firstResult[0]?.service_id).toBe('old-data');
     expect(chainMock.from).toHaveBeenCalledTimes(1);
 
     // Advance time by 61 minutes (past 1 hour TTL)
@@ -277,7 +286,7 @@ describe('getServiceTypes', () => {
 
     // Second call should refetch
     const secondResult = await getServiceTypes();
-    expect(secondResult[0].service_id).toBe('new-data');
+    expect(secondResult[0]?.service_id).toBe('new-data');
     expect(chainMock.from).toHaveBeenCalledTimes(2);
 
     vi.useRealTimers();
@@ -368,10 +377,10 @@ describe('getCitiesByServiceType', () => {
     const result = await getCitiesByServiceType('chimney-repair');
 
     expect(result).toHaveLength(2);
-    expect(result[0].citySlug).toBe('denver-co');
-    expect(result[0].projectCount).toBe(3);
-    expect(result[1].citySlug).toBe('boulder-co');
-    expect(result[1].projectCount).toBe(1);
+    expect(result[0]?.citySlug).toBe('denver-co');
+    expect(result[0]?.projectCount).toBe(3);
+    expect(result[1]?.citySlug).toBe('boulder-co');
+    expect(result[1]?.projectCount).toBe(1);
   });
 
   it('handles null business state gracefully', async () => {
@@ -388,7 +397,7 @@ describe('getCitiesByServiceType', () => {
 
     const result = await getCitiesByServiceType('chimney-repair');
 
-    expect(result[0].state).toBe('');
+    expect(result[0]?.state).toBe('');
   });
 
   it('returns empty array on error', async () => {
@@ -426,7 +435,7 @@ describe('getFeaturedProjectsByService', () => {
     const result = await getFeaturedProjectsByService('chimney-repair');
 
     expect(result).toHaveLength(1);
-    expect(result[0].cover_image?.storage_path).toBe('first.jpg');
+    expect(result[0]?.cover_image?.storage_path).toBe('first.jpg');
   });
 
   it('handles projects without images', async () => {
@@ -444,7 +453,7 @@ describe('getFeaturedProjectsByService', () => {
 
     const result = await getFeaturedProjectsByService('chimney-repair');
 
-    expect(result[0].cover_image).toBeUndefined();
+    expect(result[0]?.cover_image).toBeUndefined();
   });
 });
 

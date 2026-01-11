@@ -7,6 +7,8 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
 import { fetchRelatedProjects } from './projects';
 
 // =============================================================================
@@ -26,7 +28,7 @@ interface MockProject {
   project_images: Array<{ storage_path: string; alt_text: string | null; display_order: number }>;
 }
 
-function createMockSupabase(projects: MockProject[]) {
+function createMockSupabase(projects: MockProject[]): SupabaseClient<Database> {
   return {
     from: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
@@ -35,7 +37,7 @@ function createMockSupabase(projects: MockProject[]) {
     or: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockResolvedValue({ data: projects }),
-  };
+  } as unknown as SupabaseClient<Database>;
 }
 
 // =============================================================================
@@ -93,9 +95,9 @@ describe('fetchRelatedProjects', () => {
     // First 2 are priority (same business), 3rd fills remaining
     // Default limit is 6, so all 3 are included
     expect(result.length).toBe(3);
-    expect(result[0].id).toBe('p1');
-    expect(result[1].id).toBe('p2');
-    expect(result[2].id).toBe('p3');
+    expect(result[0]?.id).toBe('p1');
+    expect(result[1]?.id).toBe('p2');
+    expect(result[2]?.id).toBe('p3');
   });
 
   it('includes same type/other city projects after same business', async () => {
@@ -109,9 +111,9 @@ describe('fetchRelatedProjects', () => {
     const result = await fetchRelatedProjects(supabase, currentProject);
 
     expect(result.length).toBe(3);
-    expect(result[0].id).toBe('same-biz');
-    expect(result[1].id).toBe('same-type-1');
-    expect(result[2].id).toBe('same-type-2');
+    expect(result[0]?.id).toBe('same-biz');
+    expect(result[1]?.id).toBe('same-type-1');
+    expect(result[2]?.id).toBe('same-type-2');
   });
 
   it('includes same city/other type projects', async () => {
@@ -124,8 +126,8 @@ describe('fetchRelatedProjects', () => {
     const result = await fetchRelatedProjects(supabase, currentProject);
 
     expect(result.length).toBe(2);
-    expect(result[0].id).toBe('same-city-1');
-    expect(result[1].id).toBe('same-city-2');
+    expect(result[0]?.id).toBe('same-city-1');
+    expect(result[1]?.id).toBe('same-city-2');
   });
 
   it('respects the limit parameter', async () => {
@@ -151,7 +153,7 @@ describe('fetchRelatedProjects', () => {
     const result = await fetchRelatedProjects(supabase, currentProject);
 
     expect(result.length).toBe(1);
-    expect(result[0].id).toBe('dup');
+    expect(result[0]?.id).toBe('dup');
   });
 
   it('includes cover image from first image by display_order', async () => {
@@ -167,8 +169,8 @@ describe('fetchRelatedProjects', () => {
 
     const result = await fetchRelatedProjects(supabase, currentProject);
 
-    expect(result[0].cover_image?.storage_path).toBe('images/first.jpg');
-    expect(result[0].cover_image?.alt_text).toBe('First');
+    expect(result[0]?.cover_image?.storage_path).toBe('images/first.jpg');
+    expect(result[0]?.cover_image?.alt_text).toBe('First');
   });
 
   it('handles projects without images', async () => {
@@ -181,7 +183,7 @@ describe('fetchRelatedProjects', () => {
 
     const result = await fetchRelatedProjects(supabase, currentProject);
 
-    expect(result[0].cover_image).toBeUndefined();
+    expect(result[0]?.cover_image).toBeUndefined();
   });
 
   it('includes business_name from joined business', async () => {
@@ -194,7 +196,7 @@ describe('fetchRelatedProjects', () => {
 
     const result = await fetchRelatedProjects(supabase, currentProject);
 
-    expect(result[0].business_name).toBe('Premium Masonry LLC');
+    expect(result[0]?.business_name).toBe('Premium Masonry LLC');
   });
 
   it('handles null business gracefully', async () => {
@@ -215,7 +217,7 @@ describe('fetchRelatedProjects', () => {
 
     const result = await fetchRelatedProjects(supabase, currentProject);
 
-    expect(result[0].business_name).toBeUndefined();
+    expect(result[0]?.business_name).toBeUndefined();
   });
 
   it('prioritizes diverse results in correct order', async () => {
@@ -237,14 +239,14 @@ describe('fetchRelatedProjects', () => {
 
     expect(result.length).toBe(6);
     // First 2: same business
-    expect(result[0].id).toBe('biz-1');
-    expect(result[1].id).toBe('biz-2');
+    expect(result[0]?.id).toBe('biz-1');
+    expect(result[1]?.id).toBe('biz-2');
     // Next 2: same type, other city
-    expect(result[2].id).toBe('type-1');
-    expect(result[3].id).toBe('type-2');
+    expect(result[2]?.id).toBe('type-1');
+    expect(result[3]?.id).toBe('type-2');
     // Last 2: same city, other type
-    expect(result[4].id).toBe('city-1');
-    expect(result[5].id).toBe('city-2');
+    expect(result[4]?.id).toBe('city-1');
+    expect(result[5]?.id).toBe('city-2');
   });
 
   it('fills remaining slots from all categories when under limit', async () => {

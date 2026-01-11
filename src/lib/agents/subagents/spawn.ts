@@ -19,6 +19,7 @@ import { google } from '@ai-sdk/google';
 import { z } from 'zod';
 import { AI_MODELS, isGoogleAIEnabled } from '@/lib/ai/providers';
 import { withCircuitBreaker } from '@/lib/agents/circuit-breaker';
+import { isRateLimitError, isTimeoutError } from '@/lib/api/errors';
 import type { ProjectImageState } from '../types';
 import { downloadProjectImage } from '@/lib/storage/upload.server';
 import { logger } from '@/lib/logging';
@@ -135,10 +136,9 @@ async function downloadWithTimeout(
     };
   } catch (error) {
     clearTimeout(timeoutId);
-    const isTimeout = error instanceof Error &&
-      (error.name === 'AbortError' || error.message === 'Download timeout');
-
-    if (isTimeout) {
+    // Use centralized error type detection helpers
+    // @see src/lib/api/errors.ts for pattern definitions
+    if (isTimeoutError(error)) {
       logger.warn('[buildMultimodalMessage] Download timeout', { storagePath });
       return { success: false, error: 'Download timeout' };
     }
@@ -460,10 +460,10 @@ export async function spawnSubagent<T extends SubagentType>(
 
     return enrichedResult as SubagentResultType;
   } catch (error) {
-    const isTimeout = error instanceof Error && error.name === 'AbortError';
-    const isRateLimit =
-      error instanceof Error &&
-      (error.message.includes('429') || error.message.includes('rate limit'));
+    // Use centralized error type detection helpers
+    // @see src/lib/api/errors.ts for pattern definitions
+    const timeout = isTimeoutError(error);
+    const rateLimit = isRateLimitError(error);
 
     logger.warn('[spawnSubagent] Subagent failed', {
       subagent: type,
@@ -472,12 +472,12 @@ export async function spawnSubagent<T extends SubagentType>(
 
     return createErrorResult(
       type,
-      isTimeout
+      timeout
         ? 'Subagent timed out'
-        : isRateLimit
+        : rateLimit
           ? 'AI service is busy, please try again'
           : `Subagent error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      isTimeout || isRateLimit
+      timeout || rateLimit
     ) as SubagentResultType;
   } finally {
     // Always clean up the timeout to prevent memory leaks

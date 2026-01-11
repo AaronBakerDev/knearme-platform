@@ -36,6 +36,8 @@ function createMockImage(
     image_type: null,
     alt_text: null,
     display_order: 0,
+    width: null,
+    height: null,
     created_at: new Date().toISOString(),
     url,
     ...options,
@@ -200,7 +202,12 @@ describe('SortableImageGrid', () => {
 
       // Get delete buttons and click the first one
       const deleteButtons = screen.getAllByRole('button', { name: /delete image/i });
-      await user.click(deleteButtons[0]);
+      const deleteButton = deleteButtons[0];
+      expect(deleteButton).toBeDefined();
+      if (!deleteButton) {
+        throw new Error('Expected delete button to be rendered');
+      }
+      await user.click(deleteButton);
 
       expect(onDelete).toHaveBeenCalledWith(images[0]);
     });

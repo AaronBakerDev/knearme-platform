@@ -263,7 +263,12 @@ describe('PublishChecklist', () => {
 
       // Find and click the first Fix button
       const fixButtons = screen.getAllByRole('button', { name: /fix/i });
-      await user.click(fixButtons[0]);
+      const fixButton = fixButtons[0];
+      expect(fixButton).toBeDefined();
+      if (!fixButton) {
+        throw new Error('Expected Fix button to be rendered');
+      }
+      await user.click(fixButton);
 
       expect(onNavigate).toHaveBeenCalledWith('content', 'title');
     });
@@ -276,8 +281,12 @@ describe('PublishChecklist', () => {
 
       // Find the images Fix button
       const imagesRow = screen.getByText('Project Images').closest('div[class*="flex items-center justify-between"]');
-      const fixButton = within(imagesRow!).getByRole('button');
-      await user.click(fixButton);
+      expect(imagesRow).toBeDefined();
+      if (!(imagesRow instanceof HTMLElement)) {
+        throw new Error('Expected images row to be an HTML element');
+      }
+      const imagesFixButton = within(imagesRow).getByRole('button');
+      await user.click(imagesFixButton);
 
       expect(onNavigate).toHaveBeenCalledWith('images', undefined);
     });
@@ -290,7 +299,12 @@ describe('PublishChecklist', () => {
 
       // SEO items show "Edit" instead of "Fix"
       const editButtons = screen.getAllByRole('button', { name: /edit/i });
-      await user.click(editButtons[0]);
+      const editButton = editButtons[0];
+      expect(editButton).toBeDefined();
+      if (!editButton) {
+        throw new Error('Expected Edit button to be rendered');
+      }
+      await user.click(editButton);
 
       expect(onNavigate).toHaveBeenCalled();
     });

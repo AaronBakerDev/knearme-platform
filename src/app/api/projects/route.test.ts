@@ -44,7 +44,7 @@ function createRequest(method: string, body?: unknown, searchParams?: URLSearchP
   if (searchParams) {
     searchParams.forEach((value, key) => url.searchParams.set(key, value));
   }
-  const init: RequestInit = { method };
+  const init: NonNullable<ConstructorParameters<typeof NextRequest>[1]> = { method };
   if (body) {
     init.body = JSON.stringify(body);
     init.headers = { 'Content-Type': 'application/json' };
