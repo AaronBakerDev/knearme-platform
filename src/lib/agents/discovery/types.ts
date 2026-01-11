@@ -1,6 +1,6 @@
 import type { CorrelationContext } from '@/lib/observability/agent-logger';
 import type { DiscoveredBusiness, GoogleReview } from '@/lib/tools/business-discovery';
-import type { WebSearchSource } from '../web-search';
+import type { WebSearchSource, SocialProfiles } from '../web-search';
 
 /**
  * Review data stored during discovery for bio synthesis and reveal artifact
@@ -35,6 +35,19 @@ export interface DiscoveryState {
   rating?: number;
   /** Total review count from Google */
   reviewCount?: number;
+  /**
+   * Whether the business listing is claimed on Google.
+   * Claimed listings indicate verified ownership and are more trustworthy.
+   * @see DiscoveredBusiness.isClaimed - populated from DataForSEO API
+   */
+  isClaimed?: boolean;
+  /**
+   * Business operating hours by day of week.
+   * Format: { "Monday": "9:00 AM - 5:00 PM", ... }
+   * Null means hours are not available from Google.
+   * @see DiscoveredBusiness.workHours - populated from DataForSEO API
+   */
+  workHours?: Record<string, string> | null;
   /** Web search results for bio synthesis */
   webSearchInfo?: {
     aboutDescription?: string;
@@ -48,6 +61,18 @@ export interface DiscoveryState {
     specialties?: string[];
     serviceAreas?: string[];
     sources?: Array<{ url: string; title?: string }>;
+    /**
+     * Social media profile URLs discovered via web search.
+     * Only populated when actual URLs are found - never guessed.
+     * @see SocialProfiles in ../web-search.ts
+     */
+    socialProfiles?: SocialProfiles;
+    /**
+     * Portfolio or gallery page URL if the business has one.
+     * Could be on their main site (e.g., /gallery, /portfolio) or a third-party platform.
+     * @see WebSearchAgentResult.businessInfo.portfolioUrl
+     */
+    portfolioUrl?: string;
   };
   isComplete: boolean;
   missingFields: string[];
