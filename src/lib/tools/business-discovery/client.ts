@@ -239,6 +239,10 @@ export class DataForSEOClient {
             latitude?: number;
             longitude?: number;
             is_claimed?: boolean;
+            /** @see getGoogleMapsResults for identical structure */
+            work_hours?: {
+              work_hours?: Record<string, { open: string; close: string }[]>;
+            };
           }>;
         }>;
         status_code?: number;
@@ -259,6 +263,20 @@ export class DataForSEOClient {
       for (const result of task.result || []) {
         for (const item of result.items || []) {
           if (item.type === 'maps_search' && results.length < limit) {
+            // Format work_hours from nested API structure to simple Record<string, string>
+            // @see getGoogleMapsResults for identical formatting logic
+            let formattedHours: Record<string, string> | null = null;
+            if (item.work_hours?.work_hours) {
+              formattedHours = {};
+              for (const [day, hours] of Object.entries(
+                item.work_hours.work_hours
+              )) {
+                if (Array.isArray(hours) && hours.length > 0 && hours[0]) {
+                  formattedHours[day] = `${hours[0].open || ''} - ${hours[0].close || ''}`;
+                }
+              }
+            }
+
             results.push({
               name: item.title,
               address: item.address || null,
@@ -273,6 +291,9 @@ export class DataForSEOClient {
                 item.latitude && item.longitude
                   ? { lat: item.latitude, lng: item.longitude }
                   : null,
+              // New fields from BRI-001/BRI-002
+              isClaimed: item.is_claimed ?? false,
+              workHours: formattedHours,
             });
           }
         }
