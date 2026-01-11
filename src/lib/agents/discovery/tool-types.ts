@@ -1,4 +1,4 @@
-import type { WebSearchAgentResult } from '../web-search';
+import type { WebSearchAgentResult, SocialProfiles } from '../web-search';
 
 /**
  * Web enrichment data gathered in parallel with DataForSEO search.
@@ -16,6 +16,21 @@ export interface WebEnrichmentData {
   specialties?: string[];
   serviceAreas?: string[];
   sources?: Array<{ url: string; title?: string }>;
+  /**
+   * Social media profile URLs discovered via web search.
+   * Only populated when actual URLs are found - never guessed.
+   *
+   * @see SocialProfiles in ../web-search.ts
+   * @see BRI-006 in .claude/ralph/prds/current.json
+   */
+  socialProfiles?: SocialProfiles;
+  /**
+   * Portfolio or gallery page URL if the business has one.
+   * Could be on their main site (e.g., /gallery, /portfolio) or a third-party platform.
+   *
+   * @see BRI-006 in .claude/ralph/prds/current.json
+   */
+  portfolioUrl?: string;
 }
 
 export interface SearchBusinessResult {
@@ -32,6 +47,23 @@ export interface SearchBusinessResult {
     googlePlaceId: string | null;
     googleCid: string | null;
     coordinates: { lat: number; lng: number } | null;
+    /**
+     * Whether the business listing is claimed on Google.
+     * Claimed listings indicate verified ownership and are more trustworthy.
+     *
+     * @see DiscoveredBusiness.isClaimed in ../../tools/business-discovery/types.ts
+     * @see BRI-006 in .claude/ralph/prds/current.json
+     */
+    isClaimed?: boolean;
+    /**
+     * Business operating hours by day of week.
+     * Format: { "Monday": "9:00 AM - 5:00 PM", "Tuesday": "9:00 AM - 5:00 PM", ... }
+     * Null means hours are not available from Google.
+     *
+     * @see DiscoveredBusiness.workHours in ../../tools/business-discovery/types.ts
+     * @see BRI-006 in .claude/ralph/prds/current.json
+     */
+    workHours?: Record<string, string> | null;
   }>;
   error?: boolean;
   /** Web enrichment data gathered in parallel - provides richer context */
@@ -52,6 +84,22 @@ export interface ConfirmBusinessResult {
     category?: string;
     rating?: number;
     reviewCount?: number;
+    /**
+     * Whether the business listing is claimed on Google.
+     * Carried through from search results when user confirms their business.
+     *
+     * @see DiscoveredBusiness.isClaimed in ../../tools/business-discovery/types.ts
+     * @see BRI-006 in .claude/ralph/prds/current.json
+     */
+    isClaimed?: boolean;
+    /**
+     * Business operating hours by day of week.
+     * Carried through from search results when user confirms their business.
+     *
+     * @see DiscoveredBusiness.workHours in ../../tools/business-discovery/types.ts
+     * @see BRI-006 in .claude/ralph/prds/current.json
+     */
+    workHours?: Record<string, string> | null;
   };
 }
 
