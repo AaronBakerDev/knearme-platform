@@ -18,6 +18,21 @@ export interface WebSearchSource {
   title?: string;
 }
 
+/**
+ * Social media profile URLs discovered via web search.
+ * Only populated when actual URLs are found - never guessed.
+ *
+ * @see BRI-003 in .claude/ralph/prds/current.json
+ */
+export interface SocialProfiles {
+  facebook?: string;
+  instagram?: string;
+  linkedin?: string;
+  yelp?: string;
+  houzz?: string;
+  nextdoor?: string;
+}
+
 export interface WebSearchAgentResult {
   summary: string;
   sources: WebSearchSource[];
@@ -33,6 +48,20 @@ export interface WebSearchAgentResult {
     address?: string;
     city?: string;
     state?: string;
+    /**
+     * Social media profile URLs discovered via web search.
+     * Only include URLs that were actually found - never guessed.
+     *
+     * @see BRI-003 in .claude/ralph/prds/current.json
+     */
+    socialProfiles?: SocialProfiles;
+    /**
+     * Portfolio or gallery page URL if the business has one.
+     * Could be on their main site (e.g., /gallery, /portfolio) or a third-party platform.
+     *
+     * @see BRI-003 in .claude/ralph/prds/current.json
+     */
+    portfolioUrl?: string;
   };
 }
 
