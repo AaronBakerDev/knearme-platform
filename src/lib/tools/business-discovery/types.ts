@@ -122,6 +122,19 @@ export interface DiscoveredBusiness {
     lat: number;
     lng: number;
   } | null;
+  /**
+   * Whether the business listing is claimed on Google.
+   * Claimed listings indicate verified ownership and are more trustworthy.
+   * @see GoogleMapsResult.is_claimed - source field from DataForSEO API
+   */
+  isClaimed?: boolean;
+  /**
+   * Business operating hours by day of week.
+   * Format: { "Monday": "9:00 AM - 5:00 PM", "Tuesday": "9:00 AM - 5:00 PM", ... }
+   * Null means hours are not available from Google.
+   * @see GoogleMapsResult.work_hours - source field from DataForSEO API
+   */
+  workHours?: Record<string, string> | null;
 }
 
 /**
