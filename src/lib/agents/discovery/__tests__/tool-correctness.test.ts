@@ -558,6 +558,561 @@ describe('Discovery Agent Tool Correctness', () => {
   });
 
   // ===========================================================================
+  // BRI-011: New Field Capture Tests (Business Research Improvements)
+  // ===========================================================================
+
+  describe('BRI-011: Business Research Field Capture', () => {
+    describe('isClaimed capture from showBusinessSearchResults', () => {
+      it('captures isClaimed=true from top search result to state root', () => {
+        const currentState = createEmptyDiscoveryState();
+        const toolResults = [
+          {
+            toolName: 'showBusinessSearchResults',
+            output: {
+              found: true,
+              message: 'Found 2 matches',
+              results: [
+                {
+                  name: 'Claimed Business',
+                  address: '123 Main St',
+                  phone: '555-1234',
+                  website: null,
+                  rating: 4.5,
+                  reviewCount: 25,
+                  category: 'Masonry contractor',
+                  googlePlaceId: 'ChIJ123',
+                  googleCid: '123456',
+                  isClaimed: true,
+                  workHours: null,
+                },
+              ],
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.isClaimed).toBe(true);
+      });
+
+      it('captures isClaimed=false from top search result to state root', () => {
+        const currentState = createEmptyDiscoveryState();
+        const toolResults = [
+          {
+            toolName: 'showBusinessSearchResults',
+            output: {
+              found: true,
+              message: 'Found 1 match',
+              results: [
+                {
+                  name: 'Unclaimed Business',
+                  address: '456 Oak Ave',
+                  phone: '555-5678',
+                  website: null,
+                  rating: 3.8,
+                  reviewCount: 10,
+                  category: 'Contractor',
+                  googlePlaceId: 'ChIJ456',
+                  googleCid: '789012',
+                  isClaimed: false,
+                  workHours: null,
+                },
+              ],
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.isClaimed).toBe(false);
+      });
+
+      it('includes isClaimed in searchResults array', () => {
+        const currentState = createEmptyDiscoveryState();
+        const toolResults = [
+          {
+            toolName: 'showBusinessSearchResults',
+            output: {
+              found: true,
+              message: 'Found 1 match',
+              results: [
+                {
+                  name: 'Test Business',
+                  address: '123 Main St',
+                  phone: null,
+                  website: null,
+                  rating: null,
+                  reviewCount: null,
+                  category: null,
+                  googlePlaceId: 'ChIJ123',
+                  googleCid: null,
+                  isClaimed: true,
+                  workHours: null,
+                },
+              ],
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.searchResults?.[0]?.isClaimed).toBe(true);
+      });
+    });
+
+    describe('workHours capture from showBusinessSearchResults', () => {
+      it('captures workHours from top search result to state root', () => {
+        const currentState = createEmptyDiscoveryState();
+        const mockHours = {
+          Monday: '9:00 AM - 5:00 PM',
+          Tuesday: '9:00 AM - 5:00 PM',
+          Wednesday: '9:00 AM - 5:00 PM',
+          Thursday: '9:00 AM - 5:00 PM',
+          Friday: '9:00 AM - 5:00 PM',
+        };
+        const toolResults = [
+          {
+            toolName: 'showBusinessSearchResults',
+            output: {
+              found: true,
+              message: 'Found 1 match',
+              results: [
+                {
+                  name: 'Business With Hours',
+                  address: '123 Main St',
+                  phone: '555-1234',
+                  website: null,
+                  rating: 4.5,
+                  reviewCount: 25,
+                  category: 'Masonry contractor',
+                  googlePlaceId: 'ChIJ123',
+                  googleCid: '123456',
+                  isClaimed: true,
+                  workHours: mockHours,
+                },
+              ],
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.workHours).toEqual(mockHours);
+        expect(newState.workHours?.Monday).toBe('9:00 AM - 5:00 PM');
+      });
+
+      it('captures null workHours when hours not available', () => {
+        const currentState = createEmptyDiscoveryState();
+        const toolResults = [
+          {
+            toolName: 'showBusinessSearchResults',
+            output: {
+              found: true,
+              message: 'Found 1 match',
+              results: [
+                {
+                  name: 'Business Without Hours',
+                  address: '123 Main St',
+                  phone: '555-1234',
+                  website: null,
+                  rating: 4.5,
+                  reviewCount: 25,
+                  category: 'Contractor',
+                  googlePlaceId: 'ChIJ123',
+                  googleCid: '123456',
+                  isClaimed: false,
+                  workHours: null,
+                },
+              ],
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.workHours).toBeNull();
+      });
+
+      it('includes workHours in searchResults array', () => {
+        const currentState = createEmptyDiscoveryState();
+        const mockHours = { Monday: '8:00 AM - 6:00 PM' };
+        const toolResults = [
+          {
+            toolName: 'showBusinessSearchResults',
+            output: {
+              found: true,
+              message: 'Found 1 match',
+              results: [
+                {
+                  name: 'Test Business',
+                  address: '123 Main St',
+                  phone: null,
+                  website: null,
+                  rating: null,
+                  reviewCount: null,
+                  category: null,
+                  googlePlaceId: 'ChIJ123',
+                  googleCid: null,
+                  isClaimed: false,
+                  workHours: mockHours,
+                },
+              ],
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.searchResults?.[0]?.workHours).toEqual(mockHours);
+      });
+    });
+
+    describe('socialProfiles from web enrichment', () => {
+      it('captures socialProfiles in webSearchInfo from web enrichment', () => {
+        const currentState = createEmptyDiscoveryState();
+        const mockSocialProfiles = {
+          facebook: 'https://facebook.com/abcmasonry',
+          instagram: 'https://instagram.com/abcmasonry',
+          linkedin: 'https://linkedin.com/company/abc-masonry',
+          yelp: 'https://yelp.com/biz/abc-masonry-denver',
+        };
+        const toolResults = [
+          {
+            toolName: 'showBusinessSearchResults',
+            output: {
+              found: true,
+              message: 'Found 1 match',
+              results: [
+                {
+                  name: 'ABC Masonry',
+                  address: '123 Main St',
+                  phone: '555-1234',
+                  website: 'https://abcmasonry.com',
+                  rating: 4.8,
+                  reviewCount: 42,
+                  category: 'Masonry contractor',
+                  googlePlaceId: 'ChIJ123',
+                  googleCid: '123456',
+                  isClaimed: true,
+                  workHours: null,
+                },
+              ],
+              webEnrichment: {
+                website: 'https://abcmasonry.com',
+                phone: '555-1234',
+                socialProfiles: mockSocialProfiles,
+              },
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.webSearchInfo?.socialProfiles).toEqual(mockSocialProfiles);
+        expect(newState.webSearchInfo?.socialProfiles?.facebook).toBe('https://facebook.com/abcmasonry');
+        expect(newState.webSearchInfo?.socialProfiles?.instagram).toBe('https://instagram.com/abcmasonry');
+      });
+
+      it('handles partial socialProfiles (only some platforms found)', () => {
+        const currentState = createEmptyDiscoveryState();
+        const partialSocialProfiles = {
+          facebook: 'https://facebook.com/test',
+          // instagram, linkedin, yelp not found
+        };
+        const toolResults = [
+          {
+            toolName: 'showBusinessSearchResults',
+            output: {
+              found: true,
+              message: 'Found 1 match',
+              results: [
+                {
+                  name: 'Test Business',
+                  address: '123 Main St',
+                  phone: null,
+                  website: null,
+                  rating: null,
+                  reviewCount: null,
+                  category: null,
+                  googlePlaceId: 'ChIJ123',
+                  googleCid: null,
+                  isClaimed: false,
+                  workHours: null,
+                },
+              ],
+              webEnrichment: {
+                socialProfiles: partialSocialProfiles,
+              },
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.webSearchInfo?.socialProfiles?.facebook).toBe('https://facebook.com/test');
+        expect(newState.webSearchInfo?.socialProfiles?.instagram).toBeUndefined();
+      });
+    });
+
+    describe('portfolioUrl from web enrichment', () => {
+      it('captures portfolioUrl in webSearchInfo from web enrichment', () => {
+        const currentState = createEmptyDiscoveryState();
+        const toolResults = [
+          {
+            toolName: 'showBusinessSearchResults',
+            output: {
+              found: true,
+              message: 'Found 1 match',
+              results: [
+                {
+                  name: 'ABC Masonry',
+                  address: '123 Main St',
+                  phone: '555-1234',
+                  website: 'https://abcmasonry.com',
+                  rating: 4.8,
+                  reviewCount: 42,
+                  category: 'Masonry contractor',
+                  googlePlaceId: 'ChIJ123',
+                  googleCid: '123456',
+                  isClaimed: true,
+                  workHours: null,
+                },
+              ],
+              webEnrichment: {
+                website: 'https://abcmasonry.com',
+                portfolioUrl: 'https://abcmasonry.com/gallery',
+              },
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.webSearchInfo?.portfolioUrl).toBe('https://abcmasonry.com/gallery');
+      });
+
+      it('captures third-party portfolioUrl (e.g., Houzz)', () => {
+        const currentState = createEmptyDiscoveryState();
+        const toolResults = [
+          {
+            toolName: 'showBusinessSearchResults',
+            output: {
+              found: true,
+              message: 'Found 1 match',
+              results: [
+                {
+                  name: 'XYZ Contractors',
+                  address: '456 Oak Ave',
+                  phone: '555-5678',
+                  website: 'https://xyzcontractors.com',
+                  rating: 4.2,
+                  reviewCount: 15,
+                  category: 'General contractor',
+                  googlePlaceId: 'ChIJ456',
+                  googleCid: '789012',
+                  isClaimed: false,
+                  workHours: null,
+                },
+              ],
+              webEnrichment: {
+                website: 'https://xyzcontractors.com',
+                portfolioUrl: 'https://houzz.com/pro/xyz-contractors',
+              },
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.webSearchInfo?.portfolioUrl).toBe('https://houzz.com/pro/xyz-contractors');
+      });
+    });
+
+    describe('isClaimed and workHours from confirmBusiness', () => {
+      it('captures isClaimed from confirmation data to state root', () => {
+        const currentState = createEmptyDiscoveryState();
+        const toolResults = [
+          {
+            toolName: 'confirmBusiness',
+            output: {
+              confirmed: true,
+              data: {
+                googlePlaceId: 'ChIJ123',
+                businessName: 'Confirmed Business',
+                address: '123 Main St',
+                city: 'Denver',
+                state: 'CO',
+                isClaimed: true,
+              },
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.isClaimed).toBe(true);
+      });
+
+      it('captures workHours from confirmation data to state root', () => {
+        const currentState = createEmptyDiscoveryState();
+        const mockHours = {
+          Monday: '8:00 AM - 6:00 PM',
+          Tuesday: '8:00 AM - 6:00 PM',
+          Wednesday: '8:00 AM - 6:00 PM',
+        };
+        const toolResults = [
+          {
+            toolName: 'confirmBusiness',
+            output: {
+              confirmed: true,
+              data: {
+                googlePlaceId: 'ChIJ123',
+                businessName: 'Business With Hours',
+                workHours: mockHours,
+              },
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.workHours).toEqual(mockHours);
+      });
+
+      it('includes isClaimed and workHours in discoveredData', () => {
+        const currentState = createEmptyDiscoveryState();
+        const mockHours = { Monday: '9:00 AM - 5:00 PM' };
+        const toolResults = [
+          {
+            toolName: 'confirmBusiness',
+            output: {
+              confirmed: true,
+              data: {
+                googlePlaceId: 'ChIJ123',
+                businessName: 'Complete Business',
+                isClaimed: true,
+                workHours: mockHours,
+              },
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        expect(newState.discoveredData?.isClaimed).toBe(true);
+        expect(newState.discoveredData?.workHours).toEqual(mockHours);
+      });
+
+      it('handles undefined isClaimed and workHours in confirmation', () => {
+        const currentState = createEmptyDiscoveryState();
+        const toolResults = [
+          {
+            toolName: 'confirmBusiness',
+            output: {
+              confirmed: true,
+              data: {
+                googlePlaceId: 'ChIJ123',
+                businessName: 'Minimal Business',
+                // isClaimed and workHours not provided
+              },
+            },
+          },
+        ];
+
+        const newState = processDiscoveryToolCalls(currentState, toolResults);
+
+        // Should not overwrite state with undefined values
+        expect(newState.discoveredData?.isClaimed).toBeUndefined();
+        expect(newState.discoveredData?.workHours).toBeUndefined();
+      });
+    });
+
+    describe('combined field flow', () => {
+      it('search + confirm carries isClaimed/workHours through full flow', () => {
+        const currentState = createEmptyDiscoveryState();
+        const mockHours = {
+          Monday: '9:00 AM - 5:00 PM',
+          Tuesday: '9:00 AM - 5:00 PM',
+        };
+
+        // First call: showBusinessSearchResults
+        const searchResults = [
+          {
+            toolName: 'showBusinessSearchResults',
+            output: {
+              found: true,
+              message: 'Found 1 match',
+              results: [
+                {
+                  name: 'ABC Masonry',
+                  address: '123 Main St, Denver, CO',
+                  phone: '555-1234',
+                  website: 'https://abcmasonry.com',
+                  rating: 4.8,
+                  reviewCount: 42,
+                  category: 'Masonry contractor',
+                  googlePlaceId: 'ChIJ123',
+                  googleCid: '123456',
+                  isClaimed: true,
+                  workHours: mockHours,
+                },
+              ],
+              webEnrichment: {
+                website: 'https://abcmasonry.com',
+                socialProfiles: {
+                  facebook: 'https://facebook.com/abcmasonry',
+                },
+                portfolioUrl: 'https://abcmasonry.com/portfolio',
+              },
+            },
+          },
+        ];
+
+        const afterSearch = processDiscoveryToolCalls(currentState, searchResults);
+
+        // Verify search captured fields
+        expect(afterSearch.isClaimed).toBe(true);
+        expect(afterSearch.workHours).toEqual(mockHours);
+        expect(afterSearch.webSearchInfo?.socialProfiles?.facebook).toBe('https://facebook.com/abcmasonry');
+        expect(afterSearch.webSearchInfo?.portfolioUrl).toBe('https://abcmasonry.com/portfolio');
+
+        // Second call: confirmBusiness (user selected this business)
+        const confirmResults = [
+          {
+            toolName: 'confirmBusiness',
+            output: {
+              confirmed: true,
+              data: {
+                googlePlaceId: 'ChIJ123',
+                googleCid: '123456',
+                businessName: 'ABC Masonry',
+                address: '123 Main St',
+                city: 'Denver',
+                state: 'CO',
+                phone: '555-1234',
+                website: 'https://abcmasonry.com',
+                category: 'Masonry contractor',
+                rating: 4.8,
+                reviewCount: 42,
+                isClaimed: true,
+                workHours: mockHours,
+              },
+            },
+          },
+        ];
+
+        const afterConfirm = processDiscoveryToolCalls(afterSearch, confirmResults);
+
+        // Verify confirm retained fields
+        expect(afterConfirm.isClaimed).toBe(true);
+        expect(afterConfirm.workHours).toEqual(mockHours);
+        expect(afterConfirm.discoveredData?.isClaimed).toBe(true);
+        expect(afterConfirm.discoveredData?.workHours).toEqual(mockHours);
+      });
+    });
+  });
+
+  // ===========================================================================
   // Review Extraction Tests (Phase 2)
   // ===========================================================================
 

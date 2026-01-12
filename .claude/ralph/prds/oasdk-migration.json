@@ -1,0 +1,1008 @@
+{
+  "meta": {
+    "name": "OASDK-MIGRATION",
+    "description": "Migrate from Vercel AI SDK to OpenAI Agents SDK (TypeScript)",
+    "created": "2026-01-11",
+    "version": "1.0.0",
+    "interview_summary": "Complete migration from Vercel AI SDK + Gemini to OpenAI Agents SDK + Responses API. Replaces AI orchestration, tools, streaming, and observability. 47 features across 5 phases: Foundation, Utilities, Agents, Streaming, Cleanup."
+  },
+  "config": {
+    "priority_order": ["critical", "high", "medium", "low"],
+    "categories": ["architectural", "integration", "functional", "ui", "testing", "documentation"]
+  },
+  "features": [
+    {
+      "id": "FOUND-001",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Create OpenAI client module with API key validation",
+      "acceptance_criteria": [
+        "src/lib/openai/client.ts exists with OpenAI client factory",
+        "Client validates OPENAI_API_KEY environment variable on initialization",
+        "Client throws descriptive error if API key is missing",
+        "Client exports typed OpenAI instance"
+      ],
+      "verification_steps": [
+        "Import client module and verify it compiles",
+        "Test with missing API key - should throw",
+        "Test with valid API key - should return client instance"
+      ],
+      "dependencies": [],
+      "notes": "Use openai-agents-sdk package. Pattern similar to existing src/lib/supabase/client.ts",
+      "passes": false
+    },
+    {
+      "id": "FOUND-002",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Define model responsibility matrix (GPT-5.1 orchestration, 5-mini chat, 5-nano lightweight)",
+      "acceptance_criteria": [
+        "src/lib/openai/models.ts defines MODEL_CONFIG with tiered models",
+        "GPT-5.1 assigned to orchestration/tool-heavy flows",
+        "GPT-5-mini assigned to general chat and content generation",
+        "GPT-5-nano assigned to lightweight tasks (validation, formatting)",
+        "Each model has defined token limits and cost per token"
+      ],
+      "verification_steps": [
+        "Verify MODEL_CONFIG exports with all three tiers",
+        "Verify each tier has modelId, maxTokens, costPerInputToken, costPerOutputToken",
+        "Run typecheck to ensure types are correct"
+      ],
+      "dependencies": [],
+      "notes": "Mirror pattern from existing src/lib/ai/providers.ts MODEL_CONFIG",
+      "passes": false
+    },
+    {
+      "id": "FOUND-003",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Create Agents runtime skeleton with agent registry interface",
+      "acceptance_criteria": [
+        "src/lib/openai/agents-runtime.ts exports AgentRegistry class",
+        "AgentRegistry has registerAgent(name, config) method",
+        "AgentRegistry has getAgent(name) method",
+        "Agent config interface includes: instructions, tools, model, maxTurns",
+        "Runtime is a singleton pattern for app-wide agent access"
+      ],
+      "verification_steps": [
+        "Import AgentRegistry and verify it compiles",
+        "Register a mock agent and retrieve it by name",
+        "Verify singleton behavior (same instance across imports)"
+      ],
+      "dependencies": ["FOUND-001", "FOUND-002"],
+      "notes": "This is skeleton only - actual agents defined in AGENT-* features",
+      "passes": false
+    },
+    {
+      "id": "FOUND-004",
+      "category": "architectural",
+      "priority": "high",
+      "description": "Implement shared run options (maxTurns, timeouts, streaming config)",
+      "acceptance_criteria": [
+        "src/lib/openai/run-options.ts exports DEFAULT_RUN_OPTIONS",
+        "Options include: maxTurns (default 15), timeout (default 120000ms), streamingEnabled (default true)",
+        "Options are typed with RunOptions interface",
+        "Helper function mergeRunOptions(defaults, overrides) exists"
+      ],
+      "verification_steps": [
+        "Verify DEFAULT_RUN_OPTIONS exports with expected defaults",
+        "Test mergeRunOptions with partial overrides",
+        "Verify types pass typecheck"
+      ],
+      "dependencies": [],
+      "notes": "These defaults match current AI SDK stepCountIs(15) and timeout patterns",
+      "passes": false
+    },
+    {
+      "id": "FOUND-005",
+      "category": "integration",
+      "priority": "high",
+      "description": "Add Agents SDK tracing configuration (enabled by default)",
+      "acceptance_criteria": [
+        "src/lib/openai/tracing.ts configures Agents SDK tracing",
+        "Tracing enabled by default, opt-out via DISABLE_AGENTS_TRACING env var",
+        "Trace spans include: agent name, run ID, tool calls, token usage",
+        "Tracing integrates with existing CorrelationContext pattern"
+      ],
+      "verification_steps": [
+        "Verify tracing module compiles",
+        "Verify tracing is enabled when env var is not set",
+        "Verify tracing is disabled when DISABLE_AGENTS_TRACING=true"
+      ],
+      "dependencies": ["FOUND-001"],
+      "notes": "Replaces Langfuse OpenTelemetry integration. Use Agents SDK native tracing.",
+      "passes": false
+    },
+    {
+      "id": "FOUND-006",
+      "category": "integration",
+      "priority": "high",
+      "description": "Create session abstraction (DB-backed, compatible with existing chat_sessions/conversations)",
+      "acceptance_criteria": [
+        "src/lib/openai/sessions.ts exports AgentSession class",
+        "AgentSession wraps existing chat_sessions or conversations table",
+        "Session stores: messages, extracted data, agent state, tool results",
+        "Session has methods: addMessage, getHistory, updateState, persist",
+        "Compatible with both chat flow (chat_sessions) and onboarding flow (conversations)"
+      ],
+      "verification_steps": [
+        "Verify AgentSession compiles with correct types",
+        "Verify session methods match existing persistence patterns",
+        "Verify session can be instantiated for both chat and onboarding contexts"
+      ],
+      "dependencies": [],
+      "notes": "Wraps existing Supabase tables, does not create new schema",
+      "passes": false
+    },
+    {
+      "id": "FOUND-007",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Add environment variable schema validation (OPENAI_API_KEY, model IDs)",
+      "acceptance_criteria": [
+        "src/lib/openai/env.ts validates required environment variables",
+        "Required: OPENAI_API_KEY",
+        "Optional with defaults: OPENAI_ORCHESTRATION_MODEL, OPENAI_CHAT_MODEL, OPENAI_LIGHTWEIGHT_MODEL",
+        "Validation runs at module import time",
+        "Clear error messages for missing/invalid variables"
+      ],
+      "verification_steps": [
+        "Import module with valid env - should succeed silently",
+        "Import module with missing OPENAI_API_KEY - should throw with clear message",
+        "Verify optional model IDs have sensible defaults"
+      ],
+      "dependencies": [],
+      "notes": "Pattern similar to existing env validation in src/lib/supabase/",
+      "passes": false
+    },
+    {
+      "id": "FOUND-008",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Create TypeScript types for agent definitions and tool schemas",
+      "acceptance_criteria": [
+        "src/lib/openai/types.ts exports AgentDefinition, ToolDefinition, RunResult interfaces",
+        "AgentDefinition includes: name, instructions, tools, model, maxTurns",
+        "ToolDefinition includes: name, description, inputSchema (Zod), execute function",
+        "RunResult includes: messages, toolResults, usage, finishReason",
+        "Types are compatible with Agents SDK library types"
+      ],
+      "verification_steps": [
+        "Verify all types compile without errors",
+        "Verify types align with Agents SDK documentation",
+        "Use types in a mock agent definition to validate usability"
+      ],
+      "dependencies": [],
+      "notes": "These types will be used across all agent definitions",
+      "passes": false
+    },
+    {
+      "id": "FOUND-009",
+      "category": "architectural",
+      "priority": "low",
+      "description": "Add barrel exports and update package.json with openai-agents-sdk dependency",
+      "acceptance_criteria": [
+        "src/lib/openai/index.ts exports all public APIs",
+        "package.json includes openai-agents-sdk as dependency",
+        "npm install succeeds without errors",
+        "npm run build succeeds with new dependency"
+      ],
+      "verification_steps": [
+        "Run npm install and verify success",
+        "Run npm run build and verify success",
+        "Import from @/lib/openai and verify exports are available"
+      ],
+      "dependencies": ["FOUND-001", "FOUND-002", "FOUND-003", "FOUND-004", "FOUND-005", "FOUND-006", "FOUND-007", "FOUND-008"],
+      "notes": "Final foundation step - ensures everything is wired together",
+      "passes": false
+    },
+    {
+      "id": "UTIL-001",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Migrate content-generation.ts to Responses API with structured outputs",
+      "acceptance_criteria": [
+        "src/lib/ai/content-generation.ts uses OpenAI Responses API instead of Gemini",
+        "Structured output uses existing Zod schemas from schemas.ts",
+        "generateProjectContent() returns identical output shape",
+        "generateSEOContent() returns identical output shape",
+        "Error handling preserves existing retry logic"
+      ],
+      "verification_steps": [
+        "Call generateProjectContent with test input, verify output matches schema",
+        "Call generateSEOContent with test input, verify output matches schema",
+        "Verify Zod validation passes on all outputs",
+        "Compare output quality with previous Gemini outputs"
+      ],
+      "dependencies": ["FOUND-009"],
+      "notes": "Use Responses API structured_output mode with Zod schema. ~330 lines to migrate.",
+      "passes": false
+    },
+    {
+      "id": "UTIL-002",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Migrate image-analysis.ts to Responses API multimodal",
+      "acceptance_criteria": [
+        "src/lib/ai/image-analysis.ts uses OpenAI Responses API with vision",
+        "analyzeProjectImages() accepts image URLs and returns structured analysis",
+        "Output includes: project_type, materials, techniques, condition, estimated_scope",
+        "Multimodal input format matches Responses API requirements",
+        "Handles multiple images in single request"
+      ],
+      "verification_steps": [
+        "Call analyzeProjectImages with 1-5 test images",
+        "Verify structured output matches existing ImageAnalysisResult schema",
+        "Verify image URLs are correctly formatted for Responses API",
+        "Test with various image formats (JPEG, PNG, WebP)"
+      ],
+      "dependencies": ["FOUND-009"],
+      "notes": "Use Responses API with image_url content type. ~315 lines to migrate.",
+      "passes": false
+    },
+    {
+      "id": "UTIL-003",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Migrate transcription.ts to OpenAI Whisper STT endpoint",
+      "acceptance_criteria": [
+        "src/lib/ai/transcription.ts uses OpenAI Whisper API instead of Gemini",
+        "transcribeAudio() accepts audio blob/file and returns text",
+        "Supports common audio formats: mp3, wav, m4a, webm",
+        "Returns transcript with optional timestamps",
+        "Handles audio up to 25MB (Whisper limit)"
+      ],
+      "verification_steps": [
+        "Call transcribeAudio with test audio file",
+        "Verify transcript accuracy on known audio",
+        "Test with different audio formats",
+        "Verify error handling for oversized files"
+      ],
+      "dependencies": ["FOUND-009"],
+      "notes": "Use audio/transcriptions endpoint. Consider whisper-1 model. ~250 lines to migrate.",
+      "passes": false
+    },
+    {
+      "id": "UTIL-004",
+      "category": "functional",
+      "priority": "high",
+      "description": "Update Zod schema parsing to use Responses API helpers",
+      "acceptance_criteria": [
+        "src/lib/ai/schemas.ts remains unchanged (Zod schemas preserved)",
+        "Parsing uses Responses API structured output validation",
+        "Fallback to manual Zod parse if structured output fails",
+        "Error messages are descriptive for schema mismatches"
+      ],
+      "verification_steps": [
+        "Verify existing schemas still compile",
+        "Test structured output parsing with valid and invalid outputs",
+        "Verify error messages are actionable"
+      ],
+      "dependencies": ["UTIL-001", "UTIL-002"],
+      "notes": "Responses API can accept Zod schemas directly for structured output.",
+      "passes": false
+    },
+    {
+      "id": "UTIL-005",
+      "category": "testing",
+      "priority": "high",
+      "description": "Add unit tests for each migrated utility",
+      "acceptance_criteria": [
+        "src/lib/ai/__tests__/content-generation.test.ts exists",
+        "src/lib/ai/__tests__/image-analysis.test.ts exists",
+        "src/lib/ai/__tests__/transcription.test.ts exists",
+        "Tests mock OpenAI API responses",
+        "Tests cover success, error, and edge cases",
+        "All tests pass with npm run test"
+      ],
+      "verification_steps": [
+        "Run npm run test and verify all new tests pass",
+        "Verify test coverage for each utility function",
+        "Verify mocks correctly simulate Responses API format"
+      ],
+      "dependencies": ["UTIL-001", "UTIL-002", "UTIL-003"],
+      "notes": "Use vitest or jest with MSW for API mocking.",
+      "passes": false
+    },
+    {
+      "id": "UTIL-006",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Migrate voice TTS to OpenAI mini audio model",
+      "acceptance_criteria": [
+        "src/lib/voice/text-to-speech.ts uses OpenAI TTS API",
+        "Uses cost-effective mini audio model (tts-1)",
+        "Supports voice selection (alloy, echo, fable, onyx, nova, shimmer)",
+        "Returns audio as blob or streaming response",
+        "Handles text up to 4096 characters per request"
+      ],
+      "verification_steps": [
+        "Call textToSpeech with test text",
+        "Verify audio output is playable",
+        "Test with different voice options",
+        "Verify long text is chunked appropriately"
+      ],
+      "dependencies": ["FOUND-009"],
+      "notes": "Use audio/speech endpoint with tts-1 model for cost efficiency.",
+      "passes": false
+    },
+    {
+      "id": "UTIL-007",
+      "category": "integration",
+      "priority": "medium",
+      "description": "Update /api/ai/* routes to use new utilities",
+      "acceptance_criteria": [
+        "POST /api/ai/analyze-images uses migrated image-analysis.ts",
+        "POST /api/ai/generate-content uses migrated content-generation.ts",
+        "POST /api/ai/transcribe uses migrated transcription.ts",
+        "API response shapes remain unchanged",
+        "Error responses match existing format"
+      ],
+      "verification_steps": [
+        "Call each API route and verify response shape",
+        "Verify error handling returns expected status codes",
+        "Test with existing client code to ensure compatibility"
+      ],
+      "dependencies": ["UTIL-001", "UTIL-002", "UTIL-003"],
+      "notes": "Routes are thin wrappers - main logic is in utility modules.",
+      "passes": false
+    },
+    {
+      "id": "UTIL-008",
+      "category": "functional",
+      "priority": "low",
+      "description": "Preserve existing error handling and retry logic",
+      "acceptance_criteria": [
+        "src/lib/ai/retry.ts continues to work with OpenAI errors",
+        "Retries on rate limit (429) and server errors (5xx)",
+        "Exponential backoff preserved",
+        "Max retries configurable (default 3)",
+        "Error types mapped from OpenAI error format"
+      ],
+      "verification_steps": [
+        "Test retry logic with mocked rate limit response",
+        "Verify exponential backoff timing",
+        "Verify max retries are respected"
+      ],
+      "dependencies": ["UTIL-001", "UTIL-002", "UTIL-003"],
+      "notes": "OpenAI errors have different format than Gemini - map accordingly.",
+      "passes": false
+    },
+    {
+      "id": "AGENT-001",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Convert discovery agent to Agents SDK with 6 tool definitions",
+      "acceptance_criteria": [
+        "src/lib/agents/discovery.ts refactored to Agents SDK agent definition",
+        "Agent registered in AgentRegistry from foundation layer",
+        "6 tools converted: lookupBusiness, searchWebForBusiness, showBusinessSearchResults, confirmBusinessDetails, extractBusinessFromUrl, showProfileReveal",
+        "Tool input schemas use existing Zod definitions from discovery/schemas.ts",
+        "Tool execute functions preserve existing logic from discovery/tool-processing.ts"
+      ],
+      "verification_steps": [
+        "Verify agent definition compiles",
+        "Run agent with mock business name, verify tool calls execute",
+        "Verify tool results match existing output format",
+        "Verify state updates persist correctly"
+      ],
+      "dependencies": ["FOUND-009"],
+      "notes": "Discovery agent is 542 lines. Focus on tool conversion, preserve state management.",
+      "passes": false
+    },
+    {
+      "id": "AGENT-002",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Convert content-generator agent to Agents SDK",
+      "acceptance_criteria": [
+        "src/lib/agents/content-generator.ts uses Agents SDK agent pattern",
+        "Agent uses structured output for content generation",
+        "Output includes: title, description, seo_title, seo_description, tags",
+        "Agent registered in AgentRegistry",
+        "Preserves existing prompt engineering from content-generator.ts"
+      ],
+      "verification_steps": [
+        "Run agent with project data, verify structured output",
+        "Verify output matches GeneratedContentData schema",
+        "Compare quality with previous Gemini-based outputs"
+      ],
+      "dependencies": ["FOUND-009"],
+      "notes": "Content generator is 418 lines. Uses generateObject() pattern.",
+      "passes": false
+    },
+    {
+      "id": "AGENT-003",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Convert story-extractor agent to Agents SDK",
+      "acceptance_criteria": [
+        "src/lib/agents/story-extractor.ts uses Agents SDK agent pattern",
+        "Agent extracts narrative elements from conversation",
+        "Output includes: key_facts, story_arc, highlights, customer_quotes",
+        "Uses conversation history as context",
+        "Agent registered in AgentRegistry"
+      ],
+      "verification_steps": [
+        "Run agent with mock conversation history",
+        "Verify extracted story elements match schema",
+        "Verify extraction quality matches previous implementation"
+      ],
+      "dependencies": ["FOUND-009"],
+      "notes": "Story extractor is 372 lines. Important for portfolio narrative quality.",
+      "passes": false
+    },
+    {
+      "id": "AGENT-004",
+      "category": "functional",
+      "priority": "high",
+      "description": "Convert ui-composer and layout-composer agents",
+      "acceptance_criteria": [
+        "src/lib/agents/ui-composer.ts uses Agents SDK agent pattern",
+        "src/lib/agents/layout-composer.ts uses Agents SDK agent pattern",
+        "UI composer generates component layouts for portfolio",
+        "Layout composer generates block arrangements",
+        "Both use structured output with existing Zod schemas",
+        "Both registered in AgentRegistry"
+      ],
+      "verification_steps": [
+        "Run ui-composer with project data, verify layout output",
+        "Run layout-composer with content, verify block arrangement",
+        "Verify outputs render correctly in existing preview components"
+      ],
+      "dependencies": ["AGENT-002"],
+      "notes": "These agents work together for portfolio rendering.",
+      "passes": false
+    },
+    {
+      "id": "AGENT-005",
+      "category": "integration",
+      "priority": "high",
+      "description": "Replace custom web-search.ts with hosted web_search tool",
+      "acceptance_criteria": [
+        "src/lib/agents/web-search.ts replaced with Agents SDK hosted web_search",
+        "Hosted tool configured in discovery agent",
+        "Search results format mapped to existing WebSearchResult schema",
+        "Rate limiting respected (hosted tool handles this)",
+        "Search quality comparable to custom implementation"
+      ],
+      "verification_steps": [
+        "Run discovery agent with business that requires web search",
+        "Verify web search results are returned",
+        "Verify results are correctly formatted for downstream processing"
+      ],
+      "dependencies": ["AGENT-001"],
+      "notes": "Hosted web_search is a key Agents SDK benefit - simpler, no API key management.",
+      "passes": false
+    },
+    {
+      "id": "AGENT-006",
+      "category": "functional",
+      "priority": "high",
+      "description": "Migrate 15 chat tool definitions to Agents SDK tool() format",
+      "acceptance_criteria": [
+        "All 15 chat tools converted to Agents SDK tool() definitions",
+        "Tools: extractProjectData, promptForImages, showPortfolioPreview, generatePortfolioContent, composePortfolioLayout, composeUILayout, checkPublishReady, updateField, requestClarification, suggestQuickActions, regenerateSection, reorderImages, validateForPublish, updateDescriptionBlocks, updateContractorProfile",
+        "Tool input schemas preserve existing Zod definitions from tool-schemas.ts",
+        "Tool executors preserve existing logic from tool-executors.ts",
+        "Tools registered for chat agent in AgentRegistry"
+      ],
+      "verification_steps": [
+        "Verify all 15 tool definitions compile",
+        "Test each tool with mock input, verify executor runs",
+        "Verify tool outputs match existing ArtifactRenderer expectations"
+      ],
+      "dependencies": ["FOUND-009"],
+      "notes": "tool-schemas.ts is 873 lines. Preserve existing validation logic.",
+      "passes": false
+    },
+    {
+      "id": "AGENT-007",
+      "category": "integration",
+      "priority": "medium",
+      "description": "Wire MCP tools using Agents SDK MCP integration",
+      "acceptance_criteria": [
+        "MCP tool server connection configured in Agents SDK",
+        "External MCP tools available alongside function tools",
+        "MCP tool results correctly typed and processed",
+        "Fallback handling if MCP server unavailable"
+      ],
+      "verification_steps": [
+        "Verify MCP tools are registered in agent",
+        "Test MCP tool invocation (if MCP server available)",
+        "Verify fallback behavior when MCP unavailable"
+      ],
+      "dependencies": ["AGENT-001"],
+      "notes": "MCP integration is optional but valuable for extensibility.",
+      "passes": false
+    },
+    {
+      "id": "AGENT-008",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Preserve tool-processing.ts state update logic",
+      "acceptance_criteria": [
+        "src/lib/agents/discovery/tool-processing.ts adapted for Agents SDK",
+        "processToolResults() function works with Agents SDK tool results",
+        "State updates (DiscoveryState) persist correctly",
+        "Tool result fallback generation preserved for conversation coherence"
+      ],
+      "verification_steps": [
+        "Run discovery flow end-to-end",
+        "Verify state updates after each tool call",
+        "Verify conversation history includes coherent tool result summaries"
+      ],
+      "dependencies": ["AGENT-001"],
+      "notes": "290 lines of state management logic. Critical for onboarding flow.",
+      "passes": false
+    },
+    {
+      "id": "AGENT-009",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Update circuit-breaker to work with Agents SDK errors",
+      "acceptance_criteria": [
+        "src/lib/agents/circuit-breaker.ts handles Agents SDK error types",
+        "Circuit breaker trips on repeated failures",
+        "Recovery logic works with Agents SDK retry patterns",
+        "Error classification (transient vs permanent) preserved"
+      ],
+      "verification_steps": [
+        "Test circuit breaker with mocked Agents SDK errors",
+        "Verify breaker trips after threshold failures",
+        "Verify recovery after cool-down period"
+      ],
+      "dependencies": ["AGENT-001"],
+      "notes": "Circuit breaker is defensive programming for production resilience.",
+      "passes": false
+    },
+    {
+      "id": "AGENT-010",
+      "category": "testing",
+      "priority": "low",
+      "description": "Add agent-level unit tests",
+      "acceptance_criteria": [
+        "Tests exist for discovery, content-generator, story-extractor agents",
+        "Tests mock Agents SDK run() function",
+        "Tests verify tool selection based on input",
+        "Tests verify output schemas are correct",
+        "All tests pass with npm run test"
+      ],
+      "verification_steps": [
+        "Run npm run test and verify agent tests pass",
+        "Verify test coverage for critical agent paths",
+        "Verify mocks correctly simulate Agents SDK behavior"
+      ],
+      "dependencies": ["AGENT-001", "AGENT-002", "AGENT-003"],
+      "notes": "Focus on behavior, not implementation details.",
+      "passes": false
+    },
+    {
+      "id": "STREAM-001",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Implement custom SSE emitter with event types (meta, message.*, tool.*, source, status, error, done)",
+      "acceptance_criteria": [
+        "src/lib/streaming/sse-emitter.ts exports SSEEmitter class",
+        "Emitter sends Content-Type: text/event-stream",
+        "Event types implemented: meta, message.start, message.delta, message.end, tool.call, tool.delta, tool.result, source, status, error, done",
+        "Each event follows contract from agents-sdk-streaming-contract.md",
+        "Emitter handles backpressure and connection drops"
+      ],
+      "verification_steps": [
+        "Create emitter and send each event type",
+        "Verify event format matches contract specification",
+        "Test with curl to verify raw SSE output"
+      ],
+      "dependencies": ["AGENT-006"],
+      "notes": "Contract defined in docs/04-apis/agents-sdk-streaming-contract.md",
+      "passes": false
+    },
+    {
+      "id": "STREAM-002",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Create useChatStream hook with SSE parser and reducer",
+      "acceptance_criteria": [
+        "src/hooks/useChatStream.ts exports useChatStream hook",
+        "Hook replaces @ai-sdk/react useChat functionality",
+        "SSE parser handles all event types from contract",
+        "Reducer builds UIMessage[] array from events",
+        "Hook exposes: messages, sendMessage, status, setMessages",
+        "Status includes: idle, streaming, submitted (matching existing pattern)"
+      ],
+      "verification_steps": [
+        "Use hook in test component, send message",
+        "Verify messages array updates as events stream",
+        "Verify status transitions correctly",
+        "Verify hook handles connection errors gracefully"
+      ],
+      "dependencies": ["STREAM-001"],
+      "notes": "Must be drop-in replacement for existing useChat usage in ChatWizard.tsx",
+      "passes": false
+    },
+    {
+      "id": "STREAM-003",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Migrate /api/chat/route.ts to Agents SDK with custom streaming",
+      "acceptance_criteria": [
+        "POST /api/chat uses Agents SDK agent runner",
+        "Streaming uses SSEEmitter from STREAM-001",
+        "All 15 chat tools registered and executable",
+        "Tool results map to tool.call and tool.result events",
+        "Message deltas map to message.delta events",
+        "Response completes with done event including usage stats"
+      ],
+      "verification_steps": [
+        "Call /api/chat with test message",
+        "Verify SSE stream contains expected events",
+        "Verify tool calls execute and results stream back",
+        "Verify done event includes token usage"
+      ],
+      "dependencies": ["STREAM-001", "AGENT-006"],
+      "notes": "Currently 705 lines. Focus on event mapping, preserve tool execution logic.",
+      "passes": false
+    },
+    {
+      "id": "STREAM-004",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Migrate /api/onboarding/route.ts to Agents SDK with custom streaming",
+      "acceptance_criteria": [
+        "POST /api/onboarding uses Agents SDK agent runner",
+        "Discovery agent with 6 tools executes correctly",
+        "Streaming uses SSEEmitter from STREAM-001",
+        "Dynamic tool selection preserved (gating logic)",
+        "onFinish equivalent persists state to database",
+        "Circuit breaker integration preserved"
+      ],
+      "verification_steps": [
+        "Call /api/onboarding with test business name",
+        "Verify discovery tools execute and stream results",
+        "Verify state persists to conversations table",
+        "Verify gating logic removes tools after business confirmed"
+      ],
+      "dependencies": ["STREAM-001", "AGENT-001"],
+      "notes": "Currently 944 lines. Complex state management and tool gating.",
+      "passes": false
+    },
+    {
+      "id": "STREAM-005",
+      "category": "integration",
+      "priority": "high",
+      "description": "Map Agents SDK stream events to custom event contract",
+      "acceptance_criteria": [
+        "src/lib/streaming/event-mapper.ts maps Agents SDK events to contract events",
+        "Agent text output maps to message.delta",
+        "Agent tool invocation maps to tool.call (input-available)",
+        "Agent tool result maps to tool.result (output-available or output-error)",
+        "Agent completion maps to done with finishReason"
+      ],
+      "verification_steps": [
+        "Feed mock Agents SDK events through mapper",
+        "Verify output events match contract format",
+        "Verify all Agents SDK event types are handled"
+      ],
+      "dependencies": ["STREAM-001"],
+      "notes": "This is the bridge between Agents SDK internals and our contract.",
+      "passes": false
+    },
+    {
+      "id": "STREAM-006",
+      "category": "ui",
+      "priority": "high",
+      "description": "Preserve artifact rendering (tool.call -> tool.result -> component)",
+      "acceptance_criteria": [
+        "ArtifactRenderer.tsx continues to work with new message format",
+        "Tool parts have correct state values for rendering decisions",
+        "8 visual artifact components render correctly",
+        "9 side-effect tool handlers fire onAction correctly",
+        "No UI regressions in artifact display"
+      ],
+      "verification_steps": [
+        "Complete chat flow with tool usage",
+        "Verify each artifact type renders correctly",
+        "Verify side-effect tools trigger correct actions",
+        "Visual comparison with existing behavior"
+      ],
+      "dependencies": ["STREAM-002", "STREAM-003"],
+      "notes": "Critical for user experience. Artifact components should not need changes.",
+      "passes": false
+    },
+    {
+      "id": "STREAM-007",
+      "category": "functional",
+      "priority": "high",
+      "description": "Maintain ToolPartState compatibility (input-streaming, input-available, output-available, output-error)",
+      "acceptance_criteria": [
+        "ToolPartState enum values preserved in types/artifacts.ts",
+        "SSE events include correct state in tool.call and tool.result",
+        "Client-side reducer sets correct state on tool parts",
+        "ArtifactRenderer state checks continue to work"
+      ],
+      "verification_steps": [
+        "Verify tool.call event has state: input-available",
+        "Verify tool.result success has state: output-available",
+        "Verify tool.result error has state: output-error",
+        "Verify ArtifactRenderer renders correct component for each state"
+      ],
+      "dependencies": ["STREAM-002"],
+      "notes": "State values are the contract between server and client.",
+      "passes": false
+    },
+    {
+      "id": "STREAM-008",
+      "category": "ui",
+      "priority": "high",
+      "description": "Update ChatWizard.tsx to use useChatStream instead of useChat",
+      "acceptance_criteria": [
+        "src/components/chat/ChatWizard.tsx imports useChatStream",
+        "Remove @ai-sdk/react useChat import",
+        "Hook usage pattern matches existing (messages, sendMessage, status, setMessages)",
+        "Transport configuration removed (handled internally by new hook)",
+        "All existing functionality preserved"
+      ],
+      "verification_steps": [
+        "Open chat wizard in browser",
+        "Send message and verify streaming works",
+        "Verify all tool interactions work",
+        "Verify persistence works (refresh, resume conversation)"
+      ],
+      "dependencies": ["STREAM-002"],
+      "notes": "ChatWizard is the main integration point. Minimal changes expected.",
+      "passes": false
+    },
+    {
+      "id": "STREAM-009",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Preserve dynamic tool selection in onboarding (gating logic)",
+      "acceptance_criteria": [
+        "Tools are dynamically enabled/disabled based on conversation state",
+        "showBusinessSearchResults removed after business confirmed",
+        "Tool availability communicated via meta event or status event",
+        "Agent respects tool availability constraints"
+      ],
+      "verification_steps": [
+        "Start onboarding with business name",
+        "Confirm business selection",
+        "Verify subsequent messages don't offer business search",
+        "Verify other tools remain available"
+      ],
+      "dependencies": ["STREAM-004"],
+      "notes": "Gating logic is critical for conversation flow coherence.",
+      "passes": false
+    },
+    {
+      "id": "STREAM-010",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Maintain onFinish callback for state persistence",
+      "acceptance_criteria": [
+        "Agents SDK run completion triggers state persistence",
+        "Conversation messages saved to database",
+        "Extracted data (DiscoveryState) saved to database",
+        "Business profile updates applied",
+        "Persistence is reliable even if client disconnects"
+      ],
+      "verification_steps": [
+        "Complete onboarding conversation",
+        "Verify conversations table has correct data",
+        "Verify businesses table has updated profile",
+        "Simulate client disconnect mid-stream, verify data still persists"
+      ],
+      "dependencies": ["STREAM-004"],
+      "notes": "Server-side persistence is critical for data integrity.",
+      "passes": false
+    },
+    {
+      "id": "STREAM-011",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Handle message conversion (existing format -> Agents SDK format)",
+      "acceptance_criteria": [
+        "Incoming messages converted to Agents SDK message format",
+        "Existing UIMessage history correctly formatted",
+        "Tool results from history correctly included",
+        "System prompt correctly positioned"
+      ],
+      "verification_steps": [
+        "Send message with existing conversation history",
+        "Verify agent receives correctly formatted messages",
+        "Verify agent has access to previous tool results"
+      ],
+      "dependencies": ["STREAM-003", "STREAM-004"],
+      "notes": "Replaces convertToModelMessages() from AI SDK.",
+      "passes": false
+    },
+    {
+      "id": "STREAM-012",
+      "category": "integration",
+      "priority": "low",
+      "description": "Add reconnection handling for SSE stream",
+      "acceptance_criteria": [
+        "useChatStream detects connection drops",
+        "Automatic reconnection with exponential backoff",
+        "Partial message recovery if possible",
+        "User notification if reconnection fails"
+      ],
+      "verification_steps": [
+        "Simulate network interruption during stream",
+        "Verify reconnection attempt occurs",
+        "Verify user sees appropriate status/error"
+      ],
+      "dependencies": ["STREAM-002"],
+      "notes": "Nice-to-have for resilience. Not blocking for MVP.",
+      "passes": false
+    },
+    {
+      "id": "CLEAN-001",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Remove ai, @ai-sdk/google, @ai-sdk/openai, @ai-sdk/react from package.json",
+      "acceptance_criteria": [
+        "package.json no longer lists ai, @ai-sdk/google, @ai-sdk/openai, @ai-sdk/react",
+        "npm install succeeds without these packages",
+        "No TypeScript errors after removal",
+        "npm run build succeeds"
+      ],
+      "verification_steps": [
+        "Run npm uninstall ai @ai-sdk/google @ai-sdk/openai @ai-sdk/react",
+        "Run npm install",
+        "Run npm run build",
+        "Verify no import errors"
+      ],
+      "dependencies": ["STREAM-008"],
+      "notes": "This is the point of no return. Ensure all migration is complete first.",
+      "passes": false
+    },
+    {
+      "id": "CLEAN-002",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Delete or archive AI SDK-specific code and docs",
+      "acceptance_criteria": [
+        "No imports from ai or @ai-sdk/* packages remain in codebase",
+        "Unused AI SDK helper functions removed",
+        "Unused AI SDK type imports removed",
+        "docs/ai-sdk/ folder archived or removed if no longer relevant"
+      ],
+      "verification_steps": [
+        "Run grep -r '@ai-sdk' src/ to verify no imports remain",
+        "Run grep -r 'from \"ai\"' src/ to verify no imports remain",
+        "Verify npm run lint passes",
+        "Verify npm run build passes"
+      ],
+      "dependencies": ["CLEAN-001"],
+      "notes": "Be thorough. Dead code is technical debt.",
+      "passes": false
+    },
+    {
+      "id": "CLEAN-003",
+      "category": "architectural",
+      "priority": "high",
+      "description": "Remove Langfuse dependencies (langfuse, langfuse-vercel) - using Agents SDK tracing only",
+      "acceptance_criteria": [
+        "package.json no longer lists langfuse or langfuse-vercel",
+        "npm install succeeds without these packages",
+        "No TypeScript errors after removal",
+        "Agents SDK tracing confirmed working as replacement"
+      ],
+      "verification_steps": [
+        "Run npm uninstall langfuse langfuse-vercel",
+        "Run npm install",
+        "Run npm run build",
+        "Verify Agents SDK traces appear in dashboard"
+      ],
+      "dependencies": ["STREAM-008"],
+      "notes": "Confirmed decision: Agents SDK tracing only, no Langfuse.",
+      "passes": false
+    },
+    {
+      "id": "CLEAN-004",
+      "category": "architectural",
+      "priority": "high",
+      "description": "Remove src/lib/observability/langfuse.ts and update traced-ai.ts",
+      "acceptance_criteria": [
+        "src/lib/observability/langfuse.ts deleted",
+        "src/lib/observability/traced-ai.ts updated to use Agents SDK tracing",
+        "src/lib/observability/index.ts updated to remove Langfuse exports",
+        "No broken imports in codebase"
+      ],
+      "verification_steps": [
+        "Verify langfuse.ts is deleted",
+        "Verify traced-ai.ts compiles without Langfuse",
+        "Run npm run build",
+        "Verify no import errors"
+      ],
+      "dependencies": ["CLEAN-003"],
+      "notes": "traced-ai.ts may need significant rewrite for Agents SDK tracing.",
+      "passes": false
+    },
+    {
+      "id": "CLEAN-005",
+      "category": "testing",
+      "priority": "high",
+      "description": "Run full regression tests for onboarding, chat, and portfolio flows",
+      "acceptance_criteria": [
+        "Onboarding flow: business discovery works end-to-end",
+        "Chat flow: project creation with tools works end-to-end",
+        "Portfolio generation: content + images + publish works",
+        "Public portfolio pages render correctly",
+        "No console errors in browser during flows"
+      ],
+      "verification_steps": [
+        "Complete onboarding for new business",
+        "Create new project with chat wizard",
+        "Generate portfolio content with AI",
+        "Publish project and view public page",
+        "Document any issues found"
+      ],
+      "dependencies": ["CLEAN-001", "CLEAN-002", "CLEAN-003", "CLEAN-004"],
+      "notes": "Manual regression testing. E2E tests can be added later.",
+      "passes": false
+    },
+    {
+      "id": "CLEAN-006",
+      "category": "testing",
+      "priority": "medium",
+      "description": "Add performance benchmarks (latency, token usage under Responses API)",
+      "acceptance_criteria": [
+        "Baseline metrics captured: average response time, token usage per flow",
+        "Compare with previous Gemini/AI SDK metrics if available",
+        "Document any significant performance differences",
+        "No regression > 20% in response time"
+      ],
+      "verification_steps": [
+        "Run timed tests for key flows",
+        "Capture token usage from Agents SDK traces",
+        "Compare with historical data if available",
+        "Document findings"
+      ],
+      "dependencies": ["CLEAN-005"],
+      "notes": "Performance monitoring is important for production readiness.",
+      "passes": false
+    },
+    {
+      "id": "CLEAN-007",
+      "category": "documentation",
+      "priority": "medium",
+      "description": "Update environment variable references (.env.example, docs) - remove LANGFUSE_* vars",
+      "acceptance_criteria": [
+        ".env.example updated with OPENAI_API_KEY and related vars",
+        "LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_BASEURL removed",
+        "GOOGLE_GENERATIVE_AI_API_KEY removed (no longer using Gemini)",
+        "Documentation updated to reflect new env vars"
+      ],
+      "verification_steps": [
+        "Verify .env.example has correct variables",
+        "Verify no Langfuse or Gemini references in docs",
+        "Verify new developer can set up from .env.example"
+      ],
+      "dependencies": ["CLEAN-003"],
+      "notes": "Clean env setup is important for onboarding new developers.",
+      "passes": false
+    },
+    {
+      "id": "CLEAN-008",
+      "category": "documentation",
+      "priority": "low",
+      "description": "Document Agents SDK tracing dashboard access in operational docs",
+      "acceptance_criteria": [
+        "docs/philosophy/operational-excellence.md updated with Agents SDK tracing",
+        "Dashboard URL and access instructions documented",
+        "Key metrics to monitor documented",
+        "Alerting recommendations documented"
+      ],
+      "verification_steps": [
+        "Verify documentation is accurate",
+        "Verify dashboard URL works",
+        "Verify documented metrics are visible in dashboard"
+      ],
+      "dependencies": ["CLEAN-004"],
+      "notes": "Operational docs ensure team can monitor production.",
+      "passes": false
+    }
+  ]
+}

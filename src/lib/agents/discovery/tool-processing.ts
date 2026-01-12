@@ -68,7 +68,23 @@ export function processDiscoveryToolCalls(
             googlePlaceId: r.googlePlaceId,
             googleCid: r.googleCid,
             coordinates: null,
+            // BRI-007: Include isClaimed and workHours from DataForSEO API
+            // @see SearchBusinessResult in ./tool-types.ts
+            isClaimed: r.isClaimed,
+            workHours: r.workHours,
           }));
+
+          // BRI-007: Capture isClaimed and workHours from top result to state root
+          // The top result is typically the best match and its metadata is useful
+          const topResult = result.results[0];
+          if (topResult) {
+            if (topResult.isClaimed !== undefined) {
+              state.isClaimed = topResult.isClaimed;
+            }
+            if (topResult.workHours !== undefined) {
+              state.workHours = topResult.workHours;
+            }
+          }
         }
 
         // Process parallel web enrichment data (gathered alongside DataForSEO)
@@ -87,6 +103,10 @@ export function processDiscoveryToolCalls(
             serviceAreas: enrichment.serviceAreas,
             services: enrichment.services,
             sources: enrichment.sources,
+            // BRI-007: Include socialProfiles and portfolioUrl from web enrichment
+            // @see WebEnrichmentData in ./tool-types.ts
+            socialProfiles: enrichment.socialProfiles,
+            portfolioUrl: enrichment.portfolioUrl,
           };
           // Fill in missing fields from web enrichment
           if (enrichment.website && !state.website) {
@@ -126,6 +146,10 @@ export function processDiscoveryToolCalls(
             googlePlaceId: result.data.googlePlaceId ?? null,
             googleCid: result.data.googleCid ?? null,
             coordinates: null,
+            // BRI-007: Include isClaimed and workHours from confirmation data
+            // @see ConfirmBusinessResult in ./tool-types.ts
+            isClaimed: result.data.isClaimed,
+            workHours: result.data.workHours,
           };
           state.discoveredData = discoveredData;
           if (result.data.googlePlaceId) state.googlePlaceId = result.data.googlePlaceId;
@@ -138,6 +162,9 @@ export function processDiscoveryToolCalls(
           if (result.data.website) state.website = result.data.website;
           if (result.data.rating != null) state.rating = result.data.rating;
           if (result.data.reviewCount != null) state.reviewCount = result.data.reviewCount;
+          // BRI-007: Capture isClaimed and workHours to state root from confirmation
+          if (result.data.isClaimed !== undefined) state.isClaimed = result.data.isClaimed;
+          if (result.data.workHours !== undefined) state.workHours = result.data.workHours;
           if (result.data.category) {
             const category = result.data.category.toLowerCase();
             if (category.includes('masonry') || category.includes('mason')) {

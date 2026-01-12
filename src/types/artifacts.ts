@@ -11,6 +11,7 @@
 import type { ExtractedProjectData } from '@/lib/chat/chat-types';
 import type { DescriptionBlock } from '@/lib/content/description-blocks';
 import type { DiscoveredBusiness } from '@/lib/tools/business-discovery';
+import type { SocialProfiles } from '@/lib/agents/web-search';
 
 /**
  * Tool part states from AI SDK 6.
@@ -263,6 +264,37 @@ export interface ProfileRevealData {
   projectSuggestions?: ProfileRevealProjectSuggestion[];
   /** If true, this is a service area business - address should not be displayed */
   hideAddress?: boolean;
+  /**
+   * Business hours by day of week.
+   * Format: { "Monday": "9:00 AM - 5:00 PM", ... }
+   *
+   * @see DiscoveredBusiness.workHours in src/lib/tools/business-discovery/types.ts
+   * @see BRI-009 in .claude/ralph/prds/current.json
+   */
+  workHours?: Record<string, string>;
+  /**
+   * Social media profile URLs discovered via DataForSEO or web search.
+   * Only includes platforms where actual URLs were found.
+   *
+   * @see SocialProfiles in src/lib/agents/web-search.ts
+   * @see BRI-009 in .claude/ralph/prds/current.json
+   */
+  socialProfiles?: SocialProfiles;
+  /**
+   * Portfolio or gallery page URL if the business has one.
+   * Could be on their main site or a third-party platform.
+   *
+   * @see BRI-009 in .claude/ralph/prds/current.json
+   */
+  portfolioUrl?: string;
+  /**
+   * Whether the business has claimed their Google Business Profile.
+   * Claimed profiles tend to have more accurate, up-to-date information.
+   *
+   * @see DiscoveredBusiness.isClaimed in src/lib/tools/business-discovery/types.ts
+   * @see BRI-009 in .claude/ralph/prds/current.json
+   */
+  isClaimed?: boolean;
 }
 
 /**

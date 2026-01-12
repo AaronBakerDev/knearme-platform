@@ -17,6 +17,17 @@ export const confirmBusinessSchema = z.object({
   category: z.string().optional().describe('Category from the listing'),
   rating: z.number().optional().describe('Google rating (1-5)'),
   reviewCount: z.number().optional().describe('Number of Google reviews'),
+  /**
+   * Whether the business has claimed their Google Business Profile.
+   * @see DiscoveredBusiness.isClaimed in tools/business-discovery/types.ts
+   */
+  isClaimed: z.boolean().optional().describe('Whether the business has claimed their Google Business Profile'),
+  /**
+   * Business operating hours by day of week.
+   * Format: { "Monday": "9:00 AM - 5:00 PM", ... }
+   * @see DiscoveredBusiness.workHours in tools/business-discovery/types.ts
+   */
+  workHours: z.record(z.string(), z.string()).optional().describe('Business operating hours by day (e.g., { "Monday": "9:00 AM - 5:00 PM" })'),
 });
 
 export const fetchReviewsSchema = z.object({
@@ -42,6 +53,22 @@ export const webSearchBusinessSchema = z.object({
   businessName: z.string().describe('Business name to search for'),
   location: z.string().optional().describe('City and state/province (e.g., "Denver, CO")'),
 });
+
+/**
+ * Social profiles schema for showProfileReveal tool.
+ * Mirrors SocialProfiles interface from web-search.ts.
+ *
+ * @see SocialProfiles in ../web-search.ts
+ * @see BRI-008 in .claude/ralph/prds/current.json
+ */
+export const socialProfilesSchema = z.object({
+  facebook: z.string().optional().describe('Facebook page URL'),
+  instagram: z.string().optional().describe('Instagram profile URL'),
+  linkedin: z.string().optional().describe('LinkedIn company page URL'),
+  yelp: z.string().optional().describe('Yelp business page URL'),
+  houzz: z.string().optional().describe('Houzz profile URL'),
+  nextdoor: z.string().optional().describe('Nextdoor business URL'),
+}).describe('Social media profile URLs - only include URLs actually found');
 
 /**
  * Schema for showProfileReveal tool - the "wow" moment artifact.
@@ -70,4 +97,29 @@ export const showProfileRevealSchema = z.object({
     imageUrls: z.array(z.string()).optional().describe('Image URLs if available'),
   })).optional().describe('Project suggestions from reviews with photos or web portfolio'),
   hideAddress: z.boolean().optional().describe('If true, do not display street address in reveal (service-area business)'),
+  /**
+   * Business operating hours by day of week.
+   * Format: { "Monday": "9:00 AM - 5:00 PM", ... }
+   * @see DiscoveredBusiness.workHours in tools/business-discovery/types.ts
+   * @see BRI-008 in .claude/ralph/prds/current.json
+   */
+  workHours: z.record(z.string(), z.string()).optional().describe('Business operating hours by day (e.g., { "Monday": "9:00 AM - 5:00 PM" })'),
+  /**
+   * Social media profile URLs discovered via web search.
+   * @see SocialProfiles in ../web-search.ts
+   * @see BRI-008 in .claude/ralph/prds/current.json
+   */
+  socialProfiles: socialProfilesSchema.optional(),
+  /**
+   * Portfolio or gallery page URL if the business has one.
+   * @see WebSearchAgentResult.businessInfo.portfolioUrl in ../web-search.ts
+   * @see BRI-008 in .claude/ralph/prds/current.json
+   */
+  portfolioUrl: z.string().optional().describe('Portfolio or gallery page URL'),
+  /**
+   * Whether the business has claimed their Google Business Profile.
+   * @see DiscoveredBusiness.isClaimed in tools/business-discovery/types.ts
+   * @see BRI-008 in .claude/ralph/prds/current.json
+   */
+  isClaimed: z.boolean().optional().describe('Whether the business has claimed their Google Business Profile'),
 });

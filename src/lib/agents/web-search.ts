@@ -18,6 +18,21 @@ export interface WebSearchSource {
   title?: string;
 }
 
+/**
+ * Social media profile URLs discovered via web search.
+ * Only populated when actual URLs are found - never guessed.
+ *
+ * @see BRI-003 in .claude/ralph/prds/current.json
+ */
+export interface SocialProfiles {
+  facebook?: string;
+  instagram?: string;
+  linkedin?: string;
+  yelp?: string;
+  houzz?: string;
+  nextdoor?: string;
+}
+
 export interface WebSearchAgentResult {
   summary: string;
   sources: WebSearchSource[];
@@ -33,6 +48,20 @@ export interface WebSearchAgentResult {
     address?: string;
     city?: string;
     state?: string;
+    /**
+     * Social media profile URLs discovered via web search.
+     * Only include URLs that were actually found - never guessed.
+     *
+     * @see BRI-003 in .claude/ralph/prds/current.json
+     */
+    socialProfiles?: SocialProfiles;
+    /**
+     * Portfolio or gallery page URL if the business has one.
+     * Could be on their main site (e.g., /gallery, /portfolio) or a third-party platform.
+     *
+     * @see BRI-003 in .claude/ralph/prds/current.json
+     */
+    portfolioUrl?: string;
   };
 }
 
@@ -72,7 +101,7 @@ export async function runWebSearchAgent(
     toolChoice: { type: 'tool', toolName: 'google_search' },
     prompt: [
       'You are a web search assistant helping gather information about a business.',
-      'Use google_search to find their official website and any relevant listings.',
+      'Use google_search to find their official website, social media profiles, and any relevant listings.',
       '',
       'Search for: ' + input.query,
       '',
@@ -89,11 +118,19 @@ export async function runWebSearchAgent(
       '    "services": ["service1", "service2"],',
       '    "yearsInBusiness": "e.g., 15 years or since 2008",',
       '    "specialties": ["specialty1", "specialty2"],',
-      '    "serviceAreas": ["Denver Metro", "Boulder County"]',
+      '    "serviceAreas": ["Denver Metro", "Boulder County"],',
+      '    "socialProfiles": {',
+      '      "facebook": "https://facebook.com/businessname",',
+      '      "instagram": "https://instagram.com/businessname",',
+      '      "linkedin": "https://linkedin.com/company/businessname",',
+      '      "yelp": "https://yelp.com/biz/businessname-city"',
+      '    },',
+      '    "portfolioUrl": "URL to their portfolio, gallery, or project showcase page"',
       '  }',
       '}',
       '',
       'Include only fields where you found actual information. Omit empty fields.',
+      'For social profiles, only include URLs you actually found - do not guess.',
     ].join('\n'),
     stopWhen: stepCountIs(3),
   });

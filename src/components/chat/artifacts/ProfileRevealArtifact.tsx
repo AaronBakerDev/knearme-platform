@@ -26,6 +26,10 @@ import {
   Calendar,
   Camera,
   ExternalLink,
+  Clock,
+  Facebook,
+  Instagram,
+  Linkedin,
 } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, Button, Badge } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -123,6 +127,60 @@ export function ProfileRevealArtifact({
               </a>
             </div>
           )}
+
+          {/* Social Links - icons for FB/IG/LinkedIn, text link for Yelp */}
+          {data.socialProfiles && (
+            data.socialProfiles.facebook ||
+            data.socialProfiles.instagram ||
+            data.socialProfiles.linkedin ||
+            data.socialProfiles.yelp
+          ) && (
+            <div className="flex items-center gap-3 text-sm">
+              {data.socialProfiles.facebook && (
+                <a
+                  href={data.socialProfiles.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  title="Facebook"
+                >
+                  <Facebook className="h-4 w-4" />
+                </a>
+              )}
+              {data.socialProfiles.instagram && (
+                <a
+                  href={data.socialProfiles.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  title="Instagram"
+                >
+                  <Instagram className="h-4 w-4" />
+                </a>
+              )}
+              {data.socialProfiles.linkedin && (
+                <a
+                  href={data.socialProfiles.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  title="LinkedIn"
+                >
+                  <Linkedin className="h-4 w-4" />
+                </a>
+              )}
+              {data.socialProfiles.yelp && (
+                <a
+                  href={data.socialProfiles.yelp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary hover:underline transition-colors text-xs"
+                >
+                  Yelp
+                </a>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Rating + Years in Business */}
@@ -147,6 +205,30 @@ export function ProfileRevealArtifact({
             </div>
           )}
         </div>
+
+        {/* Work Hours - shows up to 4 days in 2-column grid */}
+        {data.workHours && Object.keys(data.workHours).length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Hours
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+              {Object.entries(data.workHours).slice(0, 4).map(([day, hours]) => {
+                // Abbreviate day names (Monday -> Mon, Tuesday -> Tue, etc.)
+                const abbrev = day.slice(0, 3);
+                return (
+                  <div key={day} className="flex justify-between">
+                    <span className="text-muted-foreground">{abbrev}</span>
+                    <span className="text-right">{hours}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Services */}
         {data.services.length > 0 && (
