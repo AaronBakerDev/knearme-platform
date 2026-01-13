@@ -3,16 +3,18 @@
  *
  * Displays a button to open draft article previews in a new tab.
  * Shows the preview URL and expiration date for shareable links.
+ * Allows regenerating or revoking preview tokens.
  *
  * Only visible for non-published articles (draft/scheduled).
  *
- * @see PAY-066 in PRD for acceptance criteria
+ * @see PAY-066 in PRD for basic preview functionality
+ * @see PAY-067 in PRD for shareable preview links (regenerate/revoke)
  * @see https://payloadcms.com/docs/fields/ui for UI field pattern
  */
 'use client'
 
 import React from 'react'
-import { useFormFields } from '@payloadcms/ui'
+import { useFormFields, useDocumentInfo } from '@payloadcms/ui'
 import type { UIFieldClientComponent } from 'payload'
 import { format, formatDistanceToNow } from 'date-fns'
 
@@ -112,6 +114,48 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#6B7280',
     fontStyle: 'italic',
   },
+  actionButtons: {
+    display: 'flex',
+    gap: '0.5rem',
+    marginTop: '0.75rem',
+  },
+  regenerateButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.375rem',
+    padding: '0.375rem 0.75rem',
+    backgroundColor: '#FFFFFF',
+    color: '#374151',
+    fontSize: '0.75rem',
+    fontWeight: 500,
+    borderRadius: '0.25rem',
+    border: '1px solid #D1D5DB',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  revokeButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.375rem',
+    padding: '0.375rem 0.75rem',
+    backgroundColor: '#FFFFFF',
+    color: '#DC2626',
+    fontSize: '0.75rem',
+    fontWeight: 500,
+    borderRadius: '0.25rem',
+    border: '1px solid #FCA5A5',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  loadingButton: {
+    opacity: 0.6,
+    cursor: 'not-allowed',
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: '0.75rem',
+    marginTop: '0.5rem',
+  },
 }
 
 /**
@@ -198,14 +242,67 @@ function ClockIcon() {
 }
 
 /**
+ * Refresh icon SVG for regenerate button
+ */
+function RefreshIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+    </svg>
+  )
+}
+
+/**
+ * X icon SVG for revoke button
+ */
+function XIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  )
+}
+
+/**
  * Preview Button UI Component
  *
  * Shows preview URL and button for draft/scheduled articles.
  * Hidden for published articles since they're publicly accessible.
+ * Provides token regeneration and revocation for shareable previews.
+ *
+ * @see PAY-067 for regenerate/revoke functionality
  */
 export const PreviewButton: UIFieldClientComponent = () => {
   const [copied, setCopied] = React.useState(false)
   const [isHovering, setIsHovering] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  // Local state for token (allows updates without page refresh)
+  const [localToken, setLocalToken] = React.useState<string | null>(null)
+  const [localExpiresAt, setLocalExpiresAt] = React.useState<string | null>(null)
+
+  // Get document ID from Payload's document context
+  const { id: documentId } = useDocumentInfo()
 
   // Watch relevant fields for preview
   const formData = useFormFields(([fields]) => {
@@ -222,11 +319,93 @@ export const PreviewButton: UIFieldClientComponent = () => {
     }
   })
 
-  const { status, previewToken, previewTokenExpiresAt, slug } = formData
+  const { status, slug } = formData
+
+  // Use local state if set, otherwise use form data
+  const previewToken = localToken ?? formData.previewToken
+  const previewTokenExpiresAt = localExpiresAt ?? formData.previewTokenExpiresAt
 
   // Stable timestamp for expiration calculations
   // Re-computed when expiration changes to ensure accuracy
   const [now] = React.useState(() => Date.now())
+
+  /**
+   * Handle token regeneration - creates new token, invalidates old
+   * Calls POST /api/articles/preview-token with action: 'regenerate'
+   */
+  const handleRegenerate = async () => {
+    if (!documentId || isLoading) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/articles/preview-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          articleId: documentId,
+          action: 'regenerate',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to regenerate token')
+      }
+
+      // Update local state with new token
+      setLocalToken(data.previewToken)
+      setLocalExpiresAt(data.previewTokenExpiresAt)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to regenerate token')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  /**
+   * Handle token revocation - removes token entirely
+   * Calls POST /api/articles/preview-token with action: 'revoke'
+   */
+  const handleRevoke = async () => {
+    if (!documentId || isLoading) return
+
+    // Confirm revocation since it invalidates shared links
+    const confirmed = window.confirm(
+      'Revoke preview link? Any shared links will stop working immediately.'
+    )
+    if (!confirmed) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/articles/preview-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          articleId: documentId,
+          action: 'revoke',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to revoke token')
+      }
+
+      // Clear local state
+      setLocalToken(null)
+      setLocalExpiresAt(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to revoke token')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Don't show for published articles - they're publicly accessible
   if (status === 'published') {
@@ -288,8 +467,34 @@ export const PreviewButton: UIFieldClientComponent = () => {
       <div style={styles.container}>
         <div style={styles.label}>Preview</div>
         <p style={styles.notAvailable}>
-          Save this {status || 'draft'} article to generate a preview link.
+          {documentId
+            ? 'No preview link available. Click below to generate one.'
+            : `Save this ${status || 'draft'} article to generate a preview link.`}
         </p>
+
+        {/* Allow generating a new token even if none exists (PAY-067) */}
+        {documentId && (
+          <>
+            <button
+              style={{
+                ...styles.regenerateButton,
+                marginTop: '0.75rem',
+                ...(isLoading ? styles.loadingButton : {}),
+              }}
+              onClick={handleRegenerate}
+              disabled={isLoading}
+            >
+              <RefreshIcon />
+              {isLoading ? 'Generating...' : 'Generate Preview Link'}
+            </button>
+
+            {error && (
+              <div style={styles.errorText}>
+                Error: {error}
+              </div>
+            )}
+          </>
+        )}
       </div>
     )
   }
@@ -336,6 +541,42 @@ export const PreviewButton: UIFieldClientComponent = () => {
             </span>
             {' '}({format(expiresAt, 'MMM d, yyyy')})
           </span>
+        </div>
+      )}
+
+      {/* Token Management Actions (PAY-067) */}
+      <div style={styles.actionButtons}>
+        <button
+          style={{
+            ...styles.regenerateButton,
+            ...(isLoading ? styles.loadingButton : {}),
+          }}
+          onClick={handleRegenerate}
+          disabled={isLoading}
+          title="Generate a new preview link (invalidates the current one)"
+        >
+          <RefreshIcon />
+          {isLoading ? 'Regenerating...' : 'Regenerate Link'}
+        </button>
+
+        <button
+          style={{
+            ...styles.revokeButton,
+            ...(isLoading ? styles.loadingButton : {}),
+          }}
+          onClick={handleRevoke}
+          disabled={isLoading}
+          title="Revoke preview access (shared links will stop working)"
+        >
+          <XIcon />
+          {isLoading ? 'Revoking...' : 'Revoke'}
+        </button>
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div style={styles.errorText}>
+          Error: {error}
         </div>
       )}
     </div>
