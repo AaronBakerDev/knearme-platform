@@ -3,6 +3,7 @@ export * from './breadcrumb';
 export * from './business';
 export * from './constants';
 export * from './organization';
+export * from './product';
 export * from './project';
 export * from './service';
 export * from './tool';
