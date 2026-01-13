@@ -41,6 +41,7 @@ import { FormSubmissions } from './collections/FormSubmissions'
 
 // Globals
 import { Navigation } from './globals/Navigation'
+import { Newsletter } from './globals/Newsletter'
 import { SiteSettings } from './globals/SiteSettings'
 
 // Revalidation hooks for ISR
@@ -413,7 +414,7 @@ export default buildConfig({
    * - SiteSettings: Branding, contact info, social links, SEO defaults
    * - Navigation: Header, footer, and quick access links
    */
-  globals: [Navigation, SiteSettings],
+  globals: [Navigation, Newsletter, SiteSettings],
 
   /**
    * JWT Secret for authentication

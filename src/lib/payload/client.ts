@@ -413,6 +413,33 @@ export interface SiteSettings {
   defaultOgImage?: MediaReference
 }
 
+/**
+ * Provider configuration for newsletter integrations
+ */
+export interface NewsletterProviderConfig {
+  webhookUrl?: string
+  mailchimpApiKey?: string
+  mailchimpAudienceId?: string
+  convertkitApiKey?: string
+  convertkitFormId?: string
+  buttondownApiKey?: string
+}
+
+/**
+ * Newsletter global from Payload CMS
+ * @see PAY-056 in PRD
+ */
+export interface Newsletter {
+  enabled: boolean
+  title?: string
+  description?: string
+  placeholder?: string
+  buttonText?: string
+  successMessage?: string
+  provider: 'mailchimp' | 'convertkit' | 'buttondown' | 'webhook'
+  providerConfig?: NewsletterProviderConfig
+}
+
 // ============================================================================
 // Payload Client
 // ============================================================================
@@ -1017,6 +1044,36 @@ export async function getNavigation(): Promise<Navigation | null> {
     })
 
     return result as Navigation
+  } catch {
+    // Global may not exist yet
+    return null
+  }
+}
+
+/**
+ * Fetch newsletter global from Payload CMS
+ *
+ * @returns Promise<Newsletter | null> - Newsletter config or null if not configured
+ *
+ * @example
+ * const newsletter = await getNewsletter()
+ * if (newsletter?.enabled) {
+ *   // Render newsletter form
+ * }
+ *
+ * @see PAY-056 in PRD
+ */
+export async function getNewsletter(): Promise<Newsletter | null> {
+  const payload = await getPayloadClient()
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (payload as any).findGlobal({
+      slug: 'newsletter',
+      depth: 0, // No relations to populate
+    })
+
+    return result as Newsletter
   } catch {
     // Global may not exist yet
     return null
