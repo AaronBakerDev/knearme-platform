@@ -216,15 +216,21 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   const publishedDate = article.publishedAt ? new Date(article.publishedAt) : null
   const tableOfContents = article.tableOfContents || []
 
-  // Generate JSON-LD for BlogPosting schema
-  const jsonLd = generateBlogPostingSchema(article)
+  // Generate JSON-LD structured data schemas
+  const blogPostingSchema = generateBlogPostingSchema(article)
+  const breadcrumbSchema = generateBreadcrumbSchema(article)
 
   return (
     <>
-      {/* JSON-LD Structured Data */}
+      {/* JSON-LD Structured Data - BlogPosting */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogPostingSchema) }}
+      />
+      {/* JSON-LD Structured Data - BreadcrumbList (PAY-048) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
 
       <article className="container mx-auto px-4 py-12 max-w-4xl">
@@ -724,6 +730,64 @@ function RelatedArticles({ articles }: { articles: Array<NonNullable<ArticleWith
       </div>
     </section>
   )
+}
+
+/**
+ * Generate BreadcrumbList JSON-LD schema for SEO
+ * Path: Home > Blog > Category (if exists) > Article
+ * @see https://schema.org/BreadcrumbList
+ * @see PAY-048 in PRD for acceptance criteria
+ */
+function generateBreadcrumbSchema(
+  article: ArticleWithRelations,
+  siteUrl: string = 'https://knearme.co'
+) {
+  const category = typeof article.category === 'object' ? article.category : null
+
+  // Build breadcrumb items array
+  const items: Array<{
+    '@type': 'ListItem'
+    position: number
+    name: string
+    item?: string
+  }> = [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      name: 'Home',
+      item: siteUrl,
+    },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: 'Blog',
+      item: `${siteUrl}/blog`,
+    },
+  ]
+
+  // Add category if present
+  if (category?.name && category?.slug) {
+    items.push({
+      '@type': 'ListItem',
+      position: 3,
+      name: category.name,
+      item: `${siteUrl}/blog/category/${category.slug}`,
+    })
+  }
+
+  // Add current article (no item URL for current page per schema.org best practices)
+  items.push({
+    '@type': 'ListItem',
+    position: items.length + 1,
+    name: article.title,
+    // Note: item property omitted for current page
+  })
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items,
+  }
 }
 
 /**
