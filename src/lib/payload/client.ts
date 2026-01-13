@@ -276,6 +276,130 @@ export interface Redirect {
   updatedAt: string
 }
 
+// ============================================================================
+// Form Types
+// ============================================================================
+
+/**
+ * Text field block configuration
+ */
+export interface FormTextField {
+  blockType: 'textField'
+  name: string
+  label: string
+  placeholder?: string
+  required?: boolean
+  width?: 'full' | 'half'
+}
+
+/**
+ * Email field block configuration
+ */
+export interface FormEmailField {
+  blockType: 'emailField'
+  name: string
+  label: string
+  placeholder?: string
+  required?: boolean
+  width?: 'full' | 'half'
+}
+
+/**
+ * Textarea field block configuration
+ */
+export interface FormTextareaField {
+  blockType: 'textareaField'
+  name: string
+  label: string
+  placeholder?: string
+  required?: boolean
+  rows?: number
+}
+
+/**
+ * Select field block configuration
+ */
+export interface FormSelectField {
+  blockType: 'selectField'
+  name: string
+  label: string
+  required?: boolean
+  options: Array<{ label: string; value: string }>
+  width?: 'full' | 'half'
+}
+
+/**
+ * Checkbox field block configuration
+ */
+export interface FormCheckboxField {
+  blockType: 'checkboxField'
+  name: string
+  label: string
+  required?: boolean
+  defaultChecked?: boolean
+}
+
+/**
+ * Hidden field block configuration
+ */
+export interface FormHiddenField {
+  blockType: 'hiddenField'
+  name: string
+  value?: string
+}
+
+/**
+ * Union type for all form field blocks
+ */
+export type FormFieldBlock =
+  | FormTextField
+  | FormEmailField
+  | FormTextareaField
+  | FormSelectField
+  | FormCheckboxField
+  | FormHiddenField
+
+/**
+ * Form from Payload CMS
+ *
+ * Dynamic forms for contact, lead capture, and engagement.
+ * @see PAY-055 in PRD for acceptance criteria
+ */
+export interface Form {
+  id: string
+  name: string
+  slug: string
+  fields: FormFieldBlock[]
+  submitButton?: string
+  successMessage?: string
+  emailNotification?: {
+    enabled?: boolean
+    to?: string
+    subject?: string
+  }
+  redirectUrl?: string
+  createdAt: string
+  updatedAt: string
+}
+
+/**
+ * Form submission from Payload CMS
+ */
+export interface FormSubmission {
+  id: string
+  form: Form | string
+  submissionData: Record<string, unknown>
+  email?: string
+  submittedAt: string
+  pageUrl?: string
+  userAgent?: string
+  ipAddress?: string
+  processed?: boolean
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
 /**
  * Site settings global from Payload CMS
  */
@@ -978,5 +1102,158 @@ export async function getAllRedirects(): Promise<Redirect[]> {
   } catch {
     // Collection may not exist or query failed
     return []
+  }
+}
+
+// ============================================================================
+// Form Query Functions
+// ============================================================================
+
+/**
+ * Fetch a form by slug from Payload CMS
+ *
+ * Used by DynamicForm component to load form configuration.
+ *
+ * @param slug - The form slug
+ * @returns Promise<Form | null> - The form or null if not found
+ *
+ * @example
+ * const form = await getForm('contact')
+ * if (form) {
+ *   // Render DynamicForm with form configuration
+ * }
+ *
+ * @see PAY-055 in PRD for acceptance criteria
+ */
+export async function getForm(slug: string): Promise<Form | null> {
+  const payload = await getPayloadClient()
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (payload as any).find({
+      collection: 'forms',
+      where: {
+        slug: { equals: slug },
+      },
+      limit: 1,
+    })
+
+    return (result.docs?.[0] || null) as Form | null
+  } catch {
+    // Collection may not exist or query failed
+    return null
+  }
+}
+
+/**
+ * Fetch a form by ID from Payload CMS
+ *
+ * @param id - The form ID
+ * @returns Promise<Form | null> - The form or null if not found
+ */
+export async function getFormById(id: string): Promise<Form | null> {
+  const payload = await getPayloadClient()
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (payload as any).findByID({
+      collection: 'forms',
+      id,
+    })
+
+    return result as Form | null
+  } catch {
+    // Form not found or query failed
+    return null
+  }
+}
+
+/**
+ * Fetch all forms from Payload CMS
+ *
+ * @returns Promise<Form[]> - Array of forms
+ *
+ * @example
+ * const forms = await getForms()
+ */
+export async function getForms(): Promise<Form[]> {
+  const payload = await getPayloadClient()
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (payload as any).find({
+      collection: 'forms',
+      sort: 'name',
+      limit: 100,
+    })
+
+    return (result.docs || []) as Form[]
+  } catch {
+    // Collection may not exist or query failed
+    return []
+  }
+}
+
+/**
+ * Fetch form submissions from Payload CMS
+ *
+ * @param options.formId - Filter by form ID
+ * @param options.formSlug - Filter by form slug
+ * @param options.processed - Filter by processed status
+ * @param options.limit - Maximum number of submissions to return
+ * @param options.page - Page number for pagination
+ * @returns Promise<{ docs: FormSubmission[], totalPages: number, totalDocs: number }>
+ *
+ * @example
+ * const { docs: submissions } = await getFormSubmissions({ formSlug: 'contact' })
+ */
+export async function getFormSubmissions(options?: {
+  formId?: string
+  formSlug?: string
+  processed?: boolean
+  limit?: number
+  page?: number
+}): Promise<{ docs: FormSubmission[]; totalPages: number; totalDocs: number }> {
+  const payload = await getPayloadClient()
+
+  try {
+    // Build where clause
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: Record<string, any> = {}
+
+    if (options?.formId) {
+      where.form = { equals: options.formId }
+    }
+
+    if (options?.formSlug) {
+      // Look up form by slug first
+      const form = await getForm(options.formSlug)
+      if (form) {
+        where.form = { equals: form.id }
+      }
+    }
+
+    if (options?.processed !== undefined) {
+      where.processed = { equals: options.processed }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (payload as any).find({
+      collection: 'form-submissions',
+      where,
+      sort: '-submittedAt',
+      limit: options?.limit || 50,
+      page: options?.page || 1,
+      depth: 1, // Populate form
+    })
+
+    return {
+      docs: (result.docs || []) as FormSubmission[],
+      totalPages: result.totalPages as number,
+      totalDocs: result.totalDocs as number,
+    }
+  } catch {
+    // Collection may not exist or query failed
+    return { docs: [], totalPages: 0, totalDocs: 0 }
   }
 }

@@ -35,6 +35,10 @@ import { Testimonials } from './collections/Testimonials'
 // Infrastructure collections
 import { Redirects } from './collections/Redirects'
 
+// Engagement collections
+import { Forms } from './collections/Forms'
+import { FormSubmissions } from './collections/FormSubmissions'
+
 // Globals
 import { Navigation } from './globals/Navigation'
 import { SiteSettings } from './globals/SiteSettings'
@@ -398,8 +402,10 @@ export default buildConfig({
    * - Tags: Article tagging (flat taxonomy)
    * - Articles: Blog posts with rich content
    * - Redirects: URL redirect management (infrastructure)
+   * - Forms: Dynamic form builder (engagement)
+   * - FormSubmissions: Form response storage (engagement)
    */
-  collections: [Users, Media, FAQs, PricingTiers, Testimonials, Features, ServiceTypes, Authors, Categories, Tags, Articles, Redirects],
+  collections: [Users, Media, FAQs, PricingTiers, Testimonials, Features, ServiceTypes, Authors, Categories, Tags, Articles, Redirects, Forms, FormSubmissions],
 
   /**
    * Globals - Site-wide Singletons
