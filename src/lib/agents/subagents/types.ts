@@ -260,6 +260,19 @@ export interface SpawnOptions {
 
   /** Timeout in milliseconds (default: 30000) */
   timeout?: number;
+
+  /**
+   * Correlation context for observability.
+   * Links subagent traces to parent conversation trace.
+   * @see /docs/philosophy/operational-excellence.md - Observability Strategy
+   */
+  correlationContext?: {
+    conversationId: string;
+    requestTraceId: string;
+    agentSpanId?: string;
+    projectId?: string;
+    contractorId: string;
+  };
 }
 
 // ============================================================================

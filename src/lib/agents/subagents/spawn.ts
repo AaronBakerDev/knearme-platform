@@ -23,6 +23,11 @@ import { isRateLimitError, isTimeoutError } from '@/lib/api/errors';
 import type { ProjectImageState } from '../types';
 import { downloadProjectImage } from '@/lib/storage/upload.server';
 import { logger } from '@/lib/logging';
+import {
+  createAgentLogger,
+  createCorrelationContext,
+  type CorrelationContext,
+} from '@/lib/observability/agent-logger';
 import type {
   SubagentType,
   SubagentContext,
@@ -346,7 +351,7 @@ export async function spawnSubagent<T extends SubagentType>(
       ? DesignAgentResult
       : QualityAgentResult
 > {
-  const _startTime = Date.now();
+  const startTime = Date.now();
 
   // Type alias for the unwrapped return type (async function auto-wraps in Promise)
   type SubagentResultType = T extends 'story'
@@ -355,14 +360,42 @@ export async function spawnSubagent<T extends SubagentType>(
       ? DesignAgentResult
       : QualityAgentResult;
 
+  // Create correlation context for observability
+  // @see /docs/philosophy/operational-excellence.md - Observability Strategy
+  const correlationCtx = options.correlationContext
+    ? createCorrelationContext(
+        options.correlationContext.conversationId,
+        options.correlationContext.contractorId,
+        options.correlationContext.projectId
+      )
+    : createCorrelationContext('unknown', 'unknown', undefined);
+
+  // Create agent logger for this subagent
+  // Maps subagent type to AgentType (story -> story, etc.)
+  const agentLogger = createAgentLogger(type, correlationCtx);
+  agentLogger.start({
+    subagentType: type,
+    hasUserMessage: Boolean(context.userMessage),
+    imageCount: context.images?.length ?? 0,
+    projectStateFields: Object.keys(context.projectState).filter(
+      k => context.projectState[k as keyof typeof context.projectState]
+    ).length,
+  });
+
   // Check if AI is available
   if (!isGoogleAIEnabled()) {
+    agentLogger.decision('AI not available - returning error', {
+      confidence: 0,
+      decision: 'blocked_no_ai',
+    });
+    agentLogger.error(new Error('AI service not available'), { reason: 'ai_disabled' });
     return createErrorResult(type, 'AI service not available', false) as SubagentResultType;
   }
 
   // Get subagent configuration
   const config = SUBAGENT_REGISTRY[type];
   if (!config) {
+    agentLogger.error(new Error(`Unknown subagent type: ${type}`), { reason: 'invalid_type' });
     return createErrorResult(type, `Unknown subagent type: ${type}`, false) as SubagentResultType;
   }
 
@@ -444,7 +477,8 @@ export async function spawnSubagent<T extends SubagentType>(
     const hasValidConfidence =
       typeof validatedResult.confidence === 'number' &&
       Number.isFinite(validatedResult.confidence);
-    const confidence = hasValidConfidence ? validatedResult.confidence : 0.5;
+    // Explicitly type as number to satisfy TypeScript after the hasValidConfidence check
+    const confidence: number = hasValidConfidence ? (validatedResult.confidence as number) : 0.5;
 
     if (!hasValidConfidence) {
       logger.warn('[spawnSubagent] Missing confidence score, using fallback', {
@@ -458,27 +492,48 @@ export async function spawnSubagent<T extends SubagentType>(
       confidence, // Use validated or fallback
     };
 
+    // Log successful subagent completion
+    agentLogger.decision(`${type} subagent completed successfully`, {
+      confidence,
+      decision: 'subagent_success',
+      observations: [
+        `Confidence: ${(confidence * 100).toFixed(0)}%`,
+        hasValidConfidence ? 'Model provided confidence' : 'Using fallback confidence',
+      ],
+    });
+
+    agentLogger.complete({
+      durationMs: Date.now() - startTime,
+      confidence,
+      hasStateUpdates: 'stateUpdates' in result && Boolean(result.stateUpdates),
+    });
+
     return enrichedResult as SubagentResultType;
   } catch (error) {
     // Use centralized error type detection helpers
     // @see src/lib/api/errors.ts for pattern definitions
-    const timeout = isTimeoutError(error);
+    const timeoutErr = isTimeoutError(error);
     const rateLimit = isRateLimitError(error);
+
+    const errorMessage = timeoutErr
+      ? 'Subagent timed out'
+      : rateLimit
+        ? 'AI service is busy, please try again'
+        : `Subagent error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+
+    agentLogger.error(error instanceof Error ? error : new Error(String(error)), {
+      isTimeout: timeoutErr,
+      isRateLimit: rateLimit,
+      retryable: timeoutErr || rateLimit,
+      durationMs: Date.now() - startTime,
+    });
 
     logger.warn('[spawnSubagent] Subagent failed', {
       subagent: type,
       error,
     });
 
-    return createErrorResult(
-      type,
-      timeout
-        ? 'Subagent timed out'
-        : rateLimit
-          ? 'AI service is busy, please try again'
-          : `Subagent error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      timeout || rateLimit
-    ) as SubagentResultType;
+    return createErrorResult(type, errorMessage, timeoutErr || rateLimit) as SubagentResultType;
   } finally {
     // Always clean up the timeout to prevent memory leaks
     clearTimeout(timeoutId);

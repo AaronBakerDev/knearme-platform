@@ -35,6 +35,7 @@ export type AgentType =
   | 'layout-composer'
   | 'ui-composer'
   | 'orchestrator'
+  | 'image-analysis'
   // Subagent types (used by spawnSubagent)
   | 'story'
   | 'design'
