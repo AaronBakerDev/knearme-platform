@@ -22,6 +22,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { format } from 'date-fns'
 import { SocialShare } from '@/components/blog/SocialShare'
+import { highlightCode, HighlightedCodeBlock } from '@/components/blog/CodeBlock'
 
 /**
  * Revalidate every 60 seconds for fresh content
@@ -428,12 +429,73 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 }
 
 /**
+ * Extract all code blocks from Lexical content for pre-processing
+ * Returns array of { code, language } objects
+ */
+function extractCodeBlocks(
+  nodes: unknown[],
+  result: Array<{ code: string; language?: string }> = []
+): Array<{ code: string; language?: string }> {
+  for (const node of nodes) {
+    if (!node || typeof node !== 'object') continue
+    const nodeObj = node as Record<string, unknown>
+
+    if (nodeObj.type === 'code') {
+      const children = nodeObj.children as unknown[] | undefined
+      const code = extractNodeText(children)
+      const language = nodeObj.language as string | undefined
+      result.push({ code, language })
+    }
+
+    // Recursively check children
+    if (Array.isArray(nodeObj.children)) {
+      extractCodeBlocks(nodeObj.children as unknown[], result)
+    }
+  }
+  return result
+}
+
+/**
+ * Pre-highlight all code blocks in content
+ * Returns a map of code content to highlighted HTML
+ */
+async function preprocessCodeBlocks(
+  content: unknown
+): Promise<Map<string, { html: string; language: string }>> {
+  const highlightedMap = new Map<string, { html: string; language: string }>()
+
+  if (!content || typeof content !== 'object') {
+    return highlightedMap
+  }
+
+  const contentObj = content as Record<string, unknown>
+  const root = contentObj.root as Record<string, unknown> | undefined
+
+  if (!root || !Array.isArray(root.children)) {
+    return highlightedMap
+  }
+
+  const codeBlocks = extractCodeBlocks(root.children as unknown[])
+
+  // Highlight all code blocks in parallel
+  await Promise.all(
+    codeBlocks.map(async ({ code, language }) => {
+      const result = await highlightCode(code, language)
+      highlightedMap.set(code, result)
+    })
+  )
+
+  return highlightedMap
+}
+
+/**
  * Rich Text Content Renderer
  *
  * Renders Lexical JSON content to HTML.
  * Handles common node types: paragraphs, headings, lists, links, text formatting.
+ * Code blocks are pre-highlighted using Shiki for syntax highlighting (PAY-061).
  */
-function RichTextContent({ content }: { content: unknown }) {
+async function RichTextContent({ content }: { content: unknown }) {
   if (!content || typeof content !== 'object') {
     return null
   }
@@ -445,19 +507,31 @@ function RichTextContent({ content }: { content: unknown }) {
     return null
   }
 
+  // Pre-highlight all code blocks
+  const highlightedCode = await preprocessCodeBlocks(content)
+
   return (
     <>
       {(root.children as unknown[]).map((node, index) => (
-        <RenderNode key={index} node={node} />
+        <RenderNode key={index} node={node} highlightedCode={highlightedCode} />
       ))}
     </>
   )
 }
 
 /**
- * Recursive node renderer for Lexical content
+ * Props for RenderNode component
  */
-function RenderNode({ node }: { node: unknown }) {
+interface RenderNodeProps {
+  node: unknown
+  highlightedCode: Map<string, { html: string; language: string }>
+}
+
+/**
+ * Recursive node renderer for Lexical content
+ * Supports syntax highlighting for code blocks via pre-highlighted map (PAY-061)
+ */
+function RenderNode({ node, highlightedCode }: RenderNodeProps) {
   if (!node || typeof node !== 'object') return null
 
   const nodeObj = node as Record<string, unknown>
@@ -472,7 +546,7 @@ function RenderNode({ node }: { node: unknown }) {
 
     // Handle text formatting (bitmask: 1=bold, 2=italic, 4=strikethrough, 8=underline, 16=code)
     if (format) {
-      if (format & 16) text = `<code>${text}</code>`
+      if (format & 16) text = `<code class="px-1.5 py-0.5 bg-gray-100 text-gray-800 rounded text-sm font-mono">${text}</code>`
       if (format & 1) text = `<strong>${text}</strong>`
       if (format & 2) text = `<em>${text}</em>`
       if (format & 4) text = `<s>${text}</s>`
@@ -486,7 +560,7 @@ function RenderNode({ node }: { node: unknown }) {
   if (type === 'paragraph') {
     return (
       <p>
-        {children?.map((child, i) => <RenderNode key={i} node={child} />)}
+        {children?.map((child, i) => <RenderNode key={i} node={child} highlightedCode={highlightedCode} />)}
       </p>
     )
   }
@@ -502,7 +576,7 @@ function RenderNode({ node }: { node: unknown }) {
     const HeadingTag = tag as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
     return (
       <HeadingTag id={headingId}>
-        {children?.map((child, i) => <RenderNode key={i} node={child} />)}
+        {children?.map((child, i) => <RenderNode key={i} node={child} highlightedCode={highlightedCode} />)}
       </HeadingTag>
     )
   }
@@ -513,7 +587,7 @@ function RenderNode({ node }: { node: unknown }) {
     const ListTag = listTag as 'ol' | 'ul'
     return (
       <ListTag>
-        {children?.map((child, i) => <RenderNode key={i} node={child} />)}
+        {children?.map((child, i) => <RenderNode key={i} node={child} highlightedCode={highlightedCode} />)}
       </ListTag>
     )
   }
@@ -522,7 +596,7 @@ function RenderNode({ node }: { node: unknown }) {
   if (type === 'listitem') {
     return (
       <li>
-        {children?.map((child, i) => <RenderNode key={i} node={child} />)}
+        {children?.map((child, i) => <RenderNode key={i} node={child} highlightedCode={highlightedCode} />)}
       </li>
     )
   }
@@ -537,7 +611,7 @@ function RenderNode({ node }: { node: unknown }) {
         target={newTab ? '_blank' : undefined}
         rel={newTab ? 'noopener noreferrer' : undefined}
       >
-        {children?.map((child, i) => <RenderNode key={i} node={child} />)}
+        {children?.map((child, i) => <RenderNode key={i} node={child} highlightedCode={highlightedCode} />)}
       </a>
     )
   }
@@ -546,18 +620,32 @@ function RenderNode({ node }: { node: unknown }) {
   if (type === 'quote') {
     return (
       <blockquote>
-        {children?.map((child, i) => <RenderNode key={i} node={child} />)}
+        {children?.map((child, i) => <RenderNode key={i} node={child} highlightedCode={highlightedCode} />)}
       </blockquote>
     )
   }
 
-  // Code block
+  // Code block with syntax highlighting (PAY-061)
   if (type === 'code') {
     const code = extractNodeText(children)
+    const highlighted = highlightedCode.get(code)
+
+    if (highlighted) {
+      return (
+        <HighlightedCodeBlock
+          highlightedHtml={highlighted.html}
+          language={highlighted.language}
+        />
+      )
+    }
+
+    // Fallback to plain code block
     return (
-      <pre>
-        <code>{code}</code>
-      </pre>
+      <div className="code-block-wrapper not-prose my-6 rounded-lg overflow-hidden bg-gray-800">
+        <pre className="p-4 overflow-x-auto text-sm text-gray-100">
+          <code>{code}</code>
+        </pre>
+      </div>
     )
   }
 
@@ -570,7 +658,7 @@ function RenderNode({ node }: { node: unknown }) {
   if (children) {
     return (
       <>
-        {children.map((child, i) => <RenderNode key={i} node={child} />)}
+        {children.map((child, i) => <RenderNode key={i} node={child} highlightedCode={highlightedCode} />)}
       </>
     )
   }
@@ -619,8 +707,9 @@ interface AuthorObject {
 
 /**
  * Author Section Component
+ * Async to support RichTextContent which needs async code highlighting
  */
-function AuthorSection({ author }: { author: AuthorObject }) {
+async function AuthorSection({ author }: { author: AuthorObject }) {
   const avatar = typeof author.avatar === 'object' ? author.avatar : null
 
   return (
