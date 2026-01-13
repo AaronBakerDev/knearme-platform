@@ -46,6 +46,11 @@ export const Testimonials: CollectionConfig = {
     defaultColumns: ['name', 'role', 'rating', 'featured', 'order'],
     description: 'Customer testimonials displayed on the landing page.',
   },
+  // Enable versioning with drafts for content review workflow
+  versions: {
+    drafts: true,
+    maxPerDoc: 25, // Keep last 25 versions
+  },
   fields: [
     // Customer Info
     {

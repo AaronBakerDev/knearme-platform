@@ -104,6 +104,11 @@ const FAQs: CollectionConfig = {
     defaultColumns: ['question', 'category', 'order', 'showOnLanding'],
     description: 'FAQ content for the marketing landing page.',
   },
+  // Enable versioning with drafts for content review workflow
+  versions: {
+    drafts: true,
+    maxPerDoc: 25, // Keep last 25 versions
+  },
   fields: [
     {
       name: 'question',
@@ -180,6 +185,11 @@ const PricingTiers: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'monthlyPrice', 'isHighlighted', 'order'],
     description: 'Pricing tiers displayed on the landing page.',
+  },
+  // Enable versioning with drafts for content review workflow
+  versions: {
+    drafts: true,
+    maxPerDoc: 25, // Keep last 25 versions
   },
   fields: [
     {

@@ -49,6 +49,11 @@ export const ServiceTypes: CollectionConfig = {
     defaultColumns: ['name', 'slug', 'headline', 'updatedAt'],
     description: 'Service type content for SEO-optimized service pages.',
   },
+  // Enable versioning with drafts for content review workflow
+  versions: {
+    drafts: true,
+    maxPerDoc: 25, // Keep last 25 versions
+  },
   fields: [
     // Basic Info
     {

@@ -62,6 +62,11 @@ export const Features: CollectionConfig = {
     defaultColumns: ['title', 'icon', 'order', 'showOnLanding'],
     description: 'Product features displayed on the landing page feature grid.',
   },
+  // Enable versioning with drafts for content review workflow
+  versions: {
+    drafts: true,
+    maxPerDoc: 25, // Keep last 25 versions
+  },
   fields: [
     // Feature Content
     {
