@@ -21,6 +21,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 // Blog collections
+import { Articles } from './collections/Articles'
 import { Authors } from './collections/Authors'
 import { Categories } from './collections/Categories'
 import { Media } from './collections/Media'
@@ -355,8 +356,9 @@ export default buildConfig({
    * - Authors: Blog post authors
    * - Categories: Blog category organization
    * - Tags: Article tagging (flat taxonomy)
+   * - Articles: Blog posts with rich content
    */
-  collections: [Users, Media, FAQs, PricingTiers, Authors, Categories, Tags],
+  collections: [Users, Media, FAQs, PricingTiers, Authors, Categories, Tags, Articles],
 
   /**
    * JWT Secret for authentication
