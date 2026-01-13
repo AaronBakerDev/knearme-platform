@@ -40,7 +40,16 @@ export const revalidate = 60
 const ARTICLES_PER_PAGE = 10
 
 interface BlogPageProps {
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ page?: string; tag?: string }>
+}
+
+/**
+ * Tag type for filtering
+ */
+interface TagWithSlug {
+  id: string
+  name: string
+  slug: string
 }
 
 /**
@@ -71,10 +80,35 @@ interface ArticleWithRelations {
 }
 
 export default async function BlogPage({ searchParams }: BlogPageProps) {
-  const { page: pageParam } = await searchParams
+  const { page: pageParam, tag: tagSlug } = await searchParams
   const currentPage = Math.max(1, parseInt(pageParam || '1', 10))
 
   const payload = await getPayload({ config })
+
+  // Look up tag by slug if filtering
+  let activeTag: TagWithSlug | null = null
+  if (tagSlug) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tagResult = await (payload as any).find({
+      collection: 'tags',
+      where: {
+        slug: { equals: tagSlug },
+      },
+      limit: 1,
+    })
+    activeTag = (tagResult.docs?.[0] || null) as TagWithSlug | null
+  }
+
+  // Build where clause - always filter by published, optionally by tag
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const whereClause: Record<string, any> = {
+    status: { equals: 'published' },
+  }
+
+  // If tag filter is active and tag exists, filter articles that contain this tag
+  if (activeTag) {
+    whereClause.tags = { contains: activeTag.id }
+  }
 
   // Fetch published articles with pagination
   // Note: 'articles' collection type not in generated CollectionSlug yet
@@ -82,9 +116,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const articlesResult = await (payload as any).find({
     collection: 'articles',
-    where: {
-      status: { equals: 'published' },
-    },
+    where: whereClause,
     sort: '-publishedAt',
     limit: ARTICLES_PER_PAGE,
     page: currentPage,
@@ -100,11 +132,21 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
       {/* Page Header */}
       <header className="mb-12 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl mb-4">
-          Blog
+          {activeTag ? `Articles tagged "${activeTag.name}"` : 'Blog'}
         </h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Tips, guides, and insights for contractors to grow their business and showcase their work.
+          {activeTag
+            ? `Showing ${totalDocs} ${totalDocs === 1 ? 'article' : 'articles'} with tag "${activeTag.name}"`
+            : 'Tips, guides, and insights for contractors to grow their business and showcase their work.'}
         </p>
+        {activeTag && (
+          <Link
+            href="/blog"
+            className="inline-block mt-4 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            ← Clear filter and view all articles
+          </Link>
+        )}
       </header>
 
       {/* Articles Grid */}
@@ -122,13 +164,26 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               currentPage={currentPage}
               totalPages={totalPages}
               totalDocs={totalDocs}
+              tagSlug={activeTag?.slug}
             />
           )}
         </>
       ) : (
         <div className="text-center py-16">
-          <p className="text-gray-500 text-lg">No articles published yet.</p>
-          <p className="text-gray-400 mt-2">Check back soon for new content!</p>
+          <p className="text-gray-500 text-lg">
+            {activeTag
+              ? `No articles found with tag "${activeTag.name}".`
+              : 'No articles published yet.'}
+          </p>
+          <p className="text-gray-400 mt-2">
+            {activeTag ? (
+              <Link href="/blog" className="text-blue-600 hover:text-blue-800 transition-colors">
+                View all articles
+              </Link>
+            ) : (
+              'Check back soon for new content!'
+            )}
+          </p>
         </div>
       )}
     </div>
@@ -222,15 +277,18 @@ function ArticleCard({ article }: { article: ArticleWithRelations }) {
  *
  * Displays page navigation with prev/next and page numbers.
  * Uses SEO-friendly links with rel=prev/next for crawlers.
+ * Preserves tag filter in pagination links when active.
  */
 function Pagination({
   currentPage,
   totalPages,
   totalDocs,
+  tagSlug,
 }: {
   currentPage: number
   totalPages: number
   totalDocs: number
+  tagSlug?: string
 }) {
   const hasPrev = currentPage > 1
   const hasNext = currentPage < totalPages
@@ -242,6 +300,16 @@ function Pagination({
 
   for (let i = start; i <= end; i++) {
     pageNumbers.push(i)
+  }
+
+  // Build URL with optional tag filter preserved
+  const buildPageUrl = (page: number) => {
+    const params = new URLSearchParams()
+    params.set('page', String(page))
+    if (tagSlug) {
+      params.set('tag', tagSlug)
+    }
+    return `/blog?${params.toString()}`
   }
 
   return (
@@ -256,7 +324,7 @@ function Pagination({
         {/* Previous */}
         {hasPrev ? (
           <Link
-            href={`/blog?page=${currentPage - 1}`}
+            href={buildPageUrl(currentPage - 1)}
             rel="prev"
             className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
           >
@@ -273,7 +341,7 @@ function Pagination({
           {pageNumbers.map((num) => (
             <Link
               key={num}
-              href={`/blog?page=${num}`}
+              href={buildPageUrl(num)}
               className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 num === currentPage
                   ? 'bg-blue-600 text-white'
@@ -288,7 +356,7 @@ function Pagination({
         {/* Next */}
         {hasNext ? (
           <Link
-            href={`/blog?page=${currentPage + 1}`}
+            href={buildPageUrl(currentPage + 1)}
             rel="next"
             className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
           >
