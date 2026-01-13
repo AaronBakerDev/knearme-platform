@@ -1409,6 +1409,27 @@ export async function getPageViews(options?: {
 }
 
 /**
+ * Time period options for analytics queries
+ */
+export type TimePeriod = 'week' | 'month' | 'all'
+
+/**
+ * Helper to calculate start date based on time period
+ */
+function getStartDateForPeriod(period: TimePeriod): string | undefined {
+  if (period === 'all') return undefined
+
+  const now = new Date()
+  if (period === 'week') {
+    return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  }
+  if (period === 'month') {
+    return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  }
+  return undefined
+}
+
+/**
  * Get aggregate page view statistics for articles
  *
  * Returns total view counts and basic breakdown by device/country.
@@ -1519,5 +1540,84 @@ export async function getPageViewStats(options?: {
       byCountry: {},
       topArticles: [],
     }
+  }
+}
+
+/**
+ * Popular article with view count
+ */
+export interface PopularArticle {
+  article: Article
+  views: number
+}
+
+/**
+ * Get popular articles with full article data
+ *
+ * Returns top articles by view count within a time period, with full article
+ * details (title, slug, featuredImage, etc.) for display in widgets.
+ *
+ * @param options.period - Time period: 'week', 'month', or 'all' (default: 'week')
+ * @param options.limit - Maximum number of articles to return (default: 5)
+ * @returns Promise<PopularArticle[]> - Array of articles with view counts
+ *
+ * @example
+ * // Get top 5 articles from the past week
+ * const popular = await getPopularArticles({ period: 'week', limit: 5 })
+ *
+ * @example
+ * // Get top 10 articles of all time
+ * const allTime = await getPopularArticles({ period: 'all', limit: 10 })
+ *
+ * @see PAY-065 in PRD for acceptance criteria
+ */
+export async function getPopularArticles(options?: {
+  period?: TimePeriod
+  limit?: number
+}): Promise<PopularArticle[]> {
+  const period = options?.period || 'week'
+  const limit = options?.limit || 5
+
+  try {
+    // Get page view stats for the time period
+    const startDate = getStartDateForPeriod(period)
+    const stats = await getPageViewStats({
+      startDate,
+      topN: limit * 2, // Fetch extra in case some articles are not found/published
+    })
+
+    if (stats.topArticles.length === 0) {
+      return []
+    }
+
+    // Fetch full article data for each popular article
+    const payload = await getPayloadClient()
+    const popularArticles: PopularArticle[] = []
+
+    for (const { articleId, views } of stats.topArticles) {
+      if (popularArticles.length >= limit) break
+
+      // Try to find article by slug (articleId is stored as slug)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (payload as any).find({
+        collection: 'articles',
+        where: {
+          slug: { equals: articleId },
+          ...buildVisibleArticlesWhere(),
+        },
+        limit: 1,
+        depth: 1, // Populate featuredImage, author
+      })
+
+      const article = result.docs?.[0] as Article | undefined
+      if (article) {
+        popularArticles.push({ article, views })
+      }
+    }
+
+    return popularArticles
+  } catch {
+    // Collection may not exist or query failed
+    return []
   }
 }
