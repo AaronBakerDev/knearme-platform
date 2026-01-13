@@ -101,7 +101,7 @@ export interface ServiceType {
   slug: string
   headline: string
   description: unknown // Lexical rich text content
-  features: { feature: string }[]
+  features: { text: string }[] // Array field with 'text' subfield
   metaDescription?: string
   ogImage?: MediaReference
   createdAt: string
