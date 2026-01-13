@@ -386,6 +386,20 @@ export default buildConfig({
         },
       ],
     },
+    /**
+     * Custom Admin Views
+     *
+     * Analytics dashboard for content performance insights.
+     * @see PAY-063 in PRD
+     */
+    components: {
+      views: {
+        analytics: {
+          Component: './views/AnalyticsDashboard',
+          path: '/analytics',
+        },
+      },
+    },
   },
 
   // Rich text editor is configured at runtime via Next.js
