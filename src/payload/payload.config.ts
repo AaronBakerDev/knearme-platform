@@ -33,6 +33,7 @@ import { ServiceTypes } from './collections/ServiceTypes'
 import { Testimonials } from './collections/Testimonials'
 
 // Globals
+import { Navigation } from './globals/Navigation'
 import { SiteSettings } from './globals/SiteSettings'
 
 // ESM-compatible __dirname
@@ -385,8 +386,9 @@ export default buildConfig({
    * Globals - Site-wide Singletons
    *
    * - SiteSettings: Branding, contact info, social links, SEO defaults
+   * - Navigation: Header, footer, and quick access links
    */
-  globals: [SiteSettings],
+  globals: [Navigation, SiteSettings],
 
   /**
    * JWT Secret for authentication
