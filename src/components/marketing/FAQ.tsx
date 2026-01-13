@@ -1,20 +1,30 @@
-"use client";
-
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { getFAQs, type FAQ as FAQType } from "@/lib/payload/client";
 
 /**
  * FAQ Section
  *
  * Addresses common objections and questions contractors have.
  * Positioned before final CTA to handle last-minute hesitations.
+ *
+ * Data flow:
+ * 1. Fetches FAQs from Payload CMS via getFAQs()
+ * 2. Falls back to hardcoded content on failure
+ *
+ * @see PAY-011 in PRD for acceptance criteria
+ * @see src/lib/payload/client.ts for getFAQs() implementation
  */
 
-const faqs = [
+/**
+ * Hardcoded fallback FAQs
+ * Used when CMS is unavailable or returns no data
+ */
+const FALLBACK_FAQS: { question: string; answer: string }[] = [
   {
     question: "Can I really do this from my phone?",
     answer:
@@ -52,7 +62,67 @@ const faqs = [
   },
 ];
 
-export function FAQ() {
+/**
+ * Extract plain text answer from FAQ
+ * Handles both string answers (from fallback) and Lexical rich text (from CMS)
+ */
+function getAnswerText(faq: FAQType | { question: string; answer: string }): string {
+  const answer = faq.answer;
+
+  // If it's a string, return as-is (fallback data)
+  if (typeof answer === "string") {
+    return answer;
+  }
+
+  // If it's Lexical rich text, extract text content
+  // Lexical stores content in root.children[].children[].text
+  if (answer && typeof answer === "object") {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const root = (answer as any).root;
+      if (root?.children) {
+        return root.children
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((paragraph: any) => {
+            if (paragraph.children) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              return paragraph.children.map((node: any) => node.text || "").join("");
+            }
+            return "";
+          })
+          .join("\n\n");
+      }
+    } catch {
+      // Fall back to empty string if parsing fails
+      return "";
+    }
+  }
+
+  return "";
+}
+
+/**
+ * FAQ Server Component
+ *
+ * Fetches FAQs from Payload CMS and renders an accordion.
+ * Falls back to hardcoded content if CMS fetch fails.
+ */
+export async function FAQ() {
+  // Fetch FAQs from Payload CMS
+  let faqs: (FAQType | { question: string; answer: string })[] = FALLBACK_FAQS;
+
+  try {
+    const cmsFaqs = await getFAQs({ showOnLandingOnly: true });
+
+    // Only use CMS data if we got results
+    if (cmsFaqs && cmsFaqs.length > 0) {
+      faqs = cmsFaqs;
+    }
+  } catch (error) {
+    // Log error but continue with fallback data
+    console.error("[FAQ] Failed to fetch from CMS, using fallback:", error);
+  }
+
   return (
     <section className="py-24 bg-zinc-50 dark:bg-zinc-900/50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -66,20 +136,37 @@ export function FAQ() {
         </div>
 
         <div className="mx-auto max-w-3xl">
-          <Accordion type="single" collapsible className="w-full">
-            {faqs.map((faq, index) => (
-              <AccordionItem key={index} value={`item-${index}`}>
-                <AccordionTrigger className="text-left text-base font-medium">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          <FAQAccordion faqs={faqs} />
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * FAQ Accordion Component
+ *
+ * Renders the interactive accordion UI.
+ * Uses client-side Accordion from shadcn/ui.
+ * Can be called from Server Components since Accordion itself is a client component.
+ */
+function FAQAccordion({
+  faqs
+}: {
+  faqs: (FAQType | { question: string; answer: string })[]
+}) {
+  return (
+    <Accordion type="single" collapsible className="w-full">
+      {faqs.map((faq, index) => (
+        <AccordionItem key={"id" in faq ? faq.id : index} value={`item-${index}`}>
+          <AccordionTrigger className="text-left text-base font-medium">
+            {faq.question}
+          </AccordionTrigger>
+          <AccordionContent className="text-muted-foreground whitespace-pre-line">
+            {getAnswerText(faq)}
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
   );
 }
