@@ -23,6 +23,7 @@ import Image from 'next/image'
 import { format } from 'date-fns'
 import { SocialShare } from '@/components/blog/SocialShare'
 import { highlightCode, HighlightedCodeBlock } from '@/components/blog/CodeBlock'
+import { LazyImage } from '@/components/blog/LazyImage'
 
 /**
  * Revalidate every 60 seconds for fresh content
@@ -649,6 +650,42 @@ function RenderNode({ node, highlightedCode }: RenderNodeProps) {
     )
   }
 
+  // Upload/Image node (Lexical embedded images) - PAY-062 lazy loading
+  if (type === 'upload') {
+    const value = nodeObj.value as Record<string, unknown> | undefined
+    const relationTo = nodeObj.relationTo as string | undefined
+
+    // Handle media uploads (images)
+    if (relationTo === 'media' && value) {
+      const url = value.url as string | undefined
+      const alt = (value.alt as string) || 'Image'
+      const width = value.width as number | undefined
+      const height = value.height as number | undefined
+
+      if (url) {
+        return (
+          <figure className="my-6">
+            <LazyImage
+              src={url}
+              alt={alt}
+              width={width || 800}
+              height={height || 450}
+              className="rounded-lg w-full h-auto"
+              wrapperClassName="relative"
+              sizes="(max-width: 768px) 100vw, 800px"
+            />
+            {typeof value.caption === 'string' && value.caption && (
+              <figcaption className="mt-2 text-center text-sm text-gray-500">
+                {value.caption}
+              </figcaption>
+            )}
+          </figure>
+        )
+      }
+    }
+    return null
+  }
+
   // Line break
   if (type === 'linebreak') {
     return <br />
@@ -817,14 +854,15 @@ function RelatedArticles({ articles }: { articles: Array<NonNullable<ArticleWith
               href={`/blog/${article.slug}`}
               className="group block bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
             >
-              {/* Image */}
+              {/* Image - lazy loaded since below fold (PAY-062) */}
               {featuredImage?.url && (
                 <div className="relative aspect-[16/9] overflow-hidden">
-                  <Image
+                  <LazyImage
                     src={featuredImage.url}
                     alt={article.title}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-200"
+                    wrapperClassName="absolute inset-0"
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   />
                 </div>

@@ -19,7 +19,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import Image from 'next/image'
+import { LazyImage } from '@/components/blog/LazyImage'
 import { formatDistanceToNow } from 'date-fns'
 import { Suspense } from 'react'
 import { BlogSearch } from '@/components/blog/BlogSearch'
@@ -287,14 +287,15 @@ function ArticleCard({ article }: { article: ArticleWithRelations }) {
 
   return (
     <article className="group flex flex-col bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-200">
-      {/* Featured Image */}
+      {/* Featured Image - lazy loaded for below-fold cards (PAY-062) */}
       {featuredImage?.url && (
         <Link href={`/blog/${article.slug}`} className="relative aspect-[16/9] overflow-hidden">
-          <Image
+          <LazyImage
             src={featuredImage.url}
             alt={featuredImage.alt || article.title}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-200"
+            wrapperClassName="absolute inset-0"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         </Link>
