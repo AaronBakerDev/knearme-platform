@@ -41,6 +41,9 @@
       ],
       "@/hooks/*": [
         "./src/hooks/*"
+      ],
+      "@payload-config": [
+        "./src/payload/payload.config.ts"
       ]
     }
   },

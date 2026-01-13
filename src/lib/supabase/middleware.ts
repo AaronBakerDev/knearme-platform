@@ -2,12 +2,31 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
+ * Check if request is for Payload CMS routes.
+ * Payload routes should bypass Supabase auth as they have their own auth system.
+ *
+ * @see PAY-004 in PRD for acceptance criteria
+ */
+function isPayloadRoute(pathname: string): boolean {
+  return pathname.startsWith('/admin') || pathname.startsWith('/api/faqs') ||
+    pathname.startsWith('/api/pricing-tiers') || pathname.startsWith('/api/users');
+}
+
+/**
  * Updates Supabase session in middleware.
  * Called on every request to refresh the session cookie if needed.
+ *
+ * Note: Payload CMS routes (/admin, /api/faqs, /api/pricing-tiers, /api/users)
+ * are excluded from Supabase auth to avoid conflicts with Payload's own auth.
  *
  * @see https://supabase.com/docs/guides/auth/server-side/nextjs
  */
 export async function updateSession(request: NextRequest) {
+  // Skip Supabase auth for Payload CMS routes
+  if (isPayloadRoute(request.nextUrl.pathname)) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
