@@ -24,6 +24,7 @@ import { format } from 'date-fns'
 import { SocialShare } from '@/components/blog/SocialShare'
 import { highlightCode, HighlightedCodeBlock } from '@/components/blog/CodeBlock'
 import { LazyImage } from '@/components/blog/LazyImage'
+import { PageViewTracker } from '@/components/blog/PageViewTracker'
 
 /**
  * Revalidate every 60 seconds for fresh content
@@ -265,6 +266,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
+
+      {/* Privacy-friendly page view tracking (PAY-064) */}
+      <PageViewTracker articleId={article.slug} />
 
       <article className="container mx-auto px-4 py-12 max-w-4xl">
         {/* Breadcrumb */}

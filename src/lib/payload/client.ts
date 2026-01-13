@@ -276,6 +276,24 @@ export interface Redirect {
   updatedAt: string
 }
 
+/**
+ * Page view from Payload CMS
+ *
+ * Privacy-friendly page view tracking without PII.
+ * @see PAY-064 in PRD for acceptance criteria
+ */
+export interface PageView {
+  id: string
+  articleId: string
+  timestamp: string
+  source?: string
+  device?: 'desktop' | 'mobile' | 'tablet' | 'unknown'
+  country?: string
+  sessionId?: string
+  createdAt: string
+  updatedAt: string
+}
+
 // ============================================================================
 // Form Types
 // ============================================================================
@@ -1312,5 +1330,194 @@ export async function getFormSubmissions(options?: {
   } catch {
     // Collection may not exist or query failed
     return { docs: [], totalPages: 0, totalDocs: 0 }
+  }
+}
+
+// ============================================================================
+// Page View Analytics
+// ============================================================================
+
+/**
+ * Fetch page views from Payload CMS
+ *
+ * Privacy-friendly analytics queries. Does not return PII.
+ *
+ * @param options.articleId - Filter by article slug/ID
+ * @param options.startDate - Filter views after this date (ISO string)
+ * @param options.endDate - Filter views before this date (ISO string)
+ * @param options.limit - Maximum number of views to return
+ * @param options.page - Page number for pagination
+ * @returns Promise<{ docs: PageView[], totalPages: number, totalDocs: number }>
+ *
+ * @see PAY-064 in PRD for acceptance criteria
+ *
+ * @example
+ * // Get views for a specific article
+ * const { docs: views, totalDocs } = await getPageViews({ articleId: 'test-post' })
+ *
+ * @example
+ * // Get all views in the last week
+ * const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+ * const { docs: views } = await getPageViews({ startDate: weekAgo })
+ */
+export async function getPageViews(options?: {
+  articleId?: string
+  startDate?: string
+  endDate?: string
+  limit?: number
+  page?: number
+}): Promise<{ docs: PageView[]; totalPages: number; totalDocs: number }> {
+  const payload = await getPayloadClient()
+
+  try {
+    // Build where clause
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: Record<string, any> = {}
+
+    if (options?.articleId) {
+      where.articleId = { equals: options.articleId }
+    }
+
+    if (options?.startDate || options?.endDate) {
+      where.timestamp = {}
+      if (options.startDate) {
+        where.timestamp.greater_than_equal = options.startDate
+      }
+      if (options.endDate) {
+        where.timestamp.less_than_equal = options.endDate
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (payload as any).find({
+      collection: 'page-views',
+      where,
+      sort: '-timestamp',
+      limit: options?.limit || 100,
+      page: options?.page || 1,
+    })
+
+    return {
+      docs: (result.docs || []) as PageView[],
+      totalPages: result.totalPages as number,
+      totalDocs: result.totalDocs as number,
+    }
+  } catch {
+    // Collection may not exist or query failed
+    return { docs: [], totalPages: 0, totalDocs: 0 }
+  }
+}
+
+/**
+ * Get aggregate page view statistics for articles
+ *
+ * Returns total view counts and basic breakdown by device/country.
+ *
+ * @param options.articleId - Filter by article slug/ID (optional)
+ * @param options.startDate - Filter views after this date (ISO string)
+ * @param options.endDate - Filter views before this date (ISO string)
+ * @returns Promise<PageViewStats>
+ *
+ * @example
+ * // Get overall stats
+ * const stats = await getPageViewStats()
+ * console.log(`Total views: ${stats.totalViews}`)
+ *
+ * @example
+ * // Get stats for specific article
+ * const stats = await getPageViewStats({ articleId: 'test-post' })
+ */
+export interface PageViewStats {
+  totalViews: number
+  uniqueSessions: number
+  byDevice: Record<string, number>
+  byCountry: Record<string, number>
+  topArticles: Array<{ articleId: string; views: number }>
+}
+
+export async function getPageViewStats(options?: {
+  articleId?: string
+  startDate?: string
+  endDate?: string
+  topN?: number
+}): Promise<PageViewStats> {
+  const payload = await getPayloadClient()
+
+  try {
+    // Build where clause
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: Record<string, any> = {}
+
+    if (options?.articleId) {
+      where.articleId = { equals: options.articleId }
+    }
+
+    if (options?.startDate || options?.endDate) {
+      where.timestamp = {}
+      if (options.startDate) {
+        where.timestamp.greater_than_equal = options.startDate
+      }
+      if (options.endDate) {
+        where.timestamp.less_than_equal = options.endDate
+      }
+    }
+
+    // Fetch all matching views (with pagination for large datasets)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (payload as any).find({
+      collection: 'page-views',
+      where,
+      limit: 10000, // Max for aggregation
+      pagination: false,
+    })
+
+    const views = (result.docs || []) as PageView[]
+
+    // Compute aggregates
+    const sessionSet = new Set<string>()
+    const deviceCounts: Record<string, number> = {}
+    const countryCounts: Record<string, number> = {}
+    const articleCounts: Record<string, number> = {}
+
+    for (const view of views) {
+      // Unique sessions
+      if (view.sessionId) {
+        sessionSet.add(view.sessionId)
+      }
+
+      // Device breakdown
+      const device = view.device || 'unknown'
+      deviceCounts[device] = (deviceCounts[device] || 0) + 1
+
+      // Country breakdown
+      const country = view.country || 'unknown'
+      countryCounts[country] = (countryCounts[country] || 0) + 1
+
+      // Article counts
+      articleCounts[view.articleId] = (articleCounts[view.articleId] || 0) + 1
+    }
+
+    // Sort articles by view count
+    const sortedArticles = Object.entries(articleCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, options?.topN || 10)
+      .map(([articleId, views]) => ({ articleId, views }))
+
+    return {
+      totalViews: views.length,
+      uniqueSessions: sessionSet.size,
+      byDevice: deviceCounts,
+      byCountry: countryCounts,
+      topArticles: sortedArticles,
+    }
+  } catch {
+    // Collection may not exist or query failed
+    return {
+      totalViews: 0,
+      uniqueSessions: 0,
+      byDevice: {},
+      byCountry: {},
+      topArticles: [],
+    }
   }
 }

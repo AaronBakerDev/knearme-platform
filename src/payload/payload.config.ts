@@ -39,6 +39,9 @@ import { Redirects } from './collections/Redirects'
 import { Forms } from './collections/Forms'
 import { FormSubmissions } from './collections/FormSubmissions'
 
+// Analytics collections
+import { PageViews } from './collections/PageViews'
+
 // Globals
 import { Navigation } from './globals/Navigation'
 import { Newsletter } from './globals/Newsletter'
@@ -405,8 +408,9 @@ export default buildConfig({
    * - Redirects: URL redirect management (infrastructure)
    * - Forms: Dynamic form builder (engagement)
    * - FormSubmissions: Form response storage (engagement)
+   * - PageViews: Anonymous page view tracking (analytics)
    */
-  collections: [Users, Media, FAQs, PricingTiers, Testimonials, Features, ServiceTypes, Authors, Categories, Tags, Articles, Redirects, Forms, FormSubmissions],
+  collections: [Users, Media, FAQs, PricingTiers, Testimonials, Features, ServiceTypes, Authors, Categories, Tags, Articles, Redirects, Forms, FormSubmissions, PageViews],
 
   /**
    * Globals - Site-wide Singletons
