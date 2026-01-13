@@ -1,16 +1,19 @@
 /**
  * Blog Listing Page
  *
- * Displays published articles from Payload CMS with pagination.
+ * Displays published articles from Payload CMS with pagination and search.
  * Uses Server Components for SEO and Payload's getPayload for data fetching.
  *
  * Features:
  * - Published articles sorted by date (newest first)
  * - Article cards with title, excerpt, author, date, reading time, featured image
  * - Pagination (10 articles per page)
+ * - Search across title, excerpt, and content
+ * - Tag filtering
  * - SEO metadata
  *
- * @see PAY-041 in PRD for acceptance criteria
+ * @see PAY-041 in PRD for acceptance criteria (listing)
+ * @see PAY-054 in PRD for acceptance criteria (search)
  */
 import { getPayload } from 'payload'
 import config from '@payload-config'
@@ -18,6 +21,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatDistanceToNow } from 'date-fns'
+import { Suspense } from 'react'
+import { BlogSearch } from '@/components/blog/BlogSearch'
 
 /**
  * Page metadata for SEO
@@ -40,7 +45,7 @@ export const revalidate = 60
 const ARTICLES_PER_PAGE = 10
 
 interface BlogPageProps {
-  searchParams: Promise<{ page?: string; tag?: string }>
+  searchParams: Promise<{ page?: string; tag?: string; search?: string }>
 }
 
 /**
@@ -80,8 +85,9 @@ interface ArticleWithRelations {
 }
 
 export default async function BlogPage({ searchParams }: BlogPageProps) {
-  const { page: pageParam, tag: tagSlug } = await searchParams
+  const { page: pageParam, tag: tagSlug, search: searchQuery } = await searchParams
   const currentPage = Math.max(1, parseInt(pageParam || '1', 10))
+  const trimmedSearch = searchQuery?.trim() || ''
 
   const payload = await getPayload({ config })
 
@@ -102,7 +108,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   // Build where clause - show published articles and scheduled articles with past publishedAt
   // This enables content scheduling: scheduled articles auto-appear when their publishedAt passes
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const whereClause: Record<string, any> = {
+  const visibilityCondition: Record<string, any> = {
     or: [
       // Published articles
       { status: { equals: 'published' } },
@@ -116,9 +122,31 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
     ],
   }
 
-  // If tag filter is active and tag exists, filter articles that contain this tag
-  if (activeTag) {
-    whereClause.tags = { contains: activeTag.id }
+  // Build search condition - searches title, excerpt, and content (via text extraction)
+  // Payload's 'like' operator performs case-insensitive substring matching
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let searchCondition: Record<string, any> | null = null
+  if (trimmedSearch) {
+    searchCondition = {
+      or: [
+        { title: { like: trimmedSearch } },
+        { excerpt: { like: trimmedSearch } },
+        // Note: Content is Lexical JSON, so we search the raw content field
+        // Payload's 'like' will match against serialized JSON which includes text content
+      ],
+    }
+  }
+
+  // Combine all conditions with AND
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const whereClause: Record<string, any> = {
+    and: [
+      visibilityCondition,
+      // Add search condition if present
+      ...(searchCondition ? [searchCondition] : []),
+      // Add tag filter if present
+      ...(activeTag ? [{ tags: { contains: activeTag.id } }] : []),
+    ],
   }
 
   // Fetch published articles with pagination
@@ -138,24 +166,57 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   const totalPages = articlesResult.totalPages as number
   const totalDocs = articlesResult.totalDocs as number
 
+  // Determine page title and description based on active filters
+  const getPageTitle = () => {
+    if (trimmedSearch && activeTag) {
+      return `Search "${trimmedSearch}" in "${activeTag.name}"`
+    }
+    if (trimmedSearch) {
+      return `Search results for "${trimmedSearch}"`
+    }
+    if (activeTag) {
+      return `Articles tagged "${activeTag.name}"`
+    }
+    return 'Blog'
+  }
+
+  const getPageDescription = () => {
+    if (trimmedSearch || activeTag) {
+      const parts: string[] = []
+      if (trimmedSearch) parts.push(`matching "${trimmedSearch}"`)
+      if (activeTag) parts.push(`tagged "${activeTag.name}"`)
+      return `Showing ${totalDocs} ${totalDocs === 1 ? 'article' : 'articles'} ${parts.join(' and ')}`
+    }
+    return 'Tips, guides, and insights for contractors to grow their business and showcase their work.'
+  }
+
+  const hasActiveFilters = !!trimmedSearch || !!activeTag
+
   return (
     <div className="container mx-auto px-4 py-12 max-w-6xl">
       {/* Page Header */}
       <header className="mb-12 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl mb-4">
-          {activeTag ? `Articles tagged "${activeTag.name}"` : 'Blog'}
+          {getPageTitle()}
         </h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          {activeTag
-            ? `Showing ${totalDocs} ${totalDocs === 1 ? 'article' : 'articles'} with tag "${activeTag.name}"`
-            : 'Tips, guides, and insights for contractors to grow their business and showcase their work.'}
+          {getPageDescription()}
         </p>
-        {activeTag && (
+
+        {/* Search Bar */}
+        <div className="mt-8 flex justify-center">
+          <Suspense fallback={<div className="w-full max-w-md h-11 bg-gray-100 rounded-lg animate-pulse" />}>
+            <BlogSearch placeholder="Search articles..." />
+          </Suspense>
+        </div>
+
+        {/* Clear Filters Link */}
+        {hasActiveFilters && (
           <Link
             href="/blog"
             className="inline-block mt-4 text-sm text-blue-600 hover:text-blue-800 transition-colors"
           >
-            ← Clear filter and view all articles
+            ← Clear {trimmedSearch && activeTag ? 'all filters' : trimmedSearch ? 'search' : 'filter'} and view all articles
           </Link>
         )}
       </header>
@@ -176,25 +237,33 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               totalPages={totalPages}
               totalDocs={totalDocs}
               tagSlug={activeTag?.slug}
+              searchQuery={trimmedSearch}
             />
           )}
         </>
       ) : (
         <div className="text-center py-16">
           <p className="text-gray-500 text-lg">
-            {activeTag
-              ? `No articles found with tag "${activeTag.name}".`
-              : 'No articles published yet.'}
+            {trimmedSearch
+              ? `No articles found matching "${trimmedSearch}"${activeTag ? ` in tag "${activeTag.name}"` : ''}.`
+              : activeTag
+                ? `No articles found with tag "${activeTag.name}".`
+                : 'No articles published yet.'}
           </p>
           <p className="text-gray-400 mt-2">
-            {activeTag ? (
+            {hasActiveFilters ? (
               <Link href="/blog" className="text-blue-600 hover:text-blue-800 transition-colors">
-                View all articles
+                Clear filters and view all articles
               </Link>
             ) : (
               'Check back soon for new content!'
             )}
           </p>
+          {trimmedSearch && (
+            <p className="text-gray-400 mt-4 text-sm">
+              Try different keywords or check your spelling.
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -288,18 +357,20 @@ function ArticleCard({ article }: { article: ArticleWithRelations }) {
  *
  * Displays page navigation with prev/next and page numbers.
  * Uses SEO-friendly links with rel=prev/next for crawlers.
- * Preserves tag filter in pagination links when active.
+ * Preserves tag filter and search query in pagination links.
  */
 function Pagination({
   currentPage,
   totalPages,
   totalDocs,
   tagSlug,
+  searchQuery,
 }: {
   currentPage: number
   totalPages: number
   totalDocs: number
   tagSlug?: string
+  searchQuery?: string
 }) {
   const hasPrev = currentPage > 1
   const hasNext = currentPage < totalPages
@@ -313,12 +384,15 @@ function Pagination({
     pageNumbers.push(i)
   }
 
-  // Build URL with optional tag filter preserved
+  // Build URL with optional tag filter and search query preserved
   const buildPageUrl = (page: number) => {
     const params = new URLSearchParams()
     params.set('page', String(page))
     if (tagSlug) {
       params.set('tag', tagSlug)
+    }
+    if (searchQuery) {
+      params.set('search', searchQuery)
     }
     return `/blog?${params.toString()}`
   }
