@@ -15,6 +15,7 @@
  */
 import type { CollectionConfig, Field } from 'payload'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } from '../hooks/revalidate'
 
 /**
  * Upload field referencing the media collection.
@@ -150,6 +151,12 @@ export const ServiceTypes: CollectionConfig = {
     create: ({ req: { user } }) => Boolean(user),
     update: ({ req: { user } }) => Boolean(user),
     delete: ({ req: { user } }) => user?.role === 'admin',
+  },
+  hooks: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    afterChange: [createRevalidateHook(revalidatePaths.serviceType, 'service-types') as any],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    afterDelete: [createRevalidateDeleteHook(revalidatePaths.serviceType, 'service-types') as any],
   },
   defaultSort: 'name',
 }

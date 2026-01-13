@@ -15,6 +15,7 @@
  * @see https://payloadcms.com/docs/configuration/collections
  */
 import type { CollectionConfig } from 'payload'
+import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } from '../hooks/revalidate'
 
 /**
  * Available icons from lucide-react for feature display.
@@ -126,6 +127,12 @@ export const Features: CollectionConfig = {
     create: ({ req: { user } }) => Boolean(user),
     update: ({ req: { user } }) => Boolean(user),
     delete: ({ req: { user } }) => user?.role === 'admin',
+  },
+  hooks: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    afterChange: [createRevalidateHook(revalidatePaths.landingContent, 'features') as any],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    afterDelete: [createRevalidateDeleteHook(revalidatePaths.landingContent, 'features') as any],
   },
   defaultSort: 'order',
 }

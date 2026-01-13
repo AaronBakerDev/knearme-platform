@@ -17,6 +17,7 @@
  */
 import type { CollectionConfig, Field, FieldHook } from 'payload'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { createRevalidateHook, revalidatePaths } from '../hooks/revalidate'
 
 /**
  * Upload field referencing the media collection.
@@ -197,6 +198,12 @@ export const Articles: CollectionConfig = {
       ({ data }) => {
         return computeDerivedFields({ data } as Parameters<FieldHook>[0])
       },
+    ],
+    afterChange: [
+      // Trigger ISR revalidation when article is created or updated
+      // Revalidates: /blog listing and /blog/[slug] detail page
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      createRevalidateHook(revalidatePaths.article, 'articles') as any,
     ],
   },
   fields: [

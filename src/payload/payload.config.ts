@@ -36,6 +36,9 @@ import { Testimonials } from './collections/Testimonials'
 import { Navigation } from './globals/Navigation'
 import { SiteSettings } from './globals/SiteSettings'
 
+// Revalidation hooks for ISR
+import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } from './hooks/revalidate'
+
 // ESM-compatible __dirname
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -171,6 +174,12 @@ const FAQs: CollectionConfig = {
     create: ({ req: { user } }) => Boolean(user),
     update: ({ req: { user } }) => Boolean(user),
     delete: ({ req: { user } }) => user?.role === 'admin',
+  },
+  hooks: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    afterChange: [createRevalidateHook(revalidatePaths.landingContent, 'faqs') as any],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    afterDelete: [createRevalidateDeleteHook(revalidatePaths.landingContent, 'faqs') as any],
   },
   defaultSort: 'order',
 }
@@ -315,6 +324,12 @@ const PricingTiers: CollectionConfig = {
     create: ({ req: { user } }) => Boolean(user),
     update: ({ req: { user } }) => Boolean(user),
     delete: ({ req: { user } }) => user?.role === 'admin',
+  },
+  hooks: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    afterChange: [createRevalidateHook(revalidatePaths.landingContent, 'pricing-tiers') as any],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    afterDelete: [createRevalidateDeleteHook(revalidatePaths.landingContent, 'pricing-tiers') as any],
   },
   defaultSort: 'order',
 }

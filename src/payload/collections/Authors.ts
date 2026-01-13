@@ -9,6 +9,7 @@
  */
 import type { CollectionConfig, Field } from 'payload'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } from '../hooks/revalidate'
 
 /**
  * Upload field referencing the media collection.
@@ -176,6 +177,12 @@ export const Authors: CollectionConfig = {
     create: ({ req: { user } }) => Boolean(user),
     update: ({ req: { user } }) => Boolean(user),
     delete: ({ req: { user } }) => user?.role === 'admin',
+  },
+  hooks: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    afterChange: [createRevalidateHook(revalidatePaths.author, 'authors') as any],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    afterDelete: [createRevalidateDeleteHook(revalidatePaths.author, 'authors') as any],
   },
 }
 
