@@ -16,6 +16,7 @@
  * @see https://payloadcms.com/docs/configuration/collections
  */
 import type { CollectionConfig, Field, FieldHook } from 'payload'
+import { lexicalEditor } from '@payloadcms/richtext-lexical'
 
 /**
  * Upload field referencing the media collection.
@@ -247,6 +248,7 @@ export const Articles: CollectionConfig = {
       type: 'richText',
       label: 'Content',
       required: true,
+      editor: lexicalEditor({}),
       admin: {
         description: 'Article body content',
       },

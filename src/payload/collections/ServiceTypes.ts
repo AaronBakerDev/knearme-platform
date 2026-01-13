@@ -14,6 +14,7 @@
  * @see https://payloadcms.com/docs/configuration/collections
  */
 import type { CollectionConfig, Field } from 'payload'
+import { lexicalEditor } from '@payloadcms/richtext-lexical'
 
 /**
  * Upload field referencing the media collection.
@@ -99,6 +100,7 @@ export const ServiceTypes: CollectionConfig = {
       type: 'richText',
       label: 'Description',
       required: true,
+      editor: lexicalEditor({}),
       admin: {
         description:
           'Service description with variable placeholders: {city}, {state}, {projectCount}, {contractorCount}',

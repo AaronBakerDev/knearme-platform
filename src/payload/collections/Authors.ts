@@ -8,6 +8,7 @@
  * @see https://payloadcms.com/docs/configuration/collections
  */
 import type { CollectionConfig, Field } from 'payload'
+import { lexicalEditor } from '@payloadcms/richtext-lexical'
 
 /**
  * Upload field referencing the media collection.
@@ -91,6 +92,7 @@ export const Authors: CollectionConfig = {
       name: 'bio',
       type: 'richText',
       label: 'Biography',
+      editor: lexicalEditor({}),
       admin: {
         description: 'Author biography displayed on author page',
       },

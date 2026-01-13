@@ -17,6 +17,7 @@
  * @see https://payloadcms.com/docs/configuration/collections
  */
 import type { CollectionConfig, Field } from 'payload'
+import { lexicalEditor } from '@payloadcms/richtext-lexical'
 
 /**
  * Upload field referencing the media collection.
@@ -71,6 +72,7 @@ export const Testimonials: CollectionConfig = {
       type: 'richText',
       label: 'Testimonial',
       required: true,
+      editor: lexicalEditor({}),
       admin: {
         description: 'The customer\'s testimonial text',
       },
