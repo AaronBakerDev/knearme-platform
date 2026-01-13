@@ -129,6 +129,16 @@ export const Categories: CollectionConfig = {
           },
         },
         mediaUploadField('ogImage', 'Social Share Image', 'Image for social sharing (1200x630px recommended)'),
+        // OG Preview - shows live preview of social share appearance
+        {
+          name: 'ogPreview',
+          type: 'ui',
+          admin: {
+            components: {
+              Field: '/src/payload/components/OGPreview',
+            },
+          },
+        },
       ],
     },
   ],

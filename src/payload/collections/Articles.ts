@@ -413,6 +413,17 @@ export const Articles: CollectionConfig = {
             description: 'Prevent search engines from indexing this article',
           },
         },
+        // OG Preview - shows live preview of social share appearance
+        // Uses UI field type (no data storage) with custom component
+        {
+          name: 'ogPreview',
+          type: 'ui',
+          admin: {
+            components: {
+              Field: '/src/payload/components/OGPreview',
+            },
+          },
+        },
       ],
     },
   ],

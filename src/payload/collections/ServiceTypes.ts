@@ -145,6 +145,17 @@ export const ServiceTypes: CollectionConfig = {
       },
     },
     mediaUploadField('ogImage', 'Social Share Image', 'Image for social sharing (1200x630px recommended)'),
+    // OG Preview - shows live preview of social share appearance
+    // Note: ServiceTypes has SEO fields at root level (not in seo group)
+    {
+      name: 'ogPreview',
+      type: 'ui',
+      admin: {
+        components: {
+          Field: '/src/payload/components/OGPreview',
+        },
+      },
+    },
   ],
   access: {
     read: () => true, // Service types are public for SEO pages
