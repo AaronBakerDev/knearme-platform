@@ -17,6 +17,7 @@
 
 import { generateText } from 'ai';
 import { getChatModel, isGoogleAIEnabled } from '@/lib/ai/providers';
+import { withCircuitBreaker } from '@/lib/agents/circuit-breaker';
 import type { DiscoveryState, DiscoveryReview } from './types';
 
 export interface BioSynthesisInput {
@@ -123,10 +124,12 @@ export async function synthesizeBio(input: BioSynthesisInput): Promise<BioSynthe
     const model = getChatModel();
     const prompt = buildBioSynthesisPrompt(input);
 
-    const result = await generateText({
-      model,
-      prompt,
-      maxOutputTokens: 1024,
+    const result = await withCircuitBreaker('bio-synthesis', async () => {
+      return generateText({
+        model,
+        prompt,
+        maxOutputTokens: 1024,
+      });
     });
 
     // Parse JSON response

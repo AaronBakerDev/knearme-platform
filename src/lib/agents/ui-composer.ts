@@ -43,6 +43,7 @@ import {
   SemanticBlocksSchema,
   type SemanticBlock,
 } from '@/lib/design/semantic-blocks';
+import { withCircuitBreaker } from '@/lib/agents/circuit-breaker';
 import type { SharedProjectState } from './types';
 
 // ============================================================================
@@ -438,13 +439,15 @@ export async function composeUI(
   }
 
   try {
-    const { object } = await generateObject({
-      model: getGenerationModel(),
-      schema: UIComposerOutputSchema,
-      system: UI_COMPOSER_SYSTEM_PROMPT,
-      prompt: buildUIComposerPrompt(state, options),
-      maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
-      temperature: 0.7, // Higher temperature for creative layout decisions
+    const { object } = await withCircuitBreaker('ui-composer', async () => {
+      return generateObject({
+        model: getGenerationModel(),
+        schema: UIComposerOutputSchema,
+        system: UI_COMPOSER_SYSTEM_PROMPT,
+        prompt: buildUIComposerPrompt(state, options),
+        maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
+        temperature: 0.7, // Higher temperature for creative layout decisions
+      });
     });
 
     // Validate that returned imageIds reference actual images

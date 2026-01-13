@@ -8,6 +8,7 @@
 import { generateText, stepCountIs } from 'ai';
 import { google } from '@ai-sdk/google';
 import { AI_MODELS, isGoogleAIEnabled } from '@/lib/ai/providers';
+import { withCircuitBreaker } from '@/lib/agents/circuit-breaker';
 
 export interface WebSearchAgentInput {
   query: string;
@@ -93,46 +94,48 @@ export async function runWebSearchAgent(
     };
   }
 
-  const result = await generateText({
-    model: google(AI_MODELS.fallback),
-    tools: {
-      google_search: google.tools.googleSearch({}),
-    },
-    toolChoice: { type: 'tool', toolName: 'google_search' },
-    prompt: [
-      'You are a web search assistant helping gather information about a business.',
-      'Use google_search to find their official website, social media profiles, and any relevant listings.',
-      '',
-      'Search for: ' + input.query,
-      '',
-      'After searching, provide a response in this EXACT JSON format:',
-      '{',
-      '  "summary": "2-3 sentence summary of what you found",',
-      '  "businessInfo": {',
-      '    "aboutDescription": "Company description from their about page or Google listing",',
-      '    "website": "Official website URL if found",',
-      '    "phone": "Public phone number if found",',
-      '    "address": "Street address if listed publicly",',
-      '    "city": "City if explicitly listed",',
-      '    "state": "State/province if explicitly listed",',
-      '    "services": ["service1", "service2"],',
-      '    "yearsInBusiness": "e.g., 15 years or since 2008",',
-      '    "specialties": ["specialty1", "specialty2"],',
-      '    "serviceAreas": ["Denver Metro", "Boulder County"],',
-      '    "socialProfiles": {',
-      '      "facebook": "https://facebook.com/businessname",',
-      '      "instagram": "https://instagram.com/businessname",',
-      '      "linkedin": "https://linkedin.com/company/businessname",',
-      '      "yelp": "https://yelp.com/biz/businessname-city"',
-      '    },',
-      '    "portfolioUrl": "URL to their portfolio, gallery, or project showcase page"',
-      '  }',
-      '}',
-      '',
-      'Include only fields where you found actual information. Omit empty fields.',
-      'For social profiles, only include URLs you actually found - do not guess.',
-    ].join('\n'),
-    stopWhen: stepCountIs(3),
+  const result = await withCircuitBreaker('web-search', async () => {
+    return generateText({
+      model: google(AI_MODELS.fallback),
+      tools: {
+        google_search: google.tools.googleSearch({}),
+      },
+      toolChoice: { type: 'tool', toolName: 'google_search' },
+      prompt: [
+        'You are a web search assistant helping gather information about a business.',
+        'Use google_search to find their official website, social media profiles, and any relevant listings.',
+        '',
+        'Search for: ' + input.query,
+        '',
+        'After searching, provide a response in this EXACT JSON format:',
+        '{',
+        '  "summary": "2-3 sentence summary of what you found",',
+        '  "businessInfo": {',
+        '    "aboutDescription": "Company description from their about page or Google listing",',
+        '    "website": "Official website URL if found",',
+        '    "phone": "Public phone number if found",',
+        '    "address": "Street address if listed publicly",',
+        '    "city": "City if explicitly listed",',
+        '    "state": "State/province if explicitly listed",',
+        '    "services": ["service1", "service2"],',
+        '    "yearsInBusiness": "e.g., 15 years or since 2008",',
+        '    "specialties": ["specialty1", "specialty2"],',
+        '    "serviceAreas": ["Denver Metro", "Boulder County"],',
+        '    "socialProfiles": {',
+        '      "facebook": "https://facebook.com/businessname",',
+        '      "instagram": "https://instagram.com/businessname",',
+        '      "linkedin": "https://linkedin.com/company/businessname",',
+        '      "yelp": "https://yelp.com/biz/businessname-city"',
+        '    },',
+        '    "portfolioUrl": "URL to their portfolio, gallery, or project showcase page"',
+        '  }',
+        '}',
+        '',
+        'Include only fields where you found actual information. Omit empty fields.',
+        'For social profiles, only include URLs you actually found - do not guess.',
+      ].join('\n'),
+      stopWhen: stepCountIs(3),
+    });
   });
 
   // Try to parse structured response
