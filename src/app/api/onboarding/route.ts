@@ -45,6 +45,7 @@ import { parseLocationFromAddress, type DiscoveredBusiness } from '@/lib/tools/b
 import { getChatModel, isGoogleAIEnabled } from '@/lib/ai/providers';
 import { canExecute, recordSuccess, recordFailure } from '@/lib/agents/circuit-breaker';
 import { logger } from '@/lib/logging';
+import { chatTelemetry } from '@/lib/observability/traced-ai';
 import type { Database, Json } from '@/types/database';
 
 // Allow responses up to 30 seconds
@@ -718,6 +719,11 @@ export async function POST(request: Request) {
       messages: [...history, { role: 'user', content: message }],
       tools: activeTools,
       stopWhen: stepCountIs(3),
+      experimental_telemetry: chatTelemetry({
+        businessId: auth.businessId,
+        sessionId: conversation.id,
+        operationType: 'onboarding',
+      }),
       onFinish: async ({ text, toolResults }) => {
         const updatedState = processDiscoveryToolCalls(mergedState, toolResults);
         // Update missingFields for UI display
