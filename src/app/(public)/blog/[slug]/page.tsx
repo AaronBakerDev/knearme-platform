@@ -100,7 +100,30 @@ interface ArticlePageProps {
 }
 
 /**
+ * Build visibility where clause for articles.
+ * Shows published articles and scheduled articles with past publishedAt.
+ * This enables content scheduling without requiring cron jobs.
+ *
+ * @see PAY-049 in PRD for content scheduling requirements
+ * @see src/lib/payload/client.ts buildVisibleArticlesWhere() for shared logic
+ */
+function buildVisibilityFilter(): Record<string, unknown> {
+  return {
+    or: [
+      { status: { equals: 'published' } },
+      {
+        and: [
+          { status: { equals: 'scheduled' } },
+          { publishedAt: { less_than_equal: new Date().toISOString() } },
+        ],
+      },
+    ],
+  }
+}
+
+/**
  * Fetch article by slug
+ * Returns visible articles: published OR (scheduled with past publishedAt)
  */
 async function getArticle(slug: string): Promise<ArticleWithRelations | null> {
   const payload = await getPayload({ config })
@@ -112,7 +135,7 @@ async function getArticle(slug: string): Promise<ArticleWithRelations | null> {
     collection: 'articles',
     where: {
       slug: { equals: slug },
-      status: { equals: 'published' },
+      ...buildVisibilityFilter(),
     },
     depth: 2, // Populate author, category, tags, relatedArticles
     limit: 1,
@@ -122,19 +145,26 @@ async function getArticle(slug: string): Promise<ArticleWithRelations | null> {
 }
 
 /**
- * Generate static params for all published articles
+ * Generate static params for all visible articles (published and scheduled).
  * This enables static generation at build time.
  * Falls back to dynamic generation if database is unavailable during build.
+ *
+ * Note: Includes scheduled articles so their pages are pre-built and ready
+ * when publishedAt passes. ISR will make them visible without a rebuild.
  */
 export async function generateStaticParams() {
   try {
     const payload = await getPayload({ config })
 
+    // Include both published and scheduled articles for pre-building
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await (payload as any).find({
       collection: 'articles',
       where: {
-        status: { equals: 'published' },
+        or: [
+          { status: { equals: 'published' } },
+          { status: { equals: 'scheduled' } },
+        ],
       },
       limit: 1000,
       select: { slug: true },

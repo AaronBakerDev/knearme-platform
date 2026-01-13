@@ -209,12 +209,21 @@ export default async function AuthorPage({ params, searchParams }: AuthorPagePro
 
   const payload = await getPayload({ config })
 
-  // Fetch published articles by this author with pagination
+  // Fetch visible articles by this author with pagination
+  // Visible = published OR (scheduled with past publishedAt)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const articlesResult = await (payload as any).find({
     collection: 'articles',
     where: {
-      status: { equals: 'published' },
+      or: [
+        { status: { equals: 'published' } },
+        {
+          and: [
+            { status: { equals: 'scheduled' } },
+            { publishedAt: { less_than_equal: new Date().toISOString() } },
+          ],
+        },
+      ],
       author: { equals: author.id },
     },
     sort: '-publishedAt',

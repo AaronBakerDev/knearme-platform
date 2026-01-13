@@ -307,6 +307,44 @@ export async function getPayloadClient(): Promise<Payload> {
 export const getPayload = getPayloadClient
 
 // ============================================================================
+// Content Scheduling Helpers
+// ============================================================================
+
+/**
+ * Build a where clause for publicly visible articles.
+ *
+ * Articles are visible if:
+ * 1. Status is 'published', OR
+ * 2. Status is 'scheduled' AND publishedAt is in the past (or now)
+ *
+ * This enables content scheduling without requiring a cron job to change statuses.
+ * Scheduled articles automatically become visible when their publishedAt date passes.
+ *
+ * @returns Where clause for visible articles (published or past-scheduled)
+ *
+ * @example
+ * const where = {
+ *   ...buildVisibleArticlesWhere(),
+ *   category: { equals: categoryId }, // Additional filters
+ * }
+ */
+export function buildVisibleArticlesWhere(): Record<string, unknown> {
+  return {
+    or: [
+      // Published articles are always visible
+      { status: { equals: 'published' } },
+      // Scheduled articles with past publishedAt are visible (auto-published)
+      {
+        and: [
+          { status: { equals: 'scheduled' } },
+          { publishedAt: { less_than_equal: new Date().toISOString() } },
+        ],
+      },
+    ],
+  }
+}
+
+// ============================================================================
 // Collection Query Functions
 // ============================================================================
 
@@ -525,7 +563,14 @@ export async function getServiceTypes(): Promise<ServiceType[]> {
  * const { docs: articles, totalPages } = await getArticles({ limit: 10, page: 1 })
  */
 export async function getArticles(options?: {
+  /** Filter by specific status (draft, scheduled, published, archived) */
   status?: 'draft' | 'scheduled' | 'published' | 'archived'
+  /**
+   * Use visibility-based filtering (default: true for public pages)
+   * When true, returns published articles AND scheduled articles with past publishedAt.
+   * When false, use the explicit `status` option for filtering.
+   */
+  useVisibilityFilter?: boolean
   categorySlug?: string
   authorSlug?: string
   tagId?: string
@@ -536,8 +581,18 @@ export async function getArticles(options?: {
 
   // Build where clause
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: Record<string, any> = {
-    status: { equals: options?.status || 'published' },
+  const where: Record<string, any> = {}
+
+  // Determine status filtering strategy
+  // By default (useVisibilityFilter !== false), use visibility-based filtering for public pages
+  const useVisibility = options?.useVisibilityFilter !== false && !options?.status
+
+  if (useVisibility) {
+    // Use visibility filter: published OR (scheduled AND past publishedAt)
+    Object.assign(where, buildVisibleArticlesWhere())
+  } else {
+    // Use explicit status filter
+    where.status = { equals: options?.status || 'published' }
   }
 
   // If filtering by category, we need to look up the category first
@@ -593,6 +648,9 @@ export async function getArticles(options?: {
 /**
  * Fetch a single article by slug from Payload CMS
  *
+ * Returns visible articles only: published OR (scheduled with past publishedAt).
+ * This supports content scheduling without status changes.
+ *
  * @param slug - The article slug
  * @returns Promise<Article | null> - The article or null if not found
  *
@@ -602,12 +660,16 @@ export async function getArticles(options?: {
 export async function getArticle(slug: string): Promise<Article | null> {
   const payload = await getPayloadClient()
 
+  // Build where clause: match slug AND use visibility filter
+  const visibilityFilter = buildVisibleArticlesWhere()
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await (payload as any).find({
     collection: 'articles',
     where: {
       slug: { equals: slug },
-      status: { equals: 'published' },
+      // Combine visibility filter with slug match
+      ...visibilityFilter,
     },
     limit: 1,
     depth: 2, // Deep populate for related articles

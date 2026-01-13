@@ -99,10 +99,21 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
     activeTag = (tagResult.docs?.[0] || null) as TagWithSlug | null
   }
 
-  // Build where clause - always filter by published, optionally by tag
+  // Build where clause - show published articles and scheduled articles with past publishedAt
+  // This enables content scheduling: scheduled articles auto-appear when their publishedAt passes
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const whereClause: Record<string, any> = {
-    status: { equals: 'published' },
+    or: [
+      // Published articles
+      { status: { equals: 'published' } },
+      // Scheduled articles where publishedAt is in the past
+      {
+        and: [
+          { status: { equals: 'scheduled' } },
+          { publishedAt: { less_than_equal: new Date().toISOString() } },
+        ],
+      },
+    ],
   }
 
   // If tag filter is active and tag exists, filter articles that contain this tag

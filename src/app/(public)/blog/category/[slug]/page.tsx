@@ -185,12 +185,21 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   const payload = await getPayload({ config })
 
-  // Fetch published articles in this category with pagination
+  // Fetch visible articles in this category with pagination
+  // Visible = published OR (scheduled with past publishedAt)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const articlesResult = await (payload as any).find({
     collection: 'articles',
     where: {
-      status: { equals: 'published' },
+      or: [
+        { status: { equals: 'published' } },
+        {
+          and: [
+            { status: { equals: 'scheduled' } },
+            { publishedAt: { less_than_equal: new Date().toISOString() } },
+          ],
+        },
+      ],
       category: { equals: category.id },
     },
     sort: '-publishedAt',
