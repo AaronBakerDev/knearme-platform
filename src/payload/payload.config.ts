@@ -27,6 +27,9 @@ import { Categories } from './collections/Categories'
 import { Media } from './collections/Media'
 import { Tags } from './collections/Tags'
 
+// Marketing collections
+import { Testimonials } from './collections/Testimonials'
+
 // ESM-compatible __dirname
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -353,12 +356,13 @@ export default buildConfig({
    * - Media: Centralized asset management (images, files)
    * - FAQs: Marketing FAQ content
    * - PricingTiers: Pricing page content
+   * - Testimonials: Customer testimonials for landing page
    * - Authors: Blog post authors
    * - Categories: Blog category organization
    * - Tags: Article tagging (flat taxonomy)
    * - Articles: Blog posts with rich content
    */
-  collections: [Users, Media, FAQs, PricingTiers, Authors, Categories, Tags, Articles],
+  collections: [Users, Media, FAQs, PricingTiers, Testimonials, Authors, Categories, Tags, Articles],
 
   /**
    * JWT Secret for authentication
