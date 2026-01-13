@@ -260,6 +260,23 @@ export interface SocialLinks {
 }
 
 /**
+ * Redirect from Payload CMS
+ *
+ * Used for URL redirect management without code deploys.
+ * @see PAY-052 in PRD for acceptance criteria
+ */
+export interface Redirect {
+  id: string
+  source: string
+  destination: string
+  type: '301' | '302' | '307' | '308'
+  enabled: boolean
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+/**
  * Site settings global from Payload CMS
  */
 export interface SiteSettings {
@@ -879,5 +896,87 @@ export async function getNavigation(): Promise<Navigation | null> {
   } catch {
     // Global may not exist yet
     return null
+  }
+}
+
+// ============================================================================
+// Redirect Functions
+// ============================================================================
+
+/**
+ * Fetch a redirect by source path from Payload CMS
+ *
+ * Used by middleware to check if a URL should be redirected.
+ * Only returns enabled redirects.
+ *
+ * @param sourcePath - The source path to look up (e.g., "/old-page")
+ * @returns Promise<Redirect | null> - The redirect or null if not found
+ *
+ * @example
+ * const redirect = await getRedirect('/old-page')
+ * if (redirect) {
+ *   // Redirect to redirect.destination with redirect.type status code
+ * }
+ *
+ * @see PAY-052 in PRD for acceptance criteria
+ */
+export async function getRedirect(sourcePath: string): Promise<Redirect | null> {
+  const payload = await getPayloadClient()
+
+  try {
+    // Normalize path: ensure leading slash, remove trailing slash
+    let normalizedPath = sourcePath.trim()
+    if (!normalizedPath.startsWith('/')) {
+      normalizedPath = '/' + normalizedPath
+    }
+    if (normalizedPath.length > 1 && normalizedPath.endsWith('/')) {
+      normalizedPath = normalizedPath.slice(0, -1)
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (payload as any).find({
+      collection: 'redirects',
+      where: {
+        source: { equals: normalizedPath },
+        enabled: { equals: true },
+      },
+      limit: 1,
+    })
+
+    return (result.docs?.[0] || null) as Redirect | null
+  } catch {
+    // Collection may not exist or query failed
+    return null
+  }
+}
+
+/**
+ * Fetch all enabled redirects from Payload CMS
+ *
+ * Useful for caching all redirects at build time or for admin displays.
+ *
+ * @returns Promise<Redirect[]> - Array of enabled redirects
+ *
+ * @example
+ * const redirects = await getAllRedirects()
+ */
+export async function getAllRedirects(): Promise<Redirect[]> {
+  const payload = await getPayloadClient()
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (payload as any).find({
+      collection: 'redirects',
+      where: {
+        enabled: { equals: true },
+      },
+      limit: 1000, // Reasonable limit for redirects
+      sort: 'source',
+    })
+
+    return (result.docs || []) as Redirect[]
+  } catch {
+    // Collection may not exist or query failed
+    return []
   }
 }

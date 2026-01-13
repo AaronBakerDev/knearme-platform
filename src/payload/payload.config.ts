@@ -32,6 +32,9 @@ import { Features } from './collections/Features'
 import { ServiceTypes } from './collections/ServiceTypes'
 import { Testimonials } from './collections/Testimonials'
 
+// Infrastructure collections
+import { Redirects } from './collections/Redirects'
+
 // Globals
 import { Navigation } from './globals/Navigation'
 import { SiteSettings } from './globals/SiteSettings'
@@ -394,8 +397,9 @@ export default buildConfig({
    * - Categories: Blog category organization
    * - Tags: Article tagging (flat taxonomy)
    * - Articles: Blog posts with rich content
+   * - Redirects: URL redirect management (infrastructure)
    */
-  collections: [Users, Media, FAQs, PricingTiers, Testimonials, Features, ServiceTypes, Authors, Categories, Tags, Articles],
+  collections: [Users, Media, FAQs, PricingTiers, Testimonials, Features, ServiceTypes, Authors, Categories, Tags, Articles, Redirects],
 
   /**
    * Globals - Site-wide Singletons
