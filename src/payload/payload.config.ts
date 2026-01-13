@@ -24,6 +24,7 @@ import { fileURLToPath } from 'url'
 import { Authors } from './collections/Authors'
 import { Categories } from './collections/Categories'
 import { Media } from './collections/Media'
+import { Tags } from './collections/Tags'
 
 // ESM-compatible __dirname
 const filename = fileURLToPath(import.meta.url)
@@ -353,8 +354,9 @@ export default buildConfig({
    * - PricingTiers: Pricing page content
    * - Authors: Blog post authors
    * - Categories: Blog category organization
+   * - Tags: Article tagging (flat taxonomy)
    */
-  collections: [Users, Media, FAQs, PricingTiers, Authors, Categories],
+  collections: [Users, Media, FAQs, PricingTiers, Authors, Categories, Tags],
 
   /**
    * JWT Secret for authentication
