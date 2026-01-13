@@ -137,12 +137,31 @@ function extractHeadings(
 }
 
 /**
+ * Generates a cryptographically random preview token.
+ * Uses crypto.randomUUID() for secure, unpredictable tokens.
+ */
+function generatePreviewToken(): string {
+  return crypto.randomUUID()
+}
+
+/**
+ * Returns a date 7 days in the future for preview token expiration.
+ */
+function getPreviewTokenExpiration(): Date {
+  const expiration = new Date()
+  expiration.setDate(expiration.getDate() + 7)
+  return expiration
+}
+
+/**
  * beforeChange hook to compute derived fields:
  * - readingTime: Based on ~200 words per minute
  * - wordCount: Total words in content
  * - tableOfContents: H2/H3 headings with anchor IDs
+ * - previewToken: Auto-generated for drafts (PAY-066)
+ * - previewTokenExpiresAt: 7 days from creation/regeneration
  */
-const computeDerivedFields: FieldHook = ({ data }) => {
+const computeDerivedFields: FieldHook = ({ data, originalDoc }) => {
   if (!data) return data
 
   // Extract text from content
@@ -155,6 +174,26 @@ const computeDerivedFields: FieldHook = ({ data }) => {
 
   // Extract table of contents
   data.tableOfContents = extractHeadings(data.content)
+
+  // Preview token generation (PAY-066)
+  // Generate token for drafts/scheduled that don't have one, or if expired
+  const needsToken = data.status === 'draft' || data.status === 'scheduled'
+  const hasValidToken = data.previewToken && data.previewTokenExpiresAt &&
+    new Date(data.previewTokenExpiresAt) > new Date()
+
+  if (needsToken && !hasValidToken) {
+    // Generate new token if missing or expired
+    data.previewToken = generatePreviewToken()
+    data.previewTokenExpiresAt = getPreviewTokenExpiration().toISOString()
+  } else if (!needsToken && data.status === 'published') {
+    // Keep existing token for published articles (might revert to draft)
+    // but don't generate new ones for published content
+    if (!originalDoc?.previewToken) {
+      // Clear token when publishing if it was never set
+      data.previewToken = null
+      data.previewTokenExpiresAt = null
+    }
+  }
 
   return data
 }
@@ -341,6 +380,18 @@ export const Articles: CollectionConfig = {
       },
     },
 
+    // Preview Button UI Component (PAY-066)
+    // Shows preview URL and opens draft in new tab
+    {
+      name: 'previewButton',
+      type: 'ui',
+      admin: {
+        components: {
+          Field: '/src/payload/components/PreviewButton',
+        },
+      },
+    },
+
     // Computed fields (read-only, populated by hooks)
     {
       name: 'readingTime',
@@ -367,6 +418,30 @@ export const Articles: CollectionConfig = {
       admin: {
         readOnly: true,
         description: 'Auto-generated from H2/H3 headings',
+      },
+    },
+
+    // Preview Token Fields
+    // Used for shareable draft preview URLs - see PAY-066
+    {
+      name: 'previewToken',
+      type: 'text',
+      label: 'Preview Token',
+      index: true, // Index for efficient lookup by token
+      admin: {
+        readOnly: true,
+        description: 'Unique token for draft preview (auto-generated)',
+        condition: (data) => data?.status !== 'published', // Only show for non-published
+      },
+    },
+    {
+      name: 'previewTokenExpiresAt',
+      type: 'date',
+      label: 'Preview Token Expires',
+      admin: {
+        readOnly: true,
+        description: 'Preview link expires after 7 days',
+        condition: (data) => data?.status !== 'published', // Only show for non-published
       },
     },
 
