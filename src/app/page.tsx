@@ -201,3 +201,18 @@ function extractTextFromLexical(content: unknown): string {
 
   return "";
 }
+
+/**
+ * ISR revalidation period for the landing page
+ *
+ * Set to 1 hour (3600 seconds) as a balance between:
+ * - Fresh content from CMS (FAQs, Pricing, Features, Testimonials)
+ * - Performance (avoid regenerating on every request)
+ *
+ * Note: Instant updates are handled by PAY-027 revalidation hooks
+ * which call /api/revalidate on content changes.
+ *
+ * @see PAY-013 in PRD for acceptance criteria
+ * @see src/payload/hooks/revalidate.ts for instant update hooks
+ */
+export const revalidate = 3600;
