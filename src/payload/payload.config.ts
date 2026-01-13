@@ -32,6 +32,9 @@ import { Features } from './collections/Features'
 import { ServiceTypes } from './collections/ServiceTypes'
 import { Testimonials } from './collections/Testimonials'
 
+// Globals
+import { SiteSettings } from './globals/SiteSettings'
+
 // ESM-compatible __dirname
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -377,6 +380,13 @@ export default buildConfig({
    * - Articles: Blog posts with rich content
    */
   collections: [Users, Media, FAQs, PricingTiers, Testimonials, Features, ServiceTypes, Authors, Categories, Tags, Articles],
+
+  /**
+   * Globals - Site-wide Singletons
+   *
+   * - SiteSettings: Branding, contact info, social links, SEO defaults
+   */
+  globals: [SiteSettings],
 
   /**
    * JWT Secret for authentication
