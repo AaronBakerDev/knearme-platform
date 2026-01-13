@@ -24,6 +24,11 @@ import { getAllArticles } from '@/lib/content/mdx';
 import { LIVE_TOOLS } from '@/lib/tools/catalog';
 import { logger } from '@/lib/logging';
 import type { Database } from '@/types/database';
+import {
+  getArticles as getPayloadArticles,
+  getAuthors as getPayloadAuthors,
+  getCategories as getPayloadCategories,
+} from '@/lib/payload/client';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://knearme.com';
 
@@ -254,6 +259,74 @@ export async function GET() {
             priority
           )
         );
+      });
+    }
+
+    // ========================================================================
+    // Payload CMS Blog Content
+    // ========================================================================
+    // Fetch blog articles, authors, and categories from Payload CMS
+    // These are separate from the Supabase content above
+    // @see PAY-053 in PRD for acceptance criteria
+    try {
+      // Blog listing page
+      urls.push(
+        generateUrlEntry(`${SITE_URL}/blog`, new Date(), 'daily', 0.8)
+      );
+
+      // Published blog articles from Payload CMS
+      const { docs: blogArticles } = await getPayloadArticles({ limit: 500 });
+      blogArticles.forEach((article) => {
+        const lastmod = article.publishedAt
+          ? new Date(article.publishedAt)
+          : new Date(article.updatedAt);
+
+        urls.push(
+          generateUrlEntry(
+            `${SITE_URL}/blog/${article.slug}`,
+            lastmod,
+            'weekly',
+            0.7
+          )
+        );
+      });
+
+      // Blog categories from Payload CMS
+      const blogCategories = await getPayloadCategories({ limit: 100 });
+      blogCategories.forEach((category) => {
+        urls.push(
+          generateUrlEntry(
+            `${SITE_URL}/blog/category/${category.slug}`,
+            new Date(category.updatedAt),
+            'weekly',
+            0.6
+          )
+        );
+      });
+
+      // Blog authors from Payload CMS
+      const blogAuthors = await getPayloadAuthors({ limit: 100 });
+      blogAuthors.forEach((author) => {
+        urls.push(
+          generateUrlEntry(
+            `${SITE_URL}/blog/author/${author.slug}`,
+            new Date(author.updatedAt),
+            'weekly',
+            0.6
+          )
+        );
+      });
+
+      logger.info('[sitemap-main.xml] Added Payload CMS blog content', {
+        articles: blogArticles.length,
+        categories: blogCategories.length,
+        authors: blogAuthors.length,
+      });
+    } catch (payloadError) {
+      // Payload CMS might not be available during build or if DB is down
+      // Log warning but continue with other content
+      logger.warn('[sitemap-main.xml] Could not fetch Payload blog content', {
+        error: payloadError,
       });
     }
 

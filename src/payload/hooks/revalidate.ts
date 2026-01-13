@@ -163,27 +163,34 @@ export function createGlobalRevalidateHook(
  */
 export const revalidatePaths = {
   /**
-   * Article revalidation paths: listing page + article detail page
+   * Article revalidation paths: listing page + article detail page + sitemap
+   * Sitemap is revalidated to ensure new articles appear in search engines.
+   * @see PAY-053 in PRD for sitemap revalidation requirement
    */
   article: (doc: { slug?: string }) => [
     '/blog',
     ...(doc.slug ? [`/blog/${doc.slug}`] : []),
+    '/sitemap-main.xml', // Revalidate sitemap when articles change
   ],
 
   /**
-   * Author revalidation paths: author page + blog listing
+   * Author revalidation paths: author page + blog listing + sitemap
+   * Sitemap is revalidated to ensure new author pages appear in search engines.
    */
   author: (doc: { slug?: string }) => [
     '/blog',
     ...(doc.slug ? [`/blog/author/${doc.slug}`] : []),
+    '/sitemap-main.xml', // Revalidate sitemap when authors change
   ],
 
   /**
-   * Category revalidation paths: category page + blog listing
+   * Category revalidation paths: category page + blog listing + sitemap
+   * Sitemap is revalidated to ensure new category pages appear in search engines.
    */
   category: (doc: { slug?: string }) => [
     '/blog',
     ...(doc.slug ? [`/blog/category/${doc.slug}`] : []),
+    '/sitemap-main.xml', // Revalidate sitemap when categories change
   ],
 
   /**
