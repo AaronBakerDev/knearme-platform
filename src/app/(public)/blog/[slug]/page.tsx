@@ -21,6 +21,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { format } from 'date-fns'
+import { SocialShare } from '@/components/blog/SocialShare'
 
 /**
  * Revalidate every 60 seconds for fresh content
@@ -355,6 +356,15 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               ))}
             </div>
           )}
+
+          {/* Social Share Buttons (PAY-057) */}
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <SocialShare
+              url={`https://knearme.co/blog/${article.slug}`}
+              title={article.title}
+              description={article.excerpt}
+            />
+          </div>
         </header>
 
         {/* Featured Image */}
