@@ -7,7 +7,12 @@
     "interview_summary": "Production-ready content marketing CMS built on Payload. Includes: marketing page content (FAQs, Pricing, Testimonials, Features), full blog platform (Articles, Authors, Categories, Tags), SEO infrastructure (structured data, meta fields, sitemaps), engagement features (forms, newsletter, search), content operations (versions, drafts, scheduling, analytics), and browser-verifiable acceptance criteria for all features."
   },
   "config": {
-    "priority_order": ["critical", "high", "medium", "low"],
+    "priority_order": [
+      "critical",
+      "high",
+      "medium",
+      "low"
+    ],
     "categories": [
       "foundation",
       "collections",
@@ -21,7 +26,8 @@
       "analytics",
       "polish",
       "migration",
-      "testing"
+      "testing",
+      "review"
     ]
   },
   "features": [
@@ -37,9 +43,18 @@
         "TypeScript types generate to /src/types/payload-types.ts"
       ],
       "verification_steps": [
-        {"method": "bash", "command": "npm install && echo 'Dependencies installed'"},
-        {"method": "bash", "command": "npx payload generate:types"},
-        {"method": "bash", "command": "cat .env.example | grep DATABASE_URL"}
+        {
+          "method": "bash",
+          "command": "npm install && echo 'Dependencies installed'"
+        },
+        {
+          "method": "bash",
+          "command": "npx payload generate:types"
+        },
+        {
+          "method": "bash",
+          "command": "cat .env.example | grep DATABASE_URL"
+        }
       ],
       "dependencies": [],
       "notes": "Use separate 'payload' schema in PostgreSQL to avoid conflicts with existing Supabase tables.",
@@ -56,9 +71,17 @@
         "Payload config imported correctly from @/payload/payload.config"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": ["Navigate to http://localhost:3000/api", "Assert: JSON response with API info"]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to http://localhost:3000/api",
+            "Assert: JSON response with API info"
+          ]
+        }
       ],
-      "dependencies": ["PAY-001"],
+      "dependencies": [
+        "PAY-001"
+      ],
       "notes": "This creates the REST API that Next.js components will fetch content from",
       "passes": false
     },
@@ -73,9 +96,17 @@
         "Admin panel accessible at /admin URL"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": ["Navigate to http://localhost:3000/admin", "Assert: Login form or admin dashboard visible"]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to http://localhost:3000/admin",
+            "Assert: Login form or admin dashboard visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-001"],
+      "dependencies": [
+        "PAY-001"
+      ],
       "notes": "Uses Next.js catch-all route to handle all admin sub-routes.",
       "passes": false
     },
@@ -90,9 +121,18 @@
         "Existing Supabase auth routes continue working"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": ["Clear cookies", "Navigate to /admin", "Assert: Payload login appears (not Supabase redirect)"]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Clear cookies",
+            "Navigate to /admin",
+            "Assert: Payload login appears (not Supabase redirect)"
+          ]
+        }
       ],
-      "dependencies": ["PAY-003"],
+      "dependencies": [
+        "PAY-003"
+      ],
       "notes": "Critical to prevent auth conflicts. Payload has its own auth system.",
       "passes": false
     },
@@ -108,9 +148,18 @@
         "Collection registered in payload.config.ts"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": ["Navigate to /admin", "Create first admin user", "Assert: Dashboard loads after login"]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin",
+            "Create first admin user",
+            "Assert: Dashboard loads after login"
+          ]
+        }
       ],
-      "dependencies": ["PAY-001"],
+      "dependencies": [
+        "PAY-001"
+      ],
       "notes": "Separate from Supabase auth.users - this is only for CMS admin access",
       "passes": false
     },
@@ -126,17 +175,22 @@
         "Admin UI uses question as title field"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /admin/collections/faqs",
-          "Click 'Create New'",
-          "Fill: question='Test FAQ', answer='Test answer', category='general', order=1",
-          "Click 'Save'",
-          "Assert: Success toast appears",
-          "Assert: FAQ visible in list"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/faqs",
+            "Click 'Create New'",
+            "Fill: question='Test FAQ', answer='Test answer', category='general', order=1",
+            "Click 'Save'",
+            "Assert: Success toast appears",
+            "Assert: FAQ visible in list"
+          ]
+        }
       ],
-      "dependencies": ["PAY-005"],
-      "notes": "Mirrors structure from existing hardcoded FAQ.tsx",
+      "dependencies": [
+        "PAY-005"
+      ],
+      "notes": "Use lexicalEditor from @payloadcms/richtext-lexical for answer field. Define collection in separate file /src/payload/collections/FAQs.ts",
       "passes": false
     },
     {
@@ -150,15 +204,20 @@
         "Admin UI uses name as title field"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /admin/collections/pricing-tiers",
-          "Create Free tier with $0 price",
-          "Create Pro tier with $29/month",
-          "Assert: Both tiers visible in list"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/pricing-tiers",
+            "Create Free tier with $0 price",
+            "Create Pro tier with $29/month",
+            "Assert: Both tiers visible in list"
+          ]
+        }
       ],
-      "dependencies": ["PAY-005"],
-      "notes": "Mirrors structure from existing Pricing.tsx",
+      "dependencies": [
+        "PAY-005"
+      ],
+      "notes": "Define in /src/payload/collections/PricingTiers.ts. Features array should use array field type with text subfields.",
       "passes": false
     },
     {
@@ -172,16 +231,21 @@
         "Admin UI uses name as title field"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /admin/collections/testimonials",
-          "Click 'Create New'",
-          "Fill: name='John Doe', role='Acme Corp', content='Great product!', rating=5",
-          "Click 'Save'",
-          "Navigate to http://localhost:3000",
-          "Assert: 'John Doe' appears in testimonials section"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/testimonials",
+            "Click 'Create New'",
+            "Fill: name='John Doe', role='Acme Corp', content='Great product!', rating=5",
+            "Click 'Save'",
+            "Navigate to http://localhost:3000",
+            "Assert: 'John Doe' appears in testimonials section"
+          ]
+        }
       ],
-      "dependencies": ["PAY-005"],
+      "dependencies": [
+        "PAY-005"
+      ],
       "notes": "Replaces 3 hardcoded testimonials in Testimonials.tsx",
       "passes": false
     },
@@ -196,14 +260,19 @@
         "Admin UI uses title as title field"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /admin/collections/features",
-          "Create feature: title='Fast Setup', description='Get started in minutes'",
-          "Navigate to landing page",
-          "Assert: 'Fast Setup' appears in feature grid"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/features",
+            "Create feature: title='Fast Setup', description='Get started in minutes'",
+            "Navigate to landing page",
+            "Assert: 'Fast Setup' appears in feature grid"
+          ]
+        }
       ],
-      "dependencies": ["PAY-005"],
+      "dependencies": [
+        "PAY-005"
+      ],
       "notes": "Replaces 7 hardcoded features in FeatureGrid.tsx",
       "passes": false
     },
@@ -218,14 +287,19 @@
         "Admin UI uses name as title field"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /admin/collections/service-types",
-          "Create: name='Chimney Repair', slug='chimney-repair', headline='Expert Chimney Services'",
-          "Navigate to /services/chimney-repair (or equivalent)",
-          "Assert: 'Expert Chimney Services' visible on page"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/service-types",
+            "Create: name='Chimney Repair', slug='chimney-repair', headline='Expert Chimney Services'",
+            "Navigate to /services/chimney-repair (or equivalent)",
+            "Assert: 'Expert Chimney Services' visible on page"
+          ]
+        }
       ],
-      "dependencies": ["PAY-005"],
+      "dependencies": [
+        "PAY-005"
+      ],
       "notes": "Replaces 11 hardcoded descriptions in service-type-descriptions.ts",
       "passes": false
     },
@@ -241,15 +315,22 @@
         "Computed via hooks: readingTime, wordCount, tableOfContents"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /admin/collections/articles",
-          "Create article: title='Test Post', content='Lorem ipsum...', status='published'",
-          "Navigate to /blog",
-          "Assert: 'Test Post' appears in article list"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/articles",
+            "Create article: title='Test Post', content='Lorem ipsum...', status='published'",
+            "Navigate to /blog",
+            "Assert: 'Test Post' appears in article list"
+          ]
+        }
       ],
-      "dependencies": ["PAY-033", "PAY-034", "PAY-035"],
-      "notes": "Core blog collection - depends on Authors, Categories, Tags",
+      "dependencies": [
+        "PAY-033",
+        "PAY-034",
+        "PAY-035"
+      ],
+      "notes": "Core blog collection. Use lexicalEditor for content. Enable versions: { drafts: { autosave: { interval: 1000 } } }. Define in /src/payload/collections/Articles.ts. Add beforeChange hook for readingTime and tableOfContents calculation.",
       "passes": false
     },
     {
@@ -263,15 +344,20 @@
         "SEO group: metaTitle, metaDescription, ogImage"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /admin/collections/authors",
-          "Create: name='Jane Smith', slug='jane-smith', role='Staff Writer'",
-          "Assert: Author appears in list",
-          "Navigate to /blog/author/jane-smith",
-          "Assert: Author page loads with name visible"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/authors",
+            "Create: name='Jane Smith', slug='jane-smith', role='Staff Writer'",
+            "Assert: Author appears in list",
+            "Navigate to /blog/author/jane-smith",
+            "Assert: Author page loads with name visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-005"],
+      "dependencies": [
+        "PAY-005"
+      ],
       "notes": "E-E-A-T signals for SEO - author pages with schema",
       "passes": false
     },
@@ -286,14 +372,19 @@
         "SEO group fields included"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /admin/collections/categories",
-          "Create: name='Marketing Tips', slug='marketing-tips'",
-          "Navigate to /blog/category/marketing-tips",
-          "Assert: Category page loads"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/categories",
+            "Create: name='Marketing Tips', slug='marketing-tips'",
+            "Navigate to /blog/category/marketing-tips",
+            "Assert: Category page loads"
+          ]
+        }
       ],
-      "dependencies": ["PAY-005"],
+      "dependencies": [
+        "PAY-005"
+      ],
       "notes": "Hierarchical categories for blog organization",
       "passes": false
     },
@@ -307,13 +398,18 @@
         "Fields: name (required), slug (unique), description (optional)"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /admin/collections/tags",
-          "Create: name='SEO', slug='seo'",
-          "Assert: Tag appears in list"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/tags",
+            "Create: name='SEO', slug='seo'",
+            "Assert: Tag appears in list"
+          ]
+        }
       ],
-      "dependencies": ["PAY-005"],
+      "dependencies": [
+        "PAY-005"
+      ],
       "notes": "Flat taxonomy for cross-cutting concerns",
       "passes": false
     },
@@ -328,16 +424,22 @@
         "Author page lists all their articles"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create author 'Test Author'",
-          "Create article with 'Test Author' as author",
-          "Navigate to article page",
-          "Assert: 'Test Author' name and avatar visible",
-          "Click author name",
-          "Assert: Author page shows the article"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create author 'Test Author'",
+            "Create article with 'Test Author' as author",
+            "Navigate to article page",
+            "Assert: 'Test Author' name and avatar visible",
+            "Click author name",
+            "Assert: Author page shows the article"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032", "PAY-033"],
+      "dependencies": [
+        "PAY-032",
+        "PAY-033"
+      ],
       "notes": "Bidirectional relationship for author pages",
       "passes": false
     },
@@ -353,16 +455,23 @@
         "Tag filtering works on blog listing"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create category 'News' and tag 'Featured'",
-          "Create article with category='News', tags=['Featured']",
-          "Navigate to /blog/category/news",
-          "Assert: Article visible",
-          "Navigate to /blog?tag=featured",
-          "Assert: Article visible"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create category 'News' and tag 'Featured'",
+            "Create article with category='News', tags=['Featured']",
+            "Navigate to /blog/category/news",
+            "Assert: Article visible",
+            "Navigate to /blog?tag=featured",
+            "Assert: Article visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032", "PAY-034", "PAY-035"],
+      "dependencies": [
+        "PAY-032",
+        "PAY-034",
+        "PAY-035"
+      ],
       "notes": "Taxonomy relationships for content organization",
       "passes": false
     },
@@ -377,14 +486,19 @@
         "Maximum 3 related articles displayed"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create 3 articles",
-          "Edit first article, add other 2 as related",
-          "Navigate to first article detail page",
-          "Assert: 'Related Articles' section visible with 2 articles"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create 3 articles",
+            "Edit first article, add other 2 as related",
+            "Navigate to first article detail page",
+            "Assert: 'Related Articles' section visible with 2 articles"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032"],
+      "dependencies": [
+        "PAY-032"
+      ],
       "notes": "Manual curation of related content",
       "passes": false
     },
@@ -400,15 +514,20 @@
         "Displayed on article cards and detail page"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create article with ~400 word content",
-          "Save article",
-          "Navigate to /blog",
-          "Assert: '2 min read' visible on article card"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create article with ~400 word content",
+            "Save article",
+            "Navigate to /blog",
+            "Assert: '2 min read' visible on article card"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032"],
-      "notes": "Payload beforeChange hook for calculation",
+      "dependencies": [
+        "PAY-032"
+      ],
+      "notes": "Implement in beforeChange hook: const wordCount = serializeLexical(data.content).split(/\\s+/).length; data.readingTime = Math.ceil(wordCount / 200);",
       "passes": false
     },
     {
@@ -423,16 +542,21 @@
         "TOC links scroll to sections"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create article with 3 H2 headings",
-          "Navigate to article detail page",
-          "Assert: Table of contents visible with 3 items",
-          "Click first TOC item",
-          "Assert: Page scrolls to that heading"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create article with 3 H2 headings",
+            "Navigate to article detail page",
+            "Assert: Table of contents visible with 3 items",
+            "Click first TOC item",
+            "Assert: Page scrolls to that heading"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032"],
-      "notes": "Improves UX for long-form content",
+      "dependencies": [
+        "PAY-032"
+      ],
+      "notes": "Extract H2/H3 nodes from Lexical content in beforeChange hook. Store as JSON array: [{ id, text, level }]. Use slugify for anchor IDs.",
       "passes": false
     },
     {
@@ -447,15 +571,20 @@
         "Pagination with 10 articles per page"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create 3 published articles",
-          "Navigate to /blog",
-          "Assert: All 3 articles visible",
-          "Assert: Newest article first",
-          "Assert: Each card shows title, excerpt, author, date"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create 3 published articles",
+            "Navigate to /blog",
+            "Assert: All 3 articles visible",
+            "Assert: Newest article first",
+            "Assert: Each card shows title, excerpt, author, date"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032"],
+      "dependencies": [
+        "PAY-032"
+      ],
       "notes": "Main blog entry point",
       "passes": false
     },
@@ -471,15 +600,20 @@
         "Related articles section at bottom"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create published article with slug 'test-post'",
-          "Navigate to /blog/test-post",
-          "Assert: Article title and content visible",
-          "Assert: Author name and avatar visible",
-          "Assert: Category and tags visible"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create published article with slug 'test-post'",
+            "Navigate to /blog/test-post",
+            "Assert: Article title and content visible",
+            "Assert: Author name and avatar visible",
+            "Assert: Category and tags visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032"],
+      "dependencies": [
+        "PAY-032"
+      ],
       "notes": "SEO-optimized article pages",
       "passes": false
     },
@@ -494,14 +628,20 @@
         "Articles filtered by category, paginated"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create category 'News' with 2 articles",
-          "Navigate to /blog/category/news",
-          "Assert: 'News' heading visible",
-          "Assert: 2 articles displayed"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create category 'News' with 2 articles",
+            "Navigate to /blog/category/news",
+            "Assert: 'News' heading visible",
+            "Assert: 2 articles displayed"
+          ]
+        }
       ],
-      "dependencies": ["PAY-034", "PAY-041"],
+      "dependencies": [
+        "PAY-034",
+        "PAY-041"
+      ],
       "notes": "Category archive pages",
       "passes": false
     },
@@ -516,14 +656,20 @@
         "Lists all articles by author"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create author 'jane-smith' with 2 articles",
-          "Navigate to /blog/author/jane-smith",
-          "Assert: Author name and bio visible",
-          "Assert: 2 articles listed"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create author 'jane-smith' with 2 articles",
+            "Navigate to /blog/author/jane-smith",
+            "Assert: Author name and bio visible",
+            "Assert: 2 articles listed"
+          ]
+        }
       ],
-      "dependencies": ["PAY-033", "PAY-041"],
+      "dependencies": [
+        "PAY-033",
+        "PAY-041"
+      ],
       "notes": "E-E-A-T author pages for SEO",
       "passes": false
     },
@@ -538,13 +684,18 @@
         "Each item has: title, description, link, pubDate, author"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /blog/rss.xml",
-          "Assert: XML content type",
-          "Assert: <channel> and <item> elements present"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /blog/rss.xml",
+            "Assert: XML content type",
+            "Assert: <channel> and <item> elements present"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032"],
+      "dependencies": [
+        "PAY-032"
+      ],
       "notes": "Standard RSS for feed readers",
       "passes": false
     },
@@ -559,16 +710,21 @@
         "Accessible in all pages via getSiteSettings()"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /admin/globals/site-settings",
-          "Update siteName to 'Test Site'",
-          "Save",
-          "Navigate to homepage",
-          "Assert: 'Test Site' appears in header or title"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/globals/site-settings",
+            "Update siteName to 'Test Site'",
+            "Save",
+            "Navigate to homepage",
+            "Assert: 'Test Site' appears in header or title"
+          ]
+        }
       ],
-      "dependencies": ["PAY-001"],
-      "notes": "Single source of truth for site branding",
+      "dependencies": [
+        "PAY-001"
+      ],
+      "notes": "Define as GlobalConfig in /src/payload/globals/SiteSettings.ts. Register in payload.config.ts globals array.",
       "passes": false
     },
     {
@@ -582,15 +738,20 @@
         "Components consume navigation via getNavigation()"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /admin/globals/navigation",
-          "Add header link: label='Blog', href='/blog'",
-          "Save",
-          "Navigate to homepage",
-          "Assert: 'Blog' link in header navigation"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/globals/navigation",
+            "Add header link: label='Blog', href='/blog'",
+            "Save",
+            "Navigate to homepage",
+            "Assert: 'Blog' link in header navigation"
+          ]
+        }
       ],
-      "dependencies": ["PAY-001"],
+      "dependencies": [
+        "PAY-001"
+      ],
       "notes": "Replaces hardcoded navigation arrays",
       "passes": false
     },
@@ -607,9 +768,23 @@
         "getSiteSettings(), getNavigation() for globals"
       ],
       "verification_steps": [
-        {"method": "bash", "command": "npx tsc --noEmit src/lib/payload/client.ts"}
+        {
+          "method": "bash",
+          "command": "npx tsc --noEmit src/lib/payload/client.ts"
+        }
       ],
-      "dependencies": ["PAY-006", "PAY-007", "PAY-016", "PAY-017", "PAY-032", "PAY-019", "PAY-020"],
+      "dependencies": [
+        "PAY-006",
+        "PAY-007",
+        "PAY-016",
+        "PAY-017",
+        "PAY-032",
+        "PAY-019",
+        "PAY-020",
+        "PAY-033",
+        "PAY-034",
+        "PAY-035"
+      ],
       "notes": "Type-safe queries for all collections",
       "passes": false
     },
@@ -624,13 +799,19 @@
         "Falls back to hardcoded content on fetch failure"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Edit testimonial in admin",
-          "Refresh landing page",
-          "Assert: Updated testimonial visible"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Edit testimonial in admin",
+            "Refresh landing page",
+            "Assert: Updated testimonial visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-016", "PAY-008"],
+      "dependencies": [
+        "PAY-016",
+        "PAY-008"
+      ],
       "notes": "Replace hardcoded testimonials array",
       "passes": false
     },
@@ -645,13 +826,19 @@
         "Falls back to hardcoded content on fetch failure"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Edit feature in admin",
-          "Refresh landing page",
-          "Assert: Updated feature visible"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Edit feature in admin",
+            "Refresh landing page",
+            "Assert: Updated feature visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-017", "PAY-008"],
+      "dependencies": [
+        "PAY-017",
+        "PAY-008"
+      ],
       "notes": "Replace hardcoded features array",
       "passes": false
     },
@@ -666,13 +853,19 @@
         "Falls back to hardcoded service-type-descriptions.ts"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Edit service type in admin",
-          "Navigate to service page",
-          "Assert: Updated content visible"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Edit service type in admin",
+            "Navigate to service page",
+            "Assert: Updated content visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-018", "PAY-008"],
+      "dependencies": [
+        "PAY-018",
+        "PAY-008"
+      ],
       "notes": "Replace 11 hardcoded service descriptions",
       "passes": false
     },
@@ -687,13 +880,19 @@
         "Falls back to hardcoded content on failure"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Edit FAQ in admin",
-          "Refresh landing page",
-          "Assert: Updated FAQ visible"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Edit FAQ in admin",
+            "Refresh landing page",
+            "Assert: Updated FAQ visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-006", "PAY-008"],
+      "dependencies": [
+        "PAY-006",
+        "PAY-008"
+      ],
       "notes": "Replace hardcoded FAQ array",
       "passes": false
     },
@@ -708,15 +907,21 @@
         "Falls back to hardcoded tiers on failure"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Edit pricing tier in admin",
-          "Refresh landing page",
-          "Assert: Updated price visible",
-          "Toggle monthly/yearly",
-          "Assert: Prices update correctly"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Edit pricing tier in admin",
+            "Refresh landing page",
+            "Assert: Updated price visible",
+            "Toggle monthly/yearly",
+            "Assert: Prices update correctly"
+          ]
+        }
       ],
-      "dependencies": ["PAY-007", "PAY-008"],
+      "dependencies": [
+        "PAY-007",
+        "PAY-008"
+      ],
       "notes": "Replace hardcoded pricing tiers",
       "passes": false
     },
@@ -731,14 +936,27 @@
         "Falls back to content-derived values if empty"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Edit article, set custom metaTitle",
-          "Navigate to article page",
-          "Inspect <title> tag",
-          "Assert: Custom meta title present"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Edit article in admin",
+            "Set metaTitle='Custom SEO Title'",
+            "Set metaDescription='Custom description for search engines'",
+            "Set noIndex=true",
+            "Save and publish",
+            "Navigate to article page",
+            "Inspect page source or use dev tools",
+            "Assert: <title> contains 'Custom SEO Title'",
+            "Assert: <meta name='description' content='Custom description for search engines'>",
+            "Assert: <meta name='robots' content='noindex'>"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032", "PAY-006", "PAY-007"],
+      "dependencies": [
+        "PAY-032",
+        "PAY-006",
+        "PAY-007"
+      ],
       "notes": "Consistent SEO across all content types",
       "passes": false
     },
@@ -753,14 +971,20 @@
         "JSON-LD in page <head>"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to landing page",
-          "Inspect page source",
-          "Assert: FAQPage JSON-LD present",
-          "Assert: Product JSON-LD for pricing tiers"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to landing page",
+            "Inspect page source",
+            "Assert: FAQPage JSON-LD present",
+            "Assert: Product JSON-LD for pricing tiers"
+          ]
+        }
       ],
-      "dependencies": ["PAY-011", "PAY-012"],
+      "dependencies": [
+        "PAY-011",
+        "PAY-012"
+      ],
       "notes": "Rich results in search",
       "passes": false
     },
@@ -775,14 +999,20 @@
         "JSON-LD in article page <head>"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /blog/[slug]",
-          "Inspect page source",
-          "Assert: BlogPosting JSON-LD present",
-          "Assert: author object included"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /blog/[slug]",
+            "Inspect page source",
+            "Assert: BlogPosting JSON-LD present",
+            "Assert: author object included"
+          ]
+        }
       ],
-      "dependencies": ["PAY-042"],
+      "dependencies": [
+        "PAY-042",
+        "PAY-024"
+      ],
       "notes": "Article rich results",
       "passes": false
     },
@@ -797,13 +1027,19 @@
         "JSON-LD in author page <head>"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /blog/author/[slug]",
-          "Inspect page source",
-          "Assert: Person JSON-LD present"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /blog/author/[slug]",
+            "Inspect page source",
+            "Assert: Person JSON-LD present"
+          ]
+        }
       ],
-      "dependencies": ["PAY-044"],
+      "dependencies": [
+        "PAY-044",
+        "PAY-024"
+      ],
       "notes": "E-E-A-T author signals",
       "passes": false
     },
@@ -818,14 +1054,20 @@
         "JSON-LD in article page <head>"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to article in 'News' category",
-          "Inspect page source",
-          "Assert: BreadcrumbList JSON-LD present",
-          "Assert: Includes Blog and News in path"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to article in 'News' category",
+            "Inspect page source",
+            "Assert: BreadcrumbList JSON-LD present",
+            "Assert: Includes Blog and News in path"
+          ]
+        }
       ],
-      "dependencies": ["PAY-042"],
+      "dependencies": [
+        "PAY-042",
+        "PAY-043"
+      ],
       "notes": "Breadcrumb rich results",
       "passes": false
     },
@@ -841,21 +1083,31 @@
         "Rollback to previous version works"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create article, save as draft",
-          "Navigate to /blog",
-          "Assert: Draft article NOT visible",
-          "Publish article",
-          "Assert: Article NOW visible",
-          "Edit article, save new version",
-          "Click 'Versions' tab",
-          "Assert: Version history visible",
-          "Rollback to previous version",
-          "Assert: Original content restored"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create article, save as draft",
+            "Navigate to /blog",
+            "Assert: Draft article NOT visible",
+            "Publish article",
+            "Assert: Article NOW visible",
+            "Edit article, save new version",
+            "Click 'Versions' tab",
+            "Assert: Version history visible",
+            "Rollback to previous version",
+            "Assert: Original content restored"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032", "PAY-006", "PAY-007"],
-      "notes": "Essential for content operations safety",
+      "dependencies": [
+        "PAY-032",
+        "PAY-006",
+        "PAY-007",
+        "PAY-016",
+        "PAY-017",
+        "PAY-018"
+      ],
+      "notes": "Add to all content collections: versions: { drafts: true, maxPerDoc: 25 }. Requires @payloadcms/plugin-cloud-storage for version storage if using cloud.",
       "passes": false
     },
     {
@@ -869,14 +1121,27 @@
         "Uses Next.js revalidatePath or revalidateTag"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Publish article",
-          "Navigate to /blog immediately",
-          "Assert: New article visible (no 1-hour wait)"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Open browser DevTools Network tab",
+            "Create and publish article with slug 'test-isr'",
+            "Assert: Network request to /api/revalidate?path=/blog/test-isr",
+            "Assert: Request returns 200 status",
+            "Navigate to /blog/test-isr within 5 seconds",
+            "Assert: Article visible without waiting for ISR cache expiry"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032"],
-      "notes": "Instant content updates without cache delay",
+      "dependencies": [
+        "PAY-032",
+        "PAY-006",
+        "PAY-007",
+        "PAY-016",
+        "PAY-017",
+        "PAY-018"
+      ],
+      "notes": "Use afterChange hook: await fetch('/api/revalidate?path=/blog/' + doc.slug). Create /api/revalidate route that calls revalidatePath() from next/cache.",
       "passes": false
     },
     {
@@ -891,16 +1156,22 @@
         "Cron job or serverless function checks scheduled content"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create article with status='scheduled', publishedAt=now+2min",
-          "Navigate to /blog",
-          "Assert: Article NOT visible",
-          "Wait 2+ minutes",
-          "Refresh /blog",
-          "Assert: Article NOW visible"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create article with status='scheduled', publishedAt=Date.now()-60000 (1 min ago)",
+            "Navigate to /blog",
+            "Assert: Article IS visible (past scheduled time)",
+            "Create another article with status='scheduled', publishedAt=Date.now()+86400000 (tomorrow)",
+            "Refresh /blog",
+            "Assert: Second article NOT visible (future scheduled time)"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032", "PAY-026"],
+      "dependencies": [
+        "PAY-032",
+        "PAY-026"
+      ],
       "notes": "Schedule content drops without manual intervention",
       "passes": false
     },
@@ -916,18 +1187,23 @@
         "Image variants: thumbnail (150x150), card (400x300), featured (1200x630)"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /admin/collections/media",
-          "Upload image",
-          "Fill alt='Test image description'",
-          "Save",
-          "Assert: Image preview visible",
-          "Navigate to Articles, insert image from Media Library",
-          "Assert: Image selectable and inserts"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/media",
+            "Upload image",
+            "Fill alt='Test image description'",
+            "Save",
+            "Assert: Image preview visible",
+            "Navigate to Articles, insert image from Media Library",
+            "Assert: Image selectable and inserts"
+          ]
+        }
       ],
-      "dependencies": ["PAY-001"],
-      "notes": "Centralized media with SEO-required alt text",
+      "dependencies": [
+        "PAY-001"
+      ],
+      "notes": "Configure upload field with imageSizes for variants. Use: upload: { staticDir: 'media', imageSizes: [{ name: 'thumbnail', width: 150 }, { name: 'card', width: 400 }, { name: 'featured', width: 1200 }] }",
       "passes": false
     },
     {
@@ -941,14 +1217,19 @@
         "Middleware checks redirects on request"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create redirect: source='/old-page', destination='/new-page', type=301",
-          "Navigate to /old-page",
-          "Assert: Redirected to /new-page",
-          "Assert: Network shows 301 status code"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create redirect: source='/old-page', destination='/new-page', type=301",
+            "Navigate to /old-page",
+            "Assert: Redirected to /new-page",
+            "Assert: Network shows 301 status code"
+          ]
+        }
       ],
-      "dependencies": ["PAY-001"],
+      "dependencies": [
+        "PAY-001"
+      ],
       "notes": "Manage 301s without code deploys",
       "passes": false
     },
@@ -963,13 +1244,22 @@
         "Includes: static pages, articles, categories, authors"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create and publish new article",
-          "Navigate to /sitemap.xml",
-          "Assert: New article URL in sitemap"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create and publish new article",
+            "Navigate to /sitemap.xml",
+            "Assert: New article URL in sitemap"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032", "PAY-027"],
+      "dependencies": [
+        "PAY-032",
+        "PAY-027",
+        "PAY-033",
+        "PAY-034",
+        "PAY-044"
+      ],
       "notes": "Auto-update sitemap on content changes",
       "passes": false
     },
@@ -985,16 +1275,23 @@
         "Handles empty results gracefully"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create articles: 'React Hooks', 'Vue Components', 'Angular Services'",
-          "Navigate to /blog",
-          "Enter 'React' in search",
-          "Assert: Only 'React Hooks' visible",
-          "Clear search",
-          "Assert: All articles visible again"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create 3 articles: 'React Hooks Guide', 'Vue Components', 'Angular Services'",
+            "Navigate to /blog",
+            "Find input with placeholder='Search articles...' or name='search'",
+            "Type 'React' into search input",
+            "Wait 500ms for debounce",
+            "Assert: Only 'React Hooks Guide' visible in results",
+            "Clear search input",
+            "Assert: All 3 articles visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-041"],
+      "dependencies": [
+        "PAY-041"
+      ],
       "notes": "Helps users find content",
       "passes": false
     },
@@ -1010,16 +1307,31 @@
         "Form component renders form from CMS data"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create form: slug='contact', fields=[name, email, message]",
-          "Navigate to page with contact form",
-          "Fill form, submit",
-          "Assert: Success message appears",
-          "Navigate to /admin/collections/form-submissions",
-          "Assert: Submission visible with data"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/forms",
+            "Create form: name='Contact Form', slug='contact'",
+            "Add field: type='text', name='name', label='Your Name', required=true",
+            "Add field: type='email', name='email', label='Email', required=true",
+            "Add field: type='textarea', name='message', label='Message'",
+            "Set submitButton='Send Message', successMessage='Thanks! We will reply soon.'",
+            "Save form",
+            "Navigate to /contact (or create test page with form embed)",
+            "Find form with data-form-slug='contact'",
+            "Fill 'name' field with 'Test User'",
+            "Fill 'email' field with 'test@example.com'",
+            "Fill 'message' field with 'Hello world'",
+            "Click button 'Send Message'",
+            "Assert: 'Thanks! We will reply soon.' message visible",
+            "Navigate to /admin/collections/form-submissions",
+            "Assert: Submission with email='test@example.com' visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-001"],
+      "dependencies": [
+        "PAY-001"
+      ],
       "notes": "Dynamic forms without code changes",
       "passes": false
     },
@@ -1034,15 +1346,23 @@
         "Newsletter component in footer or sidebar"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Configure newsletter with webhook provider",
-          "Navigate to page with newsletter form",
-          "Enter email, submit",
-          "Assert: Success message appears",
-          "Assert: Webhook received email (check logs)"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Configure newsletter in admin with provider='webhook', webhookUrl='https://webhook.site/unique-id'",
+            "Navigate to page with newsletter signup (footer or dedicated)",
+            "Find input with placeholder='Enter your email' or name='newsletter-email'",
+            "Enter 'subscriber@test.com'",
+            "Click subscribe button",
+            "Assert: Success message 'Thanks for subscribing!' visible",
+            "Open webhook.site/unique-id in new tab",
+            "Assert: Request received with body containing 'subscriber@test.com'"
+          ]
+        }
       ],
-      "dependencies": ["PAY-001"],
+      "dependencies": [
+        "PAY-001"
+      ],
       "notes": "Lead generation for email marketing",
       "passes": false
     },
@@ -1057,14 +1377,19 @@
         "Share buttons use OG meta for preview"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to article page",
-          "Assert: Share buttons visible",
-          "Click 'Copy Link'",
-          "Assert: URL copied to clipboard"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to article page",
+            "Assert: Share buttons visible",
+            "Click 'Copy Link'",
+            "Assert: URL copied to clipboard"
+          ]
+        }
       ],
-      "dependencies": ["PAY-042"],
+      "dependencies": [
+        "PAY-042"
+      ],
       "notes": "Encourage content sharing",
       "passes": false
     },
@@ -1080,15 +1405,20 @@
         "SEO-friendly with rel=prev/next links"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create 12 articles",
-          "Navigate to /blog",
-          "Assert: Only 10 articles visible",
-          "Click page 2 or 'Next'",
-          "Assert: 2 more articles visible"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create 12 articles",
+            "Navigate to /blog",
+            "Assert: Only 10 articles visible",
+            "Click page 2 or 'Next'",
+            "Assert: 2 more articles visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-041"],
+      "dependencies": [
+        "PAY-041"
+      ],
       "notes": "Handle growing content volume",
       "passes": false
     },
@@ -1103,13 +1433,18 @@
         "Maintains site navigation"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to /blog/non-existent-slug",
-          "Assert: 404 page displays",
-          "Assert: Link to /blog visible"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /blog/non-existent-slug",
+            "Assert: 404 page displays",
+            "Assert: Link to /blog visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-041"],
+      "dependencies": [
+        "PAY-041"
+      ],
       "notes": "Better UX for missing content",
       "passes": false
     },
@@ -1124,14 +1459,19 @@
         "Preview updates as fields are edited"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Edit article, scroll to SEO section",
-          "Assert: OG preview card visible",
-          "Change OG title",
-          "Assert: Preview updates"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Edit article, scroll to SEO section",
+            "Assert: OG preview card visible",
+            "Change OG title",
+            "Assert: Preview updates"
+          ]
+        }
       ],
-      "dependencies": ["PAY-024"],
+      "dependencies": [
+        "PAY-024"
+      ],
       "notes": "WYSIWYG for social sharing",
       "passes": false
     },
@@ -1146,14 +1486,19 @@
         "Uses Prism.js or Shiki"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create article with JavaScript code block",
-          "Navigate to article page",
-          "Assert: Code has syntax highlighting",
-          "Assert: Keywords are colored"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create article with JavaScript code block",
+            "Navigate to article page",
+            "Assert: Code has syntax highlighting",
+            "Assert: Keywords are colored"
+          ]
+        }
       ],
-      "dependencies": ["PAY-042"],
+      "dependencies": [
+        "PAY-042"
+      ],
       "notes": "Developer-friendly content",
       "passes": false
     },
@@ -1168,16 +1513,21 @@
         "Placeholder shown while loading"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Create article with 5 images",
-          "Open Network tab",
-          "Navigate to article",
-          "Assert: Only visible images loaded initially",
-          "Scroll down",
-          "Assert: More images load as they enter viewport"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Create article with 5 images",
+            "Open Network tab",
+            "Navigate to article",
+            "Assert: Only visible images loaded initially",
+            "Scroll down",
+            "Assert: More images load as they enter viewport"
+          ]
+        }
       ],
-      "dependencies": ["PAY-042"],
+      "dependencies": [
+        "PAY-042"
+      ],
       "notes": "Performance optimization",
       "passes": false
     },
@@ -1192,14 +1542,19 @@
         "Date range filter"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Generate some page views (visit articles)",
-          "Navigate to analytics dashboard",
-          "Assert: Charts and metrics visible",
-          "Assert: Top articles list populated"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Generate some page views (visit articles)",
+            "Navigate to analytics dashboard",
+            "Assert: Charts and metrics visible",
+            "Assert: Top articles list populated"
+          ]
+        }
       ],
-      "dependencies": ["PAY-064"],
+      "dependencies": [
+        "PAY-064"
+      ],
       "notes": "Content performance insights",
       "passes": false
     },
@@ -1214,14 +1569,26 @@
         "Privacy-friendly (no PII, respects DNT)"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Navigate to article",
-          "Wait 2 seconds",
-          "Check /admin/collections/page-views",
-          "Assert: New view recorded"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Open DevTools Network tab",
+            "Navigate to /blog/test-article",
+            "Wait 2 seconds",
+            "Assert: Request to /api/track or similar endpoint",
+            "Assert: Request payload contains articleId, timestamp",
+            "Assert: Request payload does NOT contain userId, email, or IP",
+            "Navigate to /admin/collections/page-views",
+            "Assert: New view record for 'test-article'",
+            "Set DNT header: navigator.doNotTrack = '1' (or browser setting)",
+            "Navigate to different article",
+            "Assert: NO tracking request made (DNT respected)"
+          ]
+        }
       ],
-      "dependencies": ["PAY-042"],
+      "dependencies": [
+        "PAY-042"
+      ],
       "notes": "First-party analytics",
       "passes": false
     },
@@ -1236,14 +1603,19 @@
         "Can be placed in sidebar or footer"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Generate varied view counts on different articles",
-          "Navigate to page with popular widget",
-          "Assert: Articles sorted by popularity",
-          "Assert: Most viewed article at top"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Generate varied view counts on different articles",
+            "Navigate to page with popular widget",
+            "Assert: Articles sorted by popularity",
+            "Assert: Most viewed article at top"
+          ]
+        }
       ],
-      "dependencies": ["PAY-064"],
+      "dependencies": [
+        "PAY-064"
+      ],
       "notes": "Surface best content",
       "passes": false
     },
@@ -1259,15 +1631,21 @@
         "Preview shows 'Preview Mode' banner"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Save article as draft",
-          "Click 'Preview' in admin",
-          "Assert: Opens preview URL in new tab",
-          "Assert: 'Preview Mode' banner visible",
-          "Assert: Content matches draft"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Save article as draft",
+            "Click 'Preview' in admin",
+            "Assert: Opens preview URL in new tab",
+            "Assert: 'Preview Mode' banner visible",
+            "Assert: Content matches draft"
+          ]
+        }
       ],
-      "dependencies": ["PAY-026"],
+      "dependencies": [
+        "PAY-026",
+        "PAY-032"
+      ],
       "notes": "Preview before publishing",
       "passes": false
     },
@@ -1283,15 +1661,20 @@
         "Admin can regenerate or revoke tokens"
       ],
       "verification_steps": [
-        {"method": "dev-browser", "steps": [
-          "Copy preview link",
-          "Open in incognito window",
-          "Assert: Preview loads without login",
-          "Inspect page source",
-          "Assert: noindex meta tag present"
-        ]}
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Copy preview link",
+            "Open in incognito window",
+            "Assert: Preview loads without login",
+            "Inspect page source",
+            "Assert: noindex meta tag present"
+          ]
+        }
       ],
-      "dependencies": ["PAY-066"],
+      "dependencies": [
+        "PAY-066"
+      ],
       "notes": "Stakeholder review without CMS access",
       "passes": false
     },
@@ -1306,10 +1689,21 @@
         "Content matches original exactly"
       ],
       "verification_steps": [
-        {"method": "bash", "command": "npx tsx src/payload/seed/faqs.ts"},
-        {"method": "dev-browser", "steps": ["Navigate to /admin/collections/faqs", "Assert: 7 FAQs present"]}
+        {
+          "method": "bash",
+          "command": "npx tsx src/payload/seed/faqs.ts"
+        },
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/faqs",
+            "Assert: 7 FAQs present"
+          ]
+        }
       ],
-      "dependencies": ["PAY-006"],
+      "dependencies": [
+        "PAY-006"
+      ],
       "notes": "Migrate existing content",
       "passes": false
     },
@@ -1324,10 +1718,21 @@
         "Prices and features match original"
       ],
       "verification_steps": [
-        {"method": "bash", "command": "npx tsx src/payload/seed/pricing.ts"},
-        {"method": "dev-browser", "steps": ["Navigate to /admin/collections/pricing-tiers", "Assert: 2 tiers present"]}
+        {
+          "method": "bash",
+          "command": "npx tsx src/payload/seed/pricing.ts"
+        },
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/pricing-tiers",
+            "Assert: 2 tiers present"
+          ]
+        }
       ],
-      "dependencies": ["PAY-007"],
+      "dependencies": [
+        "PAY-007"
+      ],
       "notes": "Migrate existing content",
       "passes": false
     },
@@ -1342,10 +1747,21 @@
         "Content matches original exactly"
       ],
       "verification_steps": [
-        {"method": "bash", "command": "npx tsx src/payload/seed/testimonials.ts"},
-        {"method": "dev-browser", "steps": ["Navigate to /admin/collections/testimonials", "Assert: 3 testimonials present"]}
+        {
+          "method": "bash",
+          "command": "npx tsx src/payload/seed/testimonials.ts"
+        },
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/testimonials",
+            "Assert: 3 testimonials present"
+          ]
+        }
       ],
-      "dependencies": ["PAY-016"],
+      "dependencies": [
+        "PAY-016"
+      ],
       "notes": "Migrate existing content",
       "passes": false
     },
@@ -1360,10 +1776,21 @@
         "Titles and descriptions match original"
       ],
       "verification_steps": [
-        {"method": "bash", "command": "npx tsx src/payload/seed/features.ts"},
-        {"method": "dev-browser", "steps": ["Navigate to /admin/collections/features", "Assert: 7 features present"]}
+        {
+          "method": "bash",
+          "command": "npx tsx src/payload/seed/features.ts"
+        },
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/features",
+            "Assert: 7 features present"
+          ]
+        }
       ],
-      "dependencies": ["PAY-017"],
+      "dependencies": [
+        "PAY-017"
+      ],
       "notes": "Migrate existing content",
       "passes": false
     },
@@ -1378,10 +1805,21 @@
         "Headlines, descriptions, features match original"
       ],
       "verification_steps": [
-        {"method": "bash", "command": "npx tsx src/payload/seed/service-types.ts"},
-        {"method": "dev-browser", "steps": ["Navigate to /admin/collections/service-types", "Assert: 11 service types present"]}
+        {
+          "method": "bash",
+          "command": "npx tsx src/payload/seed/service-types.ts"
+        },
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /admin/collections/service-types",
+            "Assert: 11 service types present"
+          ]
+        }
       ],
-      "dependencies": ["PAY-018"],
+      "dependencies": [
+        "PAY-018"
+      ],
       "notes": "Migrate existing content",
       "passes": false
     },
@@ -1397,10 +1835,24 @@
         "Articles have relationships configured"
       ],
       "verification_steps": [
-        {"method": "bash", "command": "npx tsx src/payload/seed/articles.ts"},
-        {"method": "dev-browser", "steps": ["Navigate to /blog", "Assert: 3 articles visible"]}
+        {
+          "method": "bash",
+          "command": "npx tsx src/payload/seed/articles.ts"
+        },
+        {
+          "method": "dev-browser",
+          "steps": [
+            "Navigate to /blog",
+            "Assert: 3 articles visible"
+          ]
+        }
       ],
-      "dependencies": ["PAY-032", "PAY-033", "PAY-034", "PAY-035"],
+      "dependencies": [
+        "PAY-032",
+        "PAY-033",
+        "PAY-034",
+        "PAY-035"
+      ],
       "notes": "Demo content for testing",
       "passes": false
     },
@@ -1415,9 +1867,16 @@
         "ISR hooks provide instant updates"
       ],
       "verification_steps": [
-        {"method": "bash", "command": "grep -r 'revalidate' src/app"}
+        {
+          "method": "bash",
+          "command": "grep -r 'revalidate' src/app"
+        }
       ],
-      "dependencies": ["PAY-011", "PAY-012", "PAY-041"],
+      "dependencies": [
+        "PAY-011",
+        "PAY-012",
+        "PAY-041"
+      ],
       "notes": "Balance freshness with performance",
       "passes": false
     },
@@ -1432,9 +1891,14 @@
         "Documents: SEO fields, scheduling, versions"
       ],
       "verification_steps": [
-        {"method": "bash", "command": "grep -A 20 'Payload CMS' README.md"}
+        {
+          "method": "bash",
+          "command": "grep -A 20 'Payload CMS' README.md"
+        }
       ],
-      "dependencies": ["PAY-026"],
+      "dependencies": [
+        "PAY-026"
+      ],
       "notes": "Onboarding docs for content team",
       "passes": false
     },
@@ -1449,9 +1913,14 @@
         "Production build succeeds"
       ],
       "verification_steps": [
-        {"method": "bash", "command": "vercel env ls | grep PAYLOAD"}
+        {
+          "method": "bash",
+          "command": "vercel env ls | grep PAYLOAD"
+        }
       ],
-      "dependencies": ["PAY-013"],
+      "dependencies": [
+        "PAY-013"
+      ],
       "notes": "Production deployment prep",
       "passes": false
     },
@@ -1467,11 +1936,718 @@
         "All tests pass"
       ],
       "verification_steps": [
-        {"method": "bash", "command": "npm run test:e2e -- --grep 'Payload CMS'"}
+        {
+          "method": "bash",
+          "command": "npm run test:e2e -- --grep 'Payload CMS'"
+        }
       ],
-      "dependencies": ["PAY-041", "PAY-042", "PAY-026"],
+      "dependencies": [
+        "PAY-041",
+        "PAY-042",
+        "PAY-026"
+      ],
       "notes": "Automated verification of all features",
       "passes": false
+    },
+    {
+      "id": "REVIEW-FOUNDATION",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify foundation phase complete",
+      "acceptance_criteria": [
+        "All foundation features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"foundation\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-001",
+        "PAY-002",
+        "PAY-003",
+        "PAY-004"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-COLLECTIONS",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify collections phase complete",
+      "acceptance_criteria": [
+        "All collections features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"collections\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-005",
+        "PAY-006",
+        "PAY-007",
+        "PAY-016",
+        "PAY-017",
+        "PAY-018"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-BLOG-PART1",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify blog phase part 1 (first 7 features) complete",
+      "acceptance_criteria": [
+        "Blog features PAY-032 through PAY-040 have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and (.id | test(\"PAY-03[2-9]|PAY-040\")))] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-032",
+        "PAY-033",
+        "PAY-034",
+        "PAY-035",
+        "PAY-036",
+        "PAY-037",
+        "PAY-038",
+        "PAY-039",
+        "PAY-040"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-BLOG",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify blog phase complete",
+      "acceptance_criteria": [
+        "All blog features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"blog\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-032",
+        "PAY-033",
+        "PAY-034",
+        "PAY-035",
+        "PAY-036",
+        "PAY-037",
+        "PAY-038",
+        "PAY-039",
+        "PAY-040",
+        "PAY-041",
+        "PAY-042",
+        "PAY-043",
+        "PAY-044",
+        "PAY-045"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-GLOBALS",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify globals phase complete",
+      "acceptance_criteria": [
+        "All globals features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"globals\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-019",
+        "PAY-020"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-INTEGRATION",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify integration phase complete",
+      "acceptance_criteria": [
+        "All integration features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"integration\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-008",
+        "PAY-011",
+        "PAY-012",
+        "PAY-021",
+        "PAY-022",
+        "PAY-023"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-SEO",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify SEO phase complete",
+      "acceptance_criteria": [
+        "All SEO features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"seo\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-024",
+        "PAY-025",
+        "PAY-046",
+        "PAY-047",
+        "PAY-048"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-OPERATIONS",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify operations phase complete",
+      "acceptance_criteria": [
+        "All operations features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"operations\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-026",
+        "PAY-027",
+        "PAY-049"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-INFRASTRUCTURE",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify infrastructure phase complete",
+      "acceptance_criteria": [
+        "All infrastructure features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"infrastructure\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-051",
+        "PAY-052",
+        "PAY-053"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-ENGAGEMENT",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify engagement phase complete",
+      "acceptance_criteria": [
+        "All engagement features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"engagement\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-054",
+        "PAY-055",
+        "PAY-056",
+        "PAY-057"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-POLISH",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify polish phase complete",
+      "acceptance_criteria": [
+        "All polish features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"polish\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-058",
+        "PAY-059",
+        "PAY-060",
+        "PAY-061",
+        "PAY-062"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-ANALYTICS",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify analytics phase complete",
+      "acceptance_criteria": [
+        "All analytics features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"analytics\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-063",
+        "PAY-064",
+        "PAY-065",
+        "PAY-066",
+        "PAY-067"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-MIGRATION",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify migration phase complete",
+      "acceptance_criteria": [
+        "All migration features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"migration\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-009",
+        "PAY-010",
+        "PAY-028",
+        "PAY-029",
+        "PAY-030",
+        "PAY-050"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-TESTING",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify testing phase complete",
+      "acceptance_criteria": [
+        "All testing features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"testing\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-013",
+        "PAY-014",
+        "PAY-015",
+        "PAY-031"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-CRITICAL-GATE",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify all critical priority features complete",
+      "acceptance_criteria": [
+        "All critical priority features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .priority==\"critical\" and .category!=\"review\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "PAY-001",
+        "PAY-002",
+        "PAY-003",
+        "PAY-004",
+        "PAY-005",
+        "PAY-026",
+        "PAY-032",
+        "PAY-033",
+        "PAY-034",
+        "PAY-041",
+        "PAY-042",
+        "PAY-051"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first. This gate ensures all critical features are complete before proceeding.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-FINAL",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify ALL features complete - final project review",
+      "acceptance_criteria": [
+        "ALL features (excluding review checkpoints) have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in any features",
+        "All review checkpoints passed"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "command": "npm run build"
+        },
+        {
+          "method": "bash",
+          "command": "npm run typecheck 2>/dev/null || echo 'No typecheck configured'"
+        },
+        {
+          "method": "bash",
+          "command": "npm run test 2>/dev/null || echo 'No tests configured'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category!=\"review\")] | length' | grep -q '^0$'"
+        },
+        {
+          "method": "bash",
+          "command": "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"review\" and .id!=\"REVIEW-FINAL\")] | length' | grep -q '^0$'"
+        }
+      ],
+      "dependencies": [
+        "REVIEW-FOUNDATION",
+        "REVIEW-COLLECTIONS",
+        "REVIEW-BLOG-PART1",
+        "REVIEW-BLOG",
+        "REVIEW-GLOBALS",
+        "REVIEW-INTEGRATION",
+        "REVIEW-SEO",
+        "REVIEW-OPERATIONS",
+        "REVIEW-INFRASTRUCTURE",
+        "REVIEW-ENGAGEMENT",
+        "REVIEW-POLISH",
+        "REVIEW-ANALYTICS",
+        "REVIEW-MIGRATION",
+        "REVIEW-TESTING",
+        "REVIEW-CRITICAL-GATE"
+      ],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first. This is the final gate before project completion.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
     }
   ]
 }

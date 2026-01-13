@@ -20,6 +20,11 @@ import { postgresAdapter } from '@payloadcms/db-postgres'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
+// Blog collections
+import { Authors } from './collections/Authors'
+import { Categories } from './collections/Categories'
+import { Media } from './collections/Media'
+
 // ESM-compatible __dirname
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -343,10 +348,13 @@ export default buildConfig({
    * Collections
    *
    * - Users: CMS admin authentication
+   * - Media: Centralized asset management (images, files)
    * - FAQs: Marketing FAQ content
    * - PricingTiers: Pricing page content
+   * - Authors: Blog post authors
+   * - Categories: Blog category organization
    */
-  collections: [Users, FAQs, PricingTiers],
+  collections: [Users, Media, FAQs, PricingTiers, Authors, Categories],
 
   /**
    * JWT Secret for authentication

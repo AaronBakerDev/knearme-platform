@@ -3,7 +3,7 @@
     "name": "PRD Template",
     "description": "Template for creating Ralph-compatible PRD files",
     "created": "2026-01-08",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "author": "Knearme Team"
   },
   "config": {
@@ -14,8 +14,13 @@
       "functional",
       "ui",
       "testing",
-      "documentation"
-    ]
+      "documentation",
+      "review"
+    ],
+    "retry_settings": {
+      "max_retries": 3,
+      "escalate_on_failure": true
+    }
   },
   "features": [
     {
@@ -35,7 +40,9 @@
       ],
       "dependencies": [],
       "notes": "This is an example feature - delete or modify for your project",
-      "passes": false
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
     },
     {
       "id": "feat-002",
@@ -54,7 +61,9 @@
       ],
       "dependencies": ["feat-001"],
       "notes": "",
-      "passes": false
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
     },
     {
       "id": "feat-003",
@@ -73,7 +82,37 @@
       ],
       "dependencies": ["feat-002"],
       "notes": "",
-      "passes": false
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-001",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify phase complete",
+      "acceptance_criteria": [
+        "All dependent features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "npm run test passes (or no test failures)",
+        "No regressions in previously passing features"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "commands": [
+            "npm run build",
+            "npm run typecheck 2>/dev/null || echo 'No typecheck configured'",
+            "npm run test 2>/dev/null || echo 'No tests configured'"
+          ]
+        }
+      ],
+      "dependencies": ["feat-001", "feat-002", "feat-003"],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first. This is a template - adjust dependencies to match your PRD structure.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
     }
   ]
 }

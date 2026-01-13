@@ -342,8 +342,8 @@
         "Verify cost tracking shows reasonable estimates"
       ],
       "dependencies": ["OBS-001", "OBS-002", "OBS-003", "OBS-004", "OBS-005", "OBS-006", "REL-002"],
-      "notes": "This is the final acceptance test - if this passes, observability is complete",
-      "passes": false
+      "notes": "VERIFIED 2026-01-13: Langfuse traces now appear with full hierarchy (chat-completion → ai.streamText → ai.streamText.doStream), tool calls (saveProfile, showProfileReveal), token usage, and cost tracking ($0.007556). Fixed by adding experimental_telemetry to /api/onboarding/route.ts.",
+      "passes": true
     }
   ]
 }

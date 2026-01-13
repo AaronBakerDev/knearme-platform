@@ -44,13 +44,49 @@ You are working on the KnearMe portfolio platform. Your job is to make increment
 
    Do NOT proceed if feedback loops fail. If a step is blocked by missing env or external deps, document it and keep `passes: false`.
 
-5. **Update the PRD**
-   - Only change the `passes` field from `false` to `true`
-   - Only mark as passing after VERIFIED testing
+5. **Verification Protocol (CRITICAL)**
+
+   BEFORE marking any feature as `passes: true`:
+
+   a. Run ALL verification_steps from the feature's PRD entry
+   b. Check each acceptance_criteria is met
+   c. Run: `npm run build` (must succeed)
+   d. Run: `npm run typecheck` (must succeed, or not configured)
+
+   **IF ANY CHECK FAILS:**
+   - Do NOT mark `passes: true`
+   - Increment `retry_count` in the PRD feature
+   - Set `last_failure` to describe what failed
+   - Document the failure in progress file
+   - Move to the next incomplete feature
+
+   Example PRD update on failure:
+   ```json
+   {
+     "id": "feat-001",
+     "passes": false,
+     "retry_count": 1,  // Was 0, now 1
+     "last_failure": "Build failed: Cannot find module '@/lib/foo'"
+   }
+   ```
+
+   **IF retry_count >= max_retries (default 3):**
+   - Stop the iteration immediately
+   - Output escalation signal:
+     ```
+     <escalate>Feature [ID] failed after 3 attempts: [failure reason]</escalate>
+     ```
+   - Do NOT output `<promise>COMPLETE</promise>`
+   - The loop will pause for human intervention
+
+6. **Update the PRD**
+   - Only change `passes` field from `false` to `true` AFTER verification passes
+   - Update `retry_count` and `last_failure` if verification fails
    - Never remove or edit feature descriptions
    - Never mark something as done that isn't fully working
+   - Reset `retry_count` to 0 and `last_failure` to null on success
 
-6. **Update Progress File**
+7. **Update Progress File**
    Append a concise entry:
    ```
    ## [DATE] - [Feature ID]
@@ -58,9 +94,10 @@ You are working on the KnearMe portfolio platform. Your job is to make increment
    - Files changed: [list]
    - Decisions: [any architectural choices]
    - Notes for next iteration: [anything important]
+   - Verification: [PASSED or FAILED: reason]
    ```
 
-7. **Git Commit**
+8. **Git Commit**
    Make a descriptive commit:
    ```bash
    git add -A
@@ -79,14 +116,21 @@ You are working on the KnearMe portfolio platform. Your job is to make increment
 - **CLEAN STATE** - Leave codebase ready for the next iteration
 - **NO SHORTCUTS** - Don't skip edge cases or error handling
 
-## Completion Signal
+## Signals
 
+### Completion Signal
 If ALL features in the PRD have `passes: true`, output exactly:
 ```
 <promise>COMPLETE</promise>
 ```
-
 This signals that the entire PRD is done. Do NOT output this unless every single feature passes.
+
+### Escalation Signal
+If a feature fails verification 3+ times (retry_count >= max_retries), output:
+```
+<escalate>Feature [ID] failed after [N] attempts: [failure reason]</escalate>
+```
+This pauses the loop for human intervention. The feature needs manual debugging or the acceptance criteria may need adjustment.
 
 ## Context: KnearMe
 
