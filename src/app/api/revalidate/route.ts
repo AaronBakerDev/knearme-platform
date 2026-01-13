@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (tag) {
-      // Next.js 16 requires a cacheLife profile as second argument
-      // Using 'max' for SWR (stale-while-revalidate) behavior
+      // Next.js 16 revalidateTag requires 2 args: tag name and profile
+      // Using 'max' for stale-while-revalidate semantics (recommended)
       revalidateTag(tag, 'max')
       results.push({ tag })
       console.log(`[Revalidate] Tag revalidated: ${tag} (type: ${type || 'unknown'})`)

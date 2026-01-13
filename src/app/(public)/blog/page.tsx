@@ -105,21 +105,24 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
     activeTag = (tagResult.docs?.[0] || null) as TagWithSlug | null
   }
 
-  // Build where clause - show published articles and scheduled articles with past publishedAt
-  // This enables content scheduling: scheduled articles auto-appear when their publishedAt passes
+  // Build where clause - show published articles
+  // Note: Content scheduling (scheduled status) requires database enum migration.
+  // Until the enum is updated, we only query for 'published' status.
+  // Once enum has 'scheduled' value, uncomment the OR condition below.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const visibilityCondition: Record<string, any> = {
-    or: [
-      // Published articles
-      { status: { equals: 'published' } },
-      // Scheduled articles where publishedAt is in the past
-      {
-        and: [
-          { status: { equals: 'scheduled' } },
-          { publishedAt: { less_than_equal: new Date().toISOString() } },
-        ],
-      },
-    ],
+    // Simple query for published articles only
+    status: { equals: 'published' },
+    // TODO: Re-enable scheduled article support after enum migration:
+    // or: [
+    //   { status: { equals: 'published' } },
+    //   {
+    //     and: [
+    //       { status: { equals: 'scheduled' } },
+    //       { publishedAt: { less_than_equal: new Date().toISOString() } },
+    //     ],
+    //   },
+    // ],
   }
 
   // Build search condition - searches title, excerpt, and content (via text extraction)

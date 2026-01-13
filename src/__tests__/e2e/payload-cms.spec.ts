@@ -43,9 +43,13 @@ test.describe('Payload CMS - Blog Features', () => {
     test('blog listing displays search input', async ({ page }) => {
       await page.goto('/blog');
 
+      // Wait for page to be fully loaded including Suspense boundaries
+      await page.waitForLoadState('networkidle');
+
       // Search input should be present (PAY-054)
       // Uses placeholder "Search articles..." per BlogSearch.tsx
-      const searchInput = page.getByPlaceholder(/search articles/i);
+      // Use input[type="search"] for specificity since placeholder may be in Suspense
+      const searchInput = page.locator('input[type="search"]');
       await expect(searchInput).toBeVisible();
     });
 
@@ -80,8 +84,9 @@ test.describe('Payload CMS - Blog Features', () => {
         await expect(firstArticle.locator('a[href^="/blog/"]')).toBeVisible();
       } else {
         // Empty state should be shown - matches blog/page.tsx text
+        // Use .first() to handle strict mode since there are two text elements
         await expect(
-          page.getByText(/no articles published|check back soon/i)
+          page.getByText('No articles published yet.').first()
         ).toBeVisible();
       }
     });
@@ -94,8 +99,11 @@ test.describe('Payload CMS - Blog Features', () => {
     test('search input accepts text', async ({ page }) => {
       await page.goto('/blog');
 
-      // Uses placeholder "Search articles..." per BlogSearch.tsx
-      const searchInput = page.getByPlaceholder(/search articles/i);
+      // Wait for page to be fully loaded including Suspense boundaries
+      await page.waitForLoadState('networkidle');
+
+      // Use input[type="search"] for specificity
+      const searchInput = page.locator('input[type="search"]');
       await searchInput.fill('test query');
       await expect(searchInput).toHaveValue('test query');
     });
@@ -103,7 +111,10 @@ test.describe('Payload CMS - Blog Features', () => {
     test('search updates URL with query parameter', async ({ page }) => {
       await page.goto('/blog');
 
-      const searchInput = page.getByPlaceholder(/search articles/i);
+      // Wait for page to be fully loaded
+      await page.waitForLoadState('networkidle');
+
+      const searchInput = page.locator('input[type="search"]');
       await searchInput.fill('masonry');
 
       // Wait for debounce (500ms default) plus some buffer
@@ -116,9 +127,12 @@ test.describe('Payload CMS - Blog Features', () => {
     test('clear filters link appears with active search', async ({ page }) => {
       await page.goto('/blog?search=test');
 
+      // Wait for page to be fully loaded
+      await page.waitForLoadState('networkidle');
+
       // Should show a link to clear filters - matches blog/page.tsx text
-      // "Clear search and view all articles" or similar
-      const clearLink = page.getByRole('link', { name: /clear|view all articles/i });
+      // Use header scope to avoid matching the empty state link
+      const clearLink = page.locator('header').getByRole('link', { name: /clear/i });
       await expect(clearLink).toBeVisible();
     });
   });
@@ -162,9 +176,9 @@ test.describe('Payload CMS - Blog Features', () => {
       await page.goto('/blog/this-article-definitely-does-not-exist-12345');
 
       // Should show 404 page (PAY-059) - matches not-found.tsx text
-      // "Article Not Found" or "404"
+      // Use the heading specifically to avoid matching both "404" div and "Article Not Found" h1
       await expect(
-        page.getByText(/article not found|404/i)
+        page.getByRole('heading', { name: 'Article Not Found' })
       ).toBeVisible();
     });
 
@@ -172,7 +186,7 @@ test.describe('Payload CMS - Blog Features', () => {
       await page.goto('/blog/non-existent-slug-xyz');
 
       // Should have link back to blog listing - matches not-found.tsx "Back to Blog"
-      const blogLink = page.getByRole('link', { name: /back to blog|blog/i });
+      const blogLink = page.getByRole('link', { name: 'Back to Blog' });
       await expect(blogLink).toBeVisible();
     });
   });
@@ -184,9 +198,10 @@ test.describe('Payload CMS - Blog Features', () => {
     test('returns 404 for non-existent category', async ({ page }) => {
       await page.goto('/blog/category/fake-category-xyz');
 
-      // Category pages use the same not-found.tsx which shows "Article Not Found" or 404
+      // Category pages use the same not-found.tsx which shows "Article Not Found"
+      // Use heading to avoid matching both "404" div and heading
       await expect(
-        page.getByText(/not found|404/i)
+        page.getByRole('heading', { name: 'Article Not Found' })
       ).toBeVisible();
     });
   });
@@ -198,9 +213,10 @@ test.describe('Payload CMS - Blog Features', () => {
     test('returns 404 for non-existent author', async ({ page }) => {
       await page.goto('/blog/author/fake-author-xyz');
 
-      // Author pages use the same not-found.tsx
+      // Author pages use the same not-found.tsx which shows "Article Not Found"
+      // Use heading to avoid matching both "404" div and heading
       await expect(
-        page.getByText(/not found|404/i)
+        page.getByRole('heading', { name: 'Article Not Found' })
       ).toBeVisible();
     });
   });
