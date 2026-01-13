@@ -29,6 +29,7 @@ import { Tags } from './collections/Tags'
 
 // Marketing collections
 import { Features } from './collections/Features'
+import { ServiceTypes } from './collections/ServiceTypes'
 import { Testimonials } from './collections/Testimonials'
 
 // ESM-compatible __dirname
@@ -359,12 +360,13 @@ export default buildConfig({
    * - PricingTiers: Pricing page content
    * - Testimonials: Customer testimonials for landing page
    * - Features: Product feature highlights for landing page
+   * - ServiceTypes: SEO service descriptions for service pages
    * - Authors: Blog post authors
    * - Categories: Blog category organization
    * - Tags: Article tagging (flat taxonomy)
    * - Articles: Blog posts with rich content
    */
-  collections: [Users, Media, FAQs, PricingTiers, Testimonials, Features, Authors, Categories, Tags, Articles],
+  collections: [Users, Media, FAQs, PricingTiers, Testimonials, Features, ServiceTypes, Authors, Categories, Tags, Articles],
 
   /**
    * JWT Secret for authentication
