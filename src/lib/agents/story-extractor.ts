@@ -44,6 +44,7 @@ import {
   createCorrelationContext,
   type CorrelationContext,
 } from '@/lib/observability/agent-logger';
+import { getTelemetryConfig } from '@/lib/observability/langfuse';
 import type { SharedProjectState, StoryExtractionResult } from './types';
 import { buildTechniqueTerms, separateMaterialsAndTechniques } from './story-extractor/dedupe';
 import { extractWithoutAI, checkReadyForImages, normalizeProjectType } from './story-extractor/fallback';
@@ -300,6 +301,15 @@ ${message}`;
       prompt: contextPrompt,
       maxOutputTokens: 2048, // Increased from 1000 - structured response needs room for all fields
       temperature: 0.2, // Low temperature for consistent extraction
+      // Enable Langfuse tracing via OpenTelemetry
+      // @see /src/lib/observability/langfuse.ts
+      experimental_telemetry: getTelemetryConfig({
+        functionId: 'story-extractor',
+        metadata: {
+          agent: 'story-extractor',
+          phase: 'extraction',
+        },
+      }),
     });
   });
 

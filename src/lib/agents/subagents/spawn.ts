@@ -28,6 +28,7 @@ import {
   createCorrelationContext,
   type CorrelationContext,
 } from '@/lib/observability/agent-logger';
+import { getTelemetryConfig } from '@/lib/observability/langfuse';
 import type {
   SubagentType,
   SubagentContext,
@@ -443,6 +444,16 @@ export async function spawnSubagent<T extends SubagentType>(
         maxOutputTokens,
         temperature,
         abortSignal: controller.signal,
+        // Enable Langfuse tracing via OpenTelemetry
+        // @see /src/lib/observability/langfuse.ts
+        experimental_telemetry: getTelemetryConfig({
+          functionId: `subagent-${type}`,
+          metadata: {
+            agent: type,
+            subagentType: type,
+            hasImages: Boolean(images?.length),
+          },
+        }),
       });
     });
 

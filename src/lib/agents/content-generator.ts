@@ -24,6 +24,7 @@ import {
   createCorrelationContext,
   type CorrelationContext,
 } from '@/lib/observability/agent-logger';
+import { getTelemetryConfig } from '@/lib/observability/langfuse';
 
 // ============================================================================
 // Schema
@@ -323,6 +324,16 @@ export async function generateContent(
             },
           },
         },
+        // Enable Langfuse tracing via OpenTelemetry
+        // @see /src/lib/observability/langfuse.ts
+        experimental_telemetry: getTelemetryConfig({
+          functionId: 'content-generator',
+          metadata: {
+            agent: 'content-generator',
+            phase: 'generating',
+            projectType: state.projectType ?? 'unknown',
+          },
+        }),
       });
     });
 

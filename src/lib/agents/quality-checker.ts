@@ -27,6 +27,9 @@
 
 import type { SharedProjectState, QualityCheckResult } from './types';
 import { PUBLISH_REQUIREMENTS, PUBLISH_RECOMMENDATIONS } from './types';
+import {
+  logAgentEvent,
+} from '@/lib/observability/agent-logger';
 
 /**
  * Maps field names to user-friendly suggestions for how to fix them.
@@ -103,6 +106,15 @@ function hasValue(value: string | undefined): boolean {
  * ```
  */
 export function checkQuality(state: SharedProjectState): QualityCheckResult {
+  // Log quality check start (using quick logging for sync function)
+  // @see /docs/philosophy/operational-excellence.md - Observability Strategy
+  logAgentEvent('quality-checker', 'agent_start', 'Quality check started', {
+    hasTitle: Boolean(state.title),
+    hasDescription: Boolean(state.description),
+    imageCount: state.images.length,
+    materialCount: state.materials.length,
+  });
+
   const missing: string[] = [];
   const warnings: string[] = [];
   const suggestions: string[] = [];
@@ -188,6 +200,23 @@ export function checkQuality(state: SharedProjectState): QualityCheckResult {
   // ---------------------------------------------------------------------------
 
   const ready = missing.length === 0;
+
+  // Log quality check decision
+  logAgentEvent('quality-checker', 'agent_decision',
+    ready ? 'Project ready for publish' : 'Project needs improvements', {
+      ready,
+      missingCount: missing.length,
+      warningCount: warnings.length,
+      suggestionCount: suggestions.length,
+    }
+  );
+
+  // Log completion with quality metrics
+  logAgentEvent('quality-checker', 'agent_complete', 'Quality check completed', {
+    ready,
+    missing,
+    warnings: warnings.length,
+  });
 
   return {
     ready,

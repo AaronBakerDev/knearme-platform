@@ -26,6 +26,7 @@ import {
   createCorrelationContext,
   type CorrelationContext,
 } from '@/lib/observability/agent-logger';
+import { getTelemetryConfig } from '@/lib/observability/langfuse';
 
 /**
  * Result of analyzing project images.
@@ -202,6 +203,15 @@ export async function analyzeProjectImages(
           system: IMAGE_ANALYSIS_PROMPT,
           messages: [{ role: 'user', content }],
           maxOutputTokens: OUTPUT_LIMITS.imageAnalysis,
+          // Enable Langfuse tracing via OpenTelemetry
+          // @see /src/lib/observability/langfuse.ts
+          experimental_telemetry: getTelemetryConfig({
+            functionId: 'image-analysis',
+            metadata: {
+              agent: 'image-analysis',
+              imageCount: limitedInputs.length,
+            },
+          }),
         }),
       AI_RETRY_OPTIONS
     );
