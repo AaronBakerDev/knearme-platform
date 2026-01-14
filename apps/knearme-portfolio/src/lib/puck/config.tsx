@@ -19,6 +19,145 @@ import React from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import {
+  Zap,
+  Shield,
+  Heart,
+  Star,
+  Clock,
+  Users,
+  Camera,
+  FileText,
+  TrendingUp,
+  MessageSquare,
+  Settings,
+  CheckCircle,
+  Award,
+  Target,
+  Lightbulb,
+  Rocket,
+  Globe,
+  Lock,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  DollarSign,
+  BarChart,
+  Briefcase,
+  Building,
+  Code,
+  Cpu,
+  Database,
+  Edit,
+  Eye,
+  Gift,
+  Headphones,
+  Home,
+  Layers,
+  Link,
+  type LucideIcon,
+} from 'lucide-react'
+
+// ============================================================================
+// LUCIDE ICON MAP
+// ============================================================================
+
+/**
+ * Map of icon names to Lucide components for FeaturesGrid block.
+ * Users select from this curated list of commonly-used marketing icons.
+ *
+ * @see PUCK-021 in PRD for FeaturesGrid implementation
+ * @see src/components/marketing/FeatureGrid.tsx for similar pattern
+ */
+const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
+  zap: Zap,
+  shield: Shield,
+  heart: Heart,
+  star: Star,
+  clock: Clock,
+  users: Users,
+  camera: Camera,
+  'file-text': FileText,
+  'trending-up': TrendingUp,
+  'message-square': MessageSquare,
+  settings: Settings,
+  'check-circle': CheckCircle,
+  award: Award,
+  target: Target,
+  lightbulb: Lightbulb,
+  rocket: Rocket,
+  globe: Globe,
+  lock: Lock,
+  mail: Mail,
+  phone: Phone,
+  'map-pin': MapPin,
+  calendar: Calendar,
+  'dollar-sign': DollarSign,
+  'bar-chart': BarChart,
+  briefcase: Briefcase,
+  building: Building,
+  code: Code,
+  cpu: Cpu,
+  database: Database,
+  edit: Edit,
+  eye: Eye,
+  gift: Gift,
+  headphones: Headphones,
+  home: Home,
+  layers: Layers,
+  link: Link,
+}
+
+/**
+ * Icon select options for Puck field dropdown.
+ * Labels are human-readable, values match LUCIDE_ICON_MAP keys.
+ */
+const ICON_OPTIONS = [
+  { label: '⚡ Zap', value: 'zap' },
+  { label: '🛡️ Shield', value: 'shield' },
+  { label: '❤️ Heart', value: 'heart' },
+  { label: '⭐ Star', value: 'star' },
+  { label: '🕐 Clock', value: 'clock' },
+  { label: '👥 Users', value: 'users' },
+  { label: '📷 Camera', value: 'camera' },
+  { label: '📄 File Text', value: 'file-text' },
+  { label: '📈 Trending Up', value: 'trending-up' },
+  { label: '💬 Message', value: 'message-square' },
+  { label: '⚙️ Settings', value: 'settings' },
+  { label: '✅ Check Circle', value: 'check-circle' },
+  { label: '🏆 Award', value: 'award' },
+  { label: '🎯 Target', value: 'target' },
+  { label: '💡 Lightbulb', value: 'lightbulb' },
+  { label: '🚀 Rocket', value: 'rocket' },
+  { label: '🌍 Globe', value: 'globe' },
+  { label: '🔒 Lock', value: 'lock' },
+  { label: '📧 Mail', value: 'mail' },
+  { label: '📞 Phone', value: 'phone' },
+  { label: '📍 Map Pin', value: 'map-pin' },
+  { label: '📅 Calendar', value: 'calendar' },
+  { label: '💵 Dollar Sign', value: 'dollar-sign' },
+  { label: '📊 Bar Chart', value: 'bar-chart' },
+  { label: '💼 Briefcase', value: 'briefcase' },
+  { label: '🏢 Building', value: 'building' },
+  { label: '👨‍💻 Code', value: 'code' },
+  { label: '🖥️ CPU', value: 'cpu' },
+  { label: '🗄️ Database', value: 'database' },
+  { label: '✏️ Edit', value: 'edit' },
+  { label: '👁️ Eye', value: 'eye' },
+  { label: '🎁 Gift', value: 'gift' },
+  { label: '🎧 Headphones', value: 'headphones' },
+  { label: '🏠 Home', value: 'home' },
+  { label: '📚 Layers', value: 'layers' },
+  { label: '🔗 Link', value: 'link' },
+]
+
+/**
+ * Get Lucide icon component from icon name string
+ */
+function getLucideIcon(iconName: string): LucideIcon {
+  return LUCIDE_ICON_MAP[iconName] || Star
+}
 
 // ============================================================================
 // PROP TYPE DEFINITIONS
@@ -1081,7 +1220,11 @@ export const config: Config<Props> = {
           type: 'array',
           label: 'Features',
           arrayFields: {
-            icon: { type: 'text', label: 'Icon (lucide name)' },
+            icon: {
+              type: 'select',
+              label: 'Icon',
+              options: ICON_OPTIONS,
+            },
             title: { type: 'text', label: 'Title' },
             description: { type: 'textarea', label: 'Description' },
           },
@@ -1114,17 +1257,46 @@ export const config: Config<Props> = {
         columns: 3,
         iconStyle: 'outlined',
       },
-      render: ({ items, columns }) => (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: '2rem' }}>
-          {items.map((item, i) => (
-            <div key={i} style={{ textAlign: 'center', padding: '1rem' }}>
-              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⭐</div>
-              <h3 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{item.title}</h3>
-              <p style={{ color: '#666', fontSize: '0.875rem' }}>{item.description}</p>
-            </div>
-          ))}
-        </div>
-      ),
+      render: ({ items, columns, iconStyle }) => {
+        // Responsive grid: stack on mobile, expand to configured columns on md+
+        const gridClasses: Record<2 | 3 | 4, string> = {
+          2: 'grid-cols-1 md:grid-cols-2',
+          3: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3',
+          4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+        }
+
+        return (
+          <div className={cn('grid gap-8', gridClasses[columns as 2 | 3 | 4] || gridClasses[3])}>
+            {items.map((item, i) => {
+              const IconComponent = getLucideIcon(item.icon)
+              const isFilled = iconStyle === 'filled'
+
+              return (
+                <div
+                  key={i}
+                  className="flex flex-col items-center text-center p-6 rounded-lg"
+                >
+                  {/* Icon container with filled or outlined style */}
+                  <div
+                    className={cn(
+                      'mb-4 flex h-12 w-12 items-center justify-center rounded-xl',
+                      isFilled
+                        ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                        : 'bg-muted text-foreground'
+                    )}
+                  >
+                    <IconComponent className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        )
+      },
     },
 
     Testimonials: {
