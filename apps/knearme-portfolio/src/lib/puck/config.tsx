@@ -20,6 +20,8 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { PuckCodeBlock } from '@/components/puck/CodeBlock'
 import { PuckImageGallery } from '@/components/puck/ImageGallery'
+import { PuckStats } from '@/components/puck/Stats'
+import { fieldOptions } from '@/lib/puck/design-system'
 import {
   Accordion,
   AccordionItem,
@@ -421,9 +423,12 @@ export interface StatsProps {
     label: string
     prefix: string
     suffix: string
+    icon?: string
   }>
   columns: 2 | 3 | 4
-  style: 'default' | 'card' | 'minimal'
+  style: 'default' | 'card' | 'minimal' | 'glass' | 'gradient'
+  gradient?: 'sunset' | 'ocean' | 'aurora' | 'midnight' | 'forest' | 'royal'
+  animate?: boolean
 }
 
 // ============================================================================
@@ -1890,8 +1895,27 @@ export const config: Config<Props> = {
             label: { type: 'text', label: 'Label' },
             prefix: { type: 'text', label: 'Prefix' },
             suffix: { type: 'text', label: 'Suffix' },
+            icon: {
+              type: 'select',
+              label: 'Icon (optional)',
+              options: [
+                { label: 'None', value: '' },
+                { label: '⚡ Zap', value: 'Zap' },
+                { label: '🎯 Target', value: 'Target' },
+                { label: '🏆 Award', value: 'Award' },
+                { label: '👥 Users', value: 'Users' },
+                { label: '📈 TrendingUp', value: 'TrendingUp' },
+                { label: '⏱️ Clock', value: 'Clock' },
+                { label: '🌍 Globe', value: 'Globe' },
+                { label: '✅ CheckCircle', value: 'CheckCircle' },
+                { label: '💡 Lightbulb', value: 'Lightbulb' },
+                { label: '🚀 Rocket', value: 'Rocket' },
+                { label: '❤️ Heart', value: 'Heart' },
+                { label: '⭐ Star', value: 'Star' },
+              ],
+            },
           },
-          defaultItemProps: { number: '100', label: 'Projects', prefix: '', suffix: '+' },
+          defaultItemProps: { number: '100', label: 'Projects', prefix: '', suffix: '+', icon: '' },
         },
         columns: {
           type: 'select',
@@ -1909,71 +1933,57 @@ export const config: Config<Props> = {
             { label: 'Default', value: 'default' },
             { label: 'Card', value: 'card' },
             { label: 'Minimal', value: 'minimal' },
+            { label: 'Glass (Modern)', value: 'glass' },
+            { label: 'Gradient', value: 'gradient' },
+          ],
+        },
+        gradient: {
+          type: 'select',
+          label: 'Gradient (if style is Gradient)',
+          options: fieldOptions.gradients,
+        },
+        animate: {
+          type: 'radio',
+          label: 'Animate Numbers',
+          options: [
+            { label: 'Yes', value: true },
+            { label: 'No', value: false },
           ],
         },
       },
       defaultProps: {
         items: [
-          { number: '500', label: 'Projects', prefix: '', suffix: '+' },
-          { number: '98', label: 'Satisfaction', prefix: '', suffix: '%' },
-          { number: '24', label: 'Support', prefix: '', suffix: '/7' },
+          { number: '500', label: 'Projects', prefix: '', suffix: '+', icon: 'Target' },
+          { number: '98', label: 'Satisfaction', prefix: '', suffix: '%', icon: 'Heart' },
+          { number: '24', label: 'Support', prefix: '', suffix: '/7', icon: 'Clock' },
         ],
         columns: 3,
         style: 'default',
+        gradient: 'ocean',
+        animate: true,
       },
-      render: ({ items, columns, style }) => {
+      render: ({ items, columns, style, gradient, animate }) => {
         /**
-         * Stats block - displays key metrics in a responsive grid layout
-         * Three style variants: default (clean), card (elevated), minimal (subtle)
-         * Responsive grid stacks on mobile, expands to configured columns on desktop
-         * @see PUCK-026 for acceptance criteria
+         * Stats block - Animated key metrics display with multiple style variants
+         *
+         * Features:
+         * - Animated counters that count up from 0 on scroll into view
+         * - Five style variants: default, card, minimal, glass, gradient
+         * - Optional icon support for each stat
+         * - Staggered entrance animations with Framer Motion
+         * - Respects prefers-reduced-motion accessibility setting
+         *
+         * @see PUCK-042 for acceptance criteria (animated upgrade)
+         * @see PUCK-026 for original implementation criteria
          */
-
-        // Responsive grid classes based on column count (stacks on mobile)
-        const gridClasses: Record<2 | 3 | 4, string> = {
-          2: 'grid-cols-1 sm:grid-cols-2',
-          3: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3',
-          4: 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-4',
-        }
-
-        // Style-specific classes for stat items
-        const styleClasses: Record<string, string> = {
-          default: 'py-6 px-4',
-          card: 'py-8 px-6 bg-muted/50 rounded-xl shadow-sm',
-          minimal: 'py-4 px-2',
-        }
-
         return (
-          <div className={cn('grid gap-6 md:gap-8', gridClasses[columns as 2 | 3 | 4] || gridClasses[3])}>
-            {items.map((item, i) => (
-              <div
-                key={i}
-                className={cn(
-                  'flex flex-col items-center text-center',
-                  styleClasses[style] || styleClasses.default
-                )}
-              >
-                {/* Stat number with prefix/suffix */}
-                <div className="text-4xl font-bold tracking-tight text-primary sm:text-5xl md:text-6xl">
-                  {item.prefix && (
-                    <span className="text-3xl sm:text-4xl md:text-5xl">{item.prefix}</span>
-                  )}
-                  {item.number}
-                  {item.suffix && (
-                    <span className="text-3xl sm:text-4xl md:text-5xl">{item.suffix}</span>
-                  )}
-                </div>
-
-                {/* Stat label */}
-                <div className={cn(
-                  'mt-2 font-medium',
-                  style === 'minimal' ? 'text-sm text-muted-foreground' : 'text-base text-muted-foreground'
-                )}>
-                  {item.label}
-                </div>
-              </div>
-            ))}
-          </div>
+          <PuckStats
+            items={items}
+            columns={columns as 2 | 3 | 4}
+            style={style}
+            gradient={gradient}
+            animate={animate}
+          />
         )
       },
     },
