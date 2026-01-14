@@ -17,57 +17,24 @@
 import type { Config, Data } from '@puckeditor/core'
 import React from 'react'
 import Image from 'next/image'
-import { Button } from '@/components/ui/button'
 import { PuckCodeBlock } from '@/components/puck/CodeBlock'
+import { PuckCTABanner } from '@/components/puck/CTABanner'
 import { PuckFAQAccordion } from '@/components/puck/FAQAccordion'
 import { PuckFeaturesGrid } from '@/components/puck/FeaturesGrid'
 import { PuckHero } from '@/components/puck/Hero'
 import { PuckImageGallery } from '@/components/puck/ImageGallery'
+import { PuckPricingTable } from '@/components/puck/PricingTable'
 import { PuckStats } from '@/components/puck/Stats'
+import { PuckTestimonials } from '@/components/puck/Testimonials'
 import { fieldOptions } from '@/lib/puck/design-system'
 import { cn } from '@/lib/utils'
 import {
-  Zap,
-  Shield,
-  Heart,
-  Star,
-  Clock,
-  Users,
-  Camera,
-  FileText,
-  TrendingUp,
-  MessageSquare,
-  Settings,
-  CheckCircle,
-  Award,
-  Target,
-  Lightbulb,
-  Rocket,
-  Globe,
-  Lock,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
-  DollarSign,
-  BarChart,
-  Briefcase,
-  Building,
-  Code,
-  Cpu,
-  Database,
-  Edit,
-  Eye,
-  Gift,
-  Headphones,
-  Home,
-  Layers,
-  Link,
   // Icons for Callout block (PUCK-028)
   Info,
   AlertTriangle,
   CircleCheck,
   CircleX,
+  Lightbulb,
   type LucideIcon,
 } from 'lucide-react'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
@@ -81,58 +48,12 @@ import {
 } from '@/components/ui/table'
 
 // ============================================================================
-// LUCIDE ICON MAP
+// ICON OPTIONS FOR PUCK FIELDS
 // ============================================================================
 
 /**
- * Map of icon names to Lucide components for FeaturesGrid block.
- * Users select from this curated list of commonly-used marketing icons.
- *
- * @see PUCK-021 in PRD for FeaturesGrid implementation
- * @see src/components/marketing/FeatureGrid.tsx for similar pattern
- */
-const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
-  zap: Zap,
-  shield: Shield,
-  heart: Heart,
-  star: Star,
-  clock: Clock,
-  users: Users,
-  camera: Camera,
-  'file-text': FileText,
-  'trending-up': TrendingUp,
-  'message-square': MessageSquare,
-  settings: Settings,
-  'check-circle': CheckCircle,
-  award: Award,
-  target: Target,
-  lightbulb: Lightbulb,
-  rocket: Rocket,
-  globe: Globe,
-  lock: Lock,
-  mail: Mail,
-  phone: Phone,
-  'map-pin': MapPin,
-  calendar: Calendar,
-  'dollar-sign': DollarSign,
-  'bar-chart': BarChart,
-  briefcase: Briefcase,
-  building: Building,
-  code: Code,
-  cpu: Cpu,
-  database: Database,
-  edit: Edit,
-  eye: Eye,
-  gift: Gift,
-  headphones: Headphones,
-  home: Home,
-  layers: Layers,
-  link: Link,
-}
-
-/**
  * Icon select options for Puck field dropdown.
- * Labels are human-readable, values match LUCIDE_ICON_MAP keys.
+ * Used by FeaturesGrid block - the actual icon mapping is in PuckFeaturesGrid component.
  */
 const ICON_OPTIONS = [
   { label: '⚡ Zap', value: 'zap' },
@@ -173,12 +94,6 @@ const ICON_OPTIONS = [
   { label: '🔗 Link', value: 'link' },
 ]
 
-/**
- * Get Lucide icon component from icon name string
- */
-function getLucideIcon(iconName: string): LucideIcon {
-  return LUCIDE_ICON_MAP[iconName] || Star
-}
 
 // ============================================================================
 // PROP TYPE DEFINITIONS
@@ -1425,111 +1340,17 @@ export const config: Config<Props> = {
       },
       render: ({ items, layout, showAvatar }) => {
         /**
-         * Testimonials block - displays customer quotes in carousel or grid layout
-         * Carousel uses CSS scroll-snap for smooth horizontal scrolling with navigation
-         * Grid uses responsive auto-fit layout for optimal display
-         * @see PUCK-022 for acceptance criteria
+         * Testimonials block - displays customer quotes with hover lift effects
+         * Uses PuckTestimonials client component for Framer Motion animations
+         * @see PUCK-046 for hover effects acceptance criteria
+         * @see PUCK-022 for base implementation criteria
          */
-
-        // Single testimonial card component
-        const TestimonialCard = ({
-          item,
-          isCarousel,
-        }: {
-          item: { quote: string; author: string; title: string; avatar: MediaRef | null }
-          isCarousel: boolean
-        }) => (
-          <blockquote
-            className={cn(
-              'flex flex-col rounded-xl bg-muted/50 p-6 shadow-sm',
-              isCarousel ? 'min-w-[320px] snap-center sm:min-w-[400px]' : ''
-            )}
-          >
-            {/* Quote icon */}
-            <svg
-              className="mb-4 h-8 w-8 text-primary/20"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-            </svg>
-
-            {/* Quote text */}
-            <p className="flex-1 text-base leading-relaxed text-foreground/90 italic">
-              &ldquo;{item.quote}&rdquo;
-            </p>
-
-            {/* Author section */}
-            <footer className="mt-6 flex items-center gap-4">
-              {/* Avatar - conditionally rendered based on showAvatar prop */}
-              {showAvatar && item.avatar?.url && (
-                <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-full">
-                  <Image
-                    src={item.avatar.url}
-                    alt={item.avatar.alt || item.author}
-                    fill
-                    className="object-cover"
-                    sizes="48px"
-                  />
-                </div>
-              )}
-              {/* Placeholder avatar when no image */}
-              {showAvatar && !item.avatar?.url && (
-                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <span className="text-lg font-semibold">
-                    {item.author?.charAt(0)?.toUpperCase() || '?'}
-                  </span>
-                </div>
-              )}
-              <div>
-                <div className="font-semibold text-foreground">{item.author}</div>
-                <div className="text-sm text-muted-foreground">{item.title}</div>
-              </div>
-            </footer>
-          </blockquote>
-        )
-
-        // Carousel layout with horizontal scroll and snap behavior
-        if (layout === 'carousel') {
-          return (
-            <div className="relative">
-              {/* Scrollable container with snap points */}
-              <div
-                className="flex gap-6 overflow-x-auto scroll-smooth pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40"
-                style={{
-                  // Ensure items at edges can be scrolled fully into view
-                  scrollPaddingInline: '1rem',
-                }}
-              >
-                {items.map((item, i) => (
-                  <TestimonialCard key={i} item={item} isCarousel={true} />
-                ))}
-              </div>
-
-              {/* Navigation hint for carousel - shows scroll indicators */}
-              {items.length > 1 && (
-                <div className="mt-4 flex justify-center gap-2">
-                  {items.map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-2 w-2 rounded-full bg-muted-foreground/30"
-                      aria-hidden="true"
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        }
-
-        // Grid layout - responsive auto-fit columns
         return (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((item, i) => (
-              <TestimonialCard key={i} item={item} isCarousel={false} />
-            ))}
-          </div>
+          <PuckTestimonials
+            items={items}
+            layout={layout}
+            showAvatar={showAvatar}
+          />
         )
       },
     },
@@ -1581,98 +1402,13 @@ export const config: Config<Props> = {
       },
       render: ({ tiers }) => {
         /**
-         * PricingTable block - displays pricing tier comparison cards
-         * Uses responsive grid that stacks on mobile, expands on larger screens
-         * Highlighted tiers get primary color background with inverted text/buttons
-         * @see PUCK-023 for acceptance criteria
+         * PricingTable block - displays pricing tiers with glow effects
+         * Uses PuckPricingTable client component for Framer Motion animations
+         * Highlighted tiers have persistent glow, enhanced on hover
+         * @see PUCK-046 for hover effects acceptance criteria
+         * @see PUCK-023 for base implementation criteria
          */
-
-        // Responsive grid based on number of tiers (max 4 columns)
-        const getGridClasses = (count: number) => {
-          if (count === 1) return 'grid-cols-1 max-w-md mx-auto'
-          if (count === 2) return 'grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto'
-          if (count === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-          return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-        }
-
-        return (
-          <div className={cn('grid gap-6 md:gap-8', getGridClasses(tiers.length))}>
-            {tiers.map((tier, i) => {
-              const isHighlighted = tier.isHighlighted
-              const features = tier.features.split('\n').filter(f => f.trim())
-
-              return (
-                <div
-                  key={i}
-                  className={cn(
-                    'relative flex flex-col rounded-2xl p-6 md:p-8',
-                    isHighlighted
-                      ? 'bg-primary text-primary-foreground shadow-xl shadow-primary/20 ring-2 ring-primary'
-                      : 'bg-muted/50 text-foreground'
-                  )}
-                >
-                  {/* Popular badge for highlighted tier */}
-                  {isHighlighted && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="inline-block rounded-full bg-primary-foreground px-3 py-1 text-xs font-semibold text-primary">
-                        Most Popular
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Tier name */}
-                  <h3 className="text-lg font-semibold">{tier.name}</h3>
-
-                  {/* Price display */}
-                  <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-4xl font-bold tracking-tight md:text-5xl">
-                      ${tier.price}
-                    </span>
-                    <span className={cn(
-                      'text-sm',
-                      isHighlighted ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                    )}>
-                      /{tier.period === 'monthly' ? 'mo' : 'yr'}
-                    </span>
-                  </div>
-
-                  {/* Features list */}
-                  <ul className="mt-6 flex-1 space-y-3">
-                    {features.map((feature, j) => (
-                      <li key={j} className="flex items-start gap-3">
-                        <CheckCircle className={cn(
-                          'h-5 w-5 flex-shrink-0 mt-0.5',
-                          isHighlighted ? 'text-primary-foreground' : 'text-primary'
-                        )} />
-                        <span className={cn(
-                          'text-sm',
-                          isHighlighted ? 'text-primary-foreground/90' : 'text-muted-foreground'
-                        )}>
-                          {feature}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* CTA Button */}
-                  <Button
-                    className={cn(
-                      'mt-8 w-full',
-                      isHighlighted
-                        ? 'bg-primary-foreground text-primary hover:bg-primary-foreground/90'
-                        : ''
-                    )}
-                    variant={isHighlighted ? 'secondary' : 'default'}
-                    size="lg"
-                    asChild
-                  >
-                    <a href={tier.ctaLink}>{tier.ctaText}</a>
-                  </Button>
-                </div>
-              )
-            })}
-          </div>
-        )
+        return <PuckPricingTable tiers={tiers} />
       },
     },
 
@@ -1726,70 +1462,20 @@ export const config: Config<Props> = {
         style: 'centered',
       },
       render: ({ heading, description, buttons, backgroundColor, style }) => {
-        // Determine if background is dark for contrast calculations
-        // Simple heuristic: if not white/transparent-ish, assume dark
-        const isDarkBg = backgroundColor && backgroundColor !== 'transparent' && !backgroundColor.match(/^#f|^white|^rgb\(2[45]\d/i)
-
-        // Map CTA variants to shadcn Button - on dark backgrounds, invert colors
-        const getButtonVariant = (variant: string): 'default' | 'secondary' | 'outline' => {
-          if (variant === 'primary') return 'default'
-          if (variant === 'secondary') return 'secondary'
-          return 'outline'
-        }
-
+        /**
+         * CTA Banner block - displays call-to-action with pulse animation on buttons
+         * Uses PuckCTABanner client component for Framer Motion animations
+         * @see PUCK-046 for hover effects acceptance criteria
+         * @see PUCK-017 for base implementation criteria
+         */
         return (
-          <div
-            className={cn(
-              'rounded-xl px-6 py-12 sm:px-8 md:py-16',
-              style === 'centered' ? 'text-center' : 'text-left'
-            )}
-            style={{ backgroundColor }}
-          >
-            <div className="mx-auto max-w-3xl">
-              <h2
-                className={cn(
-                  'text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl',
-                  isDarkBg ? 'text-white' : 'text-foreground'
-                )}
-              >
-                {heading}
-              </h2>
-              {description && (
-                <p
-                  className={cn(
-                    'mt-3 text-base sm:text-lg md:text-xl',
-                    isDarkBg ? 'text-white/90' : 'text-muted-foreground'
-                  )}
-                >
-                  {description}
-                </p>
-              )}
-              {buttons.length > 0 && (
-                <div
-                  className={cn(
-                    'mt-8 flex flex-col gap-3 sm:flex-row sm:gap-4',
-                    style === 'centered' ? 'justify-center' : 'justify-start'
-                  )}
-                >
-                  {buttons.map((btn, i) => (
-                    <Button
-                      key={i}
-                      variant={getButtonVariant(btn.variant)}
-                      size="lg"
-                      asChild
-                      className={cn(
-                        // On dark backgrounds: primary buttons stay default, others get white text/border
-                        isDarkBg && btn.variant === 'primary' && 'bg-white text-foreground hover:bg-white/90',
-                        isDarkBg && btn.variant !== 'primary' && 'border-white text-white hover:bg-white/20'
-                      )}
-                    >
-                      <a href={btn.href}>{btn.text}</a>
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <PuckCTABanner
+            heading={heading}
+            description={description}
+            buttons={buttons}
+            backgroundColor={backgroundColor}
+            style={style}
+          />
         )
       },
     },
