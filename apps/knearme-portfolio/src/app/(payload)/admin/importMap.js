@@ -23,6 +23,7 @@ import { BoldFeatureClient as BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864
 import { ItalicFeatureClient as ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { default as default_20e38469cff3c24eeb0f6274968a97ad } from '../../../payload/components/OGPreview'
 import { default as default_c49e34cd177e82c469ae2b16e43c7245 } from '../../../payload/components/PreviewButton'
+import { default as default_811eda7b1715c48259885a24ac315d2c } from '../../../payload/components/OpenPuckEditorButton'
 import { default as default_3bc804d234437dc99e7fa95a49718fbb } from '../../../payload/components/dashboard/RecentActivity'
 import { default as default_4de8beec7c69b9792ab67a5886906b19 } from '../../../payload/components/dashboard/WelcomeHeader'
 import { default as default_71586fcc3f9e8dade56c006fdab52d74 } from '../../../payload/components/dashboard/QuickActions'
@@ -54,6 +55,7 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#ItalicFeatureClient": ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "./components/OGPreview#default": default_20e38469cff3c24eeb0f6274968a97ad,
   "./components/PreviewButton#default": default_c49e34cd177e82c469ae2b16e43c7245,
+  "./components/OpenPuckEditorButton#default": default_811eda7b1715c48259885a24ac315d2c,
   "./components/dashboard/RecentActivity#default": default_3bc804d234437dc99e7fa95a49718fbb,
   "./components/dashboard/WelcomeHeader#default": default_4de8beec7c69b9792ab67a5886906b19,
   "./components/dashboard/QuickActions#default": default_71586fcc3f9e8dade56c006fdab52d74,

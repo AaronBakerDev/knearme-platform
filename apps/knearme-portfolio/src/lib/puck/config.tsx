@@ -140,9 +140,11 @@ export interface HeroProps {
 
 /**
  * RichText - WYSIWYG formatted content
+ * Uses Puck's native richtext field (Tiptap-powered)
+ * @see PUCK-015 for acceptance criteria
  */
 export interface RichTextProps {
-  content: string // HTML string from editor
+  content: import('@puckeditor/core').RichText // Tiptap rich text (string | ReactNode)
 }
 
 /**
@@ -722,18 +724,24 @@ export const config: Config<Props> = {
       label: 'Rich Text',
       fields: {
         content: {
-          type: 'textarea',
-          label: 'Content (HTML)',
+          type: 'richtext',
+          label: 'Content',
+          // Enable inline editing on the canvas for better UX
+          contentEditable: true,
+          // Configure heading levels (all other extensions enabled by default)
+          options: {
+            heading: { levels: [2, 3, 4] },
+          },
         },
       },
       defaultProps: {
-        content: '<p>Enter your content here...</p>',
+        content: 'Enter your content here...',
       },
       render: ({ content }) => (
-        <div
-          className="prose max-w-none"
-          dangerouslySetInnerHTML={{ __html: content }}
-        />
+        <div className="prose prose-neutral max-w-none dark:prose-invert">
+          {/* Puck richtext returns string | ReactNode - render directly */}
+          {content}
+        </div>
       ),
     },
 
