@@ -89,7 +89,7 @@ async function triggerRevalidation(paths: string[], type: string): Promise<void>
  *   ],
  * }
  */
-export function createRevalidateHook<T extends { id: string | number; slug?: string; _status?: string }>(
+export function createRevalidateHook<T extends { id: string | number; slug?: string; _status?: string; status?: string }>(
   getPathsFn: (doc: T) => string[],
   collectionName: string
 ): CollectionAfterChangeHook<T> {
@@ -99,9 +99,11 @@ export function createRevalidateHook<T extends { id: string | number; slug?: str
     if (operation === 'create' || operation === 'update') {
       const paths = getPathsFn(doc)
 
-      // If document has _status field, only revalidate when published
-      // This handles draft saves without triggering unnecessary revalidation
-      if (doc._status && doc._status !== 'published') {
+      // Check for status field (some collections use _status, others use status)
+      // Only revalidate when content is published to avoid unnecessary cache invalidation
+      // @see PUCK-012 - PuckPages uses 'status' field, Articles use '_status'
+      const statusField = doc._status ?? doc.status
+      if (statusField && statusField !== 'published') {
         console.log(`[Revalidate Hook] Skipping revalidation for draft ${collectionName}`)
         return doc
       }
@@ -209,10 +211,12 @@ export const revalidatePaths = {
   /**
    * Puck page revalidation paths: page URL + sitemap
    * Revalidates the public URL of the Puck page when published.
+   * Route is at /p/[slug] to avoid conflicts with marketing routes.
+   * @see PUCK-011 for public render route at /p/[slug]
    * @see PUCK-012 in PRD for ISR revalidation requirement
    */
   puckPage: (doc: { slug?: string }) => [
-    ...(doc.slug ? [`/${doc.slug}`] : []),
+    ...(doc.slug ? [`/p/${doc.slug}`] : []),
     '/sitemap-main.xml', // Revalidate sitemap when pages change
   ],
 }
