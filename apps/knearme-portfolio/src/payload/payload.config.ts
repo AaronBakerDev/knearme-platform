@@ -42,6 +42,9 @@ import { FormSubmissions } from './collections/FormSubmissions.ts'
 // Analytics collections
 import { PageViews } from './collections/PageViews.ts'
 
+// Visual Page Builder
+import { PuckPages } from './collections/PuckPages.ts'
+
 // Globals
 import { Navigation } from './globals/Navigation.ts'
 import { Newsletter } from './globals/Newsletter.ts'
@@ -426,7 +429,7 @@ export default buildConfig({
    * - FormSubmissions: Form response storage (engagement)
    * - PageViews: Anonymous page view tracking (analytics)
    */
-  collections: [Users, Media, FAQs, PricingTiers, Testimonials, Features, ServiceTypes, Authors, Categories, Tags, Articles, Redirects, Forms, FormSubmissions, PageViews],
+  collections: [Users, Media, FAQs, PricingTiers, Testimonials, Features, ServiceTypes, Authors, Categories, Tags, Articles, Redirects, Forms, FormSubmissions, PageViews, PuckPages],
 
   /**
    * Globals - Site-wide Singletons

@@ -205,4 +205,14 @@ export const revalidatePaths = {
     '/services',
     ...(doc.slug ? [`/services/${doc.slug}`] : []),
   ],
+
+  /**
+   * Puck page revalidation paths: page URL + sitemap
+   * Revalidates the public URL of the Puck page when published.
+   * @see PUCK-012 in PRD for ISR revalidation requirement
+   */
+  puckPage: (doc: { slug?: string }) => [
+    ...(doc.slug ? [`/${doc.slug}`] : []),
+    '/sitemap-main.xml', // Revalidate sitemap when pages change
+  ],
 }
