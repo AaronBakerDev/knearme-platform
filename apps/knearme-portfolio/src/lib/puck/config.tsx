@@ -63,8 +63,14 @@ import {
   Home,
   Layers,
   Link,
+  // Icons for Callout block (PUCK-028)
+  Info,
+  AlertTriangle,
+  CircleCheck,
+  CircleX,
   type LucideIcon,
 } from 'lucide-react'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 
 // ============================================================================
 // LUCIDE ICON MAP
@@ -2016,6 +2022,15 @@ export const config: Config<Props> = {
       ),
     },
 
+    /**
+     * Callout/Alert Block (PUCK-028)
+     *
+     * Displays styled alert boxes for info, warnings, tips, success, and error states.
+     * Uses shadcn Alert component for design system consistency and accessibility.
+     *
+     * @see src/components/ui/alert.tsx for underlying Alert component
+     * @see https://ui.shadcn.com/docs/components/alert for shadcn docs
+     */
     Callout: {
       label: 'Callout',
       fields: {
@@ -2045,28 +2060,50 @@ export const config: Config<Props> = {
         content: 'This is important information.',
       },
       render: ({ type, title, content }) => {
-        const colorMap = {
-          info: { bg: '#e7f3ff', border: '#0070f3', icon: 'ℹ️' },
-          warning: { bg: '#fff8e6', border: '#f5a623', icon: '⚠️' },
-          success: { bg: '#e6fff0', border: '#50c878', icon: '✅' },
-          error: { bg: '#ffe6e6', border: '#ff4444', icon: '❌' },
-          tip: { bg: '#f0e6ff', border: '#9b59b6', icon: '💡' },
+        /**
+         * Callout type configuration mapping.
+         * Each type has:
+         * - Icon: Lucide icon component for visual identification
+         * - className: Tailwind classes for background, border, and text colors
+         *
+         * Colors designed for WCAG AA contrast compliance.
+         */
+        const typeConfig: Record<
+          CalloutProps['type'],
+          { Icon: LucideIcon; className: string }
+        > = {
+          info: {
+            Icon: Info,
+            className: 'border-blue-500 bg-blue-50 text-blue-900 [&>svg]:text-blue-600 dark:bg-blue-950 dark:text-blue-100 dark:border-blue-700 dark:[&>svg]:text-blue-400',
+          },
+          warning: {
+            Icon: AlertTriangle,
+            className: 'border-amber-500 bg-amber-50 text-amber-900 [&>svg]:text-amber-600 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-700 dark:[&>svg]:text-amber-400',
+          },
+          success: {
+            Icon: CircleCheck,
+            className: 'border-green-500 bg-green-50 text-green-900 [&>svg]:text-green-600 dark:bg-green-950 dark:text-green-100 dark:border-green-700 dark:[&>svg]:text-green-400',
+          },
+          error: {
+            Icon: CircleX,
+            className: 'border-red-500 bg-red-50 text-red-900 [&>svg]:text-red-600 dark:bg-red-950 dark:text-red-100 dark:border-red-700 dark:[&>svg]:text-red-400',
+          },
+          tip: {
+            Icon: Lightbulb,
+            className: 'border-purple-500 bg-purple-50 text-purple-900 [&>svg]:text-purple-600 dark:bg-purple-950 dark:text-purple-100 dark:border-purple-700 dark:[&>svg]:text-purple-400',
+          },
         }
-        const colors = colorMap[type]
+
+        const { Icon, className } = typeConfig[type]
+
         return (
-          <div
-            style={{
-              padding: '1rem',
-              backgroundColor: colors.bg,
-              borderLeft: `4px solid ${colors.border}`,
-              borderRadius: '0.375rem',
-            }}
-          >
-            <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
-              {colors.icon} {title}
-            </div>
-            <div style={{ color: '#333' }}>{content}</div>
-          </div>
+          <Alert className={cn('border-l-4', className)}>
+            <Icon className="h-4 w-4" />
+            {title && <AlertTitle>{title}</AlertTitle>}
+            <AlertDescription className="whitespace-pre-wrap leading-relaxed">
+              {content}
+            </AlertDescription>
+          </Alert>
         )
       },
     },
