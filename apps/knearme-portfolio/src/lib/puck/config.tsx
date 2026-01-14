@@ -1491,47 +1491,101 @@ export const config: Config<Props> = {
         showToggle: false,
         highlightTier: 1,
       },
-      render: ({ tiers }) => (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${tiers.length}, 1fr)`, gap: '2rem' }}>
-          {tiers.map((tier, i) => (
-            <div
-              key={i}
-              style={{
-                padding: '2rem',
-                backgroundColor: tier.isHighlighted ? '#0070f3' : '#f8f9fa',
-                color: tier.isHighlighted ? '#fff' : 'inherit',
-                borderRadius: '0.75rem',
-                textAlign: 'center',
-              }}
-            >
-              <h3 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{tier.name}</h3>
-              <div style={{ fontSize: '2.5rem', fontWeight: 700 }}>
-                ${tier.price}
-                <span style={{ fontSize: '1rem', fontWeight: 400 }}>/{tier.period === 'monthly' ? 'mo' : 'yr'}</span>
-              </div>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '1.5rem 0', textAlign: 'left' }}>
-                {tier.features.split('\n').map((f, j) => (
-                  <li key={j} style={{ marginBottom: '0.5rem' }}>✓ {f}</li>
-                ))}
-              </ul>
-              <a
-                href={tier.ctaLink}
-                style={{
-                  display: 'inline-block',
-                  padding: '0.75rem 2rem',
-                  backgroundColor: tier.isHighlighted ? '#fff' : '#0070f3',
-                  color: tier.isHighlighted ? '#0070f3' : '#fff',
-                  borderRadius: '0.375rem',
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                }}
-              >
-                {tier.ctaText}
-              </a>
-            </div>
-          ))}
-        </div>
-      ),
+      render: ({ tiers }) => {
+        /**
+         * PricingTable block - displays pricing tier comparison cards
+         * Uses responsive grid that stacks on mobile, expands on larger screens
+         * Highlighted tiers get primary color background with inverted text/buttons
+         * @see PUCK-023 for acceptance criteria
+         */
+
+        // Responsive grid based on number of tiers (max 4 columns)
+        const getGridClasses = (count: number) => {
+          if (count === 1) return 'grid-cols-1 max-w-md mx-auto'
+          if (count === 2) return 'grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto'
+          if (count === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+          return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+        }
+
+        return (
+          <div className={cn('grid gap-6 md:gap-8', getGridClasses(tiers.length))}>
+            {tiers.map((tier, i) => {
+              const isHighlighted = tier.isHighlighted
+              const features = tier.features.split('\n').filter(f => f.trim())
+
+              return (
+                <div
+                  key={i}
+                  className={cn(
+                    'relative flex flex-col rounded-2xl p-6 md:p-8',
+                    isHighlighted
+                      ? 'bg-primary text-primary-foreground shadow-xl shadow-primary/20 ring-2 ring-primary'
+                      : 'bg-muted/50 text-foreground'
+                  )}
+                >
+                  {/* Popular badge for highlighted tier */}
+                  {isHighlighted && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="inline-block rounded-full bg-primary-foreground px-3 py-1 text-xs font-semibold text-primary">
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Tier name */}
+                  <h3 className="text-lg font-semibold">{tier.name}</h3>
+
+                  {/* Price display */}
+                  <div className="mt-4 flex items-baseline gap-1">
+                    <span className="text-4xl font-bold tracking-tight md:text-5xl">
+                      ${tier.price}
+                    </span>
+                    <span className={cn(
+                      'text-sm',
+                      isHighlighted ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                    )}>
+                      /{tier.period === 'monthly' ? 'mo' : 'yr'}
+                    </span>
+                  </div>
+
+                  {/* Features list */}
+                  <ul className="mt-6 flex-1 space-y-3">
+                    {features.map((feature, j) => (
+                      <li key={j} className="flex items-start gap-3">
+                        <CheckCircle className={cn(
+                          'h-5 w-5 flex-shrink-0 mt-0.5',
+                          isHighlighted ? 'text-primary-foreground' : 'text-primary'
+                        )} />
+                        <span className={cn(
+                          'text-sm',
+                          isHighlighted ? 'text-primary-foreground/90' : 'text-muted-foreground'
+                        )}>
+                          {feature}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* CTA Button */}
+                  <Button
+                    className={cn(
+                      'mt-8 w-full',
+                      isHighlighted
+                        ? 'bg-primary-foreground text-primary hover:bg-primary-foreground/90'
+                        : ''
+                    )}
+                    variant={isHighlighted ? 'secondary' : 'default'}
+                    size="lg"
+                    asChild
+                  >
+                    <a href={tier.ctaLink}>{tier.ctaText}</a>
+                  </Button>
+                </div>
+              )
+            })}
+          </div>
+        )
+      },
     },
 
     CTABanner: {
