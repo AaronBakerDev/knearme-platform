@@ -18,6 +18,7 @@ import type { Config, Data } from '@puckeditor/core'
 import React from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
+import { PuckCodeBlock } from '@/components/puck/CodeBlock'
 import {
   Accordion,
   AccordionItem,
@@ -2005,26 +2006,13 @@ export const config: Config<Props> = {
         showLineNumbers: true,
         filename: '',
       },
-      render: ({ code, language, filename }) => (
-        <div style={{ borderRadius: '0.5rem', overflow: 'hidden', backgroundColor: '#24292e' }}>
-          {filename && (
-            <div style={{ padding: '0.5rem 1rem', backgroundColor: '#1e1e1e', color: '#999', fontSize: '0.75rem' }}>
-              {filename}
-            </div>
-          )}
-          <pre
-            style={{
-              margin: 0,
-              padding: '1rem',
-              overflow: 'auto',
-              fontSize: '0.875rem',
-              color: '#e1e4e8',
-              fontFamily: 'monospace',
-            }}
-          >
-            <code data-language={language}>{code}</code>
-          </pre>
-        </div>
+      render: ({ code, language, showLineNumbers, filename }) => (
+        <PuckCodeBlock
+          code={code}
+          language={language}
+          showLineNumbers={showLineNumbers}
+          filename={filename}
+        />
       ),
     },
 
