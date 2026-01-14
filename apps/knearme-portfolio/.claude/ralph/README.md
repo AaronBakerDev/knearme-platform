@@ -23,7 +23,8 @@ cp .claude/ralph/prds/template.json .claude/ralph/prds/current.json
 .claude/ralph/
 ├── scripts/
 │   ├── ralph-once.sh      # Human-in-the-loop single iteration
-│   └── afk-ralph.sh       # AFK loop with max iterations
+│   ├── afk-ralph.sh       # AFK loop with max iterations
+│   └── archive-prd.sh     # Archive completed PRDs
 ├── prompts/
 │   ├── default.md         # Feature development prompt
 │   ├── test-coverage.md   # Test coverage loop prompt
@@ -31,6 +32,9 @@ cp .claude/ralph/prds/template.json .claude/ralph/prds/current.json
 ├── prds/
 │   ├── template.json      # PRD template
 │   └── current.json       # Active PRD (gitignored)
+├── archive/
+│   └── completed/         # Archived PRDs (all features passing)
+│       └── index.md       # Archive manifest
 ├── progress/
 │   └── progress.txt       # Session progress log
 └── README.md              # This file
@@ -163,6 +167,30 @@ Options:
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## Archiving Completed PRDs
+
+When a PRD is complete (all features have `passes: true`), archive it:
+
+```bash
+./.claude/ralph/scripts/archive-prd.sh prds/<prd-name>.json
+```
+
+**What it does:**
+1. Validates all features have `passes: true`
+2. Adds archive metadata (date, completion stats)
+3. Moves PRD to `archive/completed/` with date prefix
+4. Updates the archive index
+
+**Safety:**
+- Cannot archive `current.json` (active loop protection)
+- Validates completion before archiving
+- Original file is removed from `prds/`
+
+**Archive naming:** `{date}_{project-slug}.json`
+- Example: `2026-01-14_google-ai-agent-reliability.json`
+
+View archived PRDs: `ls archive/completed/` or see `archive/completed/index.md`
 
 ## Tips for Success
 

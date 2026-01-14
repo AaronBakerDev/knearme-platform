@@ -138,6 +138,17 @@ get_prd_stats() {
     fi
 }
 
+# Get the next feature that will likely be worked on
+get_next_feature() {
+    if command -v jq &> /dev/null; then
+        local next_id=$(jq -r '[.features[] | select(.passes != true)] | sort_by(.priority) | .[0].id // "none"' "$PRD_FILE" 2>/dev/null)
+        local next_desc=$(jq -r '[.features[] | select(.passes != true)] | sort_by(.priority) | .[0].description // "" | .[0:50]' "$PRD_FILE" 2>/dev/null)
+        if [[ "$next_id" != "none" && -n "$next_desc" ]]; then
+            echo "$next_id: ${next_desc}..."
+        fi
+    fi
+}
+
 build_prompt() {
     local prompt_template
     prompt_template=$(cat "$PROMPT_FILE")
@@ -200,6 +211,87 @@ check_completion() {
         return 0
     fi
     return 1
+}
+
+# -----------------------------------------------------------------------------
+# Background Monitors for Real-time Feedback
+# -----------------------------------------------------------------------------
+
+# Track PIDs for cleanup
+PRD_MONITOR_PID=""
+GIT_MONITOR_PID=""
+LAST_PASSING_COUNT=0
+LAST_COMMIT_HASH=""
+
+log_progress() {
+    echo -e "${GREEN}[PROGRESS]${NC} $1"
+}
+
+log_commit() {
+    echo -e "${CYAN}[COMMIT]${NC} $1"
+}
+
+log_file_change() {
+    echo -e "${YELLOW}[FILES]${NC} $1"
+}
+
+# PRD progress monitor - polls PRD file for changes
+start_prd_monitor() {
+    (
+        LAST_PASSING_COUNT=$(jq '[.features[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
+        while true; do
+            sleep 15
+            local current=$(jq '[.features[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
+            if [[ "$current" != "$LAST_PASSING_COUNT" ]]; then
+                local total=$(jq '.features | length' "$PRD_FILE" 2>/dev/null || echo "?")
+                log_progress "$LAST_PASSING_COUNT → $current features passing (of $total)"
+                LAST_PASSING_COUNT=$current
+            fi
+        done
+    ) &
+    PRD_MONITOR_PID=$!
+}
+
+# Git commit monitor - watches for new commits
+start_git_monitor() {
+    (
+        LAST_COMMIT_HASH=$(git rev-parse HEAD 2>/dev/null || echo "")
+        while true; do
+            sleep 5
+            local current=$(git rev-parse HEAD 2>/dev/null || echo "")
+            if [[ -n "$current" && "$current" != "$LAST_COMMIT_HASH" ]]; then
+                local msg=$(git log -1 --format='%s' 2>/dev/null)
+                local files=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | wc -l | tr -d ' ')
+                log_commit "$msg ($files files)"
+                LAST_COMMIT_HASH=$current
+            fi
+        done
+    ) &
+    GIT_MONITOR_PID=$!
+}
+
+# Start all background monitors
+start_monitors() {
+    log_info "Starting background monitors..."
+    start_prd_monitor
+    start_git_monitor
+}
+
+# Cleanup function - kill all background processes
+cleanup_monitors() {
+    if [[ -n "$PRD_MONITOR_PID" ]]; then
+        kill "$PRD_MONITOR_PID" 2>/dev/null || true
+    fi
+    if [[ -n "$GIT_MONITOR_PID" ]]; then
+        kill "$GIT_MONITOR_PID" 2>/dev/null || true
+    fi
+}
+
+# Handle script termination gracefully
+handle_exit() {
+    echo ""
+    log_info "Cleaning up monitors..."
+    cleanup_monitors
 }
 
 show_banner() {
@@ -317,7 +409,13 @@ fi
 echo ""
 log_info "Starting AFK Ralph loop..."
 log_info "Session log: $SESSION_LOG"
-log_info "Tip: watch output with tail -f $LOG_DIR/iteration-1.log"
+echo ""
+
+# Set up cleanup trap
+trap handle_exit EXIT INT TERM
+
+# Start background monitors for real-time feedback
+start_monitors
 echo ""
 
 # Record start time
@@ -327,6 +425,12 @@ START_TIME=$(date +%s)
 COMPLETED=false
 for ((i=1; i<=MAX_ITERATIONS; i++)); do
     log_iteration "$i" "$MAX_ITERATIONS" "Starting iteration..."
+
+    # Show what feature will likely be worked on
+    next_feature=$(get_next_feature)
+    if [[ -n "$next_feature" ]]; then
+        log_info "Next up: $next_feature"
+    fi
 
     ITER_START=$(date +%s)
     ITER_LOG="$LOG_DIR/iteration-${i}.log"
@@ -341,7 +445,11 @@ for ((i=1; i<=MAX_ITERATIONS; i++)); do
     ITER_END=$(date +%s)
     ITER_DURATION=$((ITER_END - ITER_START))
 
-    log_iteration "$i" "$MAX_ITERATIONS" "Completed in ${ITER_DURATION}s"
+    # Calculate minutes and seconds for duration
+    iter_mins=$((ITER_DURATION / 60))
+    iter_secs=$((ITER_DURATION % 60))
+
+    log_iteration "$i" "$MAX_ITERATIONS" "Completed in ${iter_mins}m ${iter_secs}s"
 
     # Check for completion signal
     if check_completion "$ITER_LOG"; then
@@ -350,8 +458,19 @@ for ((i=1; i<=MAX_ITERATIONS; i++)); do
         break
     fi
 
-    # Show progress
+    # Show enhanced progress summary
+    echo -e "${BLUE}────────────────────────────────────────────────────────────────${NC}"
     log_info "PRD Status: $(get_prd_stats)"
+
+    # Show recent git activity if any
+    recent_commits=$(git log --oneline --since="$ITER_START" 2>/dev/null | head -3)
+    if [[ -n "$recent_commits" ]]; then
+        log_info "Commits this iteration:"
+        echo "$recent_commits" | while read -r line; do
+            echo -e "  ${CYAN}→${NC} $line"
+        done
+    fi
+    echo -e "${BLUE}────────────────────────────────────────────────────────────────${NC}"
     echo ""
 
     # Small delay between iterations to avoid rate limits
