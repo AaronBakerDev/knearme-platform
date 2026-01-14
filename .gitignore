@@ -1,13 +1,17 @@
 # OS files
 .DS_Store
+Thumbs.db
 
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Build outputs
 .next/
 dist/
 out/
+build/
+*.tsbuildinfo
 
 # Environment files
 .env*.local
@@ -18,10 +22,26 @@ out/
 .tmp/
 .dev-browser-runtime/
 .turbo/
+.cache/
 
 # IDE
 .idea/
 .vscode/
+*.swp
+*.swo
+
+# Test outputs
+coverage/
+test-results/
+playwright-report/
+
+# Vercel
+.vercel/
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+.pnpm-debug.log*
 
 # Old standalone knearme-portfolio (migrated to apps/)
 /knearme-portfolio/
