@@ -106,6 +106,9 @@ const withMDX = createMDX({
 const nextConfig: NextConfig = {
   // Enable MDX pages in app directory
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
+
+  // Note: instrumentation.ts is automatically loaded in Next.js 16+
+  // No experimental flag needed - @see src/instrumentation.ts
   images: {
     remotePatterns: [
       {

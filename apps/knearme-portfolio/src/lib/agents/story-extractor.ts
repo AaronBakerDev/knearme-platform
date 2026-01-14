@@ -39,6 +39,12 @@ import { withCircuitBreaker } from '@/lib/agents/circuit-breaker';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { getTradeConfig } from '@/lib/trades/config';
 import { logger } from '@/lib/logging';
+import {
+  createAgentLogger,
+  createCorrelationContext,
+  type CorrelationContext,
+} from '@/lib/observability/agent-logger';
+import { getTelemetryConfig } from '@/lib/observability/langfuse';
 import type { SharedProjectState, StoryExtractionResult } from './types';
 import { buildTechniqueTerms, separateMaterialsAndTechniques } from './story-extractor/dedupe';
 import { extractWithoutAI, checkReadyForImages, normalizeProjectType } from './story-extractor/fallback';
@@ -145,44 +151,118 @@ type ExtractionOutput = z.infer<typeof ExtractionSchema>;
 // ============================================================================
 
 /**
+ * Options for story extraction with optional observability context.
+ */
+export interface ExtractStoryOptions {
+  /** Correlation context for observability - links to conversation trace */
+  correlationContext?: CorrelationContext;
+  /** Business ID for RLS context (used if no correlationContext provided) */
+  businessId?: string;
+  /** Conversation ID for tracing (used if no correlationContext provided) */
+  conversationId?: string;
+}
+
+/**
  * Extract structured project data from a user message.
  *
  * @param message - The user's message to extract from
  * @param existingState - Optional existing state to merge with
+ * @param options - Optional extraction options including observability context
  * @returns StoryExtractionResult with extracted data, confidence scores, and readiness flags
  *
  * @example
  * const result = await extractStory(
  *   "We remodeled a kitchen in Denver. The homeowner wanted more counter space. Used quartz countertops and custom cabinetry.",
- *   existingState
+ *   existingState,
+ *   { conversationId: 'conv_123', businessId: 'biz_456' }
  * );
  */
 export async function extractStory(
   message: string,
-  existingState?: Partial<SharedProjectState>
+  existingState?: Partial<SharedProjectState>,
+  options?: ExtractStoryOptions
 ): Promise<StoryExtractionResult> {
+  // Create correlation context for observability
+  // @see /docs/philosophy/operational-excellence.md - Observability Strategy
+  const correlationCtx = options?.correlationContext ?? createCorrelationContext(
+    options?.conversationId ?? 'unknown',
+    options?.businessId ?? 'unknown',
+    undefined // projectId not available in SharedProjectState
+  );
+
+  const agentLogger = createAgentLogger('story-extractor', correlationCtx, 'gathering');
+  agentLogger.start({
+    messageLength: message.length,
+    hasExistingState: Boolean(existingState),
+    existingFields: existingState ? Object.keys(existingState).filter(k => existingState[k as keyof typeof existingState]) : [],
+  });
+
   // Early return for empty messages
   if (!message.trim()) {
+    agentLogger.decision('Empty message - returning existing state', {
+      confidence: 0,
+      decision: 'skip_extraction',
+    });
+    agentLogger.complete({ reason: 'empty_message' });
     return {
       state: existingState || {},
       needsClarification: [],
-      confidence: {},
+      confidence: { overall: 0 },
       readyForImages: false,
     };
   }
 
   // If AI is not available, fall back to basic extraction
   if (!isGoogleAIEnabled()) {
-    return extractWithoutAI(message, existingState);
+    agentLogger.decision('AI not available - using fallback extraction', {
+      confidence: 0.3,
+      decision: 'fallback_extraction',
+    });
+    const fallbackResult = extractWithoutAI(message, existingState);
+    agentLogger.complete({
+      method: 'fallback',
+      fieldsExtracted: Object.keys(fallbackResult.state).length,
+    });
+    return fallbackResult;
   }
 
   try {
     const extraction = await performAIExtraction(message, existingState);
-    return processExtraction(extraction, existingState);
+    const result = processExtraction(extraction, existingState);
+
+    // Log extraction decision with confidence
+    agentLogger.decision('AI extraction completed', {
+      confidence: result.confidence.overall,
+      decision: 'ai_extraction',
+      observations: [
+        `Extracted ${Object.keys(result.state).length} fields`,
+        `Ready for images: ${result.readyForImages}`,
+        result.needsClarification.length > 0
+          ? `Needs clarification: ${result.needsClarification.join(', ')}`
+          : 'No clarification needed',
+      ],
+    });
+
+    agentLogger.complete({
+      fieldsExtracted: Object.keys(result.state).length,
+      confidence: result.confidence.overall,
+      readyForImages: result.readyForImages,
+    });
+
+    return result;
   } catch (error) {
+    agentLogger.error(error instanceof Error ? error : new Error(String(error)), {
+      message: 'AI extraction failed',
+      messageLength: message.length,
+    });
     logger.error('[StoryExtractor] AI extraction failed', { error });
     // Fall back to basic extraction on error
-    return extractWithoutAI(message, existingState);
+    const fallbackResult = extractWithoutAI(message, existingState);
+    agentLogger.complete({
+      method: 'fallback_after_error',
+      fieldsExtracted: Object.keys(fallbackResult.state).length,
+    });
+    return fallbackResult;
   }
 }
 
@@ -221,13 +301,22 @@ ${message}`;
       prompt: contextPrompt,
       maxOutputTokens: 2048, // Increased from 1000 - structured response needs room for all fields
       temperature: 0.2, // Low temperature for consistent extraction
+      // Enable Langfuse tracing via OpenTelemetry
+      // @see /src/lib/observability/langfuse.ts
+      experimental_telemetry: getTelemetryConfig({
+        functionId: 'story-extractor',
+        metadata: {
+          agent: 'story-extractor',
+          phase: 'extraction',
+        },
+      }),
     });
   });
 
   // Handle null output (schema validation failure)
   if (!object) {
     return {
-      confidence: {},
+      confidence: 0,
     };
   }
 

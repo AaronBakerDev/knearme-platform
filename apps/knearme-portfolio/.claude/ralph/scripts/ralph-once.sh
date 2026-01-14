@@ -126,9 +126,23 @@ get_prd_stats() {
         local total=$(jq '.features | length' "$PRD_FILE" 2>/dev/null || echo "?")
         local passing=$(jq '[.features[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
         local failing=$(jq '[.features[] | select(.passes == false)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
-        echo "Total: $total | Passing: $passing | Remaining: $failing"
+        local retrying=$(jq '[.features[] | select(.retry_count > 0)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
+        local reviews=$(jq '[.features[] | select(.category == "review")] | length' "$PRD_FILE" 2>/dev/null || echo "0")
+        echo "Total: $total | Passing: $passing | Remaining: $failing | Retrying: $retrying | Reviews: $reviews"
     else
         echo "(install jq for PRD stats)"
+    fi
+}
+
+get_recommended_iterations() {
+    if command -v jq &> /dev/null; then
+        local incomplete=$(jq '[.features[] | select(.passes == false)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
+        local buffer=$(echo "$incomplete" | awk '{print int($1 * 0.25 + 0.99)}')
+        local safety=5
+        local recommended=$((incomplete + buffer + safety))
+        echo "$recommended"
+    else
+        echo "?"
     fi
 }
 
@@ -169,6 +183,7 @@ run_claude() {
 }
 
 show_banner() {
+    local rec_iters=$(get_recommended_iterations)
     echo ""
     echo -e "${CYAN}╔═══════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║${NC}  ${YELLOW}🔄 Ralph Wiggum - HITL Single Iteration${NC}                      ${CYAN}║${NC}"
@@ -177,6 +192,8 @@ show_banner() {
     echo -e "${CYAN}║${NC}  Prompt:   $(basename "$PROMPT_FILE")                                     ${CYAN}║${NC}"
     echo -e "${CYAN}║${NC}  Progress: $(basename "$PROGRESS_FILE")                                   ${CYAN}║${NC}"
     echo -e "${CYAN}║${NC}  Sandbox:  $USE_SANDBOX                                              ${CYAN}║${NC}"
+    echo -e "${CYAN}╠═══════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${CYAN}║${NC}  ${GREEN}Recommended iterations for loop: ${rec_iters}${NC}                        ${CYAN}║${NC}"
     echo -e "${CYAN}╚═══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 }
@@ -273,4 +290,6 @@ echo ""
 log_info "PRD Status: $(get_prd_stats)"
 log_info "Review the changes with: git log -1 --stat"
 log_info "Run again with: ./ralph-once.sh"
+echo ""
+log_info "For autonomous mode: /ralph-loop \"prompt\" --max-iterations $(get_recommended_iterations)"
 echo ""

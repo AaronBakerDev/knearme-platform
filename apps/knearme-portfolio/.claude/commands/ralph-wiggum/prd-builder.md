@@ -64,7 +64,11 @@ Generate a JSON file following this structure:
   },
   "config": {
     "priority_order": ["critical", "high", "medium", "low"],
-    "categories": ["architectural", "integration", "functional", "ui", "testing"]
+    "categories": ["architectural", "integration", "functional", "ui", "testing", "review"],
+    "retry_settings": {
+      "max_retries": 3,
+      "escalate_on_failure": true
+    }
   },
   "features": [
     {
@@ -82,10 +86,96 @@ Generate a JSON file following this structure:
       ],
       "dependencies": ["[id of dependent feature if any]"],
       "notes": "[Any context for the implementer]",
-      "passes": false
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
     }
   ]
 }
+```
+
+## Review Checkpoint Insertion Rules
+
+**IMPORTANT**: After generating all features, insert REVIEW checkpoint features:
+
+### Insertion Logic (in order of priority):
+
+1. **PHASE BOUNDARY** - Insert after completing each category
+   - After all "architectural" features → `REVIEW-ARCH`
+   - After all "integration" features → `REVIEW-INTEGRATION`
+   - After all "functional" features → `REVIEW-FUNCTIONAL`
+   - etc.
+
+2. **CRITICAL GATE** - Insert after all "critical" priority features
+   - Ensures critical path is solid before moving to "high" priority
+   - Add `REVIEW-CRITICAL-GATE` with dependencies on all critical features
+
+3. **COUNT-BASED FALLBACK** - If any category has 10+ features
+   - Insert a mid-category review checkpoint every 8-10 features
+   - Example: `REVIEW-FUNCTIONAL-PART1`, `REVIEW-FUNCTIONAL-PART2`
+
+4. **FINAL REVIEW** - Always add at the end
+   - `REVIEW-FINAL` depends on ALL other features
+   - Runs full build, test, typecheck verification
+
+### Review Checkpoint Template
+
+```json
+{
+  "id": "REVIEW-[CATEGORY]",
+  "category": "review",
+  "priority": "critical",
+  "description": "Code review checkpoint: Verify [category] phase complete",
+  "acceptance_criteria": [
+    "All [category] features have passes: true",
+    "npm run build succeeds with no errors",
+    "npm run typecheck succeeds with no errors",
+    "npm run test passes (or no test failures)",
+    "No regressions in previously passing features"
+  ],
+  "verification_steps": [
+    {
+      "method": "bash",
+      "commands": [
+        "npm run build",
+        "npm run typecheck 2>/dev/null || echo 'No typecheck configured'",
+        "npm run test 2>/dev/null || echo 'No tests configured'",
+        "cat .claude/ralph/prds/current.json | jq '[.features[] | select(.passes==false and .category==\"[category]\")]| length' | grep -q '^0$'"
+      ]
+    }
+  ],
+  "dependencies": ["[all feature IDs in this category]"],
+  "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+  "passes": false,
+  "retry_count": 0,
+  "last_failure": null
+}
+```
+
+## Iteration Calculation
+
+After generating the PRD, calculate and display the recommended iteration count:
+
+```
+feature_count = total features (excluding reviews)
+review_checkpoints = count of REVIEW-* features
+retry_buffer = ceil(feature_count * 0.25)
+safety_margin = 5
+
+recommended_iterations = feature_count + review_checkpoints + retry_buffer + safety_margin
+```
+
+Display to user:
+```
+PRD generated with [X] features + [Y] review checkpoints
+
+Recommended loop iterations: [recommended_iterations]
+  - Features: [feature_count]
+  - Reviews: [review_checkpoints]
+  - Retry buffer (25%): [retry_buffer]
+  - Safety margin: 5
+
+Run with: /ralph-loop "[prompt]" --max-iterations [recommended_iterations]
 ```
 
 ## Feature Ordering Rules

@@ -2,9 +2,10 @@
  * Service Catalog Module — Single source of truth for service data.
  *
  * This module provides a unified API for accessing service type data,
- * combining database records with fallback content from SERVICE_CONTENT.
- *
- * PHILOSOPHY: Database is canonical; SERVICE_CONTENT is editorial fallback.
+ * with a 3-tier data source priority:
+ * 1. Payload CMS (primary - for marketing team edits)
+ * 2. Supabase service_types table (database canonical)
+ * 3. SERVICE_CONTENT (editorial fallback)
  *
  * Usage:
  * ```ts
@@ -29,17 +30,21 @@
  * @see supabase/migrations/032_add_service_types.sql
  * @see src/lib/constants/service-content.ts (fallback content)
  * @see src/lib/services/slug-mappings.ts (slug/icon fallbacks)
+ * @see src/payload/collections/ServiceTypes.ts (Payload CMS collection)
+ * @see PAY-023 in PRD for Payload CMS integration requirements
  */
 
 import { createAdminClient } from '@/lib/supabase/server';
 import { SERVICE_CONTENT, type ServiceContent as FallbackContent } from '@/lib/constants/service-content';
 import { getUrlSlugForService, getIconForService } from './slug-mappings';
 import { logger } from '@/lib/logging';
+import { getServiceType as getPayloadServiceType, getServiceTypes as getPayloadServiceTypes, type ServiceType as PayloadServiceType } from '@/lib/payload/client';
 
 /**
- * Unified service type combining database and fallback content.
+ * Unified service type combining database, Payload CMS, and fallback content.
  *
- * All fields are guaranteed to have values (from DB or fallback).
+ * All fields are guaranteed to have values (from Payload CMS, DB, or fallback).
+ * Data priority: Payload CMS > Database > SERVICE_CONTENT fallback
  */
 export interface CatalogService {
   /** UUID from database (null if from fallback only) */
@@ -80,6 +85,8 @@ export interface CatalogService {
   isPublished: boolean;
   /** Data source indicator */
   source: 'database' | 'fallback' | 'merged';
+  /** Optional headline from Payload CMS (for service landing pages) */
+  headline?: string;
 }
 
 export interface ProcessStep {
@@ -142,7 +149,9 @@ export function clearCatalogCache(): void {
  * Get the full service catalog.
  *
  * Returns all published services from the database, merged with
- * fallback content from SERVICE_CONTENT for any missing fields.
+ * Payload CMS data and fallback content from SERVICE_CONTENT.
+ *
+ * Data priority: Payload CMS > Database > SERVICE_CONTENT fallback
  *
  * If the database has no service_types, falls back entirely to SERVICE_CONTENT.
  *
@@ -157,15 +166,22 @@ export async function getServiceCatalog(forceRefresh = false): Promise<CatalogSe
     return catalogCache;
   }
 
-  // Use admin client - service_types is public data and this runs in
-  // server context where no user session is available for RLS.
-  const supabase = createAdminClient();
+  // Fetch data from both sources in parallel
+  const [payloadServices, dbResult] = await Promise.all([
+    tryGetPayloadServices(),
+    (async () => {
+      // Use admin client - service_types is public data and this runs in
+      // server context where no user session is available for RLS.
+      const supabase = createAdminClient();
+      return supabase
+        .from('service_types')
+        .select('*')
+        .eq('is_published', true)
+        .order('sort_order', { ascending: true });
+    })(),
+  ]);
 
-  const { data, error } = await supabase
-    .from('service_types')
-    .select('*')
-    .eq('is_published', true)
-    .order('sort_order', { ascending: true });
+  const { data, error } = dbResult;
 
   if (error) {
     logger.error('[getServiceCatalog] Database error', { error });
@@ -183,8 +199,18 @@ export async function getServiceCatalog(forceRefresh = false): Promise<CatalogSe
     return catalogCache;
   }
 
-  // Merge database services with fallback content
-  catalogCache = dbServices.map((db) => mergeWithFallback(db));
+  // Create lookup map for Payload services by slug for efficient merging
+  const payloadBySlug = new Map(payloadServices.map((p) => [p.slug, p]));
+
+  if (payloadServices.length > 0) {
+    logger.info('[getServiceCatalog] Merging with Payload CMS data', {
+      payloadCount: payloadServices.length,
+      dbCount: dbServices.length,
+    });
+  }
+
+  // Merge database services with Payload CMS and fallback content
+  catalogCache = dbServices.map((db) => mergeWithFallback(db, payloadBySlug));
   cacheTimestamp = now;
 
   return catalogCache;
@@ -249,21 +275,122 @@ export async function getServiceOptions(trade?: string): Promise<Array<{ id: str
 }
 
 /**
- * Convert database row to CatalogService, merging with fallback.
+ * Extract plain text from Lexical rich text JSON content.
+ * Used to convert Payload CMS descriptions to HTML-safe strings.
+ *
+ * @param lexicalContent - Lexical editor JSON content
+ * @returns Plain text or HTML paragraph string
  */
-function mergeWithFallback(db: DbServiceType): CatalogService {
+function extractTextFromLexical(lexicalContent: unknown): string {
+  if (!lexicalContent || typeof lexicalContent !== 'object') {
+    return '';
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const content = lexicalContent as any;
+  const root = content.root;
+  if (!root?.children) {
+    return '';
+  }
+
+  /**
+   * Recursively extract text from Lexical nodes
+   */
+  function extractFromNodes(nodes: unknown[]): string {
+    if (!Array.isArray(nodes)) return '';
+
+    return nodes
+      .map((node) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const n = node as any;
+        if (!n) return '';
+
+        // Text node
+        if (n.type === 'text' && typeof n.text === 'string') {
+          return n.text;
+        }
+
+        // Paragraph, heading, list item - extract children
+        if (n.children && Array.isArray(n.children)) {
+          const childText = extractFromNodes(n.children);
+          // Wrap in paragraph for paragraph nodes
+          if (n.type === 'paragraph') {
+            return `<p>${childText}</p>`;
+          }
+          if (n.type === 'heading') {
+            const tag = n.tag || 'h2';
+            return `<${tag}>${childText}</${tag}>`;
+          }
+          return childText;
+        }
+
+        return '';
+      })
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  return extractFromNodes(root.children);
+}
+
+/**
+ * Try to get service type data from Payload CMS.
+ * Returns null if Payload is unavailable or service not found.
+ *
+ * Note: Prefixed with _ as currently unused but kept for future single-item lookups.
+ *
+ * @param slug - Service type slug (URL-friendly)
+ * @returns Payload service type or null
+ */
+async function _tryGetPayloadService(slug: string): Promise<PayloadServiceType | null> {
+  try {
+    return await getPayloadServiceType(slug);
+  } catch {
+    // Silently return null - Payload unavailability is expected during fallback
+    return null;
+  }
+}
+
+/**
+ * Try to get all service types from Payload CMS.
+ * Returns empty array if Payload is unavailable.
+ */
+async function tryGetPayloadServices(): Promise<PayloadServiceType[]> {
+  try {
+    return await getPayloadServiceTypes();
+  } catch {
+    // Silently return empty array - Payload unavailability is expected during fallback
+    return [];
+  }
+}
+
+/**
+ * Convert database row to CatalogService, merging with Payload CMS data and fallback.
+ * Priority: Payload CMS > Database > SERVICE_CONTENT fallback
+ *
+ * @param db - Database row from service_types table
+ * @param payloadBySlug - Map of Payload service types by slug for efficient lookup
+ */
+function mergeWithFallback(db: DbServiceType, payloadBySlug?: Map<string, PayloadServiceType>): CatalogService {
   const fallback = SERVICE_CONTENT[db.service_id as keyof typeof SERVICE_CONTENT] as FallbackContent | undefined;
+  const payload = payloadBySlug?.get(db.url_slug);
+
+  // Extract description from Payload CMS if available
+  const payloadDescription = payload?.description ? extractTextFromLexical(payload.description) : '';
+  const payloadFeatures = payload?.features?.map((f) => f.text) || [];
 
   return {
     id: db.id,
     serviceId: db.service_id,
     urlSlug: db.url_slug,
-    label: db.label,
-    shortDescription: db.short_description,
-    longDescription: db.long_description || fallback?.longDescription || '',
+    label: payload?.name || db.label,
+    shortDescription: db.short_description, // Keep DB short description (not in Payload)
+    // Priority: Payload CMS description > DB > fallback
+    longDescription: payloadDescription || db.long_description || fallback?.longDescription || '',
     seoTitle: db.seo_title || fallback?.seoTitleTemplate || '',
-    seoDescription: db.seo_description || fallback?.seoDescriptionTemplate || '',
-    commonIssues: db.common_issues || fallback?.commonIssues || [],
+    seoDescription: payload?.metaDescription || db.seo_description || fallback?.seoDescriptionTemplate || '',
+    // Use Payload features as commonIssues if available (similar content type)
+    commonIssues: payloadFeatures.length > 0 ? payloadFeatures : (db.common_issues || fallback?.commonIssues || []),
     keywords: db.keywords || fallback?.keywords || [],
     processSteps: db.process_steps || fallback?.processSteps || [],
     costFactors: db.cost_factors || fallback?.costFactors || [],
@@ -273,7 +400,9 @@ function mergeWithFallback(db: DbServiceType): CatalogService {
     iconEmoji: db.icon_emoji || getIconForService(db.service_id),
     sortOrder: db.sort_order,
     isPublished: db.is_published,
-    source: fallback ? 'merged' : 'database',
+    source: payload ? 'merged' : (fallback ? 'merged' : 'database'),
+    // Store Payload headline for service pages that want to use it
+    ...(payload?.headline && { headline: payload.headline }),
   };
 }
 

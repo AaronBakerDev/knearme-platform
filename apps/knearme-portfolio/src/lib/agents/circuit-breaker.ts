@@ -35,6 +35,9 @@ export type AgentType =
   | 'layout-composer'
   | 'ui-composer'
   | 'orchestrator'
+  | 'image-analysis'
+  | 'web-search'
+  | 'bio-synthesis'
   // Subagent types (used by spawnSubagent)
   | 'story'
   | 'design'
@@ -115,6 +118,15 @@ const AGENT_CONFIGS: Partial<Record<AgentType, Partial<CircuitBreakerConfig>>> =
   'storage': {
     failureThreshold: 5,
     timeout: 30000,
+  },
+  // Web search and bio synthesis agents
+  'web-search': {
+    failureThreshold: 5,  // External Google search, more lenient
+    timeout: 30000,       // Faster recovery
+  },
+  'bio-synthesis': {
+    failureThreshold: 3,  // Bio generation is important
+    timeout: 60000,
   },
 };
 

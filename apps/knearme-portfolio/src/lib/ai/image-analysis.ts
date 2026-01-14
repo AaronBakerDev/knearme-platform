@@ -21,6 +21,12 @@ import { IMAGE_ANALYSIS_PROMPT, buildImageAnalysisMessage } from './prompts';
 import { ImageAnalysisSchema } from './schemas';
 import { withRetry, AI_RETRY_OPTIONS } from './retry';
 import { logger } from '@/lib/logging';
+import {
+  createAgentLogger,
+  createCorrelationContext,
+  type CorrelationContext,
+} from '@/lib/observability/agent-logger';
+import { getTelemetryConfig } from '@/lib/observability/langfuse';
 
 /**
  * Result of analyzing project images.
@@ -62,16 +68,29 @@ const DEFAULT_ANALYSIS: ImageAnalysisResult = {
 };
 
 /**
+ * Options for image analysis with optional observability context.
+ */
+export interface ImageAnalysisOptions {
+  /** Correlation context for observability - links to conversation trace */
+  correlationContext?: CorrelationContext;
+  /** Business ID for RLS context (used if no correlationContext provided) */
+  businessId?: string;
+  /** Conversation ID for tracing (used if no correlationContext provided) */
+  conversationId?: string;
+}
+
+/**
  * Analyze project images using Gemini 3.0 Flash with AI SDK.
  *
  * @param imageInputs - Image inputs (URLs or raw data) to analyze (max 4 for cost control)
+ * @param options - Optional analysis options including observability context
  * @returns Analysis result or error
  *
  * @example
  * const result = await analyzeProjectImages([
  *   'https://storage.example.com/project-images/contractor1/project1/photo1.webp',
  *   'https://storage.example.com/project-images/contractor1/project1/photo2.webp',
- * ]);
+ * ], { conversationId: 'conv_123', businessId: 'biz_456' });
  *
  * if ('error' in result) {
  *   // Handle error result
@@ -80,10 +99,30 @@ const DEFAULT_ANALYSIS: ImageAnalysisResult = {
  * }
  */
 export async function analyzeProjectImages(
-  imageInputs: Array<string | { data: DataContent; mediaType?: string }>
+  imageInputs: Array<string | { data: DataContent; mediaType?: string }>,
+  options?: ImageAnalysisOptions
 ): Promise<ImageAnalysisResult | { error: string; retryable: boolean }> {
+  // Create correlation context for observability
+  // @see /docs/philosophy/operational-excellence.md - Observability Strategy
+  const correlationCtx = options?.correlationContext ?? createCorrelationContext(
+    options?.conversationId ?? 'unknown',
+    options?.businessId ?? 'unknown',
+    undefined
+  );
+
+  const agentLogger = createAgentLogger('image-analysis', correlationCtx, 'images');
+  agentLogger.start({
+    imageCount: imageInputs.length,
+    inputTypes: imageInputs.map(i => typeof i === 'string' ? 'url' : 'data'),
+  });
+
   // Check if AI is available
   if (!isGoogleAIEnabled()) {
+    agentLogger.decision('AI not available - returning defaults', {
+      confidence: 0,
+      decision: 'fallback_defaults',
+    });
+    agentLogger.complete({ method: 'fallback', reason: 'ai_not_enabled' });
     logger.warn('[analyzeProjectImages] Google AI not enabled, returning defaults');
     return DEFAULT_ANALYSIS;
   }
@@ -92,6 +131,7 @@ export async function analyzeProjectImages(
   const limitedInputs = imageInputs.slice(0, 4);
 
   if (limitedInputs.length === 0) {
+    agentLogger.error(new Error('No images provided'), { reason: 'empty_input' });
     return { error: 'No images provided for analysis', retryable: false };
   }
 
@@ -109,6 +149,14 @@ export async function analyzeProjectImages(
   );
 
   if (!tokenValidation.valid) {
+    agentLogger.decision('Token limit exceeded - blocking request', {
+      confidence: 0,
+      decision: 'blocked_token_limit',
+    });
+    agentLogger.error(new Error('Token limit exceeded'), {
+      estimated: tokenValidation.estimated,
+      limit: tokenValidation.limit,
+    });
     logger.warn('[analyzeProjectImages] Token limit exceeded', {
       estimated: tokenValidation.estimated,
       limit: tokenValidation.limit,
@@ -155,23 +203,46 @@ export async function analyzeProjectImages(
           system: IMAGE_ANALYSIS_PROMPT,
           messages: [{ role: 'user', content }],
           maxOutputTokens: OUTPUT_LIMITS.imageAnalysis,
+          // Enable Langfuse tracing via OpenTelemetry
+          // @see /src/lib/observability/langfuse.ts
+          experimental_telemetry: getTelemetryConfig({
+            functionId: 'image-analysis',
+            metadata: {
+              agent: 'image-analysis',
+              imageCount: limitedInputs.length,
+            },
+          }),
         }),
       AI_RETRY_OPTIONS
     );
 
     if (!object || !object.project_type) {
+      agentLogger.decision('No project type detected - returning defaults', {
+        confidence: 0.3,
+        decision: 'fallback_no_detection',
+      });
+      agentLogger.complete({ method: 'fallback', reason: 'no_project_type' });
       return DEFAULT_ANALYSIS;
     }
 
     // Handle unrecognized work types gracefully
     if (object.project_type === 'unknown' || object.project_type === 'not_construction') {
+      agentLogger.decision('Unrecognized work type', {
+        confidence: object.project_type_confidence ?? 0.3,
+        decision: 'unknown_project_type',
+        observations: ['Image does not appear to show construction or trade work'],
+      });
+      agentLogger.complete({
+        projectType: object.project_type,
+        confidence: object.project_type_confidence ?? 0.3,
+      });
       return {
         ...DEFAULT_ANALYSIS,
         quality_notes: 'Image does not appear to show construction or trade work',
       };
     }
 
-    return {
+    const result: ImageAnalysisResult = {
       project_type: object.project_type || DEFAULT_ANALYSIS.project_type,
       project_type_confidence: object.project_type_confidence ?? 0.5,
       materials: object.materials || [],
@@ -181,9 +252,35 @@ export async function analyzeProjectImages(
       suggested_title_keywords: object.suggested_title_keywords || [],
       image_alt_texts: object.image_alt_texts || {},
     };
+
+    // Log successful analysis
+    agentLogger.decision('Image analysis completed', {
+      confidence: result.project_type_confidence,
+      decision: 'analysis_complete',
+      observations: [
+        `Detected: ${result.project_type}`,
+        `Materials: ${result.materials.length}`,
+        `Techniques: ${result.techniques.length}`,
+        `Stage: ${result.image_stage}`,
+      ],
+    });
+
+    agentLogger.complete({
+      projectType: result.project_type,
+      confidence: result.project_type_confidence,
+      materialCount: result.materials.length,
+      techniqueCount: result.techniques.length,
+      imageStage: result.image_stage,
+    });
+
+    return result;
   } catch (error) {
     // Parse and categorize errors
     const aiError = parseImageAnalysisError(error);
+    agentLogger.error(error instanceof Error ? error : new Error(String(error)), {
+      retryable: aiError.retryable,
+      parsedError: aiError.message,
+    });
     logger.error('[analyzeProjectImages] Error', { error: aiError });
     return { error: aiError.message, retryable: aiError.retryable };
   }

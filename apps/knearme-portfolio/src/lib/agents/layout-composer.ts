@@ -13,6 +13,7 @@ import { descriptionBlocksSchema, type DescriptionBlock } from '@/lib/content/de
 import { logger } from '@/lib/logging';
 import { formatProjectLocation } from '@/lib/utils/location';
 import { getGenerationModel, isGoogleAIEnabled, OUTPUT_LIMITS } from '@/lib/ai/providers';
+import { withCircuitBreaker } from '@/lib/agents/circuit-breaker';
 import type { SharedProjectState } from './types';
 
 export interface LayoutComposerOptions {
@@ -206,20 +207,22 @@ export async function composePortfolioLayout(
   }
 
   try {
-    const { object } = await generateObject({
-      model: getGenerationModel(),
-      schema: LayoutComposerSchema,
-      system: LAYOUT_SYSTEM_PROMPT,
-      prompt: buildLayoutPrompt(state, options),
-      maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
-      temperature: 0.4,
-      providerOptions: {
-        google: {
-          thinkingConfig: {
-            thinkingLevel: 'high',
+    const { object } = await withCircuitBreaker('layout-composer', async () => {
+      return generateObject({
+        model: getGenerationModel(),
+        schema: LayoutComposerSchema,
+        system: LAYOUT_SYSTEM_PROMPT,
+        prompt: buildLayoutPrompt(state, options),
+        maxOutputTokens: OUTPUT_LIMITS.contentGeneration,
+        temperature: 0.4,
+        providerOptions: {
+          google: {
+            thinkingConfig: {
+              thinkingLevel: 'high',
+            },
           },
         },
-      },
+      });
     });
 
     return {

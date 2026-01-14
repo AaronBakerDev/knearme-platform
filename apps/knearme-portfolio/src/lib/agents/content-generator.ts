@@ -19,6 +19,12 @@ import { withCircuitBreaker } from '@/lib/agents/circuit-breaker';
 import { formatProjectLocation } from '@/lib/utils/location';
 import type { SharedProjectState, ContentGenerationResult } from './types';
 import { logger } from '@/lib/logging';
+import {
+  createAgentLogger,
+  createCorrelationContext,
+  type CorrelationContext,
+} from '@/lib/observability/agent-logger';
+import { getTelemetryConfig } from '@/lib/observability/langfuse';
 
 // ============================================================================
 // Schema
@@ -209,9 +215,22 @@ export interface ContentGenerationError {
 }
 
 /**
+ * Options for content generation with optional observability context.
+ */
+export interface GenerateContentOptions {
+  /** Correlation context for observability - links to conversation trace */
+  correlationContext?: CorrelationContext;
+  /** Business ID for RLS context (used if no correlationContext provided) */
+  businessId?: string;
+  /** Conversation ID for tracing (used if no correlationContext provided) */
+  conversationId?: string;
+}
+
+/**
  * Generate portfolio content from extracted project data.
  *
  * @param state - Shared project state with extracted data
+ * @param options - Optional generation options including observability context
  * @returns Generated content or error object
  *
  * @example
@@ -226,7 +245,10 @@ export interface ContentGenerationError {
  *   // ... other fields
  * };
  *
- * const result = await generateContent(state);
+ * const result = await generateContent(state, {
+ *   conversationId: 'conv_123',
+ *   businessId: 'biz_456'
+ * });
  * if ('error' in result) {
  *   console.error(result.error);
  * } else {
@@ -235,10 +257,34 @@ export interface ContentGenerationError {
  * ```
  */
 export async function generateContent(
-  state: SharedProjectState
+  state: SharedProjectState,
+  options?: GenerateContentOptions
 ): Promise<ContentGenerationResult | ContentGenerationError> {
+  // Create correlation context for observability
+  // @see /docs/philosophy/operational-excellence.md - Observability Strategy
+  const correlationCtx = options?.correlationContext ?? createCorrelationContext(
+    options?.conversationId ?? 'unknown',
+    options?.businessId ?? 'unknown',
+    undefined // projectId not available in SharedProjectState
+  );
+
+  const agentLogger = createAgentLogger('content-generator', correlationCtx, 'generating');
+  agentLogger.start({
+    projectType: state.projectType,
+    location: state.location || state.city,
+    materialCount: state.materials?.length || 0,
+    techniqueCount: state.techniques?.length || 0,
+    hasCustomerProblem: Boolean(state.customerProblem),
+    hasSolutionApproach: Boolean(state.solutionApproach),
+  });
+
   // Validate AI availability
   if (!isGoogleAIEnabled()) {
+    agentLogger.decision('AI not available - generation blocked', {
+      confidence: 0,
+      decision: 'blocked_no_ai',
+    });
+    agentLogger.error(new Error('AI not configured'), { reason: 'missing_api_key' });
     return {
       error: 'AI content generation is not available. Please configure GOOGLE_GENERATIVE_AI_API_KEY.',
       retryable: false,
@@ -248,6 +294,11 @@ export async function generateContent(
   // Validate required data
   const validationError = validateProjectData(state);
   if (validationError) {
+    agentLogger.decision('Validation failed - insufficient data', {
+      confidence: 0,
+      decision: 'blocked_validation',
+    });
+    agentLogger.error(new Error(validationError), { reason: 'validation_failed' });
     return {
       error: validationError,
       retryable: false,
@@ -258,7 +309,7 @@ export async function generateContent(
     // Wrap AI call with circuit breaker for resilience
     // Uses 'content-generator' agent type with failureThreshold: 3
     // @see /docs/philosophy/operational-excellence.md - Resilience Strategy
-    const { object } = await withCircuitBreaker('content-generator', async () => {
+    const { object, usage } = await withCircuitBreaker('content-generator', async () => {
       return generateObject({
         model: getGenerationModel(),
         schema: ContentGenerationSchema,
@@ -273,15 +324,51 @@ export async function generateContent(
             },
           },
         },
+        // Enable Langfuse tracing via OpenTelemetry
+        // @see /src/lib/observability/langfuse.ts
+        experimental_telemetry: getTelemetryConfig({
+          functionId: 'content-generator',
+          metadata: {
+            agent: 'content-generator',
+            phase: 'generating',
+            projectType: state.projectType ?? 'unknown',
+          },
+        }),
       });
     });
 
     // Post-process to ensure constraints are met
     const result = enforceConstraints(object, state);
 
+    // Log generation decision with quality metrics
+    agentLogger.decision('Content generated successfully', {
+      confidence: 0.9, // High confidence on successful generation
+      decision: 'content_generated',
+      observations: [
+        `Title: ${result.title.length} chars`,
+        `Description: ${result.description.length} chars`,
+        `Tags: ${result.tags.length} items`,
+      ],
+    });
+
+    agentLogger.complete(
+      {
+        titleLength: result.title.length,
+        descriptionLength: result.description.length,
+        tagCount: result.tags.length,
+        seoTitleLength: result.seoTitle.length,
+        seoDescriptionLength: result.seoDescription.length,
+      },
+      usage ? { prompt: usage.inputTokens ?? 0, completion: usage.outputTokens ?? 0 } : undefined
+    );
+
     return result;
   } catch (error) {
     const parsed = parseGenerationError(error);
+    agentLogger.error(error instanceof Error ? error : new Error(String(error)), {
+      retryable: parsed.retryable,
+      parsedError: parsed.error,
+    });
     logger.error('[ContentGenerator] Error', { error: parsed.error });
     return parsed;
   }

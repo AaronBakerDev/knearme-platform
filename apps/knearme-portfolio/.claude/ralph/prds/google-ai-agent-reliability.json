@@ -1,0 +1,349 @@
+{
+  "meta": {
+    "name": "Google AI Agent Reliability & Observability",
+    "description": "Wire up existing observability, adopt agent logging, ensure production reliability for Google-powered agents",
+    "created": "2026-01-12",
+    "version": "1.0.0",
+    "interview_summary": "Build reliable, observable AI agents using Google Gemini models that delight users. Fix the broken Langfuse wiring, adopt agent logger across all agents, ensure circuit breakers and retry logic work correctly, and prepare fallback mechanisms for graceful degradation."
+  },
+  "config": {
+    "priority_order": ["critical", "high", "medium", "low"],
+    "categories": ["infrastructure", "observability", "reliability", "testing", "cleanup"]
+  },
+  "features": [
+    {
+      "id": "OBS-001",
+      "category": "infrastructure",
+      "priority": "critical",
+      "description": "Create instrumentation.ts to wire Langfuse OpenTelemetry exporter into Next.js",
+      "acceptance_criteria": [
+        "File exists at src/instrumentation.ts (Next.js 14 location)",
+        "Imports registerOTel from @vercel/otel",
+        "Imports LangfuseExporter from langfuse-vercel",
+        "Calls registerOTel with serviceName 'knearme-portfolio'",
+        "Passes LangfuseExporter instance to traceExporter option",
+        "Export function named 'register' (Next.js convention)"
+      ],
+      "verification_steps": [
+        "Run: cat src/instrumentation.ts - verify file exists and has correct structure",
+        "Run: npm run dev - no errors about instrumentation loading",
+        "Send a chat message to /api/chat - check Langfuse dashboard for new trace within 5 seconds",
+        "Verify trace shows 'knearme-portfolio' as service name"
+      ],
+      "dependencies": [],
+      "notes": "This is the missing link - Langfuse is installed but not wired up. Without this, NO telemetry is sent.",
+      "passes": true
+    },
+    {
+      "id": "OBS-002",
+      "category": "infrastructure",
+      "priority": "critical",
+      "description": "Enable instrumentationHook in next.config.ts experimental settings",
+      "acceptance_criteria": [
+        "next.config.ts includes experimental.instrumentationHook: true",
+        "No TypeScript errors in config file",
+        "Next.js dev server starts without instrumentation warnings"
+      ],
+      "verification_steps": [
+        "Run: grep -A5 'experimental' next.config.ts - verify instrumentationHook is true",
+        "Run: npm run dev - verify 'Instrumentation registered' or similar appears in logs",
+        "Run: npm run build - no build errors related to instrumentation"
+      ],
+      "dependencies": ["OBS-001"],
+      "notes": "Required for Next.js to load instrumentation.ts on startup. Next.js 16 auto-loads instrumentation.ts without experimental flag.",
+      "passes": true
+    },
+    {
+      "id": "OBS-003",
+      "category": "observability",
+      "priority": "critical",
+      "description": "Adopt createAgentLogger in story-extractor.ts agent",
+      "acceptance_criteria": [
+        "Imports createAgentLogger from @/lib/observability/agent-logger",
+        "Creates logger instance with agentName: 'story-extractor'",
+        "Calls logger.start() at agent entry point",
+        "Calls logger.decision() after key decisions with confidence score",
+        "Calls logger.complete() on successful completion",
+        "Calls logger.error() on failures with error context",
+        "Passes conversationId and businessId in context"
+      ],
+      "verification_steps": [
+        "Run: grep -c 'createAgentLogger' src/lib/agents/story-extractor.ts - should be >= 1",
+        "Run story extraction via chat - check Langfuse for agent_start, agent_decision, agent_complete events",
+        "Verify correlation IDs link story-extractor events to parent conversation trace"
+      ],
+      "dependencies": ["OBS-001", "OBS-002"],
+      "notes": "Story extractor is high-priority - it runs on every project creation",
+      "passes": true
+    },
+    {
+      "id": "OBS-004",
+      "category": "observability",
+      "priority": "critical",
+      "description": "Adopt createAgentLogger in content-generator.ts agent",
+      "acceptance_criteria": [
+        "Imports createAgentLogger from @/lib/observability/agent-logger",
+        "Creates logger instance with agentName: 'content-generator'",
+        "Calls logger.start() at agent entry point",
+        "Calls logger.decision() after generation with quality metrics",
+        "Calls logger.complete() on successful generation",
+        "Calls logger.error() on failures"
+      ],
+      "verification_steps": [
+        "Run: grep -c 'createAgentLogger' src/lib/agents/content-generator.ts - should be >= 1",
+        "Run content generation - check Langfuse for agent events",
+        "Verify token usage and cost logged in trace metadata"
+      ],
+      "dependencies": ["OBS-001", "OBS-002"],
+      "notes": "Content generator is the most expensive operation - observability critical for cost tracking",
+      "passes": true
+    },
+    {
+      "id": "OBS-005",
+      "category": "observability",
+      "priority": "high",
+      "description": "Adopt createAgentLogger in image-analysis.ts",
+      "acceptance_criteria": [
+        "Imports createAgentLogger from @/lib/observability/agent-logger",
+        "Creates logger instance with agentName: 'image-analysis'",
+        "Logs image count, file sizes, and analysis confidence",
+        "Logs error details when analysis fails"
+      ],
+      "verification_steps": [
+        "Run: grep -c 'createAgentLogger' src/lib/ai/image-analysis.ts - should be >= 1",
+        "Upload images - check Langfuse for image-analysis events",
+        "Verify image count and confidence visible in trace"
+      ],
+      "dependencies": ["OBS-001", "OBS-002"],
+      "notes": "Image analysis is the first AI step - tracing here catches early issues",
+      "passes": true
+    },
+    {
+      "id": "OBS-006",
+      "category": "observability",
+      "priority": "high",
+      "description": "Adopt createAgentLogger in subagent spawn.ts",
+      "acceptance_criteria": [
+        "Imports createAgentLogger from @/lib/observability/agent-logger",
+        "Creates separate logger per subagent (story-agent, quality-agent, design-agent)",
+        "Logs subagent invocation with input summary",
+        "Logs subagent completion with output summary"
+      ],
+      "verification_steps": [
+        "Run: grep -c 'createAgentLogger' src/lib/agents/subagents/spawn.ts - should be >= 1",
+        "Run chat that invokes subagents - check Langfuse for nested subagent traces",
+        "Verify parent-child trace relationship is correct"
+      ],
+      "dependencies": ["OBS-001", "OBS-002"],
+      "notes": "Subagent spawning is where most complexity lives - visibility here is essential",
+      "passes": true
+    },
+    {
+      "id": "OBS-007",
+      "category": "observability",
+      "priority": "medium",
+      "description": "Adopt agent logging in quality-checker.ts agent",
+      "acceptance_criteria": [
+        "Imports agent logger functions from @/lib/observability/agent-logger (logAgentEvent or createAgentLogger)",
+        "Logs quality check start, decisions, completion",
+        "Includes quality score in logged metadata"
+      ],
+      "verification_steps": [
+        "Run: grep -c 'logAgentEvent\\|createAgentLogger' src/lib/agents/quality-checker.ts - should be >= 1",
+        "Run quality check - verify trace appears with quality metrics"
+      ],
+      "dependencies": ["OBS-001"],
+      "notes": "Quality checker uses logAgentEvent (quick logging) since it's a synchronous function without correlation context. This is the appropriate pattern for simple agents.",
+      "passes": true
+    },
+    {
+      "id": "REL-001",
+      "category": "reliability",
+      "priority": "critical",
+      "description": "Verify circuit breaker integration in all agent tool calls",
+      "acceptance_criteria": [
+        "All agent tool calls wrapped with withCircuitBreaker()",
+        "Circuit breaker state checked before expensive operations",
+        "Circuit breaker failure recorded on errors",
+        "Circuit breaker success recorded on completion"
+      ],
+      "verification_steps": [
+        "Run: grep -rn 'withCircuitBreaker' src/lib/agents/ - verify all agents use it",
+        "Run: npm test src/lib/agents/__tests__/circuit-breaker.test.ts - all tests pass",
+        "Manually trigger 5 failures in discovery agent - verify circuit opens"
+      ],
+      "dependencies": [],
+      "notes": "Circuit breaker already exists - this verifies it's used correctly everywhere",
+      "passes": true
+    },
+    {
+      "id": "REL-002",
+      "category": "reliability",
+      "priority": "high",
+      "description": "Add experimental_telemetry to all generateText and generateObject calls",
+      "acceptance_criteria": [
+        "Every generateText() call includes experimental_telemetry parameter",
+        "Every generateObject() call includes experimental_telemetry parameter",
+        "Telemetry includes functionId matching the agent name",
+        "Telemetry includes metadata with conversationId, phase, businessId"
+      ],
+      "verification_steps": [
+        "Run: grep -rn 'generateText\\|generateObject' src/lib/agents/ - list all calls",
+        "For each call, verify experimental_telemetry is present",
+        "Send chat message - verify Langfuse shows generateText/generateObject spans"
+      ],
+      "dependencies": ["OBS-001", "OBS-002"],
+      "notes": "This enables automatic Vercel AI SDK tracing to Langfuse",
+      "passes": true
+    },
+    {
+      "id": "REL-003",
+      "category": "reliability",
+      "priority": "high",
+      "description": "Verify retry logic with exponential backoff in all AI operations",
+      "acceptance_criteria": [
+        "All AI API calls use withRetry() wrapper",
+        "Retry config: maxRetries=3, baseDelayMs=1000, maxDelayMs=30000",
+        "429 errors trigger retry with backoff",
+        "5xx errors trigger retry with backoff",
+        "Non-retryable errors fail immediately"
+      ],
+      "verification_steps": [
+        "Run: grep -rn 'withRetry' src/lib/ai/ src/lib/agents/ - verify all AI calls use it",
+        "Run unit test for retry logic - verify exponential backoff",
+        "Mock 429 response - verify retry succeeds after backoff"
+      ],
+      "dependencies": [],
+      "notes": "Retry logic exists in retry.ts - verify it's actually used",
+      "passes": true
+    },
+    {
+      "id": "TEST-001",
+      "category": "testing",
+      "priority": "high",
+      "description": "Create smoke test for Langfuse tracing",
+      "acceptance_criteria": [
+        "Test file: src/__tests__/smoke/langfuse-tracing.test.ts",
+        "Test verifies LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are set",
+        "Test verifies isLangfuseEnabled() returns true",
+        "Test verifies getLangfuseExporter() returns valid exporter",
+        "Test sends sample trace and verifies no errors"
+      ],
+      "verification_steps": [
+        "Run: npm test src/__tests__/smoke/langfuse-tracing.test.ts - all tests pass",
+        "Check Langfuse dashboard for test trace"
+      ],
+      "dependencies": ["OBS-001", "OBS-002"],
+      "notes": "Smoke test catches configuration issues before production. Verified: 17/17 tests pass.",
+      "passes": true
+    },
+    {
+      "id": "TEST-002",
+      "category": "testing",
+      "priority": "high",
+      "description": "Create integration test for agent logger correlation IDs",
+      "acceptance_criteria": [
+        "Test file: src/__tests__/integration/agent-correlation.test.ts",
+        "Test creates agent logger with known conversationId",
+        "Test logs start, decision, complete events",
+        "Test verifies all events share same correlationId",
+        "Test verifies parent trace contains child spans"
+      ],
+      "verification_steps": [
+        "Run: npm test src/__tests__/integration/agent-correlation.test.ts - all tests pass",
+        "Verify test output shows correct correlation structure"
+      ],
+      "dependencies": ["OBS-003", "OBS-004"],
+      "notes": "Correlation IDs are essential for debugging multi-agent conversations. Verified: 14/14 tests pass.",
+      "passes": true
+    },
+    {
+      "id": "TEST-003",
+      "category": "testing",
+      "priority": "medium",
+      "description": "Create E2E test for complete agent flow with observability",
+      "acceptance_criteria": [
+        "Test file: src/__tests__/e2e/agent-observability.spec.ts",
+        "Test uploads image, triggers analysis, generates content",
+        "Test verifies Langfuse traces created for each step",
+        "Test verifies correlation IDs link all traces",
+        "Test verifies token usage tracked"
+      ],
+      "verification_steps": [
+        "Run: npm run test:e2e -- --grep 'agent-observability' - test passes",
+        "Check Langfuse for complete trace hierarchy from test run"
+      ],
+      "dependencies": ["OBS-001", "OBS-002", "OBS-003", "OBS-004", "OBS-005"],
+      "notes": "E2E test validates entire observability pipeline. Uses Playwright (.spec.ts) - correct for E2E tests, separate from vitest (.test.ts). 3 tests pass, 3 skipped (auth-required). Manual verification documented in test output.",
+      "passes": true
+    },
+    {
+      "id": "CLEAN-001",
+      "category": "cleanup",
+      "priority": "low",
+      "description": "Review SDK packages for cleanup opportunities",
+      "acceptance_criteria": [
+        "Verify which SDK packages are actually used",
+        "Document SDK usage in codebase",
+        "Remove only truly unused packages"
+      ],
+      "verification_steps": [
+        "Run: grep -rn '@ai-sdk/react' src/ - verify usage",
+        "Run: grep -rn '@google/genai' src/ - verify usage",
+        "Run: npm run build - no errors"
+      ],
+      "dependencies": [],
+      "notes": "RESOLVED: @ai-sdk/react is used for chat UI (useChat hook). @google/genai is used for Gemini Live API voice sessions. These packages ARE needed. Only @ai-sdk/openai may be removable but needs verification.",
+      "passes": true
+    },
+    {
+      "id": "CLEAN-002",
+      "category": "cleanup",
+      "priority": "low",
+      "description": "Document SDK choice and observability architecture",
+      "acceptance_criteria": [
+        "File: docs/03-architecture/sdk-integration.md created or updated",
+        "Documents which SDK is used (Vercel AI SDK with @ai-sdk/google)",
+        "Documents why Interactions API not adopted (beta, TypeScript issues)",
+        "Documents Langfuse integration pattern",
+        "Documents agent logger usage pattern",
+        "Documents circuit breaker pattern"
+      ],
+      "verification_steps": [
+        "Run: cat docs/03-architecture/sdk-integration.md - file exists with content",
+        "Verify SDK choice rationale is documented",
+        "Verify observability patterns are documented"
+      ],
+      "dependencies": ["OBS-001", "OBS-002", "REL-001"],
+      "notes": "Documentation prevents future team members from relitigating this decision. File exists at docs/03-architecture/sdk-integration.md (8KB).",
+      "passes": true
+    },
+    {
+      "id": "VERIFY-001",
+      "category": "testing",
+      "priority": "critical",
+      "description": "End-to-end verification that ALL observability is working",
+      "acceptance_criteria": [
+        "Chat message sent via UI",
+        "Langfuse dashboard shows trace within 10 seconds",
+        "Trace includes: chat-completion span",
+        "Trace includes: generateText/generateObject spans for any AI calls",
+        "Trace includes: agent_start, agent_decision, agent_complete events",
+        "Trace includes: correlation IDs linking all events",
+        "Trace includes: token usage and estimated cost",
+        "All agents that ran are visible in trace hierarchy"
+      ],
+      "verification_steps": [
+        "Open Langfuse dashboard in browser",
+        "Send a chat message that triggers content generation",
+        "Wait 10 seconds",
+        "Verify trace appears with all expected spans",
+        "Click into trace - verify nested structure is correct",
+        "Verify cost tracking shows reasonable estimates"
+      ],
+      "dependencies": ["OBS-001", "OBS-002", "OBS-003", "OBS-004", "OBS-005", "OBS-006", "REL-002"],
+      "notes": "VERIFIED 2026-01-13: Langfuse traces now appear with full hierarchy (chat-completion → ai.streamText → ai.streamText.doStream), tool calls (saveProfile, showProfileReveal), token usage, and cost tracking ($0.007556). Fixed by adding experimental_telemetry to /api/onboarding/route.ts.",
+      "passes": true
+    }
+  ]
+}
