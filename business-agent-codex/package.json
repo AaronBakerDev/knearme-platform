@@ -1,0 +1,27 @@
+{
+  "name": "business-agent-codex",
+  "version": "1.0.0",
+  "description": "KnearMe Business Consultant Agent - powered by OpenAI Codex SDK",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "openai",
+    "codex",
+    "agent",
+    "business",
+    "ai"
+  ],
+  "author": "KnearMe",
+  "license": "MIT",
+  "dependencies": {
+    "@openai/codex-sdk": "^0.77.0",
+    "@types/node": "^25.0.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

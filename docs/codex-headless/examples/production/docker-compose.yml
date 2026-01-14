@@ -1,0 +1,45 @@
+# docker-compose.yml - Production Codex Agent Stack
+
+version: '3.8'
+
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codex-agent
+    volumes:
+      - agent-data:/data
+      - ${WORKSPACE:-./workspace}:/workspace
+    working_dir: /workspace
+    environment:
+      - SESSION_FILE=/data/session.id
+      - RESULTS_DIR=/data/results
+      - QUEUE_FILE=/data/queue.txt
+      - SANDBOX=${SANDBOX:-workspace-write}
+      - APPROVAL_POLICY=${APPROVAL_POLICY:-on-request}
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ["CMD", "codex", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+volumes:
+  agent-data:
+    driver: local
+
+networks:
+  default:
+    name: codex-agent-network
+

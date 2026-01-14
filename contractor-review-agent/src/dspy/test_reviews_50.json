@@ -1,0 +1,1322 @@
+[
+  {
+    "id": "0047d79b-ab48-4225-8ce1-07b76b81a355",
+    "reviewer_name": "Joyce Edgley",
+    "rating": 5,
+    "review_text": "Just a note to tell you how pleased we are with your company.\nThe guys that were here were very professional, courteous, and polite.\nThey put down mats to protect the kitchen floor and when they removed the mats, they swept the floor!\nWe will certain be recommending your company to family and friends!\n\nLeon & Joyce\nBrockville",
+    "analysis_json": {
+      "themes": [
+        "professional crew",
+        "clean up",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.8,
+      "key_phrases": [
+        "mats to protect the kitchen floor",
+        "swept the floor",
+        "professional, courteous, and polite"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "004e6b94-4161-4350-beae-4b17d224f798",
+    "reviewer_name": "Jacob Orange",
+    "rating": 5,
+    "review_text": "I personally have had two roofs done by A&I, and in my family we have had several more. Never had an issue, always great service and great work. Thanks.",
+    "analysis_json": {
+      "themes": [
+        "quality work",
+        "repeat customer"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.9,
+      "key_phrases": [
+        "Never had an issue"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "roofing"
+      ],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "0086a38d-46f6-49df-a22d-27fe1c4541b1",
+    "reviewer_name": "David Conway",
+    "rating": 5,
+    "review_text": "In March 2025 Confident Coatings repaired, refreshed, and re-coated the stucco on my 14 year old house. The ownership was very responsive to my initial call and subsequent queries. He answered all my questions thoroughly and ensured I understood my options. The Confident Coatings team did an outstanding job  and made the house look new. They were quick and professional. The workers cleaned up all materials in the area. I was very impressed. Even my neighbors expressed what a great job Confident Coatings did on my house. In addition to the superb work, Confident Coatings was reasonably priced. I am very pleased with the results, would recommend them to everyone, and would use them again. I give Confident Coatings an A+ in all areas.",
+    "analysis_json": {
+      "themes": [
+        "communication",
+        "professionalism",
+        "clean up",
+        "pricing",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "made the house look new",
+        "reasonably priced",
+        "A+ in all areas"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "sentiment_score": 0.95,
+      "detected_services": [
+        "stucco repair",
+        "stucco coating"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "0098f6be-e63d-425d-bfce-aec98e022fbc",
+    "reviewer_name": "Ken Trujillo",
+    "rating": 5,
+    "review_text": "Mace was very professional, personable and knowledgeable. He was punctual and a pleasure to work with. I would definitely recommend not only hom but your company to others.",
+    "analysis_json": {
+      "themes": [
+        "professional crew",
+        "personable",
+        "knowledgeable",
+        "punctual",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.8,
+      "key_phrases": [
+        "Mace was very professional, personable and knowledgeable",
+        "punctual and a pleasure to work with"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "00a6c201-5374-43ce-9970-2e47ccfa44d5",
+    "reviewer_name": "Calah Brooks",
+    "rating": 5,
+    "review_text": "I have had the pleasure of contracting The Cleaning Room for over a decade. They are completely professional and always go the extra mile.",
+    "analysis_json": {
+      "themes": [
+        "long-term relationship",
+        "professionalism",
+        "customer service"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.8,
+      "key_phrases": [
+        "over a decade",
+        "completely professional",
+        "go the extra mile"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "house cleaning"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "00ad75dc-e168-4156-9054-707011f864e8",
+    "reviewer_name": "Mar'ti Thomas",
+    "rating": 5,
+    "review_text": "Divine landscaping is AWESOME!!! Very professional (and also so patient when I was running late to put my dogs away)\nThey do beautiful work!\nThank you, Divine, for your help today!",
+    "analysis_json": {
+      "themes": [
+        "professionalism",
+        "patient",
+        "dog friendly",
+        "quality work"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.7,
+      "key_phrases": [
+        "patient when I was running late",
+        "beautiful work"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.95,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "00dc48d9-bb11-4194-b4a4-0ca5be85e6d2",
+    "reviewer_name": "Stanislaw Halasa",
+    "rating": 5,
+    "review_text": "This is very professional company . They did very good job doing my driveway. I highly recommended this company.",
+    "analysis_json": {
+      "themes": [
+        "professionalism",
+        "quality work",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.9,
+      "key_phrases": [
+        "very professional company",
+        "very good job"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "driveway installation"
+      ],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "0101f505-3629-4cfd-8e32-1ab79abe6cc2",
+    "reviewer_name": "Jess G",
+    "rating": 5,
+    "review_text": "Rusin was very timely and professional. I would highly recommend.",
+    "analysis_json": {
+      "themes": [
+        "on time",
+        "professionalism",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.7,
+      "key_phrases": [
+        "very timely and professional"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "010b0653-a7c2-41a1-bdb7-1ea7e37f3c1c",
+    "reviewer_name": "Linda Safran",
+    "rating": 5,
+    "review_text": "Once again we were very pleased with MasterMaid! Natalya spent over 3 hours meticulously cleaning our 2-BR apartment, including a deep clean of the dishwasher. Well worth the $.",
+    "analysis_json": {
+      "themes": [
+        "quality work",
+        "pricing",
+        "thorough"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "meticulously cleaning",
+        "deep clean of the dishwasher",
+        "well worth the $"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": true,
+      "sentiment_score": 1,
+      "detected_services": [
+        "apartment cleaning",
+        "deep cleaning",
+        "dishwasher cleaning"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "011918d5-46f3-4766-abb6-05aff3c79acb",
+    "reviewer_name": "Daniel",
+    "rating": 5,
+    "review_text": "Good service, exactly what the apartment needed after moving out. Landlords happy.",
+    "analysis_json": {
+      "themes": [
+        "move-out",
+        "landlord satisfaction"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.9,
+      "key_phrases": [
+        "exactly what the apartment needed after moving out",
+        "Landlords happy"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "sentiment_score": 0.8,
+      "detected_services": [
+        "apartment cleaning",
+        "move-out cleaning"
+      ],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "0122a86d-3585-4814-8daa-26f0539cf805",
+    "reviewer_name": "Chelsea King",
+    "rating": 5,
+    "review_text": "I found Stucco The Springs through a google search. I needed to hire a contractor to mostly redo my backyard, and this was the first place I came across. I decided to go with their services because they seemed like they had a good reputation and were reasonably priced. I was very happy with their work and with their customer service too. I am happy that I found a contractor I can trust!",
+    "analysis_json": {
+      "themes": [
+        "reputation",
+        "pricing",
+        "quality work",
+        "customer service",
+        "trust"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.8,
+      "key_phrases": [
+        "redo my backyard",
+        "reasonably priced",
+        "contractor I can trust"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": true,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "backyard renovation"
+      ],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "01379356-8cd1-48b3-9e7c-7400de6f5c45",
+    "reviewer_name": "Juliana Scott",
+    "rating": 5,
+    "review_text": "ASM Build Group gave us a complete backyard transformation with a beautiful paver patio, retaining walls, and garden beds. They also updated our front porch with natural stone steps and glass railings, creating an elegant and welcoming entryway.\n\nThe team was incredibly hardworking, detail-oriented, and meticulous in their craftsmanship. They worked efficiently and on schedule while taking great care in every aspect of the project. We’re thrilled with the results and would highly recommend ASM Build Group to anyone looking for quality, professionalism, and exceptional workmanship.",
+    "analysis_json": {
+      "themes": [
+        "quality work",
+        "hardworking",
+        "professionalism",
+        "on schedule"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "backyard transformation",
+        "meticulous in their craftsmanship",
+        "worked efficiently"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": false,
+      "sentiment_score": 1,
+      "detected_services": [
+        "paver patio",
+        "retaining walls",
+        "garden beds",
+        "front porch",
+        "natural stone steps",
+        "glass railings"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "014f9f3f-b431-43e4-b3cd-a341e0b07cac",
+    "reviewer_name": "Julie Hard",
+    "rating": 5,
+    "review_text": "I was so happy with the service I received.  The cleaners showed up exactly at their stated time and got to work right away.  Everything was sparkling and smelled so good after they were finished.  I have a very furry dog so I was impressed at how they managed to get all the pet hair out of my living-room carpet.  It was super easy to book and the cleaners were very professional and kind.  I have booked to have them return again in future.",
+    "analysis_json": {
+      "themes": [
+        "on time",
+        "quality work",
+        "pet hair",
+        "easy booking",
+        "professional crew",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "everything was sparkling",
+        "managed to get all the pet hair out"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "sentiment_score": 0.95,
+      "detected_services": [
+        "carpet cleaning",
+        "pet hair removal"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "0154b94c-0da0-4449-b059-12f1db88f2c1",
+    "reviewer_name": "K A Mineheart",
+    "rating": 5,
+    "review_text": "We had a gas fireplace installed by Mike (the owner) and his guys. We were told by a few other fireplace retailers that all we could get was a small insert, but Mike removed our old gas log set and housing and put in a full gas fireplace (see the before and after pictures). It fills the whole space and has a much larger viewing area than a small insert would have. Mike is talented at updating and retrofitting and does his best to make sure things come out  right.\n\nThere was some delay in the project due to ordering and delivery taking longer than expected, but that was fairly well communicated. In the grand scheme of things, the delay was not a big deal because the work was well done. The storefront staff are polite and helpful and the pricing is competitive. In the future, we will return to Mike and Front Range to have our other gas log fireplace updated.",
+    "analysis_json": {
+      "themes": [
+        "quality work",
+        "communication",
+        "pricing",
+        "professionalism",
+        "timeline delay"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "full gas fireplace",
+        "talented at updating and retrofitting",
+        "pricing is competitive",
+        "work was well done"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": true,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "gas fireplace installation",
+        "gas log removal",
+        "fireplace retrofitting"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "016600dc-bb66-41fa-95eb-aaaab8fd14df",
+    "reviewer_name": "Kelly C",
+    "rating": 2,
+    "review_text": "I recently hired them for a cleaning session prior to a move. After seeing all the positive Google reviews, I was elated they were able to clean on such short notice but I left the experience with over $300 out-of-pocket for a service I could have done myself & an angering interaction with Leo.\n\nPositives:\n- Very communicative\n- Polite cleaner\n- Prompt\n- Cleaned windows well\n\nCons:\n- For a \"deep clean\", seems very sparse on the amount of supplies brought to the unit.\n- The same Swiffer mop cover was used for the floor in addition to the walls & windows (very unhygienic)\n- I indicated before the booking to Leo that I had hardwood floors so the appropriate solutions were brought, nothing was applied & the floors were just cleaned/mopped with water\n- My family member was in the unit & let me know about the lack of cleaning with the oven & unit. I called Leo an hour in & he was very unpleasant to speak to. He condescendingly told me that I should have waited till the end of the cleaning to provide feedback. Which I did not do for a few of reasons:\n1. The cleaner was already on site & my family member was there for the sake of organizing some things around the home & letting the cleaner in & needed to be elsewhere later on\n2. I had no idea if the cleaner had a booking afterwards & could not afford for her to come back later on, disrespect her schedule &  we were moving in the next day so did not have time for them to come back.\n3. Despite him saying \"you should wait until she's finished\", the cleaner was going room-by-room, so by the time she left to start cleaning another room, she was completed cleaning the prior, which seems more than fair for someone to provide feedback on at that point.\n\nLeo then proceeded to tell me that the cleaner communicated my family member was \"following her around the unit, making her uncomfortable & preventing her from doing her job\", which was infuriating considering the only time my family member was in the same room with her was when she was cleaning the windows as my family member VERY kindly held aside all the curtains for her so they would not get wet with water or get in the way when the cleaner was cleaning. The way he spoke about my family member was completely unacceptable & truly disgusting behaviour.\n\nThere were also issues with the oven not being cleaned properly & issues with rust. That being said, the issues with rust did not in-fact turn out to be solvable that day & Leo (to his credit), did provide clear information & updates on this (via text with video & pictures). That being said, it's worth noting, when the cleaner went back a second time & was asked to actually wipe down the inside of the oven (which I PAID EXTRA for in the booking), she seemed surprised it was even dirty despite \"cleaning\" it already. & when she was circling back to it, Leo had texted his cleaner was \"looking into it\" when she had already apparently finished cleaning it, which I had responded \"she should have caught the first time\". Also ironic given that he had just yelled prior on the phone about not giving feedback until the end despite her working room-by-room.\n\nLastly, despite it being only a 2 bed, 2 bath, & indicating it was within the range of 900+ sq ft on the booking website, the website did not suggest extra time. I can appreciate the cleaner did stay a little over time most likely to having to \"re-clean\" the oven (could have been avoided if she did it the first time) but she did not end up cleaning a whole room & bathroom after 4.5 hours at the unit (950 sq feet) which is wild considering the lack of cleaning that was done & how the unit was already was in \"good\" shape.\n\nRecommendation: Do NOT hire Toronto Shine Cleaning, there are better people suited for the job.",
+    "analysis_json": {
+      "themes": [
+        "quality work",
+        "communication",
+        "pricing",
+        "professionalism",
+        "supplies"
+      ],
+      "sentiment": "negative",
+      "confidence": 1,
+      "key_phrases": [
+        "over $300 out-of-pocket",
+        "unhygienic",
+        "condescendingly",
+        "disgusting behaviour",
+        "paid extra"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": true,
+      "sentiment_score": -0.9,
+      "detected_services": [
+        "move-in cleaning",
+        "deep clean",
+        "window cleaning",
+        "oven cleaning",
+        "floor cleaning"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "017e7fcf-2c8b-4be3-acd8-d005eea30f1b",
+    "reviewer_name": "Carolyn K-C",
+    "rating": 5,
+    "review_text": "Excellent response time, affordable and honest.  We are so happy with the service.",
+    "analysis_json": {
+      "themes": [
+        "fast response",
+        "pricing",
+        "honesty"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.7,
+      "key_phrases": [
+        "affordable and honest"
+      ],
+      "project_type": null,
+      "mentions_price": true,
+      "sentiment_score": 1,
+      "detected_services": [],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "01934a16-dd2d-4137-a870-2fab1b347bb5",
+    "reviewer_name": "Joanne Daniels",
+    "rating": 5,
+    "review_text": "Stepping Stones Foster Care uses Rob as our HVAC go to guy and he always arrives promptly and gets the job done.  We appreciate and value our relationship with him.",
+    "analysis_json": {
+      "themes": [
+        "on time",
+        "reliability"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.9,
+      "key_phrases": [
+        "arrives promptly",
+        "gets the job done"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "HVAC maintenance"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "01cd0aa6-9ee4-4b52-9018-c138df1a2da6",
+    "reviewer_name": "Liz",
+    "rating": 5,
+    "review_text": "I had a fantastic experience with their service! My chimney looks immaculate, and the team was incredibly detailed in their work. I can't recommend them enough",
+    "analysis_json": {
+      "themes": [
+        "quality work",
+        "attention to detail",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.8,
+      "key_phrases": [
+        "chimney looks immaculate",
+        "incredibly detailed",
+        "can't recommend them enough"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "chimney cleaning"
+      ],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "01d1c7b7-554b-46f4-90b5-3803fbbc237d",
+    "reviewer_name": "Jill Blackburn",
+    "rating": 5,
+    "review_text": "Jacob was on time, and very friendly and professional. Replaced 2 sprinkler heads, plus something else I don't know the name of, got everything turned on and some zoning issues resolved. Couldn't have asked for better service or a better price. Will definitely use again if I run into any more problems, and would highly recommend for anyone who needs sprinkler work done! I also appreciate that he didn't try to sell me on anything or replace things that didn't need replacing just to get more money. Overall we are very happy with the service provided.",
+    "analysis_json": {
+      "themes": [
+        "professionalism",
+        "pricing",
+        "honesty",
+        "quality work"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "replaced 2 sprinkler heads",
+        "zoning issues resolved",
+        "didn't try to sell me on anything"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "sentiment_score": 1,
+      "detected_services": [
+        "sprinkler head replacement",
+        "sprinkler zoning repair",
+        "sprinkler startup"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "01e3a263-d0e6-48e4-84fb-3bf31483090b",
+    "reviewer_name": "Naresh Anupoju",
+    "rating": 5,
+    "review_text": "Excellent service",
+    "analysis_json": {
+      "themes": [
+        "quality work"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.3,
+      "key_phrases": [
+        "Excellent service"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.8,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "02207b10-07a9-4712-9381-13a62481aefd",
+    "reviewer_name": "Josef Robertson",
+    "rating": 5,
+    "review_text": "We had a partial reroof and shingle replacement on a building just shy of 500,000 sqft, and Bumble didn't drop a detail the entire time. Our insurance company was pleased with the work, the owners are absolute delights, and I have literally no notes of complaints in the least. They even gave us drone footage of the job after done to spare us having to climb on the roof, haha.",
+    "analysis_json": {
+      "themes": [
+        "attention to detail",
+        "insurance claim",
+        "drone footage",
+        "quality work"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "didn't drop a detail",
+        "insurance company was pleased",
+        "drone footage of the job"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "sentiment_score": 1,
+      "detected_services": [
+        "partial reroof",
+        "shingle replacement"
+      ],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "0260167b-3f79-4169-b4e9-3dbf6433af61",
+    "reviewer_name": "Allie",
+    "rating": 1,
+    "review_text": "We are disappointed with the radon mitigation for our home in late 2022. The sales pitch was great but the communication that followed was really unpleasant. No show on the install date and a tough time communicating with the office before and after the installation. The plan we agreed to was deemed not possible once the installers (who were great) arrived. Our radon is lower, but still regularly well over 100 which is much higher than what we were promised.",
+    "analysis_json": {
+      "themes": [
+        "communication",
+        "scheduling",
+        "quality of results",
+        "no show"
+      ],
+      "sentiment": "negative",
+      "confidence": 1,
+      "key_phrases": [
+        "no show on the install date",
+        "radon is lower, but still regularly well over 100",
+        "tough time communicating"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "sentiment_score": -0.7,
+      "detected_services": [
+        "radon mitigation"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "0260acf0-3a56-44e5-aac7-905274395455",
+    "reviewer_name": "Benji Nye",
+    "rating": 5,
+    "review_text": "The best in the biz.",
+    "analysis_json": {
+      "themes": [
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.5,
+      "key_phrases": [
+        "best in the biz"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.8,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "030bd07a-160d-4de8-a363-1201db7e6e3e",
+    "reviewer_name": "Kim Berry",
+    "rating": 5,
+    "review_text": "Matt of Jetski Landscaping is the BEST!  Our current sprinkler system needed updating. Matt and his crew were here the next day, and so very impressed with his dependability, pricing, and knowledge.  We highly recommend Matt for any of your landscaping needs.",
+    "analysis_json": {
+      "themes": [
+        "pricing",
+        "knowledge",
+        "dependability",
+        "quick service"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "needed updating",
+        "here the next day"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": true,
+      "sentiment_score": 1,
+      "detected_services": [
+        "sprinkler system update",
+        "landscaping"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "030e5611-03fe-4a37-9ad5-6312810ae7b1",
+    "reviewer_name": "Sandra Rubio",
+    "rating": 5,
+    "review_text": "I have expirinced excellent customer service with RC Home Improvements! They're committed to giving the best service to our families and our community. This is a priority in their business. I really recommend RC Home Improvements to your family and your home!\n\nSR",
+    "analysis_json": {
+      "themes": [
+        "customer service"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.5,
+      "key_phrases": [
+        "excellent customer service"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "031a4595-21fd-4323-a5d6-064d7d3f68cf",
+    "reviewer_name": "Actual Facts",
+    "rating": 5,
+    "review_text": "They did an amazing job. The crew was very professional and always asked us if we had any questions during the process. We were really happy with the final product. We recommended them to our neighbors!",
+    "analysis_json": {
+      "themes": [
+        "quality work",
+        "professional crew",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.7,
+      "key_phrases": [
+        "amazing job",
+        "professional and always asked us if we had any questions",
+        "recommended them to our neighbors"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 1,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "0326b719-8e92-40ed-9abd-c52f20aee89d",
+    "reviewer_name": "Sam Johnson",
+    "rating": 5,
+    "review_text": "These guys are top notch. Tristan and his staff are friendly, knowledgeable and efficient. I've referred them to multiple friends and family, and they've received the same level of service. Complete satisfaction in my book!",
+    "analysis_json": {
+      "themes": [
+        "professionalism",
+        "efficiency",
+        "referral"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.7,
+      "key_phrases": [
+        "top notch",
+        "friendly, knowledgeable and efficient",
+        "Complete satisfaction"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "03442f32-35f8-417d-b676-eca052e16855",
+    "reviewer_name": "Ziggy Pona",
+    "rating": 5,
+    "review_text": "There is nothing, I mean it nothing , bad that could be said about\nquality\nvalue\nprofessionalism\nresponsiveness\nGood People,  Good work ethics,  Good value\nWould I recommend ?  Yes   of course I would\nThank You",
+    "analysis_json": {
+      "themes": [
+        "quality work",
+        "pricing",
+        "professionalism",
+        "communication",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.7,
+      "key_phrases": [
+        "Good value",
+        "Good work ethics"
+      ],
+      "project_type": null,
+      "mentions_price": true,
+      "sentiment_score": 0.9,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "03b1d0bf-0a9d-4797-8487-a2c55aec425b",
+    "reviewer_name": "Leslie Chavez",
+    "rating": 5,
+    "review_text": "They fix my dryer vent schedule them same day good service good people highly recommended",
+    "analysis_json": {
+      "themes": [
+        "promptness",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.9,
+      "key_phrases": [
+        "schedule them same day",
+        "good people"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "dryer vent repair"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "044207ca-c09e-41ac-acb1-379b3bbe2995",
+    "reviewer_name": "Mustafa El Sayed",
+    "rating": 5,
+    "review_text": "Rosa was excellent and friendly. Great work ethic and would definitely book again.",
+    "analysis_json": {
+      "themes": [
+        "professionalism",
+        "work ethic",
+        "repeat customer"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.8,
+      "key_phrases": [
+        "excellent and friendly",
+        "Great work ethic",
+        "would definitely book again"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "house cleaning"
+      ],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "0464e294-e6ef-4cdd-aabb-e8afa3a610cc",
+    "reviewer_name": "Alex Pilon",
+    "rating": 5,
+    "review_text": "My furnace started having a problem early on a Monday morning. Scott Home Comfort is open at 6:30am - I called, he came right away and we replaced the broken impeller on the inducer motor and the problem was solved. Would recommend giving him a call next time your heat / AC stops working properly. Good pricing considering timing and season.",
+    "analysis_json": {
+      "themes": [
+        "fast response",
+        "pricing",
+        "would recommend",
+        "quality work"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "came right away",
+        "good pricing",
+        "heat / AC stops working"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "sentiment_score": 1,
+      "detected_services": [
+        "furnace repair",
+        "inducer motor repair",
+        "impeller replacement"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "047cb53a-5464-4357-9dff-7837e9e957a3",
+    "reviewer_name": "Brett Murphy",
+    "rating": 5,
+    "review_text": "Thank you for your quick turnaround time .\nWe booked a disinfecting clean/electrostatic spray with your company. We now feel safe to move into our new home .",
+    "analysis_json": {
+      "themes": [
+        "speed",
+        "safety",
+        "move-in"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "quick turnaround time",
+        "disinfecting clean",
+        "electrostatic spray",
+        "safe to move into our new home"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "disinfecting clean",
+        "electrostatic spray",
+        "move-in cleaning"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "048c3b9f-cb69-42fa-981f-d168d5ae0a1a",
+    "reviewer_name": "Steve Guest",
+    "rating": 1,
+    "review_text": "Did not complete the work on time, did not complete the work as contracted. Would not use every again. Have had to get a lawyer involved to resolve.",
+    "analysis_json": {
+      "themes": [
+        "timeline",
+        "contract issues",
+        "legal issues"
+      ],
+      "sentiment": "negative",
+      "confidence": 0.8,
+      "key_phrases": [
+        "Did not complete the work on time",
+        "get a lawyer involved to resolve"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": -1,
+      "detected_services": [],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "04ab5e25-2aa4-4057-b5c4-7fb695159512",
+    "reviewer_name": "Emily Griggs",
+    "rating": 5,
+    "review_text": "Jon and team did a fantastic job painting the exterior of our house and adding decorative stone around the foundation line. The work we had done was affordable, quality work done within a couple of weeks from the time we contacted them. Everyone was professional and polite. We are very happy with the way our home looks and I would highly recommend Kelley Girl to anyone looking to improve their home!",
+    "analysis_json": {
+      "themes": [
+        "pricing",
+        "quality work",
+        "timeline",
+        "professional crew",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "affordable",
+        "within a couple of weeks",
+        "professional and polite"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": true,
+      "sentiment_score": 1,
+      "detected_services": [
+        "exterior painting",
+        "stone veneer"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "04c02fba-3965-40a6-bb9e-fdddc9f42974",
+    "reviewer_name": "Joseph Bishara",
+    "rating": 5,
+    "review_text": "Very professional. Hard working guys. Great work. Highly recommended",
+    "analysis_json": {
+      "themes": [
+        "professional crew",
+        "quality work",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.5,
+      "key_phrases": [
+        "Very professional",
+        "Hard working guys"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "04cc309a-e9bf-477e-81e8-9b269c879548",
+    "reviewer_name": "Sally Distefano",
+    "rating": 5,
+    "review_text": "RC Home improvements did an amazing job of repairing the stucco on the north side of our garage. The texture and color match are perfect! We will definitely be using them again!",
+    "analysis_json": {
+      "themes": [
+        "color match",
+        "quality work"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "texture and color match are perfect"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "stucco repair"
+      ],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "04fa8901-0114-4670-b38e-30a2928a2d70",
+    "reviewer_name": "Emily Kelly",
+    "rating": 1,
+    "review_text": "Would be nice if you would update your hours before people drive 45 minutes to look at a fireplace to find you are closed inside business hours.",
+    "analysis_json": {
+      "themes": [
+        "business hours",
+        "location"
+      ],
+      "sentiment": "negative",
+      "confidence": 0.9,
+      "key_phrases": [
+        "update your hours",
+        "closed inside business hours"
+      ],
+      "project_type": "consultation",
+      "mentions_price": false,
+      "sentiment_score": -0.8,
+      "detected_services": [
+        "fireplace installation"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "05287fd8-6787-47d7-9264-1e9b8d90a216",
+    "reviewer_name": "gene theilig",
+    "rating": 5,
+    "review_text": "I'm old and grumpy so nobody in my world gets five stars.  FX redid my front yard.  I get many compliments on the \"Large Boulders\" they put in and the imitation meandering stream they created using \"Arizona River Rock\".  Combine those effects with the vegetation they used created a very pleasant effect.  I would use the words creative, punctual and fair to describe this company.",
+    "analysis_json": {
+      "themes": [
+        "creativity",
+        "punctual",
+        "fair pricing",
+        "aesthetic"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "imitation meandering stream",
+        "creative, punctual and fair"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": true,
+      "sentiment_score": 0.8,
+      "detected_services": [
+        "landscaping",
+        "boulder installation",
+        "water feature installation",
+        "planting"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "0558943e-c8a1-4d55-99bb-654594af4b34",
+    "reviewer_name": "Agent Ayers",
+    "rating": 5,
+    "review_text": "If you need work done on your house call Jon. He’s the man!",
+    "analysis_json": {
+      "themes": [
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.3,
+      "key_phrases": [
+        "He’s the man"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.8,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "057df2aa-a414-4439-abfc-83bd8008c445",
+    "reviewer_name": "Jeff Pepin",
+    "rating": 5,
+    "review_text": "Mace did an awesome job on my chimney. Showed up on time, was efficient, and honest. Highly recommended!",
+    "analysis_json": {
+      "themes": [
+        "on time",
+        "efficient",
+        "honest",
+        "recommended"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.9,
+      "key_phrases": [
+        "awesome job"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.95,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "05882348-778d-4fda-8a2b-032b0246d493",
+    "reviewer_name": "Daniel Custodio",
+    "rating": 5,
+    "review_text": "Thank you, from West Hamilton Mountain",
+    "analysis_json": {
+      "themes": [
+        "gratitude"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.2,
+      "key_phrases": [
+        "Thank you"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.5,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "05a79f8a-31a3-4ad4-801a-d66275a55886",
+    "reviewer_name": "Sonia Grossi",
+    "rating": 5,
+    "review_text": "I am extremely pleased with toronto shine cleaning. My place was spotless and I had received more than I expected. The person who cleaned my apartment was silent while I worked and completely thorough. I will be using them again!",
+    "analysis_json": {
+      "themes": [
+        "quality work",
+        "professionalism",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.9,
+      "key_phrases": [
+        "place was spotless",
+        "silent while I worked",
+        "completely thorough"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "sentiment_score": 1,
+      "detected_services": [
+        "apartment cleaning"
+      ],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "0606c1e7-c86e-41a7-b269-3f3441175410",
+    "reviewer_name": "C F",
+    "rating": 5,
+    "review_text": "This company has done 3 different jobs for us at 2 different houses. We have also referred them to friends & everyone has been extremely satisfied. They do amazing work and have a great crew. We highly recommend!! Disregard the 1 star rating from the 'neighbour' below.",
+    "analysis_json": {
+      "themes": [
+        "repeat customer",
+        "referrals",
+        "quality work",
+        "professional crew"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.8,
+      "key_phrases": [
+        "3 different jobs",
+        "amazing work",
+        "highly recommend"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "063bdf27-c783-483d-b007-e05f62008ce7",
+    "reviewer_name": "Lavi Payne-Grauch",
+    "rating": 5,
+    "review_text": "Steven was awesome to work with!",
+    "analysis_json": {
+      "themes": [
+        "professionalism"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.3,
+      "key_phrases": [
+        "awesome to work with"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "sentiment_score": 0.8,
+      "detected_services": [],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "066f8ceb-f9c1-44af-8308-dd009b7581be",
+    "reviewer_name": "Alisse Elliott",
+    "rating": 5,
+    "review_text": "Great cleaning job we were extremely impressed! Professional, timely and a really good clean. I have used many cleaning services in Toronto and this one is the best I’ve tried!",
+    "analysis_json": {
+      "themes": [
+        "quality work",
+        "professionalism",
+        "on time"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.9,
+      "key_phrases": [
+        "extremely impressed",
+        "best I’ve tried"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "sentiment_score": 1,
+      "detected_services": [
+        "house cleaning"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "06d1e11b-c9db-48b0-bb07-bb3d027d4dab",
+    "reviewer_name": "David Rosolen",
+    "rating": 5,
+    "review_text": "We have been using Master maid for years and I have referred them to many people. Great service!! thank you!!",
+    "analysis_json": {
+      "themes": [
+        "repeat customer",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.7,
+      "key_phrases": [
+        "using Master maid for years",
+        "referred them to many people"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "sentiment_score": 0.8,
+      "detected_services": [
+        "house cleaning"
+      ],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "071bfda0-339c-4354-a21d-527334d256a7",
+    "reviewer_name": "Kelsi Carr",
+    "rating": 5,
+    "review_text": "I’ve use this service monthly and have never been disappointed when I get home from work. They get all the spots you need and ensure it’s clean to your standards! Highly recommend.",
+    "analysis_json": {
+      "themes": [
+        "recurring service",
+        "quality work",
+        "would recommend"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.8,
+      "key_phrases": [
+        "never been disappointed",
+        "clean to your standards"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "house cleaning"
+      ],
+      "mentions_timeline": false
+    }
+  },
+  {
+    "id": "07216e6c-2ffa-4640-b696-50741a652e86",
+    "reviewer_name": "gill richardson",
+    "rating": 5,
+    "review_text": "Had a good first experience with Master Maids. Cleaner was on time, super nice to my goofy dog, and did a great job. Will use them again.",
+    "analysis_json": {
+      "themes": [
+        "on time",
+        "professionalism",
+        "quality work",
+        "pet friendly"
+      ],
+      "sentiment": "positive",
+      "confidence": 0.9,
+      "key_phrases": [
+        "super nice to my goofy dog",
+        "did a great job"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "house cleaning"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "0784bd95-1b1e-47ba-96e6-8522e2c2ddcc",
+    "reviewer_name": "Jason Lamblin",
+    "rating": 5,
+    "review_text": "Reached out to Accent Landscapes for a landscape design for our retirement home build in Cordera.  Roger Haywood asked for some information to get an idea of what we were specifically looking for.  We had no idea since we never had a home built and didn’t know what would really grow here.  Roger and his landscape designer took a draft landscape plan that I had developed and helped us transform the plan that would meet Cordera HOA rules and regulations.  We had a very specific budget since we used a lot of our additional money for upgrades inside our new home.  Within two weeks he sent us a proposed design with some very beautiful trees and foliage that would really enhance our yard.  Roger was very professional and patient with us since as I kept making change after change during the process.  He was very quick to respond when called or emailed.  Highly recommend Accent Landscapes for all your design and install needs regardless of what neighborhood you are purchasing a spec home or a new build.  We will definitely reach out to Accent for all our future landscape design needs.  I spoke with about 11 other landscapers in the area, some of who said my budget (40K) was too small for their services, but not one time did Accent Lanscapes say anything about our budget.  Thanks Roger for all that you have done for us.  We cannot wait to see the design come to life in a couple of months.",
+    "analysis_json": {
+      "themes": [
+        "budget friendly",
+        "professionalism",
+        "communication",
+        "HOA compliance",
+        "patience"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "budget (40K) was too small for their services",
+        "HOA rules and regulations",
+        "change after change"
+      ],
+      "project_type": "consultation",
+      "mentions_price": true,
+      "sentiment_score": 1,
+      "detected_services": [
+        "landscape design",
+        "tree planting",
+        "foliage installation"
+      ],
+      "mentions_timeline": true
+    }
+  },
+  {
+    "id": "07ccf6f2-8a3b-49ff-9fda-34484b267f10",
+    "reviewer_name": "Anne Marie Doyle",
+    "rating": 5,
+    "review_text": "Rob came quickly and sorted out the problem with my gas fireplace. His rate for the work was very reasonable. He worked carefully and thoroughly and was respectful of my property. I will not hesitate to call him again if I need help with the fireplace.",
+    "analysis_json": {
+      "themes": [
+        "speed",
+        "pricing",
+        "quality work",
+        "professionalism"
+      ],
+      "sentiment": "positive",
+      "confidence": 1,
+      "key_phrases": [
+        "came quickly",
+        "rate for the work was very reasonable"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "sentiment_score": 0.9,
+      "detected_services": [
+        "gas fireplace repair"
+      ],
+      "mentions_timeline": true
+    }
+  }
+]

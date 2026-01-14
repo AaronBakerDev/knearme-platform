@@ -1,0 +1,285 @@
+---
+name: 300-knearme-content-scaling-framework
+description: Strategic framework for scaling content across service categories
+glob: "**/*.{md,html,js,ts,jsx,tsx,css,scss}"
+---
+
+# kNearme Content Scaling Framework
+
+This document outlines the methodical, scalable approach for building kNearme's content across all service categories. The framework is designed to create content systematically from broad to hyper-local, with minimal initial contractor dependency.
+
+## Overview: Four-Phase Content Scaling Strategy
+
+This agnostic framework applies to any service category and ensures consistent quality, SEO value, and user experience while maintaining practical scalability.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  Phase 1: General Foundational Resources ("Central Hubs")   │
+│  ↓                                                          │
+│  Phase 2: Regional Content Grouping                         │
+│  ↓                                                          │
+│  Phase 3: Hyper-local Problem-Solution Content              │
+│  ↓                                                          │
+│  Phase 4: Project-Driven Expert Showcases (Premium)         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Phase 1: General Foundational Resources ("Central Hubs")
+
+### Purpose
+Establish initial site authority and capture broad, high-intent search traffic without requiring contractor input.
+
+### Content Types
+- Comprehensive, evergreen guides ("Ultimate Guides," "Complete Guides")
+- How-to guides, cost breakdowns, problem identification resources
+- Broadly relevant reference content not tied to specific locations
+- FAQ compilations addressing common industry questions
+
+### Implementation Method
+1. **Research-Driven**: Base content on common user queries identified through:
+   - "People also ask" data
+   - Keyword research tools
+   - Industry forums and discussions
+   - Competitor content gaps
+
+2. **Efficient Creation**:
+   - Create scalable content templates for each category
+   - Develop initial AI-assisted drafts
+   - Manual editing for accuracy, expertise, and value
+   - Standardized formatting and structure
+
+3. **Quick Publication Strategy**:
+   - Prioritize high-search-volume topics
+   - Publish rapidly to establish initial SEO foundation
+   - Focus on quality over perfect customization
+
+### Example Topics (Service-Agnostic)
+- "The Ultimate Guide to [Service] Repairs"
+- "Complete [Service] Maintenance Handbook"
+- "How Much Does [Service] Replacement Cost?"
+- "[Service] Problems: Identification & Solutions"
+- "DIY vs. Professional [Service]: What to Know"
+
+## Phase 2: Regional Content Grouping
+
+### Purpose
+Address search intent grouped by geography, climate, or regulatory similarities while ensuring specific differentiation from general content.
+
+### Content Structure
+- Explicit contextual linking to Phase 1 general resources
+- Clear focus on regional relevance factors:
+  - Climate and weather impacts
+  - Regional regulations, codes, and standards
+  - Common regional problems or patterns
+  - Regional cost variations and considerations
+
+### Region Definition Guidelines
+- Define regions by specific criteria (climate zones, regulatory environments)
+- Group no more than 5-10 geographically similar locations per regional hub
+- Ensure clear differentiation between regions
+- Document regional parameters in a structured database
+
+### Implementation Method
+1. **Regional Research**:
+   - Identify regional regulations and building codes
+   - Research climate-specific challenges for each service
+   - Analyze regional search patterns and unique queries
+   - Document region-specific terminology differences
+
+2. **Structured Differentiation**:
+   - Create explicit templates highlighting regional differences
+   - Standard sections for climate, regulatory, and geographic factors
+   - Explicit connection to both general content and local content
+   - Incorporation of region-specific images and examples
+
+### Example Topics (Service-Agnostic)
+- "[Service] Maintenance in Cold Climate Regions"
+- "Regional [Service] Regulations in the Northeast"
+- "How Weather Affects [Service] Performance in Coastal Areas"
+- "[Service] Installation Standards for Mountain Regions"
+- "Common [Service] Issues in High-Humidity Environments"
+
+## Phase 3: Hyper-local Problem-Solution Content
+
+### Purpose
+Capture specific local search intent at city/neighborhood level without redundancy from regional content.
+
+### Content Guidelines
+- Localized FAQs addressing city/neighborhood-specific queries
+- Common problems extracted from local sources (forums, trends, keyword tools)
+- Local cost factors and service provider considerations
+- City-specific regulations, permit requirements, and processes
+
+### Implementation with Minimal Contractor Dependency
+1. **Initial Hyper-Local Content**:
+   - Create from data-driven keyword insights
+   - Source local information from municipal websites, forums, Reddit, etc.
+   - Use public records for permit information and local regulations
+   - Leverage Google Trends for location-specific patterns
+
+2. **Structured Contractor Input System** (post-launch):
+   - Simple, form-based input methods for contractors
+   - Short, structured questionnaires on local specifics
+   - Template-based project summaries
+   - Photo submission guidelines
+
+### Content Differentiation Strategy
+- Focus explicitly on neighborhood-specific building styles
+- Document local service peculiarities and considerations
+- Include local terminology and naming conventions
+- Reference local landmarks and well-known local examples
+
+### Example Topics (Service-Agnostic)
+- "Top [Service] Issues Homeowners Face in [City]"
+- "[City]-Specific [Service] Regulations You Need to Know"
+- "Why [Service] Problems Are Common in [Neighborhood] Homes"
+- "Finding [Service] Contractors in [City]: What to Ask"
+- "[City] [Service] Permit Guide: Process, Costs, and Requirements"
+
+## Phase 4: Project-Driven Expert Showcases (Premium)
+
+### Purpose
+Deliver highly differentiated, EEAT-rich content through expert projects and detailed case studies.
+
+### Contractor-Driven Content Guidelines
+- Visual-first project showcases (before/after galleries)
+- Step-by-step project documentation
+- Expert narratives and insights from contractors
+- Unique challenges and solutions from real projects
+
+### Implementation Strategy
+1. **Contractor Contribution Structure**:
+   - Templated project submission forms
+   - Photo requirements and guidelines
+   - Structured interview questions for expertise capture
+   - Clear attribution and branding opportunity
+
+2. **Quality Control Process**:
+   - Editorial review of contractor submissions
+   - Professional editing for consistency and clarity
+   - Fact-checking and technical validation
+   - Schema markup for proper attribution
+
+3. **Incentive Structure**:
+   - Contractor profile enhancement
+   - Local SEO benefits
+   - Link opportunities
+   - Social media promotion
+
+### Example Topics (Service-Agnostic)
+- "Historic [Service] Restoration in Downtown [City] with [Company]"
+- "Challenging [Service] Project: How [Company] Solved [Problem]"
+- "Before & After: Complete [Service] Transformation in [Neighborhood]"
+- "[Service] Innovation: [Company]'s Approach to [Specific Challenge]"
+- "Award-Winning [Service] Project in [City] by [Company]"
+
+## Automated Freshness & Maintenance System
+
+### AI-Driven Content Management
+1. **Scheduled Check-ins**:
+   - Quarterly prompts for seasonal or location-specific updates
+   - Automated SEO audits for content freshness
+   - Traffic analysis to identify underperforming content
+
+2. **Content Update Automation**:
+   - Centralized knowledge database of problems-solutions
+   - Dynamic content updates applied to regional/local pages
+   - Structured data refreshes (costs, regulations, etc.)
+
+3. **Performance-Based Update Triggers**:
+   - Content refresh cycles triggered by traffic analysis
+   - Seasonality-based update schedules
+   - Competitive content monitoring
+
+### Freshness Schedule By Content Level
+
+| Content Level | Update Frequency | Dependency | Automation Level |
+|---------------|------------------|------------|------------------|
+| General (Phase 1) | Annual | Research-driven | Semi-automated annual reviews |
+| Regional (Phase 2) | Quarterly | Minimal contractor input | AI-driven seasonal updates |
+| Hyper-local (Phase 3) | Quarterly | Structured contractor input | Automated local data refreshes |
+| Premium (Phase 4) | Ongoing | Contractor-driven | New project integration |
+
+## Implementation Checklist
+
+### Phase 1 Deployment
+- [ ] Identify top 5-10 high-value topics per service category
+- [ ] Create content briefs for each topic
+- [ ] Develop and approve templates
+- [ ] Create initial drafts
+- [ ] Edit for quality and EEAT signals
+- [ ] Optimize for SEO
+- [ ] Publish with proper schema markup
+- [ ] Measure performance and identify gaps
+
+### Phase 2 Deployment
+- [ ] Define region groupings for each service category
+- [ ] Document regional differentiation factors
+- [ ] Create regional content briefs
+- [ ] Develop regional templates
+- [ ] Create and publish regional content
+- [ ] Create internal linking structure
+- [ ] Monitor performance by region
+
+### Phase 3 Deployment
+- [ ] Identify priority cities/neighborhoods
+- [ ] Gather local data points for each location
+- [ ] Create hyper-local content briefs
+- [ ] Develop streamlined creation process
+- [ ] Publish initial hyper-local content
+- [ ] Implement local structured data
+- [ ] Develop contractor input process
+
+### Phase 4 Implementation
+- [ ] Create contractor showcase templates
+- [ ] Develop submission process
+- [ ] Create guidelines for contractors
+- [ ] Build incentive structure
+- [ ] Create editorial review process
+- [ ] Integrate showcases with local content
+- [ ] Implement enhanced schema markup
+
+## Scaling Metrics and KPIs
+
+### Content Production Targets
+- Phase 1: 5-10 general resources per service category initially
+- Phase 2: 3-5 regional guides per general resource
+- Phase 3: 5-10 hyper-local pages per regional guide
+- Phase 4: 1-3 showcases per high-priority location
+
+### Performance Metrics
+- Organic traffic growth by content level
+- Search rankings for target keywords
+- User engagement (time on page, bounce rate)
+- Conversion metrics (contractor inquiries)
+- Local visibility indicators
+
+### Quality Control Metrics
+- Content freshness (time since last update)
+- Factual accuracy checks
+- SEO optimization score
+- Readability metrics
+- User feedback
+
+## Cross-Service Category Integration
+
+For maximum value and SEO benefit, implement these cross-category strategies:
+
+1. **Service Relationship Mapping**:
+   - Create content that bridges related services (e.g., masonry & chimney)
+   - Develop guides for projects requiring multiple services
+   - Build internal linking between related service categories
+
+2. **Unified Regional/Local Approach**:
+   - Coordinate regional and local content across service categories
+   - Create location landing pages integrating multiple services
+   - Implement consistent geographic hierarchies
+
+3. **Holistic Homeowner Resources**:
+   - Develop comprehensive guides addressing multiple service areas
+   - Create maintenance calendars incorporating various services
+   - Build contractor relationship guides spanning service categories
+
+This framework provides a clear, systematic approach to scaling content efficiently while maintaining quality and minimizing initial contractor dependency. By following this structure, kNearme can build a comprehensive, valuable content library that serves both users and contractors effectively.

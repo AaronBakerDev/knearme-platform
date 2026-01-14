@@ -1,0 +1,101 @@
+# docker-compose.yml - Production Claude Agent Stack
+#
+# Usage:
+#   docker-compose up -d
+#   docker-compose exec agent ./agent-service.py "Your task"
+#   docker-compose logs -f agent
+#
+# For queue-based processing:
+#   echo "Task 1" >> data/queue.txt
+#   echo "Task 2" >> data/queue.txt
+#   docker-compose up agent
+
+version: '3.8'
+
+services:
+  # Main agent container
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: claude-agent
+    volumes:
+      # Persistent data (sessions, results)
+      - agent-data:/data
+      # Mount workspace for file operations
+      - ${WORKSPACE:-./workspace}:/workspace
+      # MCP configuration
+      - ./mcp.json:/app/mcp.json:ro
+    working_dir: /workspace
+    environment:
+      # Session persistence
+      - SESSION_FILE=/data/session.id
+      - RESULTS_DIR=/data/results
+      # Agent behavior
+      - PERMISSION_MODE=${PERMISSION_MODE:-acceptEdits}
+      - MAX_TURNS=${MAX_TURNS:-20}
+      # MCP timeouts
+      - MCP_TIMEOUT=10000
+      - MCP_TOOL_TIMEOUT=30000
+    # For interactive use
+    stdin_open: true
+    tty: true
+    # Health check
+    healthcheck:
+      test: ["CMD", "claude", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # Restart policy
+    restart: unless-stopped
+    # Resource limits (adjust based on workload)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Optional: Redis for queue management
+  queue:
+    image: redis:7-alpine
+    container_name: claude-queue
+    volumes:
+      - queue-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Optional: SQLite MCP server (sidecar pattern)
+  mcp-sqlite:
+    image: node:20-slim
+    container_name: claude-mcp-sqlite
+    command: npx -y @anthropic-ai/mcp-server-sqlite /data/app.db
+    volumes:
+      - agent-data:/data
+    # Only run when agent needs it
+    profiles:
+      - mcp
+
+  # Optional: Web UI for monitoring (placeholder)
+  # monitor:
+  #   image: your-monitoring-image
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - agent-data:/data:ro
+
+volumes:
+  agent-data:
+    driver: local
+  queue-data:
+    driver: local
+
+networks:
+  default:
+    name: claude-agent-network

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$script_dir/../.." && pwd)"
+
+export CODEX_HOME="${CODEX_HOME:-"$repo_root/.codex"}"
+
+if [ -n "${CODEX_BIN:-}" ]; then
+  codex_bin="$CODEX_BIN"
+else
+  path_no_self=""
+  IFS=':' read -r -a path_parts <<< "${PATH:-}"
+  for part in "${path_parts[@]}"; do
+    if [ -n "$part" ] && [ "$part" != "$script_dir" ]; then
+      if [ -z "$path_no_self" ]; then
+        path_no_self="$part"
+      else
+        path_no_self="${path_no_self}:$part"
+      fi
+    fi
+  done
+
+  codex_bin="$(PATH="$path_no_self" command -v codex || true)"
+fi
+
+if [ -z "${codex_bin:-}" ]; then
+  echo "codex not found in PATH. Install Codex CLI or set CODEX_BIN." >&2
+  exit 127
+fi
+
+exec "$codex_bin" "$@"

@@ -1,0 +1,56 @@
+name = "meta-graph-worker"
+main = "src/worker.ts"
+compatibility_date = "2024-12-31"
+account_id = "81de8f20db1fc8b3d9cb9802dc151725"
+# Production URL: https://meta-graph-worker.fixmybrick.workers.dev
+# Custom domain can be configured in Cloudflare dashboard
+
+# KV Namespaces for caching, tokens, and events
+# NOTE: Create these namespaces with:
+#   wrangler kv:namespace create META_CACHE
+#   wrangler kv:namespace create META_EVENTS
+#   wrangler kv:namespace create RATE_LIMITER
+[[kv_namespaces]]
+binding = "META_CACHE"
+id = "ca981cc1bc9b4851aaa595852e023557"
+
+[[kv_namespaces]]
+binding = "META_EVENTS"
+id = "5da47442986f484d8f48f844073d6b37"
+
+[[kv_namespaces]]
+binding = "RATE_LIMITER"
+id = "acab83cb612245b9a0be87daf432e158"
+
+# Environment variables
+[vars]
+NODE_ENV = "development"
+GRAPH_API_VERSION = "v22.0"
+WORKER_URL = "https://meta-graph-worker.aaron23baker.workers.dev"
+
+[env.production]
+name = "meta-graph-worker-prod"
+routes = ["api.knearme.co/*"]
+
+[[env.production.kv_namespaces]]
+binding = "META_CACHE"
+id = "ca981cc1bc9b4851aaa595852e023557"
+
+[[env.production.kv_namespaces]]
+binding = "META_EVENTS"
+id = "5da47442986f484d8f48f844073d6b37"
+
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMITER"
+id = "acab83cb612245b9a0be87daf432e158"
+
+[env.production.vars]
+NODE_ENV = "production"
+GRAPH_API_VERSION = "v22.0"
+WORKER_URL = "https://api.knearme.co"
+
+# Secrets (set via wrangler secret put)
+# FB_APP_ID - Meta App ID from developers.facebook.com
+# FB_APP_SECRET - Meta App Secret
+# WEBHOOK_VERIFY_TOKEN - Token for webhook verification
+# API_SECRET_KEY - Auth token for MCP server communication

@@ -1,0 +1,163 @@
+---
+name: 100-knearme-content-creation
+description: Content creation guidelines and best practices for kNearme
+glob: "**/*.md"
+---
+
+# kNearme Content Creation Guidelines
+
+This document provides guidance for creating content that follows kNearme's structured approach across all service categories.
+
+## Voice and Tone
+
+- **Authoritative but accessible**: Demonstrate expertise without being overly technical
+- **Helpful and solution-oriented**: Focus on solving homeowner problems
+- **Trustworthy and factual**: Base information on verifiable sources
+- **Clear and direct**: Use plain language whenever possible, explain industry terms
+- **Conversational but professional**: Write as if speaking directly to a homeowner
+- **Inclusive**: Address homeowners of various experience levels and backgrounds
+
+## Content Structure Standards
+
+### All content should follow this general structure:
+
+1. **Engaging introduction** (hook + problem statement + solution preview)
+2. **Main content body** (structured with clear H2 and H3 headings)
+3. **Practical applications** (how-to sections, checklists, actionable advice)
+4. **Visual supplements** (diagrams, photos, illustrations as appropriate)
+5. **Conclusion with next steps** (summary + recommended actions)
+6. **CTA relevant to content level** (contractor search, related guides, etc.)
+
+### Service-Specific Elements
+
+When writing about specific services, always include:
+
+- Clear definition of the service
+- When/why the service is needed
+- Signs/indicators homeowners should watch for
+- Typical process and timeline
+- Cost factors and considerations
+- DIY vs. professional guidelines
+- Maintenance recommendations
+- Safety considerations
+
+## SEO Implementation
+
+### Keyword Usage
+
+- Primary keyword in title, meta description, H1, first paragraph
+- Secondary and long-tail keywords distributed naturally
+- Location-specific keywords for Level 2 and 3 content
+- Avoid keyword stuffing and unnatural phrasing
+
+### On-Page Elements
+
+- **Title Tags**: `Primary Keyword | Secondary Keyword | kNearme`
+- **Meta Descriptions**: Clear summary with primary keyword and call to action
+- **URL Structure**: Short, descriptive, containing primary keyword
+- **Image Alt Text**: Descriptive, containing relevant keywords when natural
+- **Internal Links**: 3-5 contextually relevant links to other content
+- **External Links**: Only to authoritative sources
+
+## Content Quality Checklist
+
+Before submission, ensure your content:
+
+- [ ] Follows the hierarchical structure appropriate to its level
+- [ ] Contains all required sections
+- [ ] Uses accurate, up-to-date information
+- [ ] Includes proper citations for statistics and facts
+- [ ] Has been checked for grammar and spelling
+- [ ] Uses consistent terminology throughout
+- [ ] Follows formatting guidelines (proper heading structure, etc.)
+- [ ] Includes appropriate internal and external links
+- [ ] Contains recommendations for visual elements
+- [ ] Ends with a clear call-to-action
+
+## Example Topics By Service Category
+
+### Chimney Services
+
+#### Level 1 Examples
+- Ultimate Guide to Chimney Maintenance
+- Complete Chimney Repair Handbook
+- When to Replace vs. Repair Your Chimney
+- Understanding Different Types of Chimneys
+
+#### Level 2 Examples
+- Chimney Maintenance for Cold Climate Regions
+- How Weather Affects Chimney Performance in Coastal Areas
+- Regional Building Codes for Chimney Construction
+- Winter Chimney Preparation for Northern Homeowners
+
+#### Level 3 Examples
+- Common Chimney Issues in Hamilton Homes
+- Toronto Chimney Fire Prevention Guide
+- Dealing with Chimney Water Damage in Vancouver
+- Ottawa Chimney Inspection: Local Requirements
+
+### Masonry Services
+
+#### Level 1 Examples
+- Complete Guide to Brick and Stone Maintenance
+- Understanding Different Types of Masonry
+- Masonry Repair Basics for Homeowners
+- How to Spot Quality Masonry Work
+
+#### Level 2 Examples
+- Masonry Care in Freeze-Thaw Climate Regions
+- Coastal Region Masonry Protection Guide
+- Historic Masonry Preservation in Eastern Canada
+- Addressing Masonry Salt Damage in Maritime Regions
+
+#### Level 3 Examples
+- Common Brick Issues in Toronto's Victorian Homes
+- Montreal Stone Foundation Repair Guide
+- Addressing Brick Spalling in Hamilton Properties
+- Vancouver Heritage Masonry Maintenance
+
+### Concrete Services
+
+#### Level 1 Examples
+- Complete Homeowner's Guide to Concrete Maintenance
+- Understanding Concrete Repair Options
+- When to Replace vs. Resurface Concrete
+- Decorative Concrete Options for Your Home
+
+#### Level 2 Examples
+- Concrete Driveway Care in Freeze-Thaw Regions
+- Protecting Concrete in High-Precipitation Areas
+- Basement Concrete Solutions for Northern Climates
+- Concrete Patio Options for Canadian Homeowners
+
+#### Level 3 Examples
+- Fixing Concrete Driveway Cracks in Toronto
+- Ottawa Basement Concrete Waterproofing Guide
+- Hamilton Concrete Patio Design Options
+- Vancouver Exposed Aggregate Maintenance
+
+## Technical Writing Tips
+
+- Use active voice when possible
+- Keep paragraphs short (3-4 sentences maximum)
+- Include bulleted or numbered lists for easy scanning
+- Use transition words to guide readers through the content
+- Break up text with subheadings every 300-400 words
+- Bold important information for emphasis
+- Link to related content using descriptive anchor text
+- Use specific examples to illustrate abstract concepts
+- Include statistics and data points when available
+- Address potential questions or objections within the content
+
+## Avoiding Common Content Issues
+
+- Don't make unsubstantiated claims
+- Avoid overly promotional language
+- Don't use jargon without explanation
+- Avoid overgeneralizing regional or local issues
+- Don't make guarantees about contractor quality or pricing
+- Avoid vague advice ("hire a professional" without context)
+- Don't present opinions as facts
+- Avoid dated or potentially inaccurate statistics
+
+When creating content for any service category, adapt these guidelines to the specific service while maintaining the consistent structure and quality standards defined here.

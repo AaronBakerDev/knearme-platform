@@ -1,0 +1,396 @@
+---
+name: 200-knearme-technical-implementation
+description: Technical implementation guidelines for kNearme content structure
+glob: "**/*.{js,ts,jsx,tsx}"
+---
+
+# kNearme Technical Implementation Guide
+
+This document provides technical guidance for implementing the kNearme content hierarchy and structure in code. It ensures that developers follow consistent patterns when building the content system.
+
+## Data Structure
+
+### Content Models
+
+Content should be structured according to the following models:
+
+```typescript
+// Base content model
+interface BaseContent {
+  id: string;
+  title: string;
+  slug: string;
+  metaTitle: string;
+  metaDescription: string;
+  contentType: 'evergreen' | 'regional' | 'local' | 'showcase';
+  serviceCategory: 'chimney' | 'masonry' | 'concrete' | string;
+  publishDate: Date;
+  lastUpdated: Date;
+  status: 'draft' | 'review' | 'published' | 'archived';
+  featuredImage: {
+    url: string;
+    alt: string;
+  };
+  content: string; // Rich text/markdown
+  author: string;
+  seoKeywords: string[];
+}
+
+// Level 1: Evergreen Content
+interface EvergreenContent extends BaseContent {
+  contentType: 'evergreen';
+  topics: string[]; // Taxonomy of topics
+  relatedContent: string[]; // IDs of related content
+}
+
+// Level 2: Regional Content
+interface RegionalContent extends BaseContent {
+  contentType: 'regional';
+  region: string; // Region identifier
+  parentContent: string; // ID of parent evergreen content
+  regionSpecificData: {
+    climateType?: string;
+    regulations?: string[];
+    regionalConcerns?: string[];
+  };
+  relatedContent: string[]; // IDs of related content
+}
+
+// Level 3: Local Content
+interface LocalContent extends BaseContent {
+  contentType: 'local';
+  location: {
+    city: string;
+    state?: string;
+    country: string;
+  };
+  parentContent: string; // ID of parent regional content
+  localConcerns: string[];
+  relatedContent: string[]; // IDs of related content
+}
+
+// Project Showcase Content
+interface ShowcaseContent extends BaseContent {
+  contentType: 'showcase';
+  location: {
+    city: string;
+    state?: string;
+    country: string;
+  };
+  parentContent: string; // ID of parent local content
+  contractor: {
+    id: string;
+    name: string;
+    website?: string;
+    contactInfo: string;
+  };
+  projectDetails: {
+    projectType: string;
+    completionDate: Date;
+    beforeImages: Array<{url: string; alt: string}>;
+    afterImages: Array<{url: string; alt: string}>;
+    processImages?: Array<{url: string; alt: string}>;
+  };
+}
+```
+
+## URL Structure
+
+Follow these URL patterns for each content type:
+
+```
+# Level 1: Evergreen Content
+/[service-category]/[topic-slug]/
+
+# Level 2: Regional Content
+/[service-category]/[topic-slug]/[region-slug]/
+
+# Level 3: Local Content
+/[service-category]/[topic-slug]/[region-slug]/[city-slug]/
+
+# Project Showcase
+/[service-category]/[topic-slug]/[region-slug]/[city-slug]/projects/[company-slug]/
+```
+
+## Component Hierarchy
+
+When creating the UI components for content, follow this hierarchy:
+
+```jsx
+<ServiceLayout serviceCategory="chimney">
+  <ContentHierarchyBreadcrumb content={content} />
+  
+  {/* For all content types */}
+  <ContentHeader
+    title={content.title}
+    featuredImage={content.featuredImage}
+    publishDate={content.publishDate}
+    lastUpdated={content.lastUpdated}
+  />
+  
+  <MainContent content={content.content} />
+  
+  {/* Contextual components based on content type */}
+  {content.contentType === 'evergreen' && (
+    <RegionalGuideLinks parentContent={content.id} />
+  )}
+  
+  {content.contentType === 'regional' && (
+    <>
+      <LocalGuideLinks parentContent={content.id} />
+      <ParentGuideLink contentId={content.parentContent} />
+    </>
+  )}
+  
+  {content.contentType === 'local' && (
+    <>
+      <ProjectShowcaseLinks parentContent={content.id} />
+      <ParentGuideLink contentId={content.parentContent} />
+      <LocalContractorList location={content.location} service={content.serviceCategory} />
+    </>
+  )}
+  
+  {content.contentType === 'showcase' && (
+    <>
+      <ProjectGallery beforeImages={content.projectDetails.beforeImages} afterImages={content.projectDetails.afterImages} />
+      <ContractorInfo contractor={content.contractor} />
+      <ParentGuideLink contentId={content.parentContent} />
+      <RelatedProjects exclude={content.id} location={content.location} service={content.serviceCategory} />
+    </>
+  )}
+  
+  <RelatedContentLinks content={content.relatedContent} />
+  <ContentTypeCTA contentType={content.contentType} serviceCategory={content.serviceCategory} />
+  <ServiceCategoryFooter serviceCategory={content.serviceCategory} />
+</ServiceLayout>
+```
+
+## API Endpoints
+
+Implement these API endpoints to access content:
+
+```
+# Get all content
+GET /api/content
+
+# Get content by type
+GET /api/content?type=[evergreen|regional|local|showcase]
+
+# Get content by service category
+GET /api/content?service=[chimney|masonry|concrete]
+
+# Get content by ID
+GET /api/content/:id
+
+# Get children of content (e.g., get regional guides for an evergreen guide)
+GET /api/content/:id/children?type=[regional|local|showcase]
+
+# Get parent of content
+GET /api/content/:id/parent
+
+# Get related content
+GET /api/content/:id/related
+```
+
+## State Management
+
+When managing content state in the application:
+
+1. Cache hierarchical relationships to minimize database queries
+2. Implement efficient loading patterns:
+   - Load parent content details when displaying child content
+   - Prefetch likely next content items
+   - Eagerly load linked content summaries
+
+3. Structure the state to maintain hierarchy awareness:
+
+```typescript
+interface ContentState {
+  current: BaseContent | EvergreenContent | RegionalContent | LocalContent | ShowcaseContent;
+  parent?: BaseContent;
+  children: {
+    regional?: RegionalContent[];
+    local?: LocalContent[];
+    showcase?: ShowcaseContent[];
+  };
+  related: BaseContent[];
+  breadcrumb: {
+    id: string;
+    title: string;
+    slug: string;
+    contentType: string;
+  }[];
+}
+```
+
+## Schema.org Implementation
+
+Implement appropriate schema.org structured data:
+
+```jsx
+// For Evergreen Content
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "[Content Title]",
+  "image": "[Featured Image URL]",
+  "author": {
+    "@type": "Organization",
+    "name": "kNearme"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "kNearme",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "[Logo URL]"
+    }
+  },
+  "datePublished": "[Publish Date]",
+  "dateModified": "[Last Updated Date]",
+  "description": "[Meta Description]",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "[Page URL]"
+  }
+}
+</script>
+
+// For Service Pages
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "[Service Name]",
+  "serviceType": "[Service Category]",
+  "provider": {
+    "@type": "Organization",
+    "name": "kNearme"
+  },
+  "areaServed": {
+    "@type": "Place",
+    "name": "[Region/City Name]"
+  },
+  "description": "[Service Description]"
+}
+</script>
+
+// For Project Showcases
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HomeAndConstructionBusiness",
+  "name": "[Contractor Name]",
+  "image": "[Contractor Image URL]",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "[City]",
+    "addressRegion": "[State/Province]",
+    "addressCountry": "[Country]"
+  },
+  "review": {
+    "@type": "Review",
+    "reviewBody": "[Project Description]",
+    "author": {
+      "@type": "Organization",
+      "name": "kNearme"
+    }
+  }
+}
+</script>
+```
+
+## Breadcrumb Implementation
+
+Implement breadcrumbs using both UI components and structured data:
+
+```jsx
+// UI Component
+<Breadcrumb>
+  <BreadcrumbItem href="/">Home</BreadcrumbItem>
+  <BreadcrumbItem href="/[service-category]/">[Service Category]</BreadcrumbItem>
+  <BreadcrumbItem href="/[service-category]/[topic-slug]/">[Evergreen Title]</BreadcrumbItem>
+  {content.contentType !== 'evergreen' && (
+    <BreadcrumbItem href="/[service-category]/[topic-slug]/[region-slug]/">[Region Title]</BreadcrumbItem>
+  )}
+  {(content.contentType === 'local' || content.contentType === 'showcase') && (
+    <BreadcrumbItem href="/[service-category]/[topic-slug]/[region-slug]/[city-slug]/">[City Title]</BreadcrumbItem>
+  )}
+  {content.contentType === 'showcase' && (
+    <BreadcrumbItem href="/[service-category]/[topic-slug]/[region-slug]/[city-slug]/projects/[company-slug]/">[Project Title]</BreadcrumbItem>
+  )}
+</Breadcrumb>
+
+// Structured Data
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "[Base URL]"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "[Service Category]",
+      "item": "[Base URL]/[service-category]/"
+    },
+    // Add additional items based on content type
+  ]
+}
+</script>
+```
+
+## Performance Considerations
+
+1. Implement content loading optimization:
+   - Use static generation for evergreen content
+   - Implement incremental static regeneration for regional content
+   - Consider server-side rendering for local content
+   - Use client-side rendering with prefetching for project showcases
+
+2. Image optimization:
+   - Implement responsive images with srcset
+   - Use next-generation formats (WebP/AVIF)
+   - Implement lazy loading
+   - Consider implementing a CDN for image delivery
+
+3. Caching strategy:
+   - Cache evergreen content aggressively
+   - Set shorter cache times for regional content
+   - Use more dynamic loading for local and showcase content
+
+## Implementation Checklist
+
+When implementing the content system, ensure:
+
+- [ ] Content models follow the defined schemas
+- [ ] URL structure follows the hierarchical pattern
+- [ ] Breadcrumbs are implemented in both UI and structured data
+- [ ] Schema.org markup is appropriate to content type
+- [ ] Component hierarchy reflects content relationships
+- [ ] API endpoints support all required content operations
+- [ ] State management handles hierarchy efficiently
+- [ ] Performance optimizations are implemented
+- [ ] Content relationships are properly maintained in database
+- [ ] SEO elements are programmatically generated from content
+
+## Testing Requirements
+
+Implement tests to verify:
+
+1. Content hierarchy relationships are maintained
+2. Breadcrumbs accurately reflect content position
+3. Schema.org structured data is valid
+4. API endpoints return expected data
+5. URLs follow the defined patterns
+6. Components render correctly for each content type
+7. State management correctly handles content relationships
+8. SEO elements are correctly generated
+
+These guidelines ensure that the technical implementation of kNearme's content system maintains the content hierarchy and relationships while providing optimal performance and SEO benefits.

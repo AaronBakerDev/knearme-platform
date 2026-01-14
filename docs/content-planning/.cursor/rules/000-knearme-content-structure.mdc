@@ -1,0 +1,136 @@
+---
+name: 000-knearme-content-structure
+description: Main content framework and hierarchy for kNearme service categories
+glob: "**/*.{md,html,js,ts,jsx,tsx,css,scss}"
+---
+
+# kNearme Content Structure Framework
+
+This document outlines the standardized content structure for kNearme's service category content. This framework applies across all service categories (chimney, masonry, concrete, and future additions) to ensure consistent organization and maximum SEO benefit.
+
+## Content Hierarchy Overview
+
+kNearme content follows a clearly defined 3-level hierarchy plus premium project showcases:
+
+### Level 1: Evergreen Foundational Content
+- High-level authoritative resources
+- Broadly useful to homeowners
+- Not dependent on contractor input
+- Drives initial SEO authority
+
+### Level 2: Regionally Relevant Content
+- Addresses regional variations (climate, regulations, etc.)
+- Grouped by geography or climate zone
+- Builds mid-level SEO relevance
+- Connects broad concepts to regional specifics
+
+### Level 3: Hyper-local Problem-Solution Content
+- Targets specific local homeowner queries
+- Matches local search intent
+- Leverages regional trends for local relevance
+- Can be created with minimal contractor input initially
+
+### Special Content: Project Showcases (Premium)
+- Highly visual, contractor-driven case studies
+- Before/after galleries and expert narratives
+- Provides strong EEAT signals and differentiation
+- Incentivizes contractor participation
+
+## Content Interlinking Structure
+
+Content should follow this interconnected hierarchy:
+
+```
+Evergreen Guide (Level 1)
+   └── Regional Guide (Level 2)
+        └── Hyper-local Problem-Solution Content (Level 3)
+             └── Premium Project Showcases (Special Content)
+```
+
+Breadcrumb example:
+`Home → [Service] Repair Guide → [Service] Maintenance [Region] → Common [Service] Issues in [City] → [City] [Service] Restoration Project Showcase`
+
+## Naming Conventions
+
+- **Level 1 (Evergreen)**: `[service]-guide-[topic].md`
+- **Level 2 (Regional)**: `[service]-[topic]-[region].md`
+- **Level 3 (Local)**: `[city]-[service]-[problem].md`
+- **Project Showcases**: `[city]-[service]-project-[company-name].md`
+
+## Content Type Specifications
+
+### Level 1: Evergreen Content
+- Word count: 1,500-2,500 words
+- Structure: Comprehensive guide format with multiple sections
+- Keywords: High-volume, broad service terms
+- Visuals: Diagrams, infographics, general photos
+- Examples:
+  - "Ultimate Guide to [Service] Repairs"
+  - "Complete [Service] Maintenance Handbook"
+  - "[Service] Inspection: Everything You Need to Know"
+  - "How Often Should You Maintain Your [Service Feature]?"
+
+### Level 2: Regional Content
+- Word count: 1,200-2,000 words
+- Structure: Region-specific guides addressing climate and regulatory factors
+- Keywords: Region + service terms
+- Visuals: Region-specific examples, climate-related issues
+- Examples:
+  - "[Service] Maintenance Guide for [Region] Winters"
+  - "Best Practices for [Service] Repairs in Cold Climate Regions"
+  - "Understanding Regional [Service] Regulations in [Country/Region]"
+  - "Top [Service] Problems Faced by Homeowners in [Region]"
+
+### Level 3: Hyper-local Content
+- Word count: 1,000-1,500 words
+- Structure: Problem-solution format addressing specific local issues
+- Keywords: City/locality + specific problem + service terms
+- Visuals: Local examples when available
+- Examples:
+  - "Top [Service] Issues Homeowners Face in [City]"
+  - "Dealing with [Service] Problems Common in [City]"
+  - "How to Prevent [Service] Failures in [City]"
+
+### Project Showcases (Premium)
+- Word count: 800-1,200 words
+- Structure: Case study format with strong visual emphasis
+- Keywords: Contractor name, city, specific service
+- Visuals: Before/after photos, process shots, detailed results
+- Examples:
+  - "Historic [Service] Restoration Project in [City] (with [Company])"
+  - "Complete [Service] Rebuild Showcase: [Neighborhood] [City]"
+  - "Before & After Gallery: [Service] Repairs in [City]"
+
+## Implementation Strategy
+
+1. Begin with Level 1 (Evergreen) content for each service category
+2. Expand to Level 2 (Regional) content targeting key geographic markets
+3. Develop Level 3 (Hyper-local) content based on search trends and target localities
+4. Add Project Showcases as contractor relationships develop
+
+## SEO Best Practices
+
+- Each level targets progressively more specific keywords
+- All content includes clear H1, H2, H3 heading structure
+- Internal linking follows the hierarchy pattern
+- Breadcrumb navigation reinforces content relationships
+- Schema markup appropriate to content type (Article, Service, LocalBusiness)
+- Location-based content includes relevant geographic terms in metadata
+
+## Technical Implementation Notes
+
+- Content should be structured with clear templates for each level
+- CMS implementation should enforce the hierarchy relationships
+- URL structure should reflect the content level and relationships
+- Navigation should make the hierarchy clear to users and search engines
+
+## Content Creation Guidelines
+
+- Focus on user value and solving specific problems
+- Maintain consistent voice and tone across all levels
+- Use data and factual information to establish authority
+- Include practical, actionable advice
+- Visual elements should support and enhance the content
+- Call-to-actions should guide users to appropriate next steps
+
+When implementing this structure for any service category, adapt the examples by replacing the generic [Service] placeholder with the specific service category (chimney, masonry, concrete, etc.).

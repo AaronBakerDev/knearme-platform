@@ -1,0 +1,7 @@
+# Temporarily exclude for subtree merge
+knearme-portfolio/
+.DS_Store
+.npm-cache/
+.tmp/
+.dev-browser-runtime/
+node_modules/

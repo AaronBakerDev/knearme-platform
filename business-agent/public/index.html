@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f7f3ee">
+  <title>KnearMe Business Advisor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #f7f3ee;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #f1ece5;
+      --text-primary: #1f2327;
+      --text-secondary: #5d646b;
+      --text-muted: #8a9096;
+      --border: rgba(15, 23, 42, 0.12);
+      --accent-cyan: #0ea5a4;
+      --accent-magenta: #ea580c;
+      --accent-green: #16a34a;
+      --accent-blue: #2563eb;
+      --accent-yellow: #d97706;
+      --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
+      --shadow-md: 0 12px 30px rgba(15, 23, 42, 0.12);
+      --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.18);
+      --glass: rgba(255, 255, 255, 0.7);
+      --glass-strong: rgba(255, 255, 255, 0.85);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% -20%, rgba(14, 165, 164, 0.16), transparent 60%),
+        radial-gradient(800px 500px at 90% 0%, rgba(217, 119, 6, 0.16), transparent 60%),
+        var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      background: var(--glass);
+      border-bottom: 1px solid var(--border);
+      padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .logo { font-size: 22px; flex-shrink: 0; }
+
+    .agent-info { min-width: 0; }
+
+    .agent-name {
+      font-family: 'Sora', 'Manrope', sans-serif;
+      font-weight: 600;
+      font-size: 16px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--accent-cyan);
+    }
+
+    .agent-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .stat {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      display: none;
+    }
+
+    @media (min-width: 640px) { .stat { display: block; } }
+
+    .btn-icon {
+      background: var(--glass-strong);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 40px;
+      min-height: 40px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-icon:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+    }
+
+    .btn-icon:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-icon:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      scroll-behavior: auto;
+    }
+
+    .message {
+      margin-bottom: 16px;
+      max-width: 100%;
+      animation: messageIn 0.22s ease;
+    }
+
+    .message.user {
+      margin-left: auto;
+      text-align: right;
+    }
+
+    .message-content {
+      display: inline-block;
+      padding: 12px 16px;
+      border-radius: 16px;
+      max-width: 100%;
+      text-align: left;
+      line-height: 1.5;
+      font-size: 15px;
+    }
+
+    .message.user .message-content {
+      background: linear-gradient(135deg, #0ea5a4, #38bdf8);
+      color: #07161a;
+      border-bottom-right-radius: 4px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .message.assistant .message-content {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .message-content pre {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 8px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+    }
+
+    .message-content code {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(15, 23, 42, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .message-content pre code { background: none; padding: 0; }
+
+    /* Tool & Subagent indicators */
+    .tool-indicator, .subagent-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--glass-strong);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      animation: fadeIn 0.2s;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .subagent-indicator {
+      background: linear-gradient(135deg, rgba(14, 165, 164, 0.1), rgba(59, 130, 246, 0.1));
+      border-color: rgba(14, 165, 164, 0.3);
+    }
+
+    .subagent-indicator.completed {
+      opacity: 0.6;
+    }
+
+    .subagent-indicator .spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent-cyan);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      border-bottom-left-radius: 4px;
+      width: fit-content;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .typing-dots { display: flex; gap: 4px; }
+
+    .typing-dots span {
+      width: 6px;
+      height: 6px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite;
+    }
+
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-4px); }
+    }
+
+    #input-container {
+      background: transparent;
+      border-top: none;
+      padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+      flex-shrink: 0;
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 8px;
+      max-width: 100%;
+      margin: 0 auto;
+      background: var(--glass-strong);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 6px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .input-wrapper:focus-within {
+      border-color: rgba(14, 165, 164, 0.45);
+      box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.18), var(--shadow-md);
+    }
+
+    #message-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 16px;
+      font-family: inherit;
+      color: var(--text-primary);
+      caret-color: var(--accent-cyan);
+      resize: none;
+      min-height: 44px;
+      max-height: 150px;
+    }
+
+    #message-input:focus { outline: none; }
+    #message-input::placeholder { color: var(--text-muted); }
+
+    #send-btn {
+      background: linear-gradient(135deg, #0ea5a4, #38bdf8);
+      border: none;
+      border-radius: 14px;
+      padding: 0 16px;
+      cursor: pointer;
+      color: #07161a;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    #send-btn:hover { opacity: 0.9; transform: scale(1.02); }
+    #send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+      z-index: 100;
+    }
+
+    .modal-overlay.active { opacity: 1; visibility: visible; }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      right: -100vw;
+      width: 100vw;
+      max-width: 100vw;
+      height: 100vh;
+      background: var(--glass-strong);
+      border-left: 1px solid var(--border);
+      transition: right 0.3s ease;
+      z-index: 101;
+      overflow-y: auto;
+      padding: 16px;
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .sidebar.active { right: 0; }
+
+    .sidebar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-title {
+      font-family: 'Sora', 'Manrope', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    /* Subagent info cards */
+    .subagent-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .subagent-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .subagent-card-emoji { font-size: 20px; }
+
+    .subagent-card-name {
+      font-family: 'Sora', 'Manrope', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .subagent-card-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Workflow cards */
+    .workflow-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+      width: 100%;
+      color: inherit;
+      font: inherit;
+      appearance: none;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .workflow-card:hover {
+      border-color: rgba(217, 119, 6, 0.5);
+      background: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .workflow-emoji { font-size: 24px; }
+    .workflow-info { flex: 1; }
+
+    .workflow-name {
+      font-family: 'Sora', 'Manrope', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .workflow-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      padding: 8px 12px;
+      overflow-x: auto;
+      background: transparent;
+      flex-shrink: 0;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .quick-action {
+      background: var(--glass-strong);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 12px;
+      font-size: 12px;
+      white-space: nowrap;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .quick-action:hover {
+      border-color: rgba(14, 165, 164, 0.4);
+      color: var(--text-primary);
+    }
+
+    .quick-action:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--glass-strong);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+    }
+
+    .status-dot.disconnected {
+      background: #ef4444;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-secondary);
+      text-align: center;
+      padding: 24px;
+    }
+
+    .empty-state-emoji { font-size: 48px; margin-bottom: 16px; }
+
+    .empty-state-title {
+      font-family: 'Sora', 'Manrope', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .empty-state-desc {
+      font-size: 14px;
+      max-width: 400px;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    .subagent-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .subagent-badge {
+      font-size: 11px;
+      padding: 4px 10px;
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      color: var(--text-muted);
+    }
+
+    @keyframes messageIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .jump-to-latest {
+      position: absolute;
+      right: 16px;
+      bottom: calc(88px + env(safe-area-inset-bottom));
+      background: var(--glass-strong);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      transform: translateY(6px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .jump-to-latest.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    @media (max-width: 480px) {
+      .agent-name { font-size: 14px; }
+      .agent-desc { display: none; }
+      #send-btn span { display: none; }
+      #send-btn { padding: 0 14px; }
+    }
+
+    @media (min-width: 640px) {
+      header { padding: calc(12px + env(safe-area-inset-top)) 16px 12px; }
+      .header-right { gap: 8px; }
+      #chat-container { padding: 16px; }
+      #input-container { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+      .input-wrapper { max-width: 800px; }
+      .message { max-width: 800px; }
+      .quick-actions { padding: 8px 16px; }
+      .sidebar { right: -320px; width: 320px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <span class="logo">💼</span>
+      <div class="agent-info">
+        <div class="agent-name">Business Advisor</div>
+        <div class="agent-desc">Orchestrator with specialist subagents</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="connection-status" role="status" aria-live="polite">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Connecting...</span>
+      </div>
+      <span class="stat" id="query-count">0 queries</span>
+      <span class="stat" id="total-cost">$0.00</span>
+      <button class="btn-icon" id="info-btn" title="About Subagents" aria-label="About subagents" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 16v-4M12 8h.01"/>
+        </svg>
+      </button>
+      <button class="btn-icon" id="workflows-btn" title="Workflows" aria-label="Open workflows" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+        </svg>
+      </button>
+      <button class="btn-icon" id="new-session-btn" title="New Session" aria-label="Start new session" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="quick-actions">
+    <button class="quick-action" data-workflow="/metrics" type="button">📊 Metrics</button>
+    <button class="quick-action" data-workflow="/actions" type="button">✅ Actions</button>
+    <button class="quick-action" data-workflow="/launch-check" type="button">🚀 Launch Check</button>
+    <button class="quick-action" data-workflow="/roadmap" type="button">🗺️ Roadmap</button>
+    <button class="quick-action" data-workflow="/weekly-review" type="button">📅 Weekly Review</button>
+  </div>
+
+  <main>
+    <div id="chat-container">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-state-emoji">💼</div>
+        <div class="empty-state-title">KnearMe Business Advisor</div>
+        <div class="empty-state-desc">
+          Ask strategic questions and I'll automatically delegate to specialist subagents when needed.
+        </div>
+        <div class="subagent-badges">
+          <span class="subagent-badge">📣 Marketing</span>
+          <span class="subagent-badge">💰 Finance</span>
+          <span class="subagent-badge">🎯 Product</span>
+        </div>
+      </div>
+    </div>
+    <button class="jump-to-latest" id="jump-to-latest" type="button" aria-label="Jump to latest">
+      ⬇️ Jump to latest
+    </button>
+  </main>
+
+  <div id="input-container">
+    <div class="input-wrapper">
+      <textarea
+        id="message-input"
+        placeholder="Ask a question..."
+        rows="1"
+        aria-label="Message"
+      ></textarea>
+      <button id="send-btn" type="button" aria-label="Send message">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+        </svg>
+        <span>Send</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Info Sidebar (Subagents) -->
+  <div class="modal-overlay" id="info-overlay"></div>
+  <div class="sidebar" id="info-sidebar" aria-label="Subagents info panel">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Specialist Subagents</span>
+      <button class="close-btn" id="close-info" aria-label="Close info panel" type="button">&times;</button>
+    </div>
+    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+      The orchestrator automatically delegates to these specialists when their expertise is needed.
+    </p>
+    <div id="subagents-list">
+      <div class="subagent-card">
+        <div class="subagent-card-header">
+          <span class="subagent-card-emoji">📣</span>
+          <span class="subagent-card-name" style="color: #d946ef">Marketing Advisor</span>
+        </div>
+        <div class="subagent-card-desc">SEO, contractor acquisition, messaging, positioning, growth strategy</div>
+      </div>
+      <div class="subagent-card">
+        <div class="subagent-card-header">
+          <span class="subagent-card-emoji">💰</span>
+          <span class="subagent-card-name" style="color: #22c55e">Finance Advisor</span>
+        </div>
+        <div class="subagent-card-desc">Unit economics, pricing strategy, LTV/CAC modeling, revenue projections</div>
+      </div>
+      <div class="subagent-card">
+        <div class="subagent-card-header">
+          <span class="subagent-card-emoji">🎯</span>
+          <span class="subagent-card-name" style="color: #3b82f6">Product Advisor</span>
+        </div>
+        <div class="subagent-card-desc">Feature prioritization, roadmap planning, UX strategy, technical trade-offs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workflows Sidebar -->
+  <div class="modal-overlay" id="workflows-overlay"></div>
+  <div class="sidebar" id="workflows-sidebar" aria-label="Workflows panel">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Workflows</span>
+      <button class="close-btn" id="close-workflows" aria-label="Close workflows panel" type="button">&times;</button>
+    </div>
+    <div id="workflows-list"></div>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    let ws = null;
+    let workflows = [];
+    let isProcessing = false;
+    let isConnected = false;
+    let shouldAutoScroll = true;
+    let totalCost = 0;
+    let queryCount = 0;
+    let currentMessageEl = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 10;
+    const RECONNECT_DELAY = 2000;
+
+    // Subagent emojis for display
+    const SUBAGENT_EMOJIS = {
+      'marketing-advisor': '📣',
+      'finance-advisor': '💰',
+      'product-advisor': '🎯'
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DOM ELEMENTS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const chatContainer = document.getElementById('chat-container');
+    const emptyState = document.getElementById('empty-state');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const queryCountEl = document.getElementById('query-count');
+    const totalCostEl = document.getElementById('total-cost');
+
+    const infoBtn = document.getElementById('info-btn');
+    const infoOverlay = document.getElementById('info-overlay');
+    const infoSidebar = document.getElementById('info-sidebar');
+    const closeInfo = document.getElementById('close-info');
+
+    const workflowsBtn = document.getElementById('workflows-btn');
+    const workflowsOverlay = document.getElementById('workflows-overlay');
+    const workflowsSidebar = document.getElementById('workflows-sidebar');
+    const closeWorkflows = document.getElementById('close-workflows');
+    const workflowsList = document.getElementById('workflows-list');
+
+    const newSessionBtn = document.getElementById('new-session-btn');
+    const jumpToLatestBtn = document.getElementById('jump-to-latest');
+    const quickActionButtons = Array.from(document.querySelectorAll('.quick-action'));
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // WEBSOCKET
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+      ws.onopen = () => {
+        console.log('[WS] Connected');
+        setConnectionState(true, 'Connected');
+        reconnectAttempts = 0;
+      };
+
+      ws.onclose = () => {
+        console.log('[WS] Disconnected');
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts++;
+          setConnectionState(false, `Reconnecting (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+          setTimeout(connect, RECONNECT_DELAY);
+        } else {
+          setConnectionState(false, 'Disconnected');
+        }
+      };
+
+      ws.onerror = (err) => console.error('[WS] Error:', err);
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        handleMessage(msg);
+      };
+    }
+
+    function send(msg) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(msg));
+      }
+    }
+
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case 'session_created':
+          // Session ready
+          break;
+
+        case 'tool_use':
+          showToolUse(msg.tool, msg.detail);
+          break;
+
+        case 'subagent':
+          showSubagent(msg.subagentId, msg.subagentStatus, msg.detail);
+          break;
+
+        case 'chunk':
+          appendChunk(msg.text);
+          break;
+
+        case 'done':
+          finishMessage(msg);
+          break;
+
+        case 'error':
+          showError(msg.error);
+          break;
+
+        case 'pong':
+          break;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // UI UPDATES
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function setConnectionState(connected, text) {
+      isConnected = connected;
+      statusDot.classList.toggle('disconnected', !connected);
+      statusText.textContent = text;
+      updateControls();
+    }
+
+    function updateControls() {
+      const hasText = messageInput.value.trim().length > 0;
+      sendBtn.disabled = !isConnected || isProcessing || !hasText;
+      messageInput.disabled = isProcessing;
+      infoBtn.disabled = !isConnected || isProcessing;
+      workflowsBtn.disabled = !isConnected || isProcessing;
+      newSessionBtn.disabled = !isConnected || isProcessing;
+      quickActionButtons.forEach(btn => btn.disabled = !isConnected || isProcessing);
+    }
+
+    function updateStats() {
+      queryCountEl.textContent = `${queryCount} ${queryCount === 1 ? 'query' : 'queries'}`;
+      totalCostEl.textContent = `$${totalCost.toFixed(4)}`;
+    }
+
+    function addUserMessage(text) {
+      emptyState.style.display = 'none';
+      const msg = document.createElement('div');
+      msg.className = 'message user';
+      msg.innerHTML = `<div class="message-content">${escapeHtml(text)}</div>`;
+      chatContainer.appendChild(msg);
+      scrollToBottom({ force: true });
+    }
+
+    function startAssistantMessage() {
+      const msg = document.createElement('div');
+      msg.className = 'message assistant';
+      msg.innerHTML = `
+        <div class="typing-indicator">
+          <span style="font-size: 14px;">💼</span>
+          <div class="typing-dots"><span></span><span></span><span></span></div>
+        </div>
+      `;
+      chatContainer.appendChild(msg);
+      currentMessageEl = msg;
+      scrollToBottom({ force: true });
+    }
+
+    function showToolUse(tool, detail) {
+      if (!currentMessageEl) return;
+
+      const emojis = {
+        Read: '📖', Glob: '🔍', Grep: '🔎', Write: '✏️',
+        Edit: '📝', WebSearch: '🌐', WebFetch: '🌍', Task: '🤖'
+      };
+
+      const indicator = document.createElement('div');
+      indicator.className = 'tool-indicator';
+      indicator.innerHTML = `
+        <span class="emoji">${emojis[tool] || '🔧'}</span>
+        <span>${tool}${detail ? ': ' + escapeHtml(detail) : ''}</span>
+      `;
+
+      insertIndicator(indicator);
+      scrollToBottom();
+    }
+
+    function showSubagent(subagentId, status, detail) {
+      if (!currentMessageEl) return;
+
+      const emoji = SUBAGENT_EMOJIS[subagentId] || '🤖';
+      const name = subagentId.replace('-advisor', '').replace('-', ' ');
+
+      if (status === 'started') {
+        const indicator = document.createElement('div');
+        indicator.className = 'subagent-indicator';
+        indicator.id = `subagent-${subagentId}`;
+        indicator.innerHTML = `
+          <div class="spinner"></div>
+          <span>${emoji} <strong>${name}</strong> working${detail ? ': ' + escapeHtml(detail) : '...'}</span>
+        `;
+        insertIndicator(indicator);
+      } else if (status === 'completed') {
+        const existing = document.getElementById(`subagent-${subagentId}`);
+        if (existing) {
+          existing.classList.add('completed');
+          existing.innerHTML = `
+            <span>✓</span>
+            <span>${emoji} <strong>${name}</strong> completed</span>
+          `;
+        }
+      }
+      scrollToBottom();
+    }
+
+    function insertIndicator(indicator) {
+      const typing = currentMessageEl.querySelector('.typing-indicator');
+      if (typing) typing.remove();
+
+      const content = currentMessageEl.querySelector('.message-content');
+      if (content) {
+        currentMessageEl.insertBefore(indicator, content);
+      } else {
+        currentMessageEl.appendChild(indicator);
+      }
+    }
+
+    function appendChunk(text) {
+      if (!currentMessageEl) return;
+
+      const typing = currentMessageEl.querySelector('.typing-indicator');
+      if (typing) typing.remove();
+
+      let content = currentMessageEl.querySelector('.message-content');
+      if (!content) {
+        content = document.createElement('div');
+        content.className = 'message-content';
+        currentMessageEl.appendChild(content);
+      }
+
+      const currentRaw = content.dataset.raw || '';
+      const nextRaw = currentRaw + text;
+      content.dataset.raw = nextRaw;
+      content.innerHTML = formatMarkdownSafe(nextRaw);
+      scrollToBottom();
+    }
+
+    function finishMessage(msg) {
+      isProcessing = false;
+      updateControls();
+      messageInput.focus();
+
+      if (msg.cost) totalCost += msg.cost;
+      if (msg.queryCount) queryCount = msg.queryCount;
+      updateStats();
+
+      currentMessageEl = null;
+    }
+
+    function showError(error) {
+      isProcessing = false;
+      updateControls();
+
+      const msg = document.createElement('div');
+      msg.className = 'message assistant';
+      msg.innerHTML = `<div class="message-content" style="border-color: #ef4444; color: #ef4444;">Error: ${escapeHtml(error)}</div>`;
+      chatContainer.appendChild(msg);
+      scrollToBottom({ force: true });
+
+      currentMessageEl = null;
+    }
+
+    function isNearBottom() {
+      const threshold = 80;
+      return chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < threshold;
+    }
+
+    function toggleJumpToLatest(show) {
+      jumpToLatestBtn.classList.toggle('active', show);
+    }
+
+    function scrollToBottom({ behavior = 'auto', force = false } = {}) {
+      if (!force && !shouldAutoScroll) return;
+      chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SIDEBARS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function renderWorkflows() {
+      workflowsList.innerHTML = workflows.map(wf => `
+        <button class="workflow-card" data-workflow="${wf.id}" type="button">
+          <span class="workflow-emoji">${wf.emoji}</span>
+          <div class="workflow-info">
+            <div class="workflow-name">${wf.name}</div>
+            <div class="workflow-desc">${wf.description}</div>
+          </div>
+        </button>
+      `).join('');
+
+      workflowsList.querySelectorAll('.workflow-card').forEach(card => {
+        card.addEventListener('click', () => {
+          runWorkflow(card.dataset.workflow);
+          closeSidebars();
+        });
+      });
+    }
+
+    function openInfoSidebar() {
+      infoOverlay.classList.add('active');
+      infoSidebar.classList.add('active');
+    }
+
+    function openWorkflowsSidebar() {
+      workflowsOverlay.classList.add('active');
+      workflowsSidebar.classList.add('active');
+    }
+
+    function closeSidebars() {
+      infoOverlay.classList.remove('active');
+      infoSidebar.classList.remove('active');
+      workflowsOverlay.classList.remove('active');
+      workflowsSidebar.classList.remove('active');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ACTIONS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text || isProcessing || !isConnected) return;
+
+      isProcessing = true;
+      updateControls();
+      shouldAutoScroll = true;
+      toggleJumpToLatest(false);
+      messageInput.value = '';
+      autoResizeInput();
+
+      addUserMessage(text);
+      startAssistantMessage();
+
+      send({ type: 'query', prompt: text });
+    }
+
+    function runWorkflow(workflowId) {
+      if (isProcessing || !isConnected) return;
+
+      const wf = workflows.find(w => w.id === workflowId);
+      if (!wf) return;
+
+      isProcessing = true;
+      updateControls();
+      shouldAutoScroll = true;
+      toggleJumpToLatest(false);
+
+      addUserMessage(`${wf.emoji} ${wf.name}`);
+      startAssistantMessage();
+
+      send({ type: 'workflow', workflowId });
+    }
+
+    function newSession() {
+      if (!isConnected) return;
+      send({ type: 'new_session' });
+      chatContainer.innerHTML = '';
+      emptyState.style.display = 'flex';
+      chatContainer.appendChild(emptyState);
+      totalCost = 0;
+      queryCount = 0;
+      updateStats();
+      shouldAutoScroll = true;
+      toggleJumpToLatest(false);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // UTILITIES
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function formatMarkdownSafe(text) {
+      const escaped = escapeHtml(text);
+      const blocks = [];
+      let withBlocks = escaped.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, _l, code) => {
+        const token = `@@BLOCK_${blocks.length}@@`;
+        blocks.push(`<pre><code>${code}</code></pre>`);
+        return token;
+      });
+
+      withBlocks = withBlocks
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+
+      blocks.forEach((block, i) => {
+        withBlocks = withBlocks.replace(`@@BLOCK_${i}@@`, block);
+      });
+
+      return withBlocks;
+    }
+
+    function autoResizeInput() {
+      messageInput.style.height = 'auto';
+      messageInput.style.height = Math.min(messageInput.scrollHeight, 150) + 'px';
+      updateControls();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EVENT LISTENERS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+    messageInput.addEventListener('input', autoResizeInput);
+
+    infoBtn.addEventListener('click', openInfoSidebar);
+    infoOverlay.addEventListener('click', closeSidebars);
+    closeInfo.addEventListener('click', closeSidebars);
+
+    workflowsBtn.addEventListener('click', openWorkflowsSidebar);
+    workflowsOverlay.addEventListener('click', closeSidebars);
+    closeWorkflows.addEventListener('click', closeSidebars);
+
+    newSessionBtn.addEventListener('click', newSession);
+
+    quickActionButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const workflowId = btn.dataset.workflow;
+        if (workflowId) runWorkflow(workflowId);
+      });
+    });
+
+    chatContainer.addEventListener('scroll', () => {
+      shouldAutoScroll = isNearBottom();
+      toggleJumpToLatest(!shouldAutoScroll);
+    });
+
+    jumpToLatestBtn.addEventListener('click', () => {
+      shouldAutoScroll = true;
+      toggleJumpToLatest(false);
+      scrollToBottom({ behavior: 'smooth', force: true });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeSidebars();
+    });
+
+    setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) send({ type: 'ping' });
+    }, 30000);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    async function init() {
+      setConnectionState(false, 'Connecting...');
+
+      try {
+        const res = await fetch('/api/workflows');
+        workflows = await res.json();
+        renderWorkflows();
+      } catch (err) {
+        console.error('Failed to load workflows:', err);
+      }
+
+      connect();
+      messageInput.focus();
+      updateControls();
+    }
+
+    init();
+  </script>
+</body>
+</html>

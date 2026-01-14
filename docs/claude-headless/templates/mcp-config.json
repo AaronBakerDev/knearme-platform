@@ -1,0 +1,32 @@
+{
+  "_comment": "MCP Server Configuration Template - Copy and customize",
+
+  "mcpServers": {
+    "_comment_stdio": "Local tools via stdio (runs as subprocess)",
+    "database": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-server-sqlite", "/path/to/database.db"],
+      "env": {}
+    },
+
+    "_comment_http": "Remote APIs via HTTP",
+    "api": {
+      "type": "http",
+      "url": "https://your-api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}"
+      }
+    },
+
+    "_comment_custom": "Custom MCP server",
+    "custom": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["/path/to/your/mcp_server.py"],
+      "env": {
+        "CONFIG_PATH": "/path/to/config.json"
+      }
+    }
+  }
+}

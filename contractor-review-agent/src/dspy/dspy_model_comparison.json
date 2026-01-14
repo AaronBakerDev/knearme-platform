@@ -1,0 +1,18 @@
+{
+  "gemini-2.0-flash": {
+    "accuracy": 0.9380952380952381,
+    "time": 0.07345008850097656,
+    "type": "cloud"
+  },
+  "gemini-2.5-flash-lite-preview-06-17": null,
+  "gemma2:9b": {
+    "accuracy": 0.8928571428571429,
+    "time": 48.903143882751465,
+    "type": "local"
+  },
+  "qwen2.5:14b": {
+    "accuracy": 0.930952380952381,
+    "time": 67.06964993476868,
+    "type": "local"
+  }
+}

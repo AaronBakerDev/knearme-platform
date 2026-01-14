@@ -1,0 +1,54 @@
+#############################################
+# Codex CLI configuration template
+#
+# Copy to:
+#   ~/.codex/config.toml
+# Or for project‑scoped config:
+#   <repo>/.codex/config.toml and run with:
+#   CODEX_HOME="$PWD/.codex" codex
+#
+# Keep `.codex/` out of git and never commit secrets.
+#############################################
+
+# Safety defaults
+approval_policy = "on-request"        # untrusted | on-failure | on-request | never
+sandbox_mode    = "workspace-write"   # read-only | workspace-write | danger-full-access
+
+# Model selection
+model = "gpt-5.1-codex"               # any supported model id
+model_reasoning_effort = "high"       # low | medium | high | xhigh
+
+# Timeouts
+tool_timeout_sec    = 600
+startup_timeout_sec = 60
+
+[sandbox_workspace_write]
+network_access = true
+
+[history]
+persistence = "none"                  # none | local
+
+#############################################
+# MCP servers
+#
+# You can also manage these via:
+#   codex mcp add/list/get/remove
+#############################################
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp@latest"]
+startup_timeout_ms = 15000
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest", "--extension"]
+startup_timeout_ms = 20000
+
+[profiles.example]
+description = "Example profile for a specific repo"
+cd = "/path/to/your/project"
+model = "gpt-5.1-codex"
+sandbox_mode = "read-only"
+approval_policy = "on-failure"
+

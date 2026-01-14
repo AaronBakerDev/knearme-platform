@@ -1,0 +1,46 @@
+{
+  "name": "business-agent",
+  "version": "1.0.0",
+  "description": "KnearMe Business Consultant Agent - powered by Claude Max",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "tsx src/index.tsx",
+    "web": "tsx src/web-server.ts",
+    "web:dev": "tsx watch src/web-server.ts",
+    "tunnel": "./scripts/start-tunnel.sh",
+    "setup:remote": "./scripts/setup-remote.sh",
+    "test:auth": "tsx src/test-auth.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "claude",
+    "agent",
+    "business",
+    "ai"
+  ],
+  "author": "KnearMe",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.76",
+    "@clack/prompts": "^0.11.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "chalk": "^5.6.2",
+    "express": "^5.2.1",
+    "ink": "^6.6.0",
+    "ink-select-input": "^6.2.0",
+    "ink-text-input": "^6.0.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.0.3",
+    "@types/ws": "^8.18.1"
+  }
+}

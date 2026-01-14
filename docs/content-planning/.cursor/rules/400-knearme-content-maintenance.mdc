@@ -1,0 +1,346 @@
+---
+name: 400-knearme-content-maintenance
+description: Guidelines for maintaining content freshness and quality across all service categories
+glob: "**/*.{md,html,js,ts,jsx,tsx}"
+---
+
+# kNearme Content Maintenance and Freshness Framework
+
+This document outlines the systematic approach to maintaining content freshness, accuracy, and relevance across all service categories and content levels in the kNearme platform.
+
+## Content Lifecycle Management
+
+Every piece of content on kNearme should follow this defined lifecycle:
+
+```
+┌────────────┐      ┌────────────┐      ┌─────────────┐      ┌────────────┐
+│  Creation  │ ──→  │ Publication │ ──→  │ Maintenance │ ──→  │ Archiving  │
+└────────────┘      └────────────┘      └─────────────┘      └────────────┘
+       ↑                                       │
+       └───────────────────────────────────────┘
+                 (Refresh/Update)
+```
+
+## Freshness Indicators
+
+All content should have these metadata elements tracked:
+
+- `created_date`: Original publication date
+- `last_updated`: Most recent substantive update
+- `next_review`: Scheduled date for next review
+- `review_frequency`: How often this content should be reviewed
+- `freshness_score`: Algorithm-based freshness rating (0-100)
+- `content_owner`: Team/person responsible for maintenance
+
+## Review Frequency By Content Type
+
+| Content Level | Review Frequency | Trigger Events | Automation Level |
+|---------------|------------------|----------------|------------------|
+| Level 1 (Evergreen) | 6-12 months | Major industry changes, significant search changes | Quarterly SEO reviews |
+| Level 2 (Regional) | 3-6 months | Regulation changes, seasonal shifts, emerging regional trends | Automated seasonal flags |
+| Level 3 (Local) | 2-3 months | Local code changes, emerging local issues, traffic drops | Automated alerts based on traffic/search |
+| Premium (Showcases) | As needed | New projects, contractor updates | Opportunity-based |
+
+## Structured Update Process
+
+### Routine Content Audits
+
+1. **Automated Freshness Scans** (Monthly):
+   - SEO performance analysis
+   - Relevance score calculation
+   - Factual accuracy verification
+   - Competitive content comparison
+
+2. **Content Quality Prioritization**:
+   - High-traffic/low-performance content
+   - Seasonal relevance approaching
+   - Low freshness scores
+   - Topics with significant changes
+
+3. **Update Queue Management**:
+   - Priority-based content refresh schedule
+   - Deadline tracking for seasonal content
+   - Resource allocation based on impact
+   - Batch updates for related content
+
+### Update Types and Procedures
+
+#### 1. Minor Updates
+- Definition: Fact changes, statistic updates, link fixes
+- Process:
+  - Quick fact verification
+  - Direct editing without full review
+  - Update `last_updated` date
+  - No URL or structural changes
+
+#### 2. Moderate Updates
+- Definition: Section additions, new information, structural improvements
+- Process:
+  - Section-level review
+  - SEO verification for new content
+  - Update `last_updated` date
+  - Redirect handling if needed
+  - Internal link checking
+
+#### 3. Major Updates
+- Definition: Comprehensive refresh, significant restructuring
+- Process:
+  - Full content brief review
+  - Complete rewrite if needed
+  - SEO re-optimization
+  - URL strategy review
+  - Schema markup update
+  - Internal linking audit
+
+## AI-Assisted Maintenance System
+
+Implement an AI-powered content maintenance system:
+
+### 1. Automated Content Monitoring
+- Schedule regular content scans
+- Track performance metrics against benchmarks
+- Monitor search trends for topic relevance
+- Check for factual changes (regulations, costs, etc.)
+
+### 2. Content Update Workflows
+- Generate update recommendations
+- Create automated draft updates
+- Route to content owners for review
+- Track implementation of changes
+
+### 3. Seasonal Content Management
+- Identify seasonal content
+- Schedule timely reviews before peak seasons
+- Automated reminders for seasonal updates
+- Performance reporting on seasonal content
+
+## Trigger-Based Updates
+
+Establish clear triggers that automatically flag content for review:
+
+### Traffic-Based Triggers
+- 20%+ drop in organic traffic over 30 days
+- 30%+ increase in bounce rate
+- Significant decline in average time on page
+- Drop in conversion rates
+
+### Search-Based Triggers
+- Decline in keyword rankings (>5 positions)
+- Emergence of new related search terms
+- Changes in search intent signals
+- Featured snippet opportunities/losses
+
+### External Triggers
+- Industry regulation changes
+- Building code updates
+- Material/cost significant changes
+- New techniques or technologies
+- Competitor content improvements
+
+## Content Freshness Implementation
+
+### Code-Level Implementation
+
+```javascript
+// Freshness calculation example (simplified)
+function calculateFreshnessScore(content) {
+  const now = new Date();
+  const lastUpdated = new Date(content.lastUpdated);
+  const daysSinceUpdate = (now - lastUpdated) / (1000 * 60 * 60 * 24);
+  
+  // Base score diminishes over time
+  let freshnessScore = 100 - Math.min(daysSinceUpdate / 3, 50);
+  
+  // Traffic trend factor
+  if (content.trafficTrend < -0.15) {
+    freshnessScore -= 20;
+  }
+  
+  // Search position factor
+  if (content.keywordPositionChange < -3) {
+    freshnessScore -= 15;
+  }
+  
+  // Content completeness factor
+  freshnessScore += content.completenessScore * 0.2;
+  
+  return Math.max(0, Math.min(100, freshnessScore));
+}
+
+// Update schedule generator
+function generateUpdateSchedule(contents) {
+  return contents
+    .map(content => ({
+      ...content,
+      freshnessScore: calculateFreshnessScore(content),
+      priority: determinePriority(content)
+    }))
+    .sort((a, b) => a.priority - b.priority)
+    .map((content, index) => ({
+      ...content,
+      scheduledUpdate: calculateUpdateDate(content, index)
+    }));
+}
+```
+
+### UI Components for Content Freshness
+
+```jsx
+// Freshness indicator component
+function FreshnessIndicator({ score, lastUpdated }) {
+  const getStatusColor = (score) => {
+    if (score > 80) return 'green';
+    if (score > 50) return 'yellow';
+    return 'red';
+  };
+  
+  return (
+    <div className="freshness-indicator">
+      <div className={`indicator-dot ${getStatusColor(score)}`}></div>
+      <span className="last-updated">
+        Updated: {formatDate(lastUpdated)}
+      </span>
+      {score < 50 && (
+        <span className="update-alert">Update recommended</span>
+      )}
+    </div>
+  );
+}
+
+// Content maintenance dashboard component
+function ContentMaintenanceDashboard() {
+  return (
+    <div className="maintenance-dashboard">
+      <h2>Content Maintenance</h2>
+      
+      <div className="priority-updates">
+        <h3>Priority Updates</h3>
+        <ContentList 
+          contents={getPriorityContents()} 
+          filterBy="priority" 
+        />
+      </div>
+      
+      <div className="upcoming-reviews">
+        <h3>Upcoming Scheduled Reviews</h3>
+        <ContentList 
+          contents={getUpcomingReviews()} 
+          filterBy="reviewDate" 
+        />
+      </div>
+      
+      <div className="seasonal-content">
+        <h3>Seasonal Content</h3>
+        <ContentList 
+          contents={getSeasonalContent()} 
+          filterBy="season" 
+        />
+      </div>
+    </div>
+  );
+}
+```
+
+## Content Archiving Strategy
+
+For content that is no longer relevant or valuable:
+
+1. **Archive Criteria**:
+   - Consistently low traffic (>90 days)
+   - Outdated information that cannot be updated
+   - Redundant with newer, better content
+   - Poor performance despite multiple updates
+
+2. **Archiving Process**:
+   - Content audit to identify archive candidates
+   - SEO impact analysis before archiving
+   - Implementation of proper redirects
+   - URL canonicalization if needed
+   - Content preservation in archive database
+
+3. **Alternative to Deletion**:
+   - Merge valuable content into other pages
+   - Implement proper redirects
+   - Update internal links
+   - Communicate changes to search engines
+
+## Service-Specific Maintenance Considerations
+
+### Chimney Services
+- Annual safety regulation updates
+- Seasonal maintenance changes
+- Building code updates
+- Material availability and cost changes
+
+### Masonry Services
+- Regional building code changes
+- Material innovation and availability
+- Preservation technique updates
+- Seasonal maintenance recommendations
+
+### Concrete Services
+- New concrete products and techniques
+- Regional installation variations
+- Seasonal application guidelines
+- Cost fluctuations and market changes
+
+## Content Quality Assurance
+
+### Accuracy Verification
+- Regular fact-checking process
+- Citation review and updates
+- Expert review scheduling
+- User feedback incorporation
+
+### SEO Health Monitoring
+- Keyword position tracking
+- Search intent alignment
+- Technical SEO audits
+- Schema markup validation
+
+### User Experience Evaluation
+- Readability scoring
+- Mobile experience testing
+- Page speed optimization
+- Interactive element testing
+
+## Implementation Checklist
+
+- [ ] Set up content audit system
+- [ ] Implement freshness score calculation
+- [ ] Create automated review triggers
+- [ ] Develop update priority system
+- [ ] Build content maintenance dashboard
+- [ ] Establish review workflows
+- [ ] Create seasonal content calendar
+- [ ] Configure technical monitoring tools
+- [ ] Set up reporting and analytics
+
+## Best Practices
+
+1. **Document All Updates**:
+   - Maintain change logs for all content
+   - Record update rationale and changes
+   - Track performance before and after updates
+
+2. **Balance Update Types**:
+   - Allocate resources between minor and major updates
+   - Ensure all content receives appropriate attention
+   - Prioritize based on impact, not just age
+
+3. **Stay Data-Driven**:
+   - Base update decisions on performance metrics
+   - Test and measure update impacts
+   - Refine maintenance approach based on results
+
+4. **Maintain Consistency Across Updates**:
+   - Ensure voice and tone remain consistent
+   - Preserve content structure where appropriate
+   - Maintain URL strategies and naming conventions
+
+5. **Leverage Automation Wisely**:
+   - Automate monitoring and alerts
+   - Use AI for draft updates and recommendations
+   - Always include human review for quality control
+
+By implementing this comprehensive content maintenance framework, kNearme can ensure all content remains fresh, accurate, and valuable to users while efficiently allocating resources to the highest-impact updates.

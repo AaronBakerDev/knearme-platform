@@ -1,0 +1,30 @@
+approval_policy = "never"
+
+sandbox_mode = "workspace-write"
+
+model = "gpt-5.2-codex"
+model_reasoning_effort = "xhigh"
+web_search = true
+
+[features]
+web_search_request = true
+
+[sandbox_workspace_write]
+network_access = true
+
+# Repo-local Codex configuration for knearme-portfolio
+# MCP: Supabase/ClickUp removed - use Claude Code MCP for those
+
+[projects."/Users/aaronbaker/knearme-workspace/knearme-portfolio"]
+trust_level = "trusted"
+
+[projects."/Users/aaronbaker/knearme-workspace"]
+trust_level = "trusted"
+
+[mcp_servers.supabase]
+url = "https://mcp.supabase.com/mcp?project_ref=xynhhmliqdvyzrqnlvmk"
+http_headers = { "Authorization" = "Bearer sbp_1055e00d750b1a2812572631acfcc581197834e0" }
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]

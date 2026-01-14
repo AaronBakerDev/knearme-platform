@@ -1,0 +1,23 @@
+{
+  "gemini-2.0-flash": {
+    "accuracy": 0.8461111111111111,
+    "time": 57.681195974349976,
+    "type": "cloud",
+    "reviews": 50,
+    "errors": 0
+  },
+  "qwen2.5:14b": {
+    "accuracy": 0.8,
+    "time": 324.9399371147156,
+    "type": "local",
+    "reviews": 50,
+    "errors": 0
+  },
+  "gemma2:9b": {
+    "accuracy": 0.8480555555555556,
+    "time": 243.29176688194275,
+    "type": "local",
+    "reviews": 50,
+    "errors": 0
+  }
+}

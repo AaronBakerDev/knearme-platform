@@ -1,0 +1,65 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "knearme-contractor-stories"
+main = "src/index.js"
+compatibility_date = "2024-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production]
+name = "knearme-contractor-stories"
+routes = [
+  { pattern = "knearme.co/*", zone_name = "knearme.co" },
+  { pattern = "www.knearme.co/*", zone_name = "knearme.co" }
+]
+
+[env.development]
+name = "knearme-contractor-stories-dev"
+
+# Database for contractor profiles and stories
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "knearme_production"
+database_id = "your-d1-database-id"
+
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "knearme_development"
+database_id = "your-d1-dev-database-id"
+
+# Email service for team communication
+[env.production.vars]
+DOMAIN = "knearme.co"
+OPENAI_API_KEY = "your-openai-api-key"
+RESEND_API_KEY = "your-resend-api-key"
+ADMIN_EMAIL = "admin@knearme.co"
+
+[env.development.vars]
+DOMAIN = "dev.knearme.co"
+OPENAI_API_KEY = "your-openai-api-key"
+RESEND_API_KEY = "your-resend-api-key"
+ADMIN_EMAIL = "dev@knearme.co"
+
+# KV storage for sessions and cache
+[[env.production.kv_namespaces]]
+binding = "SESSIONS"
+id = "your-sessions-kv-id"
+
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "your-cache-kv-id"
+
+[[env.development.kv_namespaces]]
+binding = "SESSIONS"
+id = "your-dev-sessions-kv-id"
+
+[[env.development.kv_namespaces]]
+binding = "CACHE"
+id = "your-dev-cache-kv-id"
+
+# R2 for contractor photos and media
+[[env.production.r2_buckets]]
+binding = "MEDIA"
+bucket_name = "knearme-contractor-media"
+
+[[env.development.r2_buckets]]
+binding = "MEDIA"
+bucket_name = "knearme-contractor-media-dev"

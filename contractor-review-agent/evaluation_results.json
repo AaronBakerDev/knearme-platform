@@ -1,0 +1,242 @@
+{
+  "average": "93.81%",
+  "results": [
+    {
+      "review": 1,
+      "reviewer": "Johnny Figueroa",
+      "score": "85.71%",
+      "predicted": {
+        "services": [
+          "cleaning"
+        ],
+        "sentiment": "positive",
+        "score": 0.9,
+        "project_type": "maintenance",
+        "price": false,
+        "timeline": true
+      },
+      "expected": {
+        "services": [
+          "fireplace cleaning"
+        ],
+        "sentiment": "positive",
+        "score": 0.85,
+        "project_type": "maintenance",
+        "price": false,
+        "timeline": true
+      }
+    },
+    {
+      "review": 2,
+      "reviewer": "Victor Lebegue",
+      "score": "66.67%",
+      "predicted": {
+        "services": [
+          "fireplace cleaning",
+          "inspection"
+        ],
+        "sentiment": "positive",
+        "score": 0.9,
+        "project_type": "maintenance",
+        "price": false,
+        "timeline": true
+      },
+      "expected": {
+        "services": [
+          "fireplace cleaning",
+          "inspection",
+          "wildlife removal"
+        ],
+        "sentiment": "positive",
+        "score": 0.95,
+        "project_type": "repair",
+        "price": false,
+        "timeline": false
+      }
+    },
+    {
+      "review": 3,
+      "reviewer": "Paula Weaver",
+      "score": "100.00%",
+      "predicted": {
+        "services": [
+          "chimney cleaning"
+        ],
+        "sentiment": "positive",
+        "score": 0.9,
+        "project_type": "maintenance",
+        "price": false,
+        "timeline": false
+      },
+      "expected": {
+        "services": [
+          "chimney cleaning"
+        ],
+        "sentiment": "positive",
+        "score": 0.85,
+        "project_type": "maintenance",
+        "price": false,
+        "timeline": false
+      }
+    },
+    {
+      "review": 4,
+      "reviewer": "Kayla",
+      "score": "100.00%",
+      "predicted": {
+        "services": [
+          "inspection",
+          "maintenance"
+        ],
+        "sentiment": "positive",
+        "score": 0.9,
+        "project_type": "maintenance",
+        "price": true,
+        "timeline": true
+      },
+      "expected": {
+        "services": [
+          "maintenance",
+          "inspection"
+        ],
+        "sentiment": "positive",
+        "score": 0.95,
+        "project_type": "maintenance",
+        "price": true,
+        "timeline": true
+      }
+    },
+    {
+      "review": 5,
+      "reviewer": "Dusty Slaten",
+      "score": "100.00%",
+      "predicted": {
+        "services": [],
+        "sentiment": "positive",
+        "score": 0.9,
+        "project_type": "null",
+        "price": false,
+        "timeline": true
+      },
+      "expected": {
+        "services": [],
+        "sentiment": "positive",
+        "score": 0.85,
+        "project_type": "null",
+        "price": false,
+        "timeline": true
+      }
+    },
+    {
+      "review": 6,
+      "reviewer": "Herb Hoover",
+      "score": "100.00%",
+      "predicted": {
+        "services": [],
+        "sentiment": "positive",
+        "score": 0.9,
+        "project_type": "null",
+        "price": false,
+        "timeline": true
+      },
+      "expected": {
+        "services": [],
+        "sentiment": "positive",
+        "score": 0.9,
+        "project_type": "null",
+        "price": false,
+        "timeline": true
+      }
+    },
+    {
+      "review": 7,
+      "reviewer": "megan everett",
+      "score": "85.71%",
+      "predicted": {
+        "services": [],
+        "sentiment": "positive",
+        "score": 0.9,
+        "project_type": "consultation",
+        "price": false,
+        "timeline": false
+      },
+      "expected": {
+        "services": [
+          "fireplace instruction"
+        ],
+        "sentiment": "positive",
+        "score": 0.85,
+        "project_type": "consultation",
+        "price": false,
+        "timeline": false
+      }
+    },
+    {
+      "review": 8,
+      "reviewer": "chaddhird",
+      "score": "100.00%",
+      "predicted": {
+        "services": [
+          "cleaning"
+        ],
+        "sentiment": "positive",
+        "score": 0.9,
+        "project_type": "maintenance",
+        "price": false,
+        "timeline": true
+      },
+      "expected": {
+        "services": [
+          "cleaning"
+        ],
+        "sentiment": "positive",
+        "score": 0.85,
+        "project_type": "maintenance",
+        "price": false,
+        "timeline": true
+      }
+    },
+    {
+      "review": 9,
+      "reviewer": "Kelly Straub",
+      "score": "100.00%",
+      "predicted": {
+        "services": [],
+        "sentiment": "positive",
+        "score": 0.9,
+        "project_type": "null",
+        "price": false,
+        "timeline": true
+      },
+      "expected": {
+        "services": [],
+        "sentiment": "positive",
+        "score": 0.85,
+        "project_type": "null",
+        "price": false,
+        "timeline": true
+      }
+    },
+    {
+      "review": 10,
+      "reviewer": "Chloe Anderson",
+      "score": "100.00%",
+      "predicted": {
+        "services": [],
+        "sentiment": "positive",
+        "score": 0.9,
+        "project_type": "maintenance",
+        "price": false,
+        "timeline": true
+      },
+      "expected": {
+        "services": [],
+        "sentiment": "positive",
+        "score": 0.85,
+        "project_type": "maintenance",
+        "price": false,
+        "timeline": true
+      }
+    }
+  ]
+}

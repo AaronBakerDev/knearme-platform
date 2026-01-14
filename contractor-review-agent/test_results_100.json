@@ -1,0 +1,1819 @@
+[
+  {
+    "id": "0000e6b9-4c6f-4057-9911-f9bf81589449",
+    "analysis_json": {
+      "detected_services": [
+        "furnace",
+        "AC",
+        "fireplace"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "communication",
+        "trustworthy"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0000ef54-2e2e-4183-b3ed-96eaab6b4db1",
+    "analysis_json": {
+      "detected_services": [
+        "clean"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "respectful",
+        "effort",
+        "recommend"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0002a7b5-df34-4503-a9f3-0bb1244724b0",
+    "analysis_json": {
+      "detected_services": [
+        "humidifier"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "quality work"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00049f66-b8c2-4df6-92b9-469f30f58c72",
+    "analysis_json": {
+      "detected_services": [
+        "concrete overlay"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "trustworthy",
+        "skilled",
+        "professional",
+        "quality work",
+        "attention to detail"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0007f1c8-a03e-42af-805b-b9c269e2cac0",
+    "analysis_json": {
+      "detected_services": [
+        "gas fireplace"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "customer service"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00092a3d-e475-42cb-a0b9-e51032a02e55",
+    "analysis_json": {
+      "detected_services": [
+        "resurface"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.95,
+      "themes": [
+        "professional",
+        "detail oriented",
+        "timely",
+        "hard working",
+        "quality work"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "000a7b91-7a5b-4e11-b96a-1b3851903a23",
+    "analysis_json": {
+      "detected_services": [
+        "fireplace"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "knowledgeable"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "000c1887-d5fb-4bd7-b4c5-8e4facea7253",
+    "analysis_json": {
+      "detected_services": [
+        "roof"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "insurance"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "000e193e-0440-479e-8813-eb6cce375f7f",
+    "analysis_json": {
+      "detected_services": [
+        "cleaning"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "thorough",
+        "recommendations"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "000f04f3-1cfa-428e-b945-6a8f9d8d26f7",
+    "analysis_json": {
+      "detected_services": [
+        "chimney flashing"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "honest"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "000f6cc3-76dd-4b21-970a-ba17c3bad9ba",
+    "analysis_json": {
+      "detected_services": [
+        "concrete"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "quality work",
+        "responsive",
+        "on time"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0012a7ec-22f3-495c-8436-396ef9c09711",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "responsive",
+        "helpful"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00151d67-a551-49da-8d09-201eeeb48e11",
+    "analysis_json": {
+      "detected_services": [
+        "Chimney cap"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional",
+        "easy scheduling"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0015e535-84e6-447e-9f28-7d3fefa8938a",
+    "analysis_json": {
+      "detected_services": [
+        "chimney"
+      ],
+      "sentiment": "negative",
+      "sentiment_score": -0.9,
+      "themes": [
+        "unreliable",
+        "poor communication"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00161759-63ae-4004-9daf-1bc9d14526c3",
+    "analysis_json": {
+      "detected_services": [
+        "Roof"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "quality work",
+        "on time",
+        "customer service"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0017b012-2bc9-4c9f-92fc-ee4cf71f68a2",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "cleanliness",
+        "efficiency",
+        "professionalism"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0018cb72-e9c8-40d8-a99f-63efa70c7646",
+    "analysis_json": {
+      "detected_services": [
+        "chimney"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "clean",
+        "efficient",
+        "price"
+      ],
+      "project_type": null,
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0018ea4d-1d37-4897-9901-1d5a60ac1983",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "on time",
+        "quality work"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0019b016-e32a-4f25-a3ba-354092d013f3",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.85,
+      "themes": [
+        "professional"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "001a4a65-6ade-4fbd-81d6-03f2cb96cd9a",
+    "analysis_json": {
+      "detected_services": [
+        "brick repair"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "001b9f2c-38f2-496c-aced-5b2970dc9a1b",
+    "analysis_json": {
+      "detected_services": [
+        "cleaning"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "001d96c9-9e85-41e3-86ae-c4dc54bc2fea",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "001db123-8ff3-4e9b-b5af-a0c941f6ee72",
+    "analysis_json": {
+      "detected_services": [
+        "water heater"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": true,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0020577b-7b10-4c22-aa85-19678804b9fa",
+    "analysis_json": {
+      "detected_services": [
+        "chimney cleaning"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "friendly",
+        "cleanliness"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00223250-2d23-4225-8d67-97e8d19d2cba",
+    "analysis_json": {
+      "detected_services": [
+        "siding",
+        "roof"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "communication",
+        "on time"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00236d23-739e-4490-80af-2a87caed26fb",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "price",
+        "excellent service"
+      ],
+      "project_type": null,
+      "mentions_price": true,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00237356-60b4-4aed-aeee-4e5ccfb3db41",
+    "analysis_json": {
+      "detected_services": [
+        "cleaning"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "pet friendly"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00243bb0-2d0d-4b31-ac0b-e0533cb6f07a",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00243ec1-7a4e-47c7-9a82-9b2462ac3f7c",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.85,
+      "themes": [
+        "informative",
+        "communication",
+        "friendly",
+        "helpful"
+      ],
+      "project_type": "consultation",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0024b639-58b1-45d9-ba57-e25ceff84eef",
+    "analysis_json": {
+      "detected_services": [
+        "cleaning services"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "thorough",
+        "responsive"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "002565f3-197b-4d09-8133-6fd44ebdcbb8",
+    "analysis_json": {
+      "detected_services": [
+        "fireplace cleaning"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.85,
+      "themes": [
+        "helpful"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0025cd01-956f-4328-8728-3b366af9ccb5",
+    "analysis_json": {
+      "detected_services": [
+        "concrete"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "on time",
+        "on budget"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00262525-cfeb-47d9-aebd-10a2250f6756",
+    "analysis_json": {
+      "detected_services": [
+        "electric fireplace"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "customer service",
+        "product quality",
+        "installation guidance"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0026e66f-a22f-460a-ad78-3b1935958ec8",
+    "analysis_json": {
+      "detected_services": [
+        "air vent"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.95,
+      "themes": [
+        "professional",
+        "quality work",
+        "efficient"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "002721c1-ecbd-4291-8944-ad2198cb28f0",
+    "analysis_json": {
+      "detected_services": [
+        "light fixture installation",
+        "shower head installation"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00273deb-c3b2-4071-8386-863176a40728",
+    "analysis_json": {
+      "detected_services": [
+        "tree"
+      ],
+      "sentiment": "negative",
+      "sentiment_score": -0.85,
+      "themes": [
+        "poor communication",
+        "lack of responsiveness"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00278d3b-4b67-46a5-be59-540f0f574c56",
+    "analysis_json": {
+      "detected_services": [
+        "chimney"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.85,
+      "themes": [
+        "quality work",
+        "responsive"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "002885ee-860f-4df2-8774-7a461d28dfb9",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "knowledgeable",
+        "professional",
+        "communication"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "002a0ca6-0a91-4814-b636-4c3b5912ffdc",
+    "analysis_json": {
+      "detected_services": [
+        "painting"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "quality work",
+        "communication",
+        "customer service"
+      ],
+      "project_type": null,
+      "mentions_price": true,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "002b269a-a560-414f-9b18-0b39a585e61f",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "on time",
+        "friendly"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "002b3cac-4eca-4483-9e0c-78981aba2ee6",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional",
+        "friendly staff"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "002be54e-ac0b-45c3-a984-4c468436cc6c",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "customer service",
+        "quality work",
+        "on time"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "002cb601-fa04-4808-a78b-788c879a01b5",
+    "analysis_json": {
+      "detected_services": [
+        "concrete work"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional",
+        "on time"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "002d34d2-f8fa-49dc-bbfd-718402f4653e",
+    "analysis_json": {
+      "detected_services": [
+        "wood fireplace"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.85,
+      "themes": [
+        "helpful",
+        "honest"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00310019-50a7-49bd-b727-b72cb63f13d8",
+    "analysis_json": {
+      "detected_services": [
+        "gas fireplace"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0032b316-df14-4732-b1fc-573988dbbc40",
+    "analysis_json": {
+      "detected_services": [
+        "masonry"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0033e007-7adc-4f71-bb0e-7864e883ded1",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.85,
+      "themes": [
+        "helpful",
+        "customer service"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0034c0e2-5d85-4647-83d2-887d32c392d9",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "efficient"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0034eacd-6040-4496-b736-273d8d82252d",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "quality work",
+        "on time",
+        "friendly",
+        "courteous"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "003536c1-af80-4b82-8be7-2822f342b888",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "reliable",
+        "communication",
+        "on time",
+        "reasonable price",
+        "clean",
+        "accurate quote"
+      ],
+      "project_type": null,
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0036a85e-9f7f-478c-9c9c-4b59b43d1430",
+    "analysis_json": {
+      "detected_services": [
+        "air"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "thorough"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00371b66-35fa-4ecd-81f1-9355ab01e52e",
+    "analysis_json": {
+      "detected_services": [
+        "grading"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "quality work",
+        "trustworthy",
+        "knowledgeable"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "003aefea-bf91-443f-b537-0e0ac6f1cda7",
+    "analysis_json": {
+      "detected_services": [
+        "window",
+        "parging"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "on time"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "003b9e69-cfcd-4525-9385-9113667dc690",
+    "analysis_json": {
+      "detected_services": [
+        "driveway"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "expertise",
+        "responsive"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "003dda93-370f-44b0-99aa-db7b5bd191b3",
+    "analysis_json": {
+      "detected_services": [
+        "concrete"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional",
+        "affordable"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "003fa915-e99c-4144-8a4d-0af4a65a32e7",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "high quality work",
+        "professional",
+        "responsive",
+        "attention to detail"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "003faa30-f3de-475f-967b-f14a2dd1af74",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.85,
+      "themes": [
+        "professional",
+        "on time"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "003fba8e-309a-4141-a442-e4627458375a",
+    "analysis_json": {
+      "detected_services": [
+        "fireplace"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "fair price",
+        "fast service"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0040e5a5-dd47-4cbb-a545-6ac4a8a56bba",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "friendly",
+        "professional",
+        "recommend",
+        "reasonably priced"
+      ],
+      "project_type": null,
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00413d41-b635-4052-958c-0483b837393d",
+    "analysis_json": {
+      "detected_services": [
+        "paint"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0042407d-fb89-4015-9ca3-3a2b5f607323",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "negative",
+      "sentiment_score": -0.9,
+      "themes": [
+        "poor communication",
+        "unresponsive"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0043e67b-255c-4599-960e-ab32c4748c76",
+    "analysis_json": {
+      "detected_services": [
+        "retaining walls"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "on time",
+        "cleanliness",
+        "customer service"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "004522a6-53f7-454c-8c5e-b1a99867f250",
+    "analysis_json": {
+      "detected_services": [
+        "painting"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "craftsmanship",
+        "knowledgeable",
+        "prompt",
+        "courteous",
+        "friendly",
+        "price"
+      ],
+      "project_type": null,
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0047073b-0e3f-4f3d-8f3f-c17f9f0d2fb8",
+    "analysis_json": {
+      "detected_services": [
+        "windows",
+        "doors"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "communication"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0047b880-ef2b-4907-893b-5ff196b95728",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "customer service",
+        "professional"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0047d79b-ab48-4225-8ce1-07b76b81a355",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "courteous",
+        "cleanliness"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0047e61a-c3ec-49c1-92d1-2ffa43c5aa5c",
+    "analysis_json": {
+      "detected_services": [
+        "repairs"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "fair pricing",
+        "easy to work with",
+        "fast service"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "004836f3-d139-4d4a-bcfd-8933f3e9b010",
+    "analysis_json": {
+      "detected_services": [
+        "painting"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional",
+        "on time"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00496990-c50c-4449-8fe5-3da6b7a6cfeb",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.85,
+      "themes": [
+        "quality work",
+        "customer service"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "004a91d7-d015-4e7e-b56f-7f0cfb7a7af5",
+    "analysis_json": {
+      "detected_services": [
+        "cleaning"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "quality work"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "004c5022-db77-4723-930b-ee56df9c9edc",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.85,
+      "themes": [
+        "customer service",
+        "knowledgeable"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "004cdca9-a570-4c59-903b-c90fed9d4c59",
+    "analysis_json": {
+      "detected_services": [
+        "fireplace"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "customer service",
+        "selection",
+        "convenience"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "004d4d60-3172-477a-8c91-c2e3d397a1f3",
+    "analysis_json": {
+      "detected_services": [
+        "stucco"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "communication",
+        "on time",
+        "on budget",
+        "professional"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "004e6b94-4161-4350-beae-4b17d224f798",
+    "analysis_json": {
+      "detected_services": [
+        "roofs"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "great service"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "004f2e30-f073-4084-8cca-d8df88cfcec5",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "on time",
+        "thorough"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "004f4097-ba98-44e3-b1fc-ddddeacce2c0",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "fast service",
+        "professional",
+        "on time",
+        "quality work"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00501c49-d00d-4095-9d49-a87162318a03",
+    "analysis_json": {
+      "detected_services": [
+        "concrete"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "fast service",
+        "professional"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0050d4d1-4207-45ee-bd71-b06b448e8c85",
+    "analysis_json": {
+      "detected_services": [
+        "gas fireplace cleaning"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "thorough",
+        "neat",
+        "informative"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "005108f1-f790-4ca6-8d8f-32733605b54c",
+    "analysis_json": {
+      "detected_services": [
+        "excavation",
+        "sealing"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "on time",
+        "cleanliness",
+        "quality work"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0052f56e-2e4e-4151-af9b-12c33f4a4545",
+    "analysis_json": {
+      "detected_services": [
+        "concrete"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "quality work"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "005578cc-068f-4ee7-9418-09f1a9b44d1e",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "quality work",
+        "honest"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00569b03-1203-421f-97e5-12f9a2660ec6",
+    "analysis_json": {
+      "detected_services": [
+        "masonry"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0056b755-c7b3-4277-a6d6-0b1af75aa750",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "excellent service",
+        "amazing results"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00585d7d-0144-4efa-b41e-dc8e39b63d58",
+    "analysis_json": {
+      "detected_services": [
+        "roof replacement",
+        "gutter replacement",
+        "window replacement"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "helpful"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0059296c-8d6b-41b2-92ab-33c75566b57a",
+    "analysis_json": {
+      "detected_services": [
+        "brick repair"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "005ca556-80f2-4ab4-b952-58549dd7f28d",
+    "analysis_json": {
+      "detected_services": [
+        "hot tub"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "customer service",
+        "recommendation"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "005db78f-ce73-47b2-ae7f-1dd3dc5d78d6",
+    "analysis_json": {
+      "detected_services": [
+        "painting"
+      ],
+      "sentiment": "negative",
+      "sentiment_score": -0.9,
+      "themes": [
+        "miscommunication",
+        "poor communication",
+        "lack of professionalism",
+        "inconvenience"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "005fb4db-8b3c-4a6d-b5e1-64446415e91f",
+    "analysis_json": {
+      "detected_services": [
+        "vents"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0060a4b8-adb2-4955-be28-08272b6922e3",
+    "analysis_json": {
+      "detected_services": [
+        "install"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "communication",
+        "professional"
+      ],
+      "project_type": "new_construction",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0060f397-316b-4df4-a587-ccb3575072b5",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "professional",
+        "cost effective"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00622ba5-1d63-4213-bf04-ec339e2abd3a",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "on time",
+        "professional",
+        "clean up",
+        "quality work"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "006307e4-b8d5-4ef1-bee9-e61a032b18be",
+    "analysis_json": {
+      "detected_services": [
+        "parging",
+        "tuck pointing"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "on time",
+        "quality work",
+        "fair price"
+      ],
+      "project_type": "repair",
+      "mentions_price": true,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "006446ac-088a-4281-ad83-3aed1545f832",
+    "analysis_json": {
+      "detected_services": [
+        "yard work"
+      ],
+      "sentiment": "negative",
+      "sentiment_score": -0.9,
+      "themes": [
+        "poor communication",
+        "unresponsive",
+        "unfinished work",
+        "scam"
+      ],
+      "project_type": null,
+      "mentions_price": true,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00647340-b259-4a76-bb75-02bf2fbd3064",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0064cefc-fc0e-4c11-9899-8f42556f500e",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "attention to detail"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00663c77-9839-4e68-9973-ba3ac484ee13",
+    "analysis_json": {
+      "detected_services": [
+        "chimney cleaning"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.85,
+      "themes": [
+        "honesty",
+        "quality work",
+        "reliable"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "006783d1-6533-4ebf-8245-c92a1e05ec81",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "workmanship"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0068b928-ff1a-45ec-9d92-4f7eecb5a9a5",
+    "analysis_json": {
+      "detected_services": [
+        "Chimney Inspection"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.85,
+      "themes": [
+        "trustworthy",
+        "informative"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "006a51d9-f242-4cb6-b816-f8aa3e4d5d3b",
+    "analysis_json": {
+      "detected_services": [
+        "eaves troughs"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "on time",
+        "professional",
+        "quality work"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "006c11a3-c1ea-4dba-a4eb-5c36dda6d460",
+    "analysis_json": {
+      "detected_services": [],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  }
+]

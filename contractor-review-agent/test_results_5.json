@@ -1,0 +1,99 @@
+[
+  {
+    "id": "0000e6b9-4c6f-4057-9911-f9bf81589449",
+    "analysis_json": {
+      "detected_services": [
+        "furnace",
+        "AC",
+        "fireplace"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "communication",
+        "trustworthy"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0000ef54-2e2e-4183-b3ed-96eaab6b4db1",
+    "analysis_json": {
+      "detected_services": [
+        "clean"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "respectful",
+        "quality work"
+      ],
+      "project_type": "maintenance",
+      "mentions_price": false,
+      "mentions_timeline": true,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0002a7b5-df34-4503-a9f3-0bb1244724b0",
+    "analysis_json": {
+      "detected_services": [
+        "humidifier"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "professional",
+        "helpful"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "00049f66-b8c2-4df6-92b9-469f30f58c72",
+    "analysis_json": {
+      "detected_services": [
+        "concrete overlay"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "trustworthy",
+        "skilled",
+        "professional",
+        "quality work",
+        "attention to detail"
+      ],
+      "project_type": null,
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  },
+  {
+    "id": "0007f1c8-a03e-42af-805b-b9c269e2cac0",
+    "analysis_json": {
+      "detected_services": [
+        "gas fireplace"
+      ],
+      "sentiment": "positive",
+      "sentiment_score": 0.9,
+      "themes": [
+        "quality work",
+        "customer service"
+      ],
+      "project_type": "repair",
+      "mentions_price": false,
+      "mentions_timeline": false,
+      "confidence": 0.95
+    }
+  }
+]

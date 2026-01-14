@@ -1,0 +1,157 @@
+{
+  "tagger.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "augmented": true,
+        "review_text": "Mac was great. Prompt and professional. I'd honestly thought my fireplace was beyond help but he put in the time to get it cleaned and ready for the season. I highly recommend and will call again.",
+        "rating": 5,
+        "reviewer_name": "Johnny Figueroa",
+        "reasoning": "The review is positive, praising Mac's promptness, professionalism, and ability to restore the fireplace. The review explicitly mentions cleaning. The reviewer also mentions calling again, indicating satisfaction.",
+        "detected_services": [
+          "cleaning"
+        ],
+        "sentiment": "positive",
+        "sentiment_score": 0.9,
+        "themes": [
+          "prompt",
+          "professional",
+          "cleaning",
+          "recommend"
+        ],
+        "project_type": "maintenance",
+        "mentions_price": false,
+        "mentions_timeline": true,
+        "confidence": 0.95
+      },
+      {
+        "augmented": true,
+        "review_text": "Booked a simple fireplace cleaning and inspection for my wood burning fireplace. With this being a recently purchased home, I expected soot and a cracked liner, but instead got wildlife. Mace found a raccoon living in my chimney like it was an Airbnb with a five-month lease. He handled the removal like a pro, got everything cleaned up, and now I can finally use my fireplace raccoon-free and ready for winter. Would 100% call again!",
+        "rating": 5,
+        "reviewer_name": "Victor Lebegue",
+        "reasoning": "The review is highly positive, praising the technician's handling of an unexpected situation (raccoon removal) during a fireplace cleaning and inspection. The review explicitly mentions \"fireplace cleaning and inspection\" as services. The reviewer expresses strong satisfaction and intends to use the service again. The presence of wildlife suggests a potential repair aspect, but the primary services are cleaning and inspection.",
+        "detected_services": [
+          "fireplace cleaning",
+          "inspection",
+          "wildlife removal"
+        ],
+        "sentiment": "positive",
+        "sentiment_score": 0.95,
+        "themes": [
+          "professional",
+          "thorough",
+          "problem-solving"
+        ],
+        "project_type": "maintenance",
+        "mentions_price": false,
+        "mentions_timeline": false,
+        "confidence": 0.95
+      },
+      {
+        "augmented": true,
+        "review_text": "Photos and honest information on the chimney cleaning. Very efficient and super with cleaning up. Will use them again.",
+        "rating": 5,
+        "reviewer_name": "Paula Weaver",
+        "reasoning": "The review is positive, highlighting honesty, efficiency, and cleanliness. The service explicitly mentioned is chimney cleaning. The reviewer expresses intent to use the service again.",
+        "detected_services": [
+          "chimney cleaning"
+        ],
+        "sentiment": "positive",
+        "sentiment_score": 0.9,
+        "themes": [
+          "honest",
+          "efficient",
+          "cleanliness"
+        ],
+        "project_type": "maintenance",
+        "mentions_price": false,
+        "mentions_timeline": false,
+        "confidence": 0.95
+      },
+      {
+        "augmented": true,
+        "review_text": "Mace did an excellent job! We were so impressed with his professionalism and knowledge. He took care of the maintenance needed same day as the free inspection, making it incredibly easy - we now have a functional fireplace ready for the winter!",
+        "rating": 5,
+        "reviewer_name": "Kayla",
+        "reasoning": "The review is highly positive, praising the technician's professionalism and knowledge. It explicitly mentions \"maintenance\" and a \"free inspection,\" indicating the services performed. The review also highlights the convenience of same-day service and the fireplace being ready for winter.",
+        "detected_services": [
+          "maintenance",
+          "inspection"
+        ],
+        "sentiment": "positive",
+        "sentiment_score": 0.9,
+        "themes": [
+          "professional",
+          "knowledgeable",
+          "convenient"
+        ],
+        "project_type": "maintenance",
+        "mentions_price": true,
+        "mentions_timeline": true,
+        "confidence": 0.95
+      }
+    ],
+    "signature": {
+      "instructions": "Extract structured information from a contractor review.\n\nYou are analyzing contractor reviews for a chimney/fireplace service company.\nExtract structured data following these rules:\n\n- detected_services: ONLY services explicitly mentioned. Use empty list if none.\n- sentiment_score: Use realistic range 0.7-0.95 for positive reviews. Never 1.0.\n- project_type: \"maintenance\" for cleaning, \"consultation\" for teaching/advice, \"repair\" for fixing.\n- mentions_price: TRUE if mentions \"free\", cost, pricing, quotes, estimates.\n- mentions_timeline: TRUE if mentions \"on time\", \"quickly\", \"same day\", \"prompt\", \"next season\".",
+      "fields": [
+        {
+          "prefix": "Review Text:",
+          "description": "The contractor review text to analyze"
+        },
+        {
+          "prefix": "Rating:",
+          "description": "Star rating (1-5)"
+        },
+        {
+          "prefix": "Reviewer Name:",
+          "description": "Name of the reviewer"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Detected Services:",
+          "description": "List of services explicitly mentioned in the review"
+        },
+        {
+          "prefix": "Sentiment:",
+          "description": "Overall sentiment: positive, negative, neutral, or mixed"
+        },
+        {
+          "prefix": "Sentiment Score:",
+          "description": "Sentiment score from -1 (very negative) to 1 (very positive)"
+        },
+        {
+          "prefix": "Themes:",
+          "description": "Key themes like 'professional', 'on time', 'quality work'"
+        },
+        {
+          "prefix": "Project Type:",
+          "description": "Type: repair, maintenance, consultation, new_construction, or null"
+        },
+        {
+          "prefix": "Mentions Price:",
+          "description": "True if review mentions pricing, free services, or cost"
+        },
+        {
+          "prefix": "Mentions Timeline:",
+          "description": "True if review mentions timing, scheduling, or punctuality"
+        },
+        {
+          "prefix": "Confidence:",
+          "description": "Confidence in this analysis from 0 to 1"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.13",
+      "dspy": "3.0.4",
+      "cloudpickle": "3.1"
+    }
+  }
+}

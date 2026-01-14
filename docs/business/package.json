@@ -1,0 +1,57 @@
+{
+  "name": "knearme-autonomous-platform",
+  "version": "1.0.0",
+  "description": "Autonomous AI-powered contractor story platform with self-building CEO",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env development",
+    "db:setup": "wrangler d1 execute knearme_development --file=./database/schema.sql",
+    "db:migrate": "wrangler d1 execute knearme_production --file=./database/schema.sql",
+    "test": "vitest",
+    
+    "ceo:start": "node scripts/ceo-autonomous-startup.js",
+    "ceo:status": "node -e \"import('./agents/autonomous-ceo-agent.js').then(m => console.log(new m.AutonomousCEOAgent().getOperationalStatus()))\"",
+    
+    "interview": "node scripts/ai-interviewer.js",
+    "generate-story": "node scripts/story-generator.js",
+    "setup-team": "node scripts/setup-team.js",
+    "run-task-agents": "node scripts/run-task-agents.js",
+    "build-business": "node scripts/run-task-agents.js",
+    "update-docs": "node scripts/run-task-agents.js docs",
+    "build-departments": "node scripts/run-task-agents.js departments",
+    
+    "autonomous": "node scripts/ceo-autonomous-startup.js",
+    "startup": "npm run ceo:start",
+    "status": "npm run ceo:status"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20241011.0",
+    "@openai/agents": "^1.0.0",
+    "openai": "^4.67.3",
+    "resend": "^4.0.1",
+    "hono": "^4.6.5",
+    "zod": "^3.23.8",
+    "date-fns": "^4.1.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "wrangler": "^3.84.0",
+    "vitest": "^2.1.2",
+    "@types/node": "^22.8.1"
+  },
+  "keywords": [
+    "autonomous-ai",
+    "contractors", 
+    "excavators",
+    "post-hole-diggers",
+    "ai-stories",
+    "cloudflare-workers",
+    "directory",
+    "self-building",
+    "ceo-agent",
+    "autonomous-business"
+  ]
+}

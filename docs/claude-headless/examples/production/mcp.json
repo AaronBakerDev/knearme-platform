@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "database": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-server-sqlite", "/data/app.db"],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+
+    "filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-server-filesystem", "/workspace"],
+      "env": {}
+    },
+
+    "github": {
+      "type": "http",
+      "url": "https://api.github.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json"
+      }
+    },
+
+    "custom-tools": {
+      "type": "stdio",
+      "command": "${CUSTOM_MCP_PATH:-/app/mcp-server}",
+      "args": ["--config", "/app/config/tools.json"],
+      "env": {
+        "LOG_LEVEL": "${LOG_LEVEL:-info}"
+      }
+    }
+  }
+}

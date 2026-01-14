@@ -1,0 +1,21 @@
+{
+  "name": "meta-graph-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker for Meta Graph API (Facebook/Instagram) management",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:production": "wrangler deploy --env production",
+    "tail": "wrangler tail",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241230.0",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.1",
+    "vitest": "^2.1.8",
+    "wrangler": "^3.99.0"
+  }
+}
