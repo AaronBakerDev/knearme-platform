@@ -18,7 +18,7 @@ National Service Landing pages are **service-focused content pages** that target
 
 ### File Location
 ```
-app/(public)/services/[type]/page.tsx
+app/(marketing)/services/[type]/page.tsx
 ```
 
 ### URL Pattern
@@ -482,7 +482,7 @@ Focus on cost, timing, DIY vs professional, and common problems.
 
 ### Phase 3.1: Route and Data Layer
 
-- [ ] Create route file: `app/(public)/services/[type]/page.tsx`
+- [ ] Create route file: `app/(marketing)/services/[type]/page.tsx`
 - [ ] Implement `getCitiesByServiceType()` query
 - [ ] Implement `getFeaturedProjectsByService()` query
 - [ ] Add `generateStaticParams()` for 8 service types

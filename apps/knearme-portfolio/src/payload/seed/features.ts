@@ -20,7 +20,7 @@
  */
 
 import { getPayload } from 'payload'
-import config from '../../payload/payload.config'
+import config from '../../payload/payload.config.ts'
 
 /**
  * Source feature content - matches FALLBACK_FEATURES from FeatureGrid.tsx exactly

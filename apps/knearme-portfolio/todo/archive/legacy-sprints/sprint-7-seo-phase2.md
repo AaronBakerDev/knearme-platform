@@ -15,7 +15,7 @@ Implement programmatic service type by city pages, enhance internal linking, add
 ## 1. Service Type by City Pages (P1)
 
 ### Route Implementation
-- [x] Create route: `app/(public)/[city]/masonry/[type]/page.tsx` ✅ (2025-12-10)
+- [x] Create route: `app/(portfolio)/[city]/masonry/[type]/page.tsx` ✅ (2025-12-10)
 - [x] Implement `generateStaticParams()` for top city/service combinations ✅ (2025-12-10)
 - [x] Configure ISR with appropriate revalidation (3600s) ✅ (2025-12-10)
 

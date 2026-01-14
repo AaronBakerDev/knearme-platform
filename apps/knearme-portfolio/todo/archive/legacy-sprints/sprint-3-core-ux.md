@@ -103,10 +103,10 @@ Build the core user experience: photo upload, AI interview conversation flow, gu
 ## 3. Project Creation Flow
 
 > **Status:** ✅ ~95% Complete
-> **Implementation:** `src/app/(contractor)/projects/new/page.tsx` (622 lines)
+> **Implementation:** `src/app/(dashboard)/projects/new/page.tsx` (622 lines)
 
 ### New Project Route
-- [x] Create `/app/(contractor)/projects/new/page.tsx`
+- [x] Create `/app/(dashboard)/projects/new/page.tsx`
 - [x] Initialize draft project in database
 - [x] Generate temporary project ID (via API)
 - [x] Set up interview session
@@ -193,11 +193,11 @@ Build the core user experience: photo upload, AI interview conversation flow, gu
 ## 6. Guided Editing Interface
 
 > **Status:** ✅ ~95% Complete
-> **Implementation:** `src/app/(contractor)/projects/[id]/edit/page.tsx`
+> **Implementation:** `src/app/(dashboard)/projects/[id]/edit/page.tsx`
 > **New Components:** `src/components/edit/` (RichTextEditor, TagEditor, ChipEditor, SortableImageGrid)
 
 ### Edit Page
-- [x] Create `/app/(contractor)/projects/[id]/edit/page.tsx`
+- [x] Create `/app/(dashboard)/projects/[id]/edit/page.tsx`
 - [x] Load draft/published project data
 - [x] Show all editable fields (in tabs)
 
@@ -293,7 +293,7 @@ Build the core user experience: photo upload, AI interview conversation flow, gu
 ## 8. Dashboard Integration
 
 > **Status:** ✅ ~85% Complete
-> **Implementation:** `src/app/(contractor)/dashboard/page.tsx` + `projects/page.tsx`
+> **Implementation:** `src/app/(dashboard)/dashboard/page.tsx` + `projects/page.tsx`
 
 ### Project List (US-004-06)
 - [x] Update dashboard with project grid

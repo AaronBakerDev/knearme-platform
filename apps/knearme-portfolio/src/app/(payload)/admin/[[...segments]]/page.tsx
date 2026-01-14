@@ -12,13 +12,11 @@
  */
 import { RootPage, generatePageMetadata } from '@payloadcms/next/views'
 import type { Metadata } from 'next'
-import type { ImportMap } from 'payload'
 
 import config from '@payload-config'
 
 // Import map is generated at build time by Payload
-// For MVP, we use an empty map - full integration happens during build
-const importMap: ImportMap = {}
+import { importMap } from '../importMap.js'
 
 type Args = {
   params: Promise<{

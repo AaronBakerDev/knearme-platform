@@ -22,12 +22,12 @@ Educational Content pages are **in-depth articles and how-to guides** targeting 
 
 **Option A:** `/learn/` route group (recommended)
 ```
-app/(public)/learn/[slug]/page.tsx
+app/(marketing)/learn/[slug]/page.tsx
 ```
 
 **Option B:** `/resources/` route group
 ```
-app/(public)/resources/[slug]/page.tsx
+app/(marketing)/resources/[slug]/page.tsx
 ```
 
 **Recommendation:** Use `/learn/` for clarity and SEO (clearer user intent)
@@ -587,7 +587,7 @@ Start with a relatable problem statement, explain why it matters, and preview th
 
 ### Phase 3.1: Infrastructure
 
-- [ ] Create route file: `app/(public)/learn/[slug]/page.tsx`
+- [ ] Create route file: `app/(marketing)/learn/[slug]/page.tsx`
 - [ ] Set up MDX support (next-mdx-remote or @next/mdx)
 - [ ] Create `content/learn/` directory
 - [ ] Build MDX custom components (ProjectExample, CityLinks, etc.)

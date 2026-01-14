@@ -12,7 +12,7 @@ City Hub pages are **city-specific roundup pages** that aggregate all projects a
 
 **Vertical note:** Current routes and examples use the masonry wedge (`/masonry/`) until routing is generalized.
 
-**Implementation:** `app/(public)/[city]/masonry/page.tsx` (441 lines)
+**Implementation:** `app/(portfolio)/[city]/masonry/page.tsx` (441 lines)
 
 **Business Purpose:**
 - Client discovery by geography
@@ -23,7 +23,7 @@ City Hub pages are **city-specific roundup pages** that aggregate all projects a
 
 ### File Location
 ```
-app/(public)/[city]/masonry/page.tsx
+app/(portfolio)/[city]/masonry/page.tsx
 ```
 
 ### URL Pattern
@@ -439,7 +439,7 @@ Based on PageSpeed Insights testing:
 
 ### Implementation Files
 
-- **Route:** `app/(public)/[city]/masonry/page.tsx`
+- **Route:** `app/(portfolio)/[city]/masonry/page.tsx`
 - **Components:** `src/components/seo/Breadcrumbs.tsx`
 - **Utilities:** `src/lib/seo/structured-data.ts`
 - **Types:** `src/types/database.ts`

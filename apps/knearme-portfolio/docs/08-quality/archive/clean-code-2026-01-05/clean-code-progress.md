@@ -128,8 +128,8 @@ Files still requiring attention in future waves:
 | `src/lib/supabase/typed-queries.ts` | 1,091 | Exception |
 | `src/lib/chat/tool-schemas.ts` | 873 | Exception |
 | `src/app/api/onboarding/route.ts` | 794 | Consider splitting |
-| `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx` | 786 | Wave 7 |
-| `src/app/(public)/services/[type]/page.tsx` | 769 | Wave 7 |
+| `src/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx` | 786 | Wave 7 |
+| `src/app/(marketing)/services/[type]/page.tsx` | 769 | Wave 7 |
 | `src/components/chat/hooks/useLiveVoiceSession.ts` | 766 | Wave 6 |
 | `src/types/database.ts` | 724 | Exception |
 | `src/app/api/chat/route.ts` | 704 | Consider splitting |
@@ -176,8 +176,8 @@ Consolidates from multiple sources:
 - Utility functions: `getPageTitle()`, `getCanonicalUrl()`, `formatCityName()`, `formatServiceName()`
 
 **Files Updated:**
-- `src/app/(public)/services/page.tsx` - Removed local SERVICE_ICONS copy (10 lines saved)
-- `src/app/(public)/services/[type]/page.tsx` - Removed local SERVICE_ICONS copy (10 lines saved)
+- `src/app/(marketing)/services/page.tsx` - Removed local SERVICE_ICONS copy (10 lines saved)
+- `src/app/(marketing)/services/[type]/page.tsx` - Removed local SERVICE_ICONS copy (10 lines saved)
 
 ---
 
@@ -313,7 +313,7 @@ Consolidates from multiple sources:
 
 ### Objectives
 
-1. **Public pages simplification** - Reduce duplication in `(public)` route group via shared helpers/components
+1. **Public pages simplification** - Reduce duplication across `(marketing)` and `(portfolio)` route groups via shared helpers/components
 2. **Auth form extraction** - Shared layout + field components for login/signup
 3. **ToolWidgetBase adoption** - Finish deferred widget refactors
 4. **TODO cleanup** - Moved to tracked follow-ups (Milestone 4)
@@ -331,10 +331,10 @@ Consolidates from multiple sources:
 
 | File | Lines | Issue |
 |------|-------|-------|
-| `src/app/(public)/services/[type]/page.tsx` | 769 | Duplication with other service pages |
-| `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx` | 786 | Template duplication |
-| `src/app/(public)/[city]/masonry/[type]/page.tsx` | 488 | Repeated 6-line blocks (reduced) |
-| `src/app/(public)/[city]/masonry/page.tsx` | 363 | Shared patterns with siblings (reduced) |
+| `src/app/(marketing)/services/[type]/page.tsx` | 769 | Duplication with other service pages |
+| `src/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx` | 786 | Template duplication |
+| `src/app/(portfolio)/[city]/masonry/[type]/page.tsx` | 488 | Repeated 6-line blocks (reduced) |
+| `src/app/(portfolio)/[city]/masonry/page.tsx` | 363 | Shared patterns with siblings (reduced) |
 
 ### Expected Outcomes
 

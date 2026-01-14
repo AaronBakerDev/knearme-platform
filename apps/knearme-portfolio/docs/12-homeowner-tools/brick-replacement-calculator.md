@@ -74,5 +74,5 @@ Calculator that turns damaged area into brick count, waste factor, and a plannin
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/brick-replacement-calculator/page.tsx`.
+- Route: `src/app/(marketing)/tools/brick-replacement-calculator/page.tsx`.
 - Constants in `src/lib/tools/brick-replacement.ts`.

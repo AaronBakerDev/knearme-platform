@@ -67,23 +67,23 @@ This preserves shareability while preventing thin profiles from entering search 
   - `src/app/api/onboarding/route.ts`
   - `src/lib/agents/discovery.ts`
 - Profile setup form:
-  - `src/app/(contractor)/profile/setup/page.tsx`
+  - `src/app/(dashboard)/profile/setup/page.tsx`
 - Sync contractor updates to businesses:
   - `src/app/api/contractors/me/route.ts`
 
 ### Public Display
 
 - Contractor profile contact card:
-  - `src/app/(public)/businesses/[city]/[slug]/page.tsx`
+  - `src/app/(portfolio)/businesses/[city]/[slug]/page.tsx`
 - Project page contractor CTA:
-  - `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx`
+  - `src/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx`
 
 ### SEO & Indexing Gate
 
 - Structured data now includes address, postal code, phone, website:
   - `src/lib/seo/structured-data.ts`
 - Contractor profile `robots` uses `noindex` until at least one published project:
-  - `src/app/(public)/businesses/[city]/[slug]/page.tsx`
+  - `src/app/(portfolio)/businesses/[city]/[slug]/page.tsx`
 
 ---
 

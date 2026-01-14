@@ -160,7 +160,7 @@ The `useIsMobile()` hook is used to gate the overlay display to mobile viewports
 **Location**: Next.js build/chunk loading
 
 **Symptoms**:
-- Error: "Loading chunk app/(public)/layout failed"
+- Error: "Loading chunk app/(marketing)/layout failed" (or `app/(portfolio)/layout`)
 - Appears multiple times during session
 - Requires clicking "Try Again" to recover
 

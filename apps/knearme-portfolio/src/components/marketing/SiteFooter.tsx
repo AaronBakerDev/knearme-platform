@@ -28,20 +28,20 @@ const TOP_SERVICES = [
 ];
 
 const LEARNING_CENTER_LINKS = [
-  { href: "/learn", label: "All Guides" },
-  { href: "/learn/signs-chimney-needs-repair", label: "Signs Chimney Needs Repair" },
-  { href: "/learn/foundation-waterproofing", label: "Foundation Waterproofing" },
-  { href: "/learn/historic-brick-restoration", label: "Historic Brick Restoration" },
-  { href: "/learn/masonry-restoration-costs", label: "Masonry Restoration Costs" },
+  { href: "/blog", label: "All Guides" },
+  { href: "/blog/signs-chimney-needs-repair", label: "Signs Chimney Needs Repair" },
+  { href: "/blog/foundation-waterproofing", label: "Foundation Waterproofing" },
+  { href: "/blog/historic-brick-restoration", label: "Historic Brick Restoration" },
+  { href: "/blog/masonry-restoration-costs", label: "Masonry Restoration Costs" },
 ];
 
 const LEARNING_CATEGORIES = [
-  { href: "/learn?category=chimney", label: "Chimney" },
-  { href: "/learn?category=waterproofing", label: "Waterproofing" },
-  { href: "/learn?category=costs", label: "Cost Guides" },
-  { href: "/learn?category=restoration", label: "Historic Restoration" },
-  { href: "/learn?category=maintenance", label: "Maintenance" },
-  { href: "/learn?category=hiring", label: "Hiring" },
+  { href: "/blog?category=chimney", label: "Chimney" },
+  { href: "/blog?category=waterproofing", label: "Waterproofing" },
+  { href: "/blog?category=costs", label: "Cost Guides" },
+  { href: "/blog?category=restoration", label: "Historic Restoration" },
+  { href: "/blog?category=maintenance", label: "Maintenance" },
+  { href: "/blog?category=hiring", label: "Hiring" },
 ];
 
 export async function SiteFooter() {
@@ -111,7 +111,7 @@ export async function SiteFooter() {
             <h3 className="text-sm font-semibold text-foreground">Resources</h3>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link href="/learn" className="hover:text-foreground">
+                <Link href="/blog" className="hover:text-foreground">
                   Learning Center
                 </Link>
               </li>

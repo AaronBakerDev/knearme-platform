@@ -58,8 +58,8 @@ The result is one consistent UI, one persistence model, and one tool-call histor
 
 ### Create flow (chat-first)
 
-- Entry: `src/app/(contractor)/projects/new/page.tsx`
-- Layout: `src/app/(contractor)/projects/new/layout.tsx`
+- Entry: `src/app/(dashboard)/projects/new/page.tsx`
+- Layout: `src/app/(dashboard)/projects/new/layout.tsx`
 - Main component: `src/components/chat/ChatWizard.tsx`
 
 Key behaviors:
@@ -72,7 +72,7 @@ Key behaviors:
 
 ### Edit flow (chat-first edit)
 
-- Entry: `src/app/(contractor)/projects/[id]/edit/page.tsx`
+- Entry: `src/app/(dashboard)/projects/[id]/edit/page.tsx`
 - Layout: `ChatWizard` + `CanvasPanel` (form optional)
 - Main component: `src/components/chat/ChatWizard.tsx` (mode="edit")
 

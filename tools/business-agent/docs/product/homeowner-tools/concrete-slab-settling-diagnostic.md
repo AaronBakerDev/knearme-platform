@@ -84,6 +84,6 @@ Optional (collapsed):
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/concrete-slab-settling-diagnostic/page.tsx`.
+- Route: `src/app/(marketing)/tools/concrete-slab-settling-diagnostic/page.tsx`.
 - Rules in `src/lib/tools/concrete-slab-settling.ts`.
 

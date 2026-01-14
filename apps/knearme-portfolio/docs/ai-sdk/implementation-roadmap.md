@@ -674,7 +674,7 @@ validateForPublish: tool({
 
 #### 6.6 Update Routing
 
-**File:** `src/app/(contractor)/projects/[id]/edit/page.tsx`
+**File:** `src/app/(dashboard)/projects/[id]/edit/page.tsx`
 
 Replace tab-based edit page with ChatWizard in edit mode:
 

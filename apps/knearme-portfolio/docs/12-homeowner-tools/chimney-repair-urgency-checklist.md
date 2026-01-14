@@ -105,7 +105,7 @@ Total score → urgency tier:
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/chimney-repair-urgency-checklist/page.tsx`.
+- Route: `src/app/(marketing)/tools/chimney-repair-urgency-checklist/page.tsx`.
 - Scoring rules in `src/lib/tools/chimney-urgency.ts`.
 
 ---

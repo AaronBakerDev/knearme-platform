@@ -111,18 +111,29 @@ app/
 ├── (auth)/              # Auth pages (client-heavy)
 │   ├── login/
 │   └── signup/
-├── (contractor)/        # Contractor dashboard (client-heavy)
+├── (dashboard)/         # Authenticated app (client-heavy)
 │   ├── dashboard/
 │   └── projects/
 │       └── new/         # AI interview flow
-├── (public)/            # Public pages (server-rendered)
+├── (marketing)/         # Marketing pages (server-rendered)
+│   ├── (home)/          # Landing page
+│   ├── blog/
+│   ├── learn/
+│   ├── services/
+│   ├── tools/
+│   ├── about/
+│   ├── contact/
+│   └── examples/
+├── (portfolio)/         # Public portfolio/UGC pages (server-rendered)
 │   ├── [city]/
 │   │   └── masonry/
 │   │       └── [type]/
 │   │           └── [slug]/  # Project detail
-│   └── businesses/ (public route; source lives under /contractors)
-│       └── [city]/
-│           └── [id]/        # Profile page
+│   ├── businesses/      # Canonical business profiles
+│   │   └── [city]/
+│   │       └── [slug]/      # Profile page
+│   └── contractors/     # Legacy redirects
+├── (payload)/           # CMS admin
 ├── api/                 # API routes
 │   ├── ai/
 │   ├── projects/

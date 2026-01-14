@@ -38,7 +38,7 @@ This document breaks down the SEO implementation into four phases over 12 months
 - Breadcrumb navigation
 - Next.js Image optimization
 
-**File:** `app/(public)/[city]/masonry/[type]/[slug]/page.tsx`
+**File:** `app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx`
 
 **Validation:**
 - [ ] Google Rich Results Test passes
@@ -58,7 +58,7 @@ This document breaks down the SEO implementation into four phases over 12 months
 - Project grid with filtering by service type
 - JSON-LD ItemList schema
 
-**File:** `app/(public)/[city]/masonry/page.tsx`
+**File:** `app/(portfolio)/[city]/masonry/page.tsx`
 
 **Validation:**
 - [ ] All 3 initial cities render correctly (Denver, Lakewood, Aurora)
@@ -76,7 +76,7 @@ This document breaks down the SEO implementation into four phases over 12 months
 - Contact information and business details
 - JSON-LD LocalBusiness schema
 
-**File:** `app/(public)/contractors/[city]/[id]/page.tsx`
+**File:** `app/(portfolio)/contractors/[city]/[id]/page.tsx`
 
 **Validation:**
 - [ ] Profile loads from database
@@ -212,7 +212,7 @@ Sitemap: https://knearme.com/sitemap.xml
 5. `foundation-repair`
 6. `historic-restoration`
 
-**File:** `app/(public)/[city]/masonry/[type]/page.tsx`
+**File:** `app/(portfolio)/[city]/masonry/[type]/page.tsx`
 
 **Page Structure:**
 - H1: "{Service Type} in {City}, {State}"
@@ -453,7 +453,7 @@ export async function getRelatedProjects(
 7. Masonry Waterproofing
 8. Historic Masonry Restoration
 
-**File:** `app/(public)/services/[type]/page.tsx`
+**File:** `app/(marketing)/services/[type]/page.tsx`
 
 **Content Source:** `/docs/content-planning/masonry/content-plan.md` Section 1
 
@@ -807,7 +807,7 @@ export async function getRelatedProjects(
 - `/texas/masonry` (Houston, Dallas, Austin, etc.)
 - `/california/masonry` (San Diego, San Francisco, etc.)
 
-**File:** `app/(public)/[state]/masonry/page.tsx`
+**File:** `app/(portfolio)/[state]/masonry/page.tsx`
 
 **Page Structure:**
 - H1: "Masonry Contractors in {State}"

@@ -19,7 +19,7 @@ Service Type by City pages are the **highest-priority SEO implementation** for P
 
 ### File Location
 ```
-app/(public)/[city]/masonry/[type]/page.tsx
+app/(portfolio)/[city]/masonry/[type]/page.tsx
 ```
 
 ### URL Pattern
@@ -489,7 +489,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 
 ### Phase 2.1: Route and Data Layer
 
-- [ ] Create route file: `app/(public)/[city]/masonry/[type]/page.tsx`
+- [ ] Create route file: `app/(portfolio)/[city]/masonry/[type]/page.tsx`
 - [ ] Implement `getProjectsByCityAndType()` query
 - [ ] Implement `getContractorCountByService()` query
 - [ ] Implement `getRelatedServiceTypes()` query

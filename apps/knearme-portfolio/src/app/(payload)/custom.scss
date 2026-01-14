@@ -1,0 +1,188 @@
+/**
+ * Custom Payload Admin Styles
+ *
+ * Professional styling enhancements for the Payload CMS admin panel.
+ * Uses Payload's CSS variables to maintain consistency with the
+ * default theme while adding polish.
+ *
+ * @see https://payloadcms.com/docs/admin/customizing-css
+ */
+
+/* ==========================================================================
+   Dashboard Enhancements
+   ========================================================================== */
+
+/**
+ * Dashboard container - improved spacing
+ */
+.dashboard {
+  padding-top: 1.5rem;
+}
+
+/**
+ * Card styling improvements
+ * Applies to collection cards and custom cards
+ */
+.card {
+  transition: all 0.2s ease;
+  border: 1px solid var(--theme-elevation-150);
+
+  &:hover {
+    border-color: var(--theme-elevation-200);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* ==========================================================================
+   Collection List Improvements
+   ========================================================================== */
+
+/**
+ * Table row hover states
+ */
+.table .row:hover {
+  background-color: var(--theme-elevation-50);
+}
+
+/**
+ * Improved cell padding
+ */
+.cell-content {
+  padding: 0.875rem 1rem;
+}
+
+/* ==========================================================================
+   Form Field Improvements
+   ========================================================================== */
+
+/**
+ * Field labels - improved visibility
+ */
+.field-label {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/**
+ * Input focus states
+ */
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--color-base-500);
+  box-shadow: 0 0 0 3px rgba(var(--color-base-500-rgb), 0.1);
+}
+
+/* ==========================================================================
+   Navigation Improvements
+   ========================================================================== */
+
+/**
+ * Nav item hover states
+ */
+.nav-group__content a:hover {
+  background-color: var(--theme-elevation-100);
+}
+
+/**
+ * Active nav item
+ */
+.nav-group__content a.active {
+  background-color: var(--theme-elevation-150);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Button Improvements
+   ========================================================================== */
+
+/**
+ * Primary buttons - improved appearance
+ */
+.btn--style-primary {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+/**
+ * Secondary buttons
+ */
+.btn--style-secondary {
+  border-width: 1px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: var(--theme-elevation-100);
+  }
+}
+
+/* ==========================================================================
+   Typography Improvements
+   ========================================================================== */
+
+/**
+ * Headings
+ */
+h1, h2, h3, h4 {
+  letter-spacing: -0.01em;
+}
+
+/**
+ * Document title in edit view
+ */
+.doc-header__title h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /**
+   * Mobile dashboard padding
+   */
+  .dashboard {
+    padding: 1rem;
+  }
+
+  /**
+   * Stack stat cards on mobile
+   */
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   Dark Mode Adjustments
+   ========================================================================== */
+
+[data-theme='dark'] {
+  /**
+   * Improved card shadows for dark mode
+   */
+  .card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  }
+
+  /**
+   * Subtle glow on focus in dark mode
+   */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    box-shadow: 0 0 0 3px rgba(var(--color-base-500-rgb), 0.2);
+  }
+}

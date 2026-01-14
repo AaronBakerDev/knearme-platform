@@ -25,12 +25,12 @@ import {
 } from '@/lib/seo/structured-data';
 import { getPublicUrl } from '@/lib/storage/upload';
 import {
-  ContractorAboutAndContact,
-  ContractorProfileFooter,
-  ContractorProfileHeader,
-  ContractorProjectsSection,
+  BusinessAboutAndContact,
+  BusinessProfileFooter,
+  BusinessProfileHeader,
+  BusinessProjectsSection,
   type ProjectWithCover,
-} from '@/components/portfolio/ContractorProfileSections';
+} from '@/components/portfolio/BusinessProfileSections';
 import { logger } from '@/lib/logging';
 import type { Contractor, Project, ProjectImage } from '@/types/database';
 
@@ -311,15 +311,15 @@ export default async function ContractorProfilePage({ params, searchParams }: Pa
         </header>
 
         <main className="container mx-auto px-4 py-8">
-          <ContractorProfileHeader contractor={contractor} totalProjects={totalProjects} />
-          <ContractorAboutAndContact
-            contractor={contractor}
+          <BusinessProfileHeader business={contractor} totalProjects={totalProjects} />
+          <BusinessAboutAndContact
+            business={contractor}
             contactAddress={contactAddress}
             contactPhone={contactPhone}
             contactWebsite={contactWebsite}
             hasContactInfo={hasContactInfo}
           />
-          <ContractorProjectsSection
+          <BusinessProjectsSection
             projects={projectsWithCovers}
             hasPublishedProjects={hasPublishedProjects}
             city={city}
@@ -329,7 +329,7 @@ export default async function ContractorProfilePage({ params, searchParams }: Pa
           />
         </main>
 
-        <ContractorProfileFooter contractor={contractor} />
+        <BusinessProfileFooter business={contractor} />
       </div>
     </>
   );

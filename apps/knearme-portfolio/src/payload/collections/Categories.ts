@@ -9,7 +9,7 @@
  * @see https://payloadcms.com/docs/configuration/collections
  */
 import type { CollectionConfig, Field } from 'payload'
-import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } from '../hooks/revalidate'
+import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } from '../hooks/revalidate.ts'
 
 /**
  * Upload field referencing the media collection.
@@ -135,7 +135,7 @@ export const Categories: CollectionConfig = {
           type: 'ui',
           admin: {
             components: {
-              Field: '/src/payload/components/OGPreview',
+              Field: './components/OGPreview',
             },
           },
         },

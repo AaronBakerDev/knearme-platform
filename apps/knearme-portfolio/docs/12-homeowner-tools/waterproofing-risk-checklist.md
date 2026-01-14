@@ -173,7 +173,7 @@ Rules in order of precedence:
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/waterproofing-risk-checklist/page.tsx`.
+- Route: `src/app/(marketing)/tools/waterproofing-risk-checklist/page.tsx`.
 - Rules in `src/lib/tools/waterproofing-risk.ts`.
 
 ---

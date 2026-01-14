@@ -16,7 +16,7 @@
  */
 
 import { getPayload } from 'payload'
-import config from '../../payload/payload.config'
+import config from '../../payload/payload.config.ts'
 
 /**
  * Convert plain text to Lexical rich text format

@@ -35,8 +35,8 @@ Status: Complete - Milestone 5 done, ExecPlan complete.
 - `src/lib/supabase/typed-queries.ts` (1,091) — exception
 - `src/lib/chat/tool-schemas.ts` (873) — exception
 - `src/app/api/onboarding/route.ts` (794)
-- `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx` (786)
-- `src/app/(public)/services/[type]/page.tsx` (769)
+- `src/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx` (786)
+- `src/app/(marketing)/services/[type]/page.tsx` (769)
 - `src/components/chat/hooks/useLiveVoiceSession.ts` (766)
 - `src/types/database.ts` (724) — exception
 - `src/app/api/chat/route.ts` (704)
@@ -64,7 +64,7 @@ Status: Complete - Milestone 5 done, ExecPlan complete.
 - `src/components/chat/ChatMessages.tsx` (503)
 
 ## Large files (400-499 lines)
-- `src/app/(public)/[city]/masonry/[type]/page.tsx` (488)
+- `src/app/(portfolio)/[city]/masonry/[type]/page.tsx` (488)
 - `src/lib/design/tokens.ts` (478)
 - `src/lib/data/demo-projects.ts` (478)
 - `src/app/api/ai/generate-content/route.ts` (478)
@@ -92,7 +92,7 @@ Status: Complete - Milestone 5 done, ExecPlan complete.
 - `src/components/interview/VoiceRecorder.tsx` (413)
 - `src/lib/constants/service-content/construction.ts` (411)
 - `src/lib/agents/content-generator.ts` (411)
-- `src/app/(public)/services/page.tsx` (409)
+- `src/app/(marketing)/services/page.tsx` (409)
 - `src/lib/data/services.ts` (405)
 
 ## Lint/TypeScript suppressions
@@ -164,12 +164,12 @@ The sections below (deep nesting, branch density, duplication) were not rebaseli
 ## Duplication hotspots (top 15 by duplicated lines across files)
 - `src/lib/constants/service-content.ts` (217 lines in repeated 6-line blocks)
 - `src/app/(auth)/signup/page.tsx` (211 lines in repeated 6-line blocks)
-- `src/app/(public)/services/[type]/page.tsx` (204 lines in repeated 6-line blocks)
-- `src/app/(public)/[city]/masonry/[type]/page.tsx` (192 lines in repeated 6-line blocks)
-- `src/app/(public)/[city]/masonry/page.tsx` (187 lines in repeated 6-line blocks)
+- `src/app/(marketing)/services/[type]/page.tsx` (204 lines in repeated 6-line blocks)
+- `src/app/(portfolio)/[city]/masonry/[type]/page.tsx` (192 lines in repeated 6-line blocks)
+- `src/app/(portfolio)/[city]/masonry/page.tsx` (187 lines in repeated 6-line blocks)
 - `src/components/tools/BasementLeakTriageWidget.tsx` (146 lines in repeated 6-line blocks)
 - `src/app/(auth)/login/page.tsx` (145 lines in repeated 6-line blocks)
-- `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx` (138 lines in repeated 6-line blocks)
+- `src/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx` (138 lines in repeated 6-line blocks)
 - `src/components/tools/FoundationCrackCheckerWidget.tsx` (135 lines in repeated 6-line blocks)
 - `src/components/tools/ChimneyWaterIntrusionRiskWidget.tsx` (134 lines in repeated 6-line blocks)
 - `src/components/tools/EfflorescenceTreatmentWidget.tsx` (125 lines in repeated 6-line blocks)
@@ -179,7 +179,7 @@ The sections below (deep nesting, branch density, duplication) were not rebaseli
 - `src/components/edit/TagEditor.tsx` (111 lines in repeated 6-line blocks)
 
 ## Most repeated 6-line blocks (top 10)
-- 222 occurrences across 25 files: `src/app/(public)/about/page.tsx`, `src/app/(public)/learn/page.tsx`, `src/app/(public)/services/page.tsx`, `src/app/api/ai/transcribe/route.ts`, `src/components/chat/ChatWizard.tsx`, `src/components/chat/EmptyProjectState.tsx` ...
+- 222 occurrences across 25 files: `src/app/(marketing)/about/page.tsx`, `src/app/(marketing)/learn/page.tsx`, `src/app/(marketing)/services/page.tsx`, `src/app/api/ai/transcribe/route.ts`, `src/components/chat/ChatWizard.tsx`, `src/components/chat/EmptyProjectState.tsx` ...
 - 53 occurrences across 1 files: `src/lib/constants/services.ts`
 - 52 occurrences across 1 files: `src/lib/constants/service-content.ts`
 - 43 occurrences across 6 files: `src/components/edit/ChipEditor.tsx`, `src/components/edit/TagEditor.tsx`, `src/components/marketing/Pricing.tsx`, `src/lib/constants/service-content.ts`, `src/lib/data/demo-projects.ts`, `src/lib/trades/config.ts`

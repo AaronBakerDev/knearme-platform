@@ -21,34 +21,34 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 // Blog collections
-import { Articles } from './collections/Articles'
-import { Authors } from './collections/Authors'
-import { Categories } from './collections/Categories'
-import { Media } from './collections/Media'
-import { Tags } from './collections/Tags'
+import { Articles } from './collections/Articles.ts'
+import { Authors } from './collections/Authors.ts'
+import { Categories } from './collections/Categories.ts'
+import { Media } from './collections/Media.ts'
+import { Tags } from './collections/Tags.ts'
 
 // Marketing collections
-import { Features } from './collections/Features'
-import { ServiceTypes } from './collections/ServiceTypes'
-import { Testimonials } from './collections/Testimonials'
+import { Features } from './collections/Features.ts'
+import { ServiceTypes } from './collections/ServiceTypes.ts'
+import { Testimonials } from './collections/Testimonials.ts'
 
 // Infrastructure collections
-import { Redirects } from './collections/Redirects'
+import { Redirects } from './collections/Redirects.ts'
 
 // Engagement collections
-import { Forms } from './collections/Forms'
-import { FormSubmissions } from './collections/FormSubmissions'
+import { Forms } from './collections/Forms.ts'
+import { FormSubmissions } from './collections/FormSubmissions.ts'
 
 // Analytics collections
-import { PageViews } from './collections/PageViews'
+import { PageViews } from './collections/PageViews.ts'
 
 // Globals
-import { Navigation } from './globals/Navigation'
-import { Newsletter } from './globals/Newsletter'
-import { SiteSettings } from './globals/SiteSettings'
+import { Navigation } from './globals/Navigation.ts'
+import { Newsletter } from './globals/Newsletter.ts'
+import { SiteSettings } from './globals/SiteSettings.ts'
 
 // Revalidation hooks for ISR
-import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } from './hooks/revalidate'
+import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } from './hooks/revalidate.ts'
 
 // ESM-compatible __dirname
 const filename = fileURLToPath(import.meta.url)
@@ -359,8 +359,9 @@ export default buildConfig({
     pool: {
       connectionString: process.env.DATABASE_URL || '',
     },
-    // Use separate schema to avoid conflicts with Supabase
-    schemaName: 'payload',
+    // Use separate 'cms' schema to avoid conflicts with existing app tables
+    // Tables will be created as: cms.articles, cms.media, cms.users, etc.
+    schemaName: 'cms',
     // Enable auto-push for development (creates tables automatically)
     push: process.env.NODE_ENV === 'development',
   }),
@@ -387,18 +388,19 @@ export default buildConfig({
       ],
     },
     /**
-     * Custom Admin Views
+     * Custom Dashboard Components
      *
-     * Analytics dashboard for content performance insights.
-     * @see PAY-063 in PRD
+     * Professional dashboard with welcome header, quick actions, and activity feed.
+     * Components are server-rendered and receive AdminViewServerProps.
+     *
+     * @see https://payloadcms.com/docs/admin/dashboard
      */
     components: {
-      views: {
-        analytics: {
-          Component: './views/AnalyticsDashboard',
-          path: '/analytics',
-        },
-      },
+      beforeDashboard: [
+        './components/dashboard/WelcomeHeader',
+        './components/dashboard/QuickActions',
+      ],
+      afterDashboard: ['./components/dashboard/RecentActivity'],
     },
   },
 

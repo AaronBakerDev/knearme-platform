@@ -16,7 +16,7 @@
  */
 
 import { getPayload } from 'payload'
-import config from '../../payload/payload.config'
+import config from '../../payload/payload.config.ts'
 
 /**
  * Source FAQ content - matches FALLBACK_FAQS from FAQ.tsx exactly

@@ -66,7 +66,7 @@
 - `src/components/chat/CanvasPanel.tsx` - Pass portfolioLayout prop
 - `src/components/chat/PreviewOverlay.tsx` - Pass portfolioLayout prop
 - `src/lib/agents/index.ts` - Export ui-composer
-- `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx` - Public page dynamic layout support
+- `src/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx` - Public page dynamic layout support
 
 ---
 

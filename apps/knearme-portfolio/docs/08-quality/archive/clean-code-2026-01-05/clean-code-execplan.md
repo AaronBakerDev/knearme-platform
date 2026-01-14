@@ -143,7 +143,7 @@ Definitions used in this plan:
 Key files and modules called out by the findings:
 - Chat UX and tooling: `src/components/chat/ChatWizard.tsx`, `src/components/chat/hooks/useLiveVoiceSession.ts`, `src/lib/chat/tools-runtime.ts`, `src/lib/chat/tool-schemas.ts`, `src/lib/mcp/tools.ts`.
 - Agents and orchestration: `src/lib/agents/story-extractor.ts`, `src/lib/agents/discovery.ts`, `src/lib/agents/orchestrator.ts`.
-- Public page routes: `src/app/(public)/services/[type]/page.tsx`, `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx`, `src/app/(public)/[city]/masonry/[type]/page.tsx`.
+- Public page routes: `src/app/(marketing)/services/[type]/page.tsx`, `src/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx`, `src/app/(portfolio)/[city]/masonry/[type]/page.tsx`.
 - Auth flows: `src/app/(auth)/signup/page.tsx`, `src/app/(auth)/login/page.tsx`.
 - API routes with suppressions: `src/app/api/onboarding/route.ts`, `src/app/api/chat/route.ts`, and the remaining API routes listed in the findings doc.
 
@@ -169,7 +169,7 @@ Reduce `src/components/chat/ChatWizard.tsx` further by extracting UI sections or
 
 ### Milestone 3: Simplify public pages and auth forms (Wave 7)
 
-Refactor the public page routes to remove duplicated template logic. Extract shared layout, metadata construction, and structured data generation into components and helpers in `src/components/seo/` and `src/lib/seo/` so `src/app/(public)/services/[type]/page.tsx` and the city masonry pages become mostly data assembly and component wiring. Ensure the `generateMetadata` functions remain accurate and the JSON-LD output matches the existing schema generators.
+Refactor the public page routes to remove duplicated template logic. Extract shared layout, metadata construction, and structured data generation into components and helpers in `src/components/seo/` and `src/lib/seo/` so `src/app/(marketing)/services/[type]/page.tsx` and the city masonry pages become mostly data assembly and component wiring. Ensure the `generateMetadata` functions remain accurate and the JSON-LD output matches the existing schema generators.
 
 Reduce duplication across the auth forms by extracting shared field groups and layout into `src/components/auth/` (for example, a shared `AuthFormCard`, `AuthEmailField`, and `AuthPasswordFields` component). Keep all messaging consistent with the existing copy guidelines and keep Supabase auth calls in the page components.
 

@@ -205,7 +205,7 @@ Below results:
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/masonry-cost-estimator/page.tsx`.
+- Route: `src/app/(marketing)/tools/masonry-cost-estimator/page.tsx`.
 - Client form component for instant calc.
 - Shared cost constants live in `src/lib/tools/cost-estimator.ts`.
 - No DB required in v1.

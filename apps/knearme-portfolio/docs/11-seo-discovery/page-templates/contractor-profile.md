@@ -8,7 +8,7 @@
 
 Business Profile pages are **public-facing portfolio showcases** for individual businesses. These pages serve as the primary conversion endpoint where clients can view a business’s body of work and decide to contact them. The current schema and routes still use `contractors`.
 
-**Implementation:** `app/(public)/businesses/[city]/[slug]/page.tsx` (re-export; source lives under `/contractors`)
+**Implementation:** `app/(portfolio)/businesses/[city]/[slug]/page.tsx` (re-export; source lives under `/contractors`)
 
 **Business Purpose:**
 - Showcase business expertise and project diversity
@@ -20,7 +20,7 @@ Business Profile pages are **public-facing portfolio showcases** for individual 
 
 ### File Location
 ```
-app/(public)/businesses/[city]/[slug]/page.tsx
+app/(portfolio)/businesses/[city]/[slug]/page.tsx
 ```
 
 ### URL Pattern
@@ -482,7 +482,7 @@ const projectListSchema = generateProjectListSchema(
 
 ### Implementation Files
 
-- **Route:** `app/(public)/businesses/[city]/[slug]/page.tsx`
+- **Route:** `app/(portfolio)/businesses/[city]/[slug]/page.tsx`
 - **Components:** `src/components/seo/Breadcrumbs.tsx`, `src/components/ui/badge.tsx`, `src/components/ui/card.tsx`
 - **Utilities:** `src/lib/seo/structured-data.ts`, `src/lib/utils/slugify.ts`
 - **Types:** `src/types/database.ts`

@@ -20,7 +20,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getServiceTypeSlugs } from '@/lib/data/services';
-import { getAllArticles } from '@/lib/content/mdx';
+// MDX content migrated to Payload CMS - getAllArticles no longer needed
+// All blog articles are now fetched via getPayloadArticles below
 import { LIVE_TOOLS } from '@/lib/tools/catalog';
 import { logger } from '@/lib/logging';
 import type { Database } from '@/types/database';
@@ -94,20 +95,8 @@ export async function GET() {
       );
     });
 
-    // Learning center - MDX articles
-    const articles = getAllArticles();
-    urls.push(
-      generateUrlEntry(`${SITE_URL}/learn`, new Date(), 'weekly', 0.7)
-    );
-    articles.forEach((article) => {
-      const lastmod = article.frontmatter.updatedAt
-        ? new Date(article.frontmatter.updatedAt)
-        : new Date(article.frontmatter.publishedAt);
-
-      urls.push(
-        generateUrlEntry(`${SITE_URL}/learn/${article.slug}`, lastmod, 'monthly', 0.6)
-      );
-    });
+    // Note: Blog articles are now loaded from Payload CMS (see Payload CMS Blog Content section below)
+    // MDX content was migrated to Payload CMS - getAllArticles() removed
 
     // Homeowner tools
     urls.push(
@@ -135,7 +124,7 @@ export async function GET() {
       reviewList.forEach((article) => {
         urls.push(
           generateUrlEntry(
-            `${SITE_URL}/learn/${article.slug}`,
+            `${SITE_URL}/blog/${article.slug}`,
             new Date(article.generated_at),
             'monthly',
             0.6

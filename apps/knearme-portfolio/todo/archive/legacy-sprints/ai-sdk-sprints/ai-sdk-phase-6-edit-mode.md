@@ -105,7 +105,7 @@ src/app/api/chat/
 src/lib/chat/
 └── chat-prompts.ts             # Added edit mode prompts
 
-src/app/(contractor)/projects/[id]/edit/
+src/app/(dashboard)/projects/[id]/edit/
 └── page.tsx                    # Added AI Assistant button + Sheet
 ```
 

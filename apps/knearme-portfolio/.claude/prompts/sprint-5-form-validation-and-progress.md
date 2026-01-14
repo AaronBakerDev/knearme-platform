@@ -27,10 +27,10 @@ Improve form validation UX across all forms in the application. The goal is cons
 1. **`src/app/(auth)/login/page.tsx`** - Currently uses basic useState for errors
 2. **`src/app/(auth)/signup/page.tsx`** - Similar to login
 3. **`src/app/(auth)/reset-password/page.tsx`** - Password reset form
-4. **`src/app/(contractor)/profile/edit/page.tsx`** - Already uses react-hook-form
-5. **`src/app/(contractor)/profile/setup/page.tsx`** - Profile setup wizard
-6. **`src/app/(contractor)/projects/new/page.tsx`** - New project form
-7. **`src/app/(contractor)/projects/[id]/edit/page.tsx`** - Edit project form
+4. **`src/app/(dashboard)/profile/edit/page.tsx`** - Already uses react-hook-form
+5. **`src/app/(dashboard)/profile/setup/page.tsx`** - Profile setup wizard
+6. **`src/app/(dashboard)/projects/new/page.tsx`** - New project form
+7. **`src/app/(dashboard)/projects/[id]/edit/page.tsx`** - Edit project form
 
 #### Requirements:
 
@@ -111,7 +111,7 @@ Add visual progress feedback for async operations.
 
 #### A. Image Upload Progress
 
-**File:** `src/app/(contractor)/projects/[id]/edit/page.tsx` or wherever image upload happens
+**File:** `src/app/(dashboard)/projects/[id]/edit/page.tsx` or wherever image upload happens
 
 Create `src/components/ui/upload-progress.tsx`:
 ```tsx
@@ -132,7 +132,7 @@ Integrate with existing upload logic using `XMLHttpRequest` or `fetch` with prog
 
 #### B. AI Generation Progress
 
-**File:** `src/app/(contractor)/projects/new/page.tsx` or AI generation components
+**File:** `src/app/(dashboard)/projects/new/page.tsx` or AI generation components
 
 Create `src/components/ui/ai-progress.tsx`:
 ```tsx
@@ -150,7 +150,7 @@ interface AIProgressProps {
 
 #### C. Page Transition Indicator
 
-**File:** `src/app/(contractor)/layout.tsx`
+**File:** `src/app/(dashboard)/layout.tsx`
 
 Add a top-of-page progress bar for navigation:
 ```tsx
@@ -201,11 +201,11 @@ Audit all forms and ensure this pattern is used consistently.
 1. `src/app/(auth)/login/page.tsx`
 2. `src/app/(auth)/signup/page.tsx`
 3. `src/app/(auth)/reset-password/page.tsx`
-4. `src/app/(contractor)/profile/edit/page.tsx`
-5. `src/app/(contractor)/profile/setup/page.tsx`
-6. `src/app/(contractor)/projects/new/page.tsx`
-7. `src/app/(contractor)/projects/[id]/edit/page.tsx`
-8. `src/app/(contractor)/layout.tsx` - Add page transition indicator
+4. `src/app/(dashboard)/profile/edit/page.tsx`
+5. `src/app/(dashboard)/profile/setup/page.tsx`
+6. `src/app/(dashboard)/projects/new/page.tsx`
+7. `src/app/(dashboard)/projects/[id]/edit/page.tsx`
+8. `src/app/(dashboard)/layout.tsx` - Add page transition indicator
 
 ## Definition of Done
 

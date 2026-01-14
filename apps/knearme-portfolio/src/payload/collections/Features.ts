@@ -15,7 +15,7 @@
  * @see https://payloadcms.com/docs/configuration/collections
  */
 import type { CollectionConfig } from 'payload'
-import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } from '../hooks/revalidate'
+import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } from '../hooks/revalidate.ts'
 
 /**
  * Available icons from lucide-react for feature display.

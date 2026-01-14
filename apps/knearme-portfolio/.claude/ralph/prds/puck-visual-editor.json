@@ -1,0 +1,1076 @@
+{
+  "meta": {
+    "name": "Puck Visual Editor for Payload CMS",
+    "description": "Drag-and-drop visual page builder integrated with Payload CMS for marketing pages and blog content",
+    "created": "2026-01-14",
+    "version": "1.0.0",
+    "interview_summary": "Add Puck Editor to Payload CMS enabling visual drag-and-drop editing for marketing pages and blog articles. Hybrid approach where Payload handles metadata/versioning and Puck handles visual layout. Includes 16 component blocks, Payload Media integration, live preview, and external API for AI agents."
+  },
+  "config": {
+    "priority_order": ["critical", "high", "medium", "low"],
+    "categories": ["architectural", "integration", "functional", "ui", "testing", "review"],
+    "retry_settings": {
+      "max_retries": 3,
+      "escalate_on_failure": true
+    }
+  },
+  "features": [
+    {
+      "id": "PUCK-001",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Install Puck Editor package and configure for Next.js 15 App Router",
+      "acceptance_criteria": [
+        "@puckeditor/core package is installed",
+        "Puck CSS is importable without errors",
+        "Basic Puck component renders in a test page",
+        "TypeScript types are available for Config and Data"
+      ],
+      "verification_steps": [
+        "Run: npm ls @puckeditor/core",
+        "Create test file importing { Puck, Render } from '@puckeditor/core'",
+        "Verify npm run build succeeds",
+        "Verify npm run typecheck succeeds"
+      ],
+      "dependencies": [],
+      "notes": "Use @puckeditor/core (latest). Check compatibility with React 19.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-002",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Create Payload collection 'puck-pages' to store visual page data",
+      "acceptance_criteria": [
+        "Collection 'puck-pages' exists with fields: slug (unique), title, puckData (json), status, seo group",
+        "Collection has proper access control (authenticated users only for write)",
+        "Published pages are publicly readable",
+        "Versioning with drafts is enabled"
+      ],
+      "verification_steps": [
+        "File exists: src/payload/collections/PuckPages.ts",
+        "Collection is registered in payload.config.ts",
+        "Run npm run build to verify no type errors",
+        "Access /admin and verify collection appears in sidebar"
+      ],
+      "dependencies": ["PUCK-001"],
+      "notes": "Follow existing collection patterns in src/payload/collections/. Include SEO fields group similar to Articles.ts.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-003",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Define Puck configuration with TypeScript types for all 16 blocks",
+      "acceptance_criteria": [
+        "File src/lib/puck/config.tsx exports typed Config object",
+        "Props type defines all 16 block prop interfaces",
+        "Config includes categories for organization (layout, content, marketing, blog)",
+        "Each block has fields, defaultProps, and render stub"
+      ],
+      "verification_steps": [
+        "File exists: src/lib/puck/config.tsx",
+        "TypeScript compiles without errors",
+        "Config exports type-safe Props and config objects",
+        "All 16 blocks are defined in config.components"
+      ],
+      "dependencies": ["PUCK-001"],
+      "notes": "Blocks: Section, Columns, Spacer, Hero, RichText, Heading, Image, Video, FeaturesGrid, Testimonials, PricingTable, CTABanner, FAQAccordion, Stats, CodeBlock, Callout, Table, ImageGallery. Start with placeholder renders.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-004",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Create Puck data JSON schema and TypeScript types",
+      "acceptance_criteria": [
+        "TypeScript types for PuckPageData exported from src/types/puck.ts",
+        "Zod schema for validation exported for API use",
+        "Types match Puck's Data interface structure",
+        "Schema documents all block prop types for external agents"
+      ],
+      "verification_steps": [
+        "File exists: src/types/puck.ts",
+        "Types are importable without errors",
+        "Zod schema validates sample Puck data correctly",
+        "npm run typecheck passes"
+      ],
+      "dependencies": ["PUCK-003"],
+      "notes": "This schema is critical for external AI agents. Include JSDoc comments explaining each block's props.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-ARCH",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify architectural phase complete",
+      "acceptance_criteria": [
+        "All architectural features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "Puck package installed and importable",
+        "PuckPages collection accessible in Payload admin"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "commands": [
+            "cd /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio && npm run build",
+            "cd /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio && npm run typecheck 2>/dev/null || npm run lint"
+          ]
+        }
+      ],
+      "dependencies": ["PUCK-001", "PUCK-002", "PUCK-003", "PUCK-004"],
+      "notes": "If ANY check fails, do NOT mark passes:true. Fix issues first.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-005",
+      "category": "integration",
+      "priority": "critical",
+      "description": "Create Puck editor page route with Payload authentication",
+      "acceptance_criteria": [
+        "Route exists at app/(payload)/admin/puck/[...path]/page.tsx",
+        "Route is protected - redirects to login if not authenticated",
+        "Puck editor renders with config when authenticated",
+        "Editor receives page slug from URL params"
+      ],
+      "verification_steps": [
+        "File exists: src/app/(payload)/admin/puck/[...path]/page.tsx",
+        "Unauthenticated access redirects to /admin/login",
+        "Authenticated access shows Puck editor",
+        "URL /admin/puck/about passes 'about' as page slug"
+      ],
+      "dependencies": ["REVIEW-ARCH"],
+      "notes": "Use Payload's auth check. Editor is client component ('use client'). Import puck.css here.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-006",
+      "category": "integration",
+      "priority": "critical",
+      "description": "Implement save/load API for Puck page data",
+      "acceptance_criteria": [
+        "GET /api/puck/[slug] returns existing page data or 404",
+        "POST /api/puck/[slug] saves/updates page data to Payload",
+        "API validates data against Zod schema before saving",
+        "API requires Payload authentication"
+      ],
+      "verification_steps": [
+        "File exists: src/app/api/puck/[slug]/route.ts",
+        "GET request for existing page returns puckData JSON",
+        "POST request creates/updates page in Payload",
+        "Unauthenticated requests return 401"
+      ],
+      "dependencies": ["PUCK-002", "PUCK-004"],
+      "notes": "Use Payload Local API for database operations. Handle both create and update cases.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-007",
+      "category": "integration",
+      "priority": "critical",
+      "description": "Wire Puck editor onPublish to save API",
+      "acceptance_criteria": [
+        "Puck onPublish callback sends data to POST /api/puck/[slug]",
+        "Success shows toast notification",
+        "Error shows error toast with message",
+        "Loading state shown during save"
+      ],
+      "verification_steps": [
+        "Add a block in editor, click Publish",
+        "Network tab shows POST to /api/puck/[slug]",
+        "Page data persists in Payload (check admin)",
+        "Toast appears on success/failure"
+      ],
+      "dependencies": ["PUCK-005", "PUCK-006"],
+      "notes": "Use sonner for toasts (already installed). Add loading state to prevent double-saves.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-008",
+      "category": "integration",
+      "priority": "critical",
+      "description": "Load existing page data into Puck editor on mount",
+      "acceptance_criteria": [
+        "Editor fetches existing data from GET /api/puck/[slug] on mount",
+        "If page exists, editor initializes with saved data",
+        "If page doesn't exist, editor starts with empty state",
+        "Loading spinner shown while fetching"
+      ],
+      "verification_steps": [
+        "Save a page with blocks via editor",
+        "Refresh the page",
+        "Blocks appear exactly as saved",
+        "New page slug shows empty editor"
+      ],
+      "dependencies": ["PUCK-006", "PUCK-007"],
+      "notes": "Use useEffect or React Query for data fetching. Handle loading and error states.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-009",
+      "category": "integration",
+      "priority": "high",
+      "description": "Add 'Open Visual Editor' button to PuckPages collection in Payload admin",
+      "acceptance_criteria": [
+        "Custom UI field shows button in PuckPages edit view",
+        "Button links to /admin/puck/[slug]",
+        "Button only appears for saved documents (has slug)",
+        "Button styled consistently with Payload admin"
+      ],
+      "verification_steps": [
+        "Create a PuckPage in admin",
+        "Button appears in edit view",
+        "Clicking button navigates to Puck editor",
+        "Slug is passed correctly in URL"
+      ],
+      "dependencies": ["PUCK-005"],
+      "notes": "Create custom Payload field component at src/payload/components/OpenPuckEditorButton.tsx",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-010",
+      "category": "integration",
+      "priority": "high",
+      "description": "Integrate Puck Image block with Payload Media library",
+      "acceptance_criteria": [
+        "Image block field uses 'external' type with Payload Media fetch",
+        "User can search/browse Payload media from within Puck",
+        "Selected image ID is stored, URL resolved at render",
+        "Image displays correctly in editor preview"
+      ],
+      "verification_steps": [
+        "Add Image block in editor",
+        "Click to select image - shows Payload media browser",
+        "Select image from library",
+        "Image displays in editor canvas"
+      ],
+      "dependencies": ["PUCK-008"],
+      "notes": "Use Puck external field type with fetchList calling Payload Media API. See Puck docs for external data sources.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-011",
+      "category": "integration",
+      "priority": "high",
+      "description": "Create public render route for Puck pages",
+      "acceptance_criteria": [
+        "Route app/(marketing)/[...slug]/page.tsx renders Puck pages",
+        "Uses Puck Render component with config",
+        "Only published pages are accessible",
+        "404 for non-existent or draft pages"
+      ],
+      "verification_steps": [
+        "Publish a page via editor",
+        "Visit /[slug] in browser",
+        "Page renders with correct blocks",
+        "Draft pages return 404"
+      ],
+      "dependencies": ["PUCK-007"],
+      "notes": "Use Payload Local API to fetch by slug where status=published. Implement ISR with revalidate.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-012",
+      "category": "integration",
+      "priority": "medium",
+      "description": "Add ISR revalidation hook when PuckPages are published",
+      "acceptance_criteria": [
+        "Payload afterChange hook triggers revalidatePath on publish",
+        "Only triggers when status changes to 'published'",
+        "Revalidates both /[slug] and sitemap",
+        "Works with Vercel ISR"
+      ],
+      "verification_steps": [
+        "Publish a page in Payload admin",
+        "Check Vercel function logs for revalidation",
+        "Page updates without manual cache clear",
+        "Sitemap includes new page"
+      ],
+      "dependencies": ["PUCK-011"],
+      "notes": "Follow pattern from existing revalidate hooks in src/payload/hooks/revalidate.ts",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-INTEGRATION",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify integration phase complete",
+      "acceptance_criteria": [
+        "All integration features have passes: true",
+        "npm run build succeeds with no errors",
+        "Can create page in Payload, edit in Puck, view on frontend",
+        "Full save/load cycle works end-to-end",
+        "Media library integration functional"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "commands": [
+            "cd /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio && npm run build",
+            "cd /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio && npm run typecheck 2>/dev/null || npm run lint"
+          ]
+        }
+      ],
+      "dependencies": ["PUCK-005", "PUCK-006", "PUCK-007", "PUCK-008", "PUCK-009", "PUCK-010", "PUCK-011", "PUCK-012"],
+      "notes": "Critical checkpoint - full integration must work before building all blocks.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-013",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Implement Section block (layout container)",
+      "acceptance_criteria": [
+        "Section block wraps child content with configurable container",
+        "Fields: backgroundColor, padding (top/bottom), maxWidth, slot for children",
+        "Renders with proper Tailwind classes",
+        "Supports nested blocks via slot field"
+      ],
+      "verification_steps": [
+        "Add Section block in editor",
+        "Configure background color, padding",
+        "Add child blocks inside Section",
+        "Preview shows correct styling"
+      ],
+      "dependencies": ["REVIEW-INTEGRATION"],
+      "notes": "Use Puck slot field type for nested content. This is foundational for all page layouts.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-014",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Implement Hero block",
+      "acceptance_criteria": [
+        "Hero block displays heading, subheading, background image, CTA buttons",
+        "Fields: heading, subheading, backgroundImage (external/media), ctaButtons (array), alignment",
+        "Responsive layout (stacks on mobile)",
+        "CTA buttons render with configurable variants"
+      ],
+      "verification_steps": [
+        "Add Hero block in editor",
+        "Fill in all fields including image and buttons",
+        "Preview shows hero section correctly",
+        "Responsive behavior works"
+      ],
+      "dependencies": ["PUCK-010", "PUCK-013"],
+      "notes": "Use shadcn Button component for CTAs. Background image from Payload Media.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-015",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Implement RichText block with Lexical or basic WYSIWYG",
+      "acceptance_criteria": [
+        "RichText block provides WYSIWYG text editing",
+        "Supports: bold, italic, links, lists, headings",
+        "Field uses Puck richtext type or custom implementation",
+        "Renders semantic HTML on frontend"
+      ],
+      "verification_steps": [
+        "Add RichText block in editor",
+        "Format text with bold, italic, lists",
+        "Add a link",
+        "Preview renders formatted content"
+      ],
+      "dependencies": ["PUCK-013"],
+      "notes": "Puck 0.21+ has richtext field type. Alternatively use a lightweight editor like tiptap.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-016",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Implement Image block with Payload Media",
+      "acceptance_criteria": [
+        "Image block displays single image with caption",
+        "Fields: image (external/media), alt, caption, size (full/medium/small), alignment",
+        "Uses next/image for optimization",
+        "Responsive sizing works correctly"
+      ],
+      "verification_steps": [
+        "Add Image block in editor",
+        "Select image from Payload Media",
+        "Configure size and alignment",
+        "Preview shows optimized image"
+      ],
+      "dependencies": ["PUCK-010"],
+      "notes": "Resolve media URL from Payload at render time. Use resolveData for URL resolution.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-017",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Implement CTA Banner block",
+      "acceptance_criteria": [
+        "CTA Banner displays heading, description, and action buttons",
+        "Fields: heading, description, buttons (array), backgroundColor, style (centered/left-aligned)",
+        "Buttons support primary/secondary/outline variants",
+        "Responsive layout"
+      ],
+      "verification_steps": [
+        "Add CTA Banner in editor",
+        "Configure heading, description, buttons",
+        "Preview shows styled banner",
+        "Buttons render with correct variants"
+      ],
+      "dependencies": ["PUCK-013"],
+      "notes": "Common marketing pattern. Use shadcn Button components.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-CORE-BLOCKS",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify core blocks functional",
+      "acceptance_criteria": [
+        "Section, Hero, RichText, Image, CTA blocks all work",
+        "npm run build succeeds",
+        "Can build a complete landing page with core blocks",
+        "All blocks render correctly on frontend"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "commands": [
+            "cd /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio && npm run build"
+          ]
+        }
+      ],
+      "dependencies": ["PUCK-013", "PUCK-014", "PUCK-015", "PUCK-016", "PUCK-017"],
+      "notes": "Core blocks prove the system works. Remaining blocks are incremental.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-018",
+      "category": "functional",
+      "priority": "high",
+      "description": "Implement Columns block for multi-column layouts",
+      "acceptance_criteria": [
+        "Columns block creates 2-4 column responsive grid",
+        "Fields: layout (50/50, 33/66, etc.), gap, verticalAlign, columns (array of slots)",
+        "Each column is a slot that accepts child blocks",
+        "Responsive: stacks on mobile"
+      ],
+      "verification_steps": [
+        "Add Columns block with 2 columns",
+        "Add different blocks to each column",
+        "Preview shows side-by-side layout",
+        "Mobile view stacks columns"
+      ],
+      "dependencies": ["PUCK-013"],
+      "notes": "Use CSS Grid or Flexbox. Each column is a Puck slot.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-019",
+      "category": "functional",
+      "priority": "high",
+      "description": "Implement Heading block",
+      "acceptance_criteria": [
+        "Heading block renders H1-H6 with styling options",
+        "Fields: text, level (h1-h6), alignment, color",
+        "Proper semantic HTML output",
+        "Consistent with design system typography"
+      ],
+      "verification_steps": [
+        "Add Heading block",
+        "Change level from H1 to H3",
+        "Adjust alignment",
+        "Preview shows correct heading"
+      ],
+      "dependencies": ["PUCK-013"],
+      "notes": "Simple but important for SEO. Only one H1 per page recommendation.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-020",
+      "category": "functional",
+      "priority": "high",
+      "description": "Implement Spacer block",
+      "acceptance_criteria": [
+        "Spacer block adds configurable vertical space",
+        "Fields: size (sm/md/lg/xl/custom), customSize (number)",
+        "Renders as empty div with height",
+        "Visible indicator in editor"
+      ],
+      "verification_steps": [
+        "Add Spacer block between sections",
+        "Adjust size",
+        "Preview shows correct spacing",
+        "Editor shows spacer indicator"
+      ],
+      "dependencies": ["PUCK-013"],
+      "notes": "Simple utility block. Show dashed border in editor for visibility.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-021",
+      "category": "functional",
+      "priority": "high",
+      "description": "Implement Features Grid block",
+      "acceptance_criteria": [
+        "Features Grid displays icon + title + description cards",
+        "Fields: items (array), columns (2/3/4), iconStyle",
+        "Each item has: icon (select or upload), title, description",
+        "Responsive grid layout"
+      ],
+      "verification_steps": [
+        "Add Features Grid block",
+        "Add 4 feature items",
+        "Configure 2-column layout",
+        "Preview shows grid of features"
+      ],
+      "dependencies": ["PUCK-013"],
+      "notes": "Use lucide-react icons. Consider icon picker field.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-022",
+      "category": "functional",
+      "priority": "high",
+      "description": "Implement Testimonials block",
+      "acceptance_criteria": [
+        "Testimonials block displays customer quotes",
+        "Fields: items (array), layout (carousel/grid), showAvatar",
+        "Each item: quote, author, title, avatar (media)",
+        "Carousel has navigation controls"
+      ],
+      "verification_steps": [
+        "Add Testimonials block",
+        "Add 3 testimonials with avatars",
+        "Toggle between carousel/grid",
+        "Preview shows testimonials correctly"
+      ],
+      "dependencies": ["PUCK-010"],
+      "notes": "Consider using existing Testimonials data from Payload collection via external field.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-023",
+      "category": "functional",
+      "priority": "high",
+      "description": "Implement Pricing Table block",
+      "acceptance_criteria": [
+        "Pricing Table displays tier comparison",
+        "Fields: tiers (array), showToggle (monthly/yearly), highlightTier",
+        "Each tier: name, price, features, ctaText, ctaLink",
+        "Highlighted tier has visual emphasis"
+      ],
+      "verification_steps": [
+        "Add Pricing Table block",
+        "Configure 3 tiers",
+        "Set middle tier as highlighted",
+        "Preview shows pricing comparison"
+      ],
+      "dependencies": ["PUCK-013"],
+      "notes": "Consider pulling from existing PricingTiers Payload collection.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-024",
+      "category": "functional",
+      "priority": "high",
+      "description": "Implement FAQ Accordion block",
+      "acceptance_criteria": [
+        "FAQ Accordion displays expandable Q&A items",
+        "Fields: items (array), allowMultiple, defaultOpen",
+        "Each item: question, answer (richtext)",
+        "Accessible keyboard navigation"
+      ],
+      "verification_steps": [
+        "Add FAQ block",
+        "Add 5 Q&A items",
+        "Click to expand/collapse",
+        "Keyboard navigation works"
+      ],
+      "dependencies": ["PUCK-015"],
+      "notes": "Use shadcn Accordion component. Consider pulling from FAQs collection.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-025",
+      "category": "functional",
+      "priority": "high",
+      "description": "Implement Video block",
+      "acceptance_criteria": [
+        "Video block embeds YouTube/Vimeo videos",
+        "Fields: url, aspectRatio (16:9, 4:3), autoplay, caption",
+        "Parses YouTube/Vimeo URLs to extract IDs",
+        "Responsive embed with correct aspect ratio"
+      ],
+      "verification_steps": [
+        "Add Video block",
+        "Paste YouTube URL",
+        "Preview shows embedded video",
+        "Aspect ratio is correct"
+      ],
+      "dependencies": ["PUCK-013"],
+      "notes": "Use iframe embed. Consider lazy loading for performance.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-026",
+      "category": "functional",
+      "priority": "high",
+      "description": "Implement Stats/Numbers block",
+      "acceptance_criteria": [
+        "Stats block displays key metrics with labels",
+        "Fields: items (array), columns (2/3/4), style",
+        "Each item: number, label, prefix, suffix",
+        "Optional animation on scroll into view"
+      ],
+      "verification_steps": [
+        "Add Stats block",
+        "Add 4 stats (e.g., '500+', 'Projects')",
+        "Preview shows stats grid",
+        "Numbers display correctly"
+      ],
+      "dependencies": ["PUCK-013"],
+      "notes": "Common marketing pattern. Animation is nice-to-have.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-MARKETING-BLOCKS",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify marketing blocks complete",
+      "acceptance_criteria": [
+        "All marketing blocks functional",
+        "npm run build succeeds",
+        "Can build complete marketing page with all blocks",
+        "No TypeScript errors"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "commands": [
+            "cd /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio && npm run build"
+          ]
+        }
+      ],
+      "dependencies": ["PUCK-018", "PUCK-019", "PUCK-020", "PUCK-021", "PUCK-022", "PUCK-023", "PUCK-024", "PUCK-025", "PUCK-026"],
+      "notes": "Marketing blocks complete. Blog blocks next.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-027",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Implement Code Block for blog posts",
+      "acceptance_criteria": [
+        "Code Block displays syntax-highlighted code",
+        "Fields: code (textarea), language (select), showLineNumbers, filename",
+        "Syntax highlighting with Shiki or Prism",
+        "Copy button for code"
+      ],
+      "verification_steps": [
+        "Add Code Block",
+        "Paste code snippet",
+        "Select language (typescript)",
+        "Preview shows highlighted code with copy button"
+      ],
+      "dependencies": ["PUCK-013"],
+      "notes": "Use existing CodeBlock component pattern from blog. Shiki for highlighting.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-028",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Implement Callout/Alert block",
+      "acceptance_criteria": [
+        "Callout block displays info/warning/tip boxes",
+        "Fields: type (info/warning/success/error/tip), title, content (richtext)",
+        "Appropriate icons and colors per type",
+        "Accessible color contrast"
+      ],
+      "verification_steps": [
+        "Add Callout block",
+        "Select 'warning' type",
+        "Add title and content",
+        "Preview shows styled callout"
+      ],
+      "dependencies": ["PUCK-015"],
+      "notes": "Use shadcn Alert component as base.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-029",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Implement Table block",
+      "acceptance_criteria": [
+        "Table block displays data in rows/columns",
+        "Fields: headers (array), rows (array of arrays), striped, bordered",
+        "Responsive: horizontal scroll on mobile",
+        "Header row styled distinctly"
+      ],
+      "verification_steps": [
+        "Add Table block",
+        "Define 3 columns, 5 rows",
+        "Toggle striped styling",
+        "Preview shows formatted table"
+      ],
+      "dependencies": ["PUCK-013"],
+      "notes": "Use shadcn Table component. Consider CSV import for convenience.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-030",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Implement Image Gallery block",
+      "acceptance_criteria": [
+        "Image Gallery displays multiple images",
+        "Fields: images (array of external/media), columns, lightbox",
+        "Grid layout with configurable columns",
+        "Optional lightbox on click"
+      ],
+      "verification_steps": [
+        "Add Image Gallery block",
+        "Select 6 images from Media",
+        "Configure 3-column grid",
+        "Click image opens lightbox"
+      ],
+      "dependencies": ["PUCK-010"],
+      "notes": "Use simple lightbox or existing gallery patterns. Images from Payload Media.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-BLOG-BLOCKS",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify all 16 blocks complete",
+      "acceptance_criteria": [
+        "All 16 blocks implemented and functional",
+        "npm run build succeeds",
+        "Can build blog post with all blog-specific blocks",
+        "No TypeScript errors"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "commands": [
+            "cd /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio && npm run build"
+          ]
+        }
+      ],
+      "dependencies": ["PUCK-027", "PUCK-028", "PUCK-029", "PUCK-030"],
+      "notes": "All blocks complete. UI polish next.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-031",
+      "category": "ui",
+      "priority": "high",
+      "description": "Add block thumbnails/previews in Puck component drawer",
+      "acceptance_criteria": [
+        "Each block has imageURL pointing to thumbnail",
+        "Thumbnails show visual preview of block type",
+        "Thumbnails are consistent size and style",
+        "Categories are visually organized in drawer"
+      ],
+      "verification_steps": [
+        "Open Puck editor component drawer",
+        "Each block shows thumbnail preview",
+        "Categories group related blocks",
+        "Visual hierarchy is clear"
+      ],
+      "dependencies": ["REVIEW-BLOG-BLOCKS"],
+      "notes": "Create thumbnail images in public/puck-thumbnails/. Use screenshots or illustrations.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-032",
+      "category": "ui",
+      "priority": "high",
+      "description": "Implement Live Preview with real-time updates",
+      "acceptance_criteria": [
+        "Changes in editor reflect immediately in preview",
+        "No page refresh required",
+        "Preview shows accurate representation of frontend",
+        "Breakpoint switching (mobile/tablet/desktop) works"
+      ],
+      "verification_steps": [
+        "Edit text in a block",
+        "Preview updates in real-time",
+        "Switch to mobile breakpoint",
+        "Preview resizes accordingly"
+      ],
+      "dependencies": ["REVIEW-BLOG-BLOCKS"],
+      "notes": "Puck has built-in live preview. Ensure components render identically in editor and Render.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-033",
+      "category": "ui",
+      "priority": "medium",
+      "description": "Style Puck editor to match Payload admin theme",
+      "acceptance_criteria": [
+        "Puck editor uses colors consistent with Payload admin",
+        "Dark mode support if Payload has dark mode",
+        "Typography matches overall admin feel",
+        "Custom CSS overrides applied cleanly"
+      ],
+      "verification_steps": [
+        "Open Payload admin, note styling",
+        "Open Puck editor",
+        "Visual consistency between the two",
+        "No jarring style differences"
+      ],
+      "dependencies": ["REVIEW-BLOG-BLOCKS"],
+      "notes": "Override Puck CSS variables to match Payload theme. See puck.css for customization points.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-034",
+      "category": "ui",
+      "priority": "medium",
+      "description": "Add 'Back to Payload' navigation from Puck editor",
+      "acceptance_criteria": [
+        "Header shows 'Back to Payload Admin' link",
+        "Link returns to PuckPages collection or specific document",
+        "Unsaved changes prompt before navigating away",
+        "Breadcrumb shows current page being edited"
+      ],
+      "verification_steps": [
+        "Open Puck editor from Payload",
+        "See 'Back' link in header",
+        "Make changes, click Back",
+        "Prompted about unsaved changes"
+      ],
+      "dependencies": ["PUCK-009"],
+      "notes": "Use Puck headerActions or custom header override.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-UI",
+      "category": "review",
+      "priority": "critical",
+      "description": "Code review checkpoint: Verify UI polish complete",
+      "acceptance_criteria": [
+        "All UI features implemented",
+        "npm run build succeeds",
+        "Editor is visually polished and usable",
+        "Navigation between Payload and Puck is smooth"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "commands": [
+            "cd /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio && npm run build"
+          ]
+        }
+      ],
+      "dependencies": ["PUCK-031", "PUCK-032", "PUCK-033", "PUCK-034"],
+      "notes": "UI complete. External API next.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-035",
+      "category": "integration",
+      "priority": "high",
+      "description": "Document external API for AI agents",
+      "acceptance_criteria": [
+        "API documentation in docs/api/puck-pages.md",
+        "Documents all endpoints: GET, POST, DELETE",
+        "Includes full JSON schema with examples",
+        "Shows example curl commands for each operation"
+      ],
+      "verification_steps": [
+        "File exists: docs/api/puck-pages.md",
+        "Documentation covers all endpoints",
+        "JSON schema is complete and accurate",
+        "Examples are copy-paste ready"
+      ],
+      "dependencies": ["PUCK-006"],
+      "notes": "Critical for external agent integration. Include Zod schema export info.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-036",
+      "category": "integration",
+      "priority": "high",
+      "description": "Add API endpoint to list all Puck pages",
+      "acceptance_criteria": [
+        "GET /api/puck returns list of all pages with slug, title, status",
+        "Supports filtering by status (draft/published)",
+        "Pagination for large page counts",
+        "Authenticated access only"
+      ],
+      "verification_steps": [
+        "GET /api/puck returns page list",
+        "Filter ?status=published works",
+        "Response includes pagination info",
+        "Unauthenticated returns 401"
+      ],
+      "dependencies": ["PUCK-006"],
+      "notes": "Useful for agents to discover existing pages.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-037",
+      "category": "integration",
+      "priority": "medium",
+      "description": "Add DELETE endpoint for Puck pages",
+      "acceptance_criteria": [
+        "DELETE /api/puck/[slug] removes page from Payload",
+        "Requires authentication",
+        "Returns 404 if page doesn't exist",
+        "Triggers ISR revalidation"
+      ],
+      "verification_steps": [
+        "Create a test page",
+        "DELETE request removes it",
+        "GET returns 404 after deletion",
+        "Public URL returns 404"
+      ],
+      "dependencies": ["PUCK-006"],
+      "notes": "Complete CRUD for external agents.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "PUCK-038",
+      "category": "testing",
+      "priority": "medium",
+      "description": "Add E2E test for Puck editor flow",
+      "acceptance_criteria": [
+        "Playwright test covers: login → create page → add blocks → save → view frontend",
+        "Test runs in CI pipeline",
+        "Covers happy path end-to-end",
+        "Screenshots on failure for debugging"
+      ],
+      "verification_steps": [
+        "Run: npx playwright test puck",
+        "Test passes",
+        "CI runs test on PR",
+        "Failure produces useful screenshots"
+      ],
+      "dependencies": ["REVIEW-UI"],
+      "notes": "Single E2E test for critical path. More tests later.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    },
+    {
+      "id": "REVIEW-FINAL",
+      "category": "review",
+      "priority": "critical",
+      "description": "Final review: Complete Puck Visual Editor integration",
+      "acceptance_criteria": [
+        "All features have passes: true",
+        "npm run build succeeds with no errors",
+        "npm run typecheck succeeds with no errors",
+        "Full workflow works: Payload → Puck → Frontend",
+        "All 16 blocks functional",
+        "External API documented and working",
+        "No regressions in existing functionality"
+      ],
+      "verification_steps": [
+        {
+          "method": "bash",
+          "commands": [
+            "cd /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio && npm run build",
+            "cd /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio && npm run typecheck 2>/dev/null || npm run lint"
+          ]
+        }
+      ],
+      "dependencies": ["REVIEW-ARCH", "REVIEW-INTEGRATION", "REVIEW-CORE-BLOCKS", "REVIEW-MARKETING-BLOCKS", "REVIEW-BLOG-BLOCKS", "REVIEW-UI", "PUCK-035", "PUCK-036", "PUCK-037", "PUCK-038"],
+      "notes": "Final gate. All systems go before marking complete.",
+      "passes": false,
+      "retry_count": 0,
+      "last_failure": null
+    }
+  ]
+}

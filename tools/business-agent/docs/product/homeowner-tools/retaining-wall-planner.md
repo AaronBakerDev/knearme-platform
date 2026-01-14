@@ -75,5 +75,5 @@ Planner that computes block counts, base/backfill materials, drainage needs, and
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/retaining-wall-planner/page.tsx`.
+- Route: `src/app/(marketing)/tools/retaining-wall-planner/page.tsx`.
 - Constants in `src/lib/tools/retaining-wall.ts`.

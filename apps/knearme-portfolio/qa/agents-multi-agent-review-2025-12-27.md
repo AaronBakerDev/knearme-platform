@@ -14,7 +14,7 @@
 ## Key Findings (Prioritized)
 
 ### 1) **CRITICAL** — Project creation fails in chat create flow (blocks onboarding)
-- **Where:** `src/app/(contractor)/projects/new/page.tsx`, `src/components/chat/ChatWizard.tsx`, `src/app/api/projects/route.ts`
+- **Where:** `src/app/(dashboard)/projects/new/page.tsx`, `src/components/chat/ChatWizard.tsx`, `src/app/api/projects/route.ts`
 - **What happens:** Sending the first message on `/projects/new` triggers `POST /api/projects` and returns `500 INTERNAL_ERROR`. UI falls back to the error screen with the message `"[object Object]"` and a “Back to Projects” button.
 - **Impact:** Contractors cannot create projects through the chat-based wizard; all create-mode flows are blocked.
 - **Repro:**
@@ -40,7 +40,7 @@
 - **Impact:** Even if the orchestrator is wired in later, review changes and approvals won’t be processed.
 
 ### 5) **MEDIUM** — Edit chat sessions reset on refresh, making “resume” logic ineffective
-- **Where:** `src/app/(contractor)/projects/[id]/edit/page.tsx`, `src/components/chat/ChatWizardEdit.tsx`
+- **Where:** `src/app/(dashboard)/projects/[id]/edit/page.tsx`, `src/components/chat/ChatWizardEdit.tsx`
 - **What happens:** Edit page always creates a new session on mount. After reload, prior messages are gone (only the welcome message appears).
 - **Impact:** Users cannot resume edit chats; `session-resume` logic never has prior messages to load.
 
@@ -50,27 +50,27 @@
 - **Impact:** On reload, inline artifacts (image prompts, content editors, progress cards) can disappear.
 
 ### 7) **MEDIUM** — “Archived” status is exposed in UI but cannot be set
-- **Where:** `src/app/(contractor)/projects/page.tsx`, `src/app/api/projects/[id]/publish/route.ts`
+- **Where:** `src/app/(dashboard)/projects/page.tsx`, `src/app/api/projects/[id]/publish/route.ts`
 - **What happens:** The Projects list includes an “Archived” tab, but there is no archive action in the UI or API (only publish/unpublish).
 - **Impact:** Incomplete workflow vs. requirements (archive/restore not implemented).
 
 ### 8) **MEDIUM** — Project card requirements not fully met (missing date)
-- **Where:** `src/app/(contractor)/projects/page.tsx`
+- **Where:** `src/app/(dashboard)/projects/page.tsx`
 - **What happens:** Project cards omit the date even though the requirements specify “thumbnail, title, status, date.”
 - **Impact:** Requirement gap and less context for users scanning projects.
 
 ### 9) **MEDIUM** — Dashboard quick action copy doesn’t reflect profile completeness
-- **Where:** `src/app/(contractor)/dashboard/page.tsx`
+- **Where:** `src/app/(dashboard)/dashboard/page.tsx`
 - **What happens:** The quick action card always says “Complete Your Profile” even when the profile is already complete.
 - **Impact:** Confusing CTA and wasted space; should adapt to “Edit Profile” or hide.
 
 ### 10) **MEDIUM** — Dashboard loader layout mismatches live layout
-- **Where:** `src/app/(contractor)/dashboard/loading.tsx`
+- **Where:** `src/app/(dashboard)/dashboard/loading.tsx`
 - **What happens:** Loader shows three stat cards, but the dashboard uses a single compact stats strip. This causes visible layout shift after load.
 - **Impact:** UX polish issue; avoidable CLS.
 
 ### 11) **LOW** — Icon-only buttons lack accessible labels
-- **Where:** `src/app/(contractor)/projects/page.tsx` (project card menu button), plus various icon-only buttons in chat
+- **Where:** `src/app/(dashboard)/projects/page.tsx` (project card menu button), plus various icon-only buttons in chat
 - **What happens:** Some icon-only buttons render without `aria-label`, so screen readers will announce them as “button” with no purpose.
 - **Impact:** Accessibility regression (WCAG 4.1.2 / 2.4.6).
 
@@ -102,7 +102,7 @@
 
 ## Dead Code / Legacy Artifacts
 - `src/lib/ai/openai.ts.bak` — legacy OpenAI helper (unused).
-- `src/app/(contractor)/projects/new/page.wizard.tsx.bak` — old create wizard.
+- `src/app/(dashboard)/projects/new/page.wizard.tsx.bak` — old create wizard.
 - `src/app/sitemap.ts.backup` — old sitemap backup.
 
 These appear to be leftovers from refactors and can be removed or archived outside `src/` if no longer needed.

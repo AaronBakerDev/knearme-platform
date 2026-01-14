@@ -87,6 +87,6 @@ Optional (collapsed):
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/basement-leak-triage/page.tsx`.
+- Route: `src/app/(marketing)/tools/basement-leak-triage/page.tsx`.
 - Rules in `src/lib/tools/basement-leak-triage.ts`.
 

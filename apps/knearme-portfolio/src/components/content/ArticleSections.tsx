@@ -63,7 +63,7 @@ export function ArticleHeader({
           {frontmatter.tags.map((tag) => (
             <Link
               key={tag}
-              href={`/learn?tag=${tag}`}
+              href={`/blog?tag=${tag}`}
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
               <Tag className="h-3 w-3" />
@@ -278,7 +278,7 @@ export function RelatedArticlesSection({ articles }: RelatedArticlesSectionProps
 
 function RelatedArticleCard({ article }: { article: ArticleMeta }) {
   return (
-    <Link href={`/learn/${article.slug}`} className="group">
+    <Link href={`/blog/${article.slug}`} className="group">
       <Card className="h-full hover:shadow-md transition-shadow">
         <CardContent className="pt-6">
           <h3 className="font-semibold mb-2 group-hover:text-primary transition-colors line-clamp-2">

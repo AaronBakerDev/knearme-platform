@@ -124,6 +124,31 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
+  /**
+   * URL Redirects - Blog Content Consolidation
+   *
+   * Redirects /learn routes to /blog after MDX content migration to Payload CMS.
+   * All educational content now lives under /blog/[slug].
+   *
+   * @see .claude/plans/jolly-coalescing-feather.md (Blog Content Consolidation Plan)
+   */
+  async redirects() {
+    return [
+      // Redirect /learn index to /blog
+      {
+        source: '/learn',
+        destination: '/blog',
+        permanent: true, // 301 for SEO
+      },
+      // Redirect all /learn/[slug] to /blog/[slug]
+      {
+        source: '/learn/:slug',
+        destination: '/blog/:slug',
+        permanent: true, // 301 for SEO
+      },
+    ];
+  },
 };
 
 // Compose plugins: MDX first, then PWA

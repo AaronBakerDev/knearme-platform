@@ -76,7 +76,7 @@ export function RelatedArticles({
           {title}
         </h2>
         <Link
-          href="/learn"
+          href="/blog"
           className="text-sm text-primary hover:underline flex items-center gap-1"
         >
           View All Articles
@@ -98,7 +98,7 @@ export function RelatedArticles({
  */
 function ArticleCard({ article }: { article: ArticleMeta }) {
   return (
-    <Link href={`/learn/${article.slug}`} className="group">
+    <Link href={`/blog/${article.slug}`} className="group">
       <Card className="h-full hover:shadow-md transition-all hover:border-primary/20">
         <CardContent className="pt-6">
           <Badge variant="secondary" className="mb-3 text-xs">

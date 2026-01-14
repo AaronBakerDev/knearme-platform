@@ -695,7 +695,7 @@ const schemas = [
 ### Phase 2 (January - February 2025)
 
 - [ ] **Integrate BreadcrumbList schema into all pages**
-  - File: Update all page.tsx files in `app/(public)/`
+  - File: Update all page.tsx files in `app/(marketing)/` and `app/(portfolio)/`
   - Validation: Google Rich Results Test
 
 - [ ] **Implement Service schema**
@@ -837,7 +837,7 @@ All schema generation happens server-side:
 
 **Implementation:**
 ```tsx
-// app/(public)/[city]/masonry/page.tsx
+// app/(portfolio)/[city]/masonry/page.tsx
 export default async function CityHubPage({ params }) {
   const projects = await getProjectsByCity(params.city);
   const schemas = [

@@ -242,12 +242,91 @@ export interface FooterColumn {
 }
 
 /**
- * Navigation global from Payload CMS
+ * Navigation global from Payload CMS (legacy)
+ * @deprecated Use MarketingNavigation or PortfolioNavigation instead
  */
 export interface Navigation {
   headerLinks?: NavLink[]
   footerLinks?: FooterColumn[]
   quickLinks?: QuickLink[]
+}
+
+// ============================================================================
+// Split Navigation Types (Context-Aware)
+// ============================================================================
+
+/**
+ * CTA button configuration
+ */
+export interface NavCta {
+  label?: string
+  href?: string
+  variant?: 'default' | 'outline' | 'secondary'
+}
+
+/**
+ * Marketing footer column
+ */
+export interface MarketingFooterColumn {
+  title: string
+  links: NavLink[]
+}
+
+/**
+ * Legal link (simplified)
+ */
+export interface LegalLink {
+  label: string
+  href: string
+}
+
+/**
+ * Marketing navigation configuration
+ *
+ * Used for: Blog, Learn, Services, Tools, About, Contact, Landing page
+ * Features full header navigation, CTA button, and multi-column footer
+ *
+ * @see /src/payload/globals/Navigation.ts for CMS schema
+ */
+export interface MarketingNavigation {
+  /** Header navigation links */
+  headerLinks: NavLink[]
+  /** Header CTA button */
+  headerCta: NavCta
+  /** Footer link columns */
+  footerColumns: MarketingFooterColumn[]
+  /** Legal/policy links in footer */
+  footerLegal: LegalLink[]
+}
+
+/**
+ * Portfolio floating CTA configuration
+ */
+export interface PortfolioCta {
+  enabled: boolean
+  label?: string
+  href?: string
+}
+
+/**
+ * Portfolio navigation configuration
+ *
+ * Used for: Business profiles, project showcases, city listings (UGC pages)
+ * Minimal chrome so the business's work is the star
+ *
+ * @see /src/payload/globals/Navigation.ts for CMS schema
+ */
+export interface PortfolioNavigation {
+  /** Header style: 'minimal' shows logo + back, 'hidden' shows nothing */
+  headerStyle: 'minimal' | 'hidden'
+  /** Text for the back/home link */
+  backText: string
+  /** Floating CTA configuration */
+  cta: PortfolioCta
+  /** Footer attribution text */
+  footerText: string
+  /** Minimal footer links */
+  footerLinks: LegalLink[]
 }
 
 /**
@@ -1053,6 +1132,7 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
 /**
  * Fetch navigation global from Payload CMS
  *
+ * @deprecated Use getMarketingNav() or getPortfolioNav() instead
  * @returns Promise<Navigation | null> - Navigation config or null if not configured
  *
  * @example
@@ -1073,6 +1153,139 @@ export async function getNavigation(): Promise<Navigation | null> {
   } catch {
     // Global may not exist yet
     return null
+  }
+}
+
+/**
+ * Fetch marketing navigation from Payload CMS
+ *
+ * Used for marketing pages: landing, blog, learn, services, tools, about, contact
+ * Returns full header navigation with CTA and multi-column footer.
+ *
+ * @returns Promise<MarketingNavigation> - Marketing navigation config with defaults
+ *
+ * @example
+ * const nav = await getMarketingNav()
+ * // Render header with nav.headerLinks and nav.headerCta
+ * // Render footer with nav.footerColumns and nav.footerLegal
+ *
+ * @see /src/payload/globals/Navigation.ts for CMS schema
+ */
+export async function getMarketingNav(): Promise<MarketingNavigation> {
+  const payload = await getPayloadClient()
+
+  // Default values for when CMS data is not configured
+  const defaults: MarketingNavigation = {
+    headerLinks: [],
+    headerCta: {
+      label: 'Get Started',
+      href: '/signup',
+      variant: 'default',
+    },
+    footerColumns: [],
+    footerLegal: [],
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (payload as any).findGlobal({
+      slug: 'navigation',
+      depth: 1,
+    })
+
+    // Map CMS fields to typed interface
+    return {
+      headerLinks: (result.marketingHeaderLinks || []).map((link: NavLink) => ({
+        label: link.label,
+        href: link.href,
+        newTab: link.newTab || false,
+      })),
+      headerCta: {
+        label: result.marketingHeaderCta?.label || defaults.headerCta.label,
+        href: result.marketingHeaderCta?.href || defaults.headerCta.href,
+        variant: result.marketingHeaderCta?.variant || defaults.headerCta.variant,
+      },
+      footerColumns: (result.marketingFooterColumns || []).map(
+        (col: { title: string; links: NavLink[] }) => ({
+          title: col.title,
+          links: (col.links || []).map((link: NavLink) => ({
+            label: link.label,
+            href: link.href,
+            newTab: link.newTab || false,
+          })),
+        })
+      ),
+      footerLegal: (result.marketingFooterLegal || []).map(
+        (link: LegalLink) => ({
+          label: link.label,
+          href: link.href,
+        })
+      ),
+    }
+  } catch {
+    // Global may not exist yet, return defaults
+    return defaults
+  }
+}
+
+/**
+ * Fetch portfolio navigation from Payload CMS
+ *
+ * Used for portfolio/UGC pages: business profiles, project showcases, city pages
+ * Returns minimal header config and subtle footer attribution.
+ *
+ * @returns Promise<PortfolioNavigation> - Portfolio navigation config with defaults
+ *
+ * @example
+ * const nav = await getPortfolioNav()
+ * // If nav.headerStyle === 'minimal', show logo + back link
+ * // If nav.cta.enabled, show floating CTA button
+ *
+ * @see /src/payload/globals/Navigation.ts for CMS schema
+ */
+export async function getPortfolioNav(): Promise<PortfolioNavigation> {
+  const payload = await getPayloadClient()
+
+  // Default values for when CMS data is not configured
+  const defaults: PortfolioNavigation = {
+    headerStyle: 'minimal',
+    backText: '← Back to search',
+    cta: {
+      enabled: true,
+      label: 'Need Similar Work?',
+      href: '/signup',
+    },
+    footerText: 'Portfolio powered by KnearMe',
+    footerLinks: [],
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (payload as any).findGlobal({
+      slug: 'navigation',
+      depth: 1,
+    })
+
+    // Map CMS fields to typed interface
+    return {
+      headerStyle: result.portfolioHeaderStyle || defaults.headerStyle,
+      backText: result.portfolioBackText || defaults.backText,
+      cta: {
+        enabled: result.portfolioCta?.enabled ?? defaults.cta.enabled,
+        label: result.portfolioCta?.label || defaults.cta.label,
+        href: result.portfolioCta?.href || defaults.cta.href,
+      },
+      footerText: result.portfolioFooterText || defaults.footerText,
+      footerLinks: (result.portfolioFooterLinks || []).map(
+        (link: LegalLink) => ({
+          label: link.label,
+          href: link.href,
+        })
+      ),
+    }
+  } catch {
+    // Global may not exist yet, return defaults
+    return defaults
   }
 }
 

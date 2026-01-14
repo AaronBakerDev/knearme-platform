@@ -168,8 +168,19 @@ app/
 │       ├── new/         # Chat-based project creation
 │       └── [id]/        # Unified project workspace
 │
-├── (public)/            # Public SEO pages
-│   ├── businesses/      # Business profile pages
+├── (marketing)/         # Marketing pages (full header/footer)
+│   ├── (home)/          # Landing page
+│   ├── blog/            # Blog + resources
+│   ├── learn/           # Educational content
+│   ├── services/        # National service pages
+│   ├── tools/           # Homeowner tools
+│   ├── about/
+│   ├── contact/
+│   └── examples/
+│
+├── (portfolio)/         # Public portfolio/UGC pages (minimal chrome)
+│   ├── businesses/      # Business profile pages (canonical)
+│   ├── contractors/     # Legacy routes (redirects)
 │   └── [city]/masonry/[type]/[slug]/  # Project detail pages
 │
 ├── api/                 # API Routes
@@ -184,12 +195,12 @@ app/
 │
 ├── error.tsx            # Global error boundary
 ├── sitemap.ts           # Dynamic sitemap generation
-└── page.tsx             # Landing page
+└── page.tsx             # Legacy root (moved to (marketing)/(home) in split nav)
 ```
 
 **Key Patterns:**
 - Routes in `(auth)` and `(dashboard)` use **Client Components** for interactivity
-- Routes in `(public)` use **Server Components** for SEO
+- Routes in `(marketing)` and `(portfolio)` use **Server Components** for SEO
 - API routes in `app/api/` follow RESTful patterns with standardized error handling
 
 ### Data Model
@@ -314,7 +325,7 @@ Examples:
 ```
 
 **Implementation:**
-- Dynamic routes in `app/(public)/[city]/masonry/[type]/[slug]/page.tsx`
+- Dynamic routes in `app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx`
 - ISR with `revalidate: 3600` (hourly)
 - JSON-LD structured data via `/src/lib/seo/structured-data.ts`
 - Dynamic sitemap at `/app/sitemap.ts`

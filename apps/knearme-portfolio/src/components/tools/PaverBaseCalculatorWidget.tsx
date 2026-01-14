@@ -158,7 +158,7 @@ export function PaverBaseCalculatorWidget() {
             </div>
 
             <Button asChild className='w-full'>
-              <Link href='/learn/how-to-build-a-paver-base'>Read the install guide</Link>
+              <Link href='/blog'>Browse installation guides</Link>
             </Button>
           </CardContent>
         </Card>

@@ -8,7 +8,9 @@
  * by Payload during build. We use handleServerFunctions utility for this.
  *
  * @see PAY-003 in PRD for acceptance criteria
+ * @see https://github.com/payloadcms/payload/discussions/9769 for serverFunctions setup
  */
+import type { ServerFunctionClient } from 'payload'
 import { RootLayout, handleServerFunctions } from '@payloadcms/next/layouts'
 import React from 'react'
 
@@ -17,26 +19,39 @@ import config from '@payload-config'
 // Import Payload admin styles
 import '@payloadcms/next/css'
 
-// Import map is generated at build time by Payload
-// For MVP, we use an empty map - full integration happens during build
-import type { ImportMap } from 'payload'
-const importMap: ImportMap = {}
+// Import custom admin styling
+import './custom.scss'
+
+// Import the generated import map for custom components
+import { importMap } from './admin/importMap.js'
 
 type Args = {
   children: React.ReactNode
 }
 
 /**
+ * Server function wrapper for Payload admin
+ * This wraps handleServerFunctions with 'use server' directive to make it
+ * serializable for passing to client components.
+ */
+const serverFunctions: ServerFunctionClient = async function (args) {
+  'use server'
+  return handleServerFunctions({
+    ...args,
+    config,
+    importMap,
+  })
+}
+
+/**
  * Root layout for Payload admin panel
  */
-const Layout = async ({ children }: Args) => {
+const Layout = ({ children }: Args) => {
   return (
     <RootLayout
       config={config}
       importMap={importMap}
-      // @ts-expect-error - Type mismatch between ServerFunctionHandler and ServerFunctionClient
-      // This is a known issue with Payload 3.70 types, works at runtime
-      serverFunction={handleServerFunctions}
+      serverFunction={serverFunctions}
     >
       {children}
     </RootLayout>

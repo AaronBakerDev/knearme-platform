@@ -15,7 +15,7 @@ Build topical authority through national service landing pages, educational cont
 ## 1. National Service Landing Pages
 
 ### Route Implementation
-- [x] Create route: `app/(public)/services/[type]/page.tsx` ✅ (Already implemented)
+- [x] Create route: `app/(marketing)/services/[type]/page.tsx` ✅ (Already implemented)
 - [x] Implement `generateStaticParams()` for all service types ✅
 - [x] Configure ISR with 86400s revalidation (daily) ✅
 
@@ -50,7 +50,7 @@ Build topical authority through national service landing pages, educational cont
 ## 2. Educational Content Infrastructure
 
 ### Content Route Setup
-- [x] Create route: `app/(public)/learn/[slug]/page.tsx` ✅ (2025-12-10)
+- [x] Create route: `app/(marketing)/learn/[slug]/page.tsx` ✅ (2025-12-10)
 - [x] Set up MDX content directory: `content/learn/` ✅ (2025-12-10)
 - [x] Configure MDX with next-mdx-remote ✅ (2025-12-10)
 - [x] Implement reading time calculation ✅ (2025-12-10)

@@ -220,9 +220,10 @@ src/
 ├── app/                    # Next.js App Router
 │   ├── (auth)/             # Auth pages (login, signup)
 │   ├── (dashboard)/        # Authenticated dashboard
-│   ├── (public)/           # Public SEO pages
-│   ├── api/                # API routes
-│   └── blog/               # Blog pages
+│   ├── (marketing)/        # Marketing pages (full header/footer)
+│   ├── (portfolio)/        # Public portfolio/UGC pages (minimal chrome)
+│   ├── (payload)/          # Payload CMS admin
+│   └── api/                # API routes
 ├── components/             # React components
 ├── lib/                    # Utilities and helpers
 ├── payload/                # Payload CMS configuration

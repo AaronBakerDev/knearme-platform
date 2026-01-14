@@ -24,8 +24,9 @@ Set up the project foundation: Next.js, Supabase, authentication, and basic UI c
   src/
   ├── app/
   │   ├── (auth)/
-  │   ├── (contractor)/
-  │   └── (public)/
+  │   ├── (dashboard)/
+  │   ├── (marketing)/
+  │   └── (portfolio)/
   ├── components/
   │   ├── ui/
   │   └── forms/
@@ -221,7 +222,7 @@ Set up the project foundation: Next.js, Supabase, authentication, and basic UI c
 ## 4. Profile Setup
 
 ### Profile Setup Flow (US-001-05, US-001-06, US-001-07)
-- [x] Create `/app/(contractor)/profile/setup/page.tsx`
+- [x] Create `/app/(dashboard)/profile/setup/page.tsx`
 - [x] Build multi-step form wizard component
 - [x] Step 1: Business Info
   - [x] Business name input (required)
@@ -252,7 +253,7 @@ Set up the project foundation: Next.js, Supabase, authentication, and basic UI c
 ## 5. Basic Dashboard
 
 ### Dashboard Layout
-- [x] Create `/app/(contractor)/dashboard/page.tsx`
+- [x] Create `/app/(dashboard)/dashboard/page.tsx`
 - [x] Build dashboard shell with sidebar navigation
 - [x] Create responsive header with user menu
 - [x] Implement logout functionality

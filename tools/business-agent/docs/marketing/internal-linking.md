@@ -454,7 +454,7 @@ const breadcrumbSchema = generateBreadcrumbSchema(breadcrumbs);
   - Add to City Hub and Service Type pages
 
 - [ ] **Service Type by City Pages**
-  - File: `app/(public)/[city]/masonry/[type]/page.tsx`
+  - File: `app/(portfolio)/[city]/masonry/[type]/page.tsx`
   - Auto-generate for 10 cities × 6 service types
   - Include links to projects, related services, nearby cities
 
@@ -473,7 +473,7 @@ const breadcrumbSchema = generateBreadcrumbSchema(breadcrumbs);
 ### Phase 4 (July - December 2025)
 
 - [ ] **State-Level Landing Pages**
-  - File: `app/(public)/[state]/masonry/page.tsx`
+  - File: `app/(portfolio)/[state]/masonry/page.tsx`
   - Aggregate cities by state
   - Add state-to-state navigation
 

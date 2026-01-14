@@ -8,7 +8,7 @@
 
 Project Detail pages are individual **portfolio showcases** for completed projects. These pages are the deepest level of the content hierarchy and target specific long-tail keywords based on AI-generated project titles.
 
-**Implementation:** `app/(public)/[city]/masonry/[type]/[slug]/page.tsx` (474 lines)
+**Implementation:** `app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx` (474 lines)
 
 **Business Purpose:**
 - Showcase business quality and expertise
@@ -22,7 +22,7 @@ Project Detail pages are individual **portfolio showcases** for completed projec
 
 ### File Location
 ```
-app/(public)/[city]/masonry/[type]/[slug]/page.tsx
+app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx
 ```
 
 ### URL Pattern
@@ -542,7 +542,7 @@ function generateProjectSlug(title: string): string {
 
 ### Implementation Files
 
-- **Route:** `app/(public)/[city]/masonry/[type]/[slug]/page.tsx`
+- **Route:** `app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx`
 - **Components:** `src/components/portfolio/PhotoGallery.tsx`, `src/components/seo/Breadcrumbs.tsx`
 - **Utilities:** `src/lib/seo/structured-data.ts`, `src/lib/storage/upload.ts`
 - **Types:** `src/types/database.ts`

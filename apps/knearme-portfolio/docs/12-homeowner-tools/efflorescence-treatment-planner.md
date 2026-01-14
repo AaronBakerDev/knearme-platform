@@ -144,7 +144,7 @@ Map inputs to one of:
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/efflorescence-treatment-planner/page.tsx`.
+- Route: `src/app/(marketing)/tools/efflorescence-treatment-planner/page.tsx`.
 - Rules in `src/lib/tools/efflorescence.ts`.
 
 ---

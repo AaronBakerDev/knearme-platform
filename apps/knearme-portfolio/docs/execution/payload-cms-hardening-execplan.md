@@ -49,19 +49,19 @@ To be completed after implementation.
 
 ## Context and Orientation
 
-The Payload CMS integration lives under `src/payload` and is accessed from Next.js App Router pages and API routes under `src/app`. Public blog pages are in `src/app/(public)/blog`, service pages in `src/app/(public)/services`, and CMS helpers in `src/lib/payload/client.ts`. Payload uses its own CMS users collection (`src/payload/payload.config.ts` defines `users`). The `Articles` collection defines a `status` field with values draft/scheduled/published/archived in `src/payload/collections/Articles.ts`, and page view analytics are stored in `src/payload/collections/PageViews.ts` with read access limited to authenticated CMS users.
+The Payload CMS integration lives under `src/payload` and is accessed from Next.js App Router pages and API routes under `src/app`. Public blog pages are in `src/app/(marketing)/blog`, service pages in `src/app/(marketing)/services`, and CMS helpers in `src/lib/payload/client.ts`. Payload uses its own CMS users collection (`src/payload/payload.config.ts` defines `users`). The `Articles` collection defines a `status` field with values draft/scheduled/published/archived in `src/payload/collections/Articles.ts`, and page view analytics are stored in `src/payload/collections/PageViews.ts` with read access limited to authenticated CMS users.
 
-Preview links for drafts live at `/blog/preview/[token]` (`src/app/(public)/blog/preview/[token]/page.tsx`), and preview tokens are regenerated via `/api/articles/preview-token` (`src/app/api/articles/preview-token/route.ts`). Analytics are surfaced via `/api/analytics/stats` (`src/app/api/analytics/stats/route.ts`) and consumed in a custom Payload admin view (`src/payload/views/AnalyticsDashboard.tsx`). Popular articles are rendered on the public site via `src/components/blog/PopularArticles.tsx` which calls `getPopularArticles` from `src/lib/payload/client.ts`.
+Preview links for drafts live at `/blog/preview/[token]` (`src/app/(marketing)/blog/preview/[token]/page.tsx`), and preview tokens are regenerated via `/api/articles/preview-token` (`src/app/api/articles/preview-token/route.ts`). Analytics are surfaced via `/api/analytics/stats` (`src/app/api/analytics/stats/route.ts`) and consumed in a custom Payload admin view (`src/payload/views/AnalyticsDashboard.tsx`). Popular articles are rendered on the public site via `src/components/blog/PopularArticles.tsx` which calls `getPopularArticles` from `src/lib/payload/client.ts`.
 
 The current risks are: draft previews fail due to access rules, preview-token API lacks explicit CMS auth, rich-text rendering injects unescaped HTML, scheduled visibility is inconsistent between listing/access, and analytics reads return empty due to access gating.
 
 ## Plan of Work
 
-First, fix preview authentication and access. Update `src/app/api/articles/preview-token/route.ts` to authenticate the CMS session with `payload.auth` using request headers, return 401 when no CMS user is present, and use `createLocalReq` with the authenticated user so access rules are enforced. In `src/app/(public)/blog/preview/[token]/page.tsx`, pass `overrideAccess: true` to the local `payload.find` call so draft tokens resolve even for public users, while still validating the token and expiration.
+First, fix preview authentication and access. Update `src/app/api/articles/preview-token/route.ts` to authenticate the CMS session with `payload.auth` using request headers, return 401 when no CMS user is present, and use `createLocalReq` with the authenticated user so access rules are enforced. In `src/app/(marketing)/blog/preview/[token]/page.tsx`, pass `overrideAccess: true` to the local `payload.find` call so draft tokens resolve even for public users, while still validating the token and expiration.
 
-Second, remove unsafe HTML injection from rich-text rendering. In `src/app/(public)/blog/[slug]/page.tsx`, replace the `dangerouslySetInnerHTML` path in the `text` node renderer with React element wrapping for bold/italic/underline/code so CMS text is escaped. Add a small `sanitizeHref` helper in the same file to reject `javascript:` and other unsafe protocols for link nodes. In `src/lib/services/catalog.ts`, escape Lexical text before embedding it into generated HTML (`escapeHtml`) so `service.longDescription` is safe for `dangerouslySetInnerHTML` in `src/app/(public)/services/[type]/page.tsx`.
+Second, remove unsafe HTML injection from rich-text rendering. In `src/app/(marketing)/blog/[slug]/page.tsx`, replace the `dangerouslySetInnerHTML` path in the `text` node renderer with React element wrapping for bold/italic/underline/code so CMS text is escaped. Add a small `sanitizeHref` helper in the same file to reject `javascript:` and other unsafe protocols for link nodes. In `src/lib/services/catalog.ts`, escape Lexical text before embedding it into generated HTML (`escapeHtml`) so `service.longDescription` is safe for `dangerouslySetInnerHTML` in `src/app/(marketing)/services/[type]/page.tsx`.
 
-Third, align scheduled visibility rules. In `src/app/(public)/blog/page.tsx`, replace the hardcoded published-only filter with `buildVisibleArticlesWhere()` from `src/lib/payload/client.ts`. In `src/payload/collections/Articles.ts`, adjust the public read access rule to allow scheduled articles whose `publishedAt` is in the past (same logic as `buildVisibleArticlesWhere`). Document in code comments that scheduled visibility depends on `publishedAt`.
+Third, align scheduled visibility rules. In `src/app/(marketing)/blog/page.tsx`, replace the hardcoded published-only filter with `buildVisibleArticlesWhere()` from `src/lib/payload/client.ts`. In `src/payload/collections/Articles.ts`, adjust the public read access rule to allow scheduled articles whose `publishedAt` is in the past (same logic as `buildVisibleArticlesWhere`). Document in code comments that scheduled visibility depends on `publishedAt`.
 
 Fourth, restore analytics and popular articles. In `src/app/api/analytics/stats/route.ts`, require CMS authentication via `payload.auth` and return 401 if not logged in. Use `createLocalReq` with the authenticated user for the `payload.find` call so access rules are enforced. In `src/lib/payload/client.ts`, add `overrideAccess: true` to the `page-views` aggregation query inside `getPageViewStats` so public-facing `getPopularArticles` returns data without leaking raw view records. Optionally, enrich analytics output by looking up article titles for top slugs and render those titles in `src/payload/views/AnalyticsDashboard.tsx`.
 
@@ -72,9 +72,9 @@ Finally, add targeted tests or adjustments. Extend `src/__tests__/e2e/payload-cm
 All commands should be run from `/Users/aaronbaker/knearme-workspace/apps/knearme-portfolio`.
 
 1) Update preview-token route and preview page queries.
-2) Update rich-text rendering and link sanitization in `src/app/(public)/blog/[slug]/page.tsx`.
+2) Update rich-text rendering and link sanitization in `src/app/(marketing)/blog/[slug]/page.tsx`.
 3) Add HTML escaping in `src/lib/services/catalog.ts` and verify service page usage remains unchanged.
-4) Align scheduling filters in `src/app/(public)/blog/page.tsx` and `src/payload/collections/Articles.ts`.
+4) Align scheduling filters in `src/app/(marketing)/blog/page.tsx` and `src/payload/collections/Articles.ts`.
 5) Require auth in `src/app/api/analytics/stats/route.ts` and restore public aggregation via `overrideAccess` in `src/lib/payload/client.ts`.
 6) Add/adjust tests and run:
 
@@ -111,7 +111,7 @@ Expected preview behavior:
 
 - Use Payload local API and auth helpers from the `payload` package: `payload.auth(...)` and `createLocalReq(...)`.
 - In `src/app/api/articles/preview-token/route.ts`, ensure the handler sets up a `PayloadRequest` with `createLocalReq({ req: { headers }, user })` and passes that to `payload.findByID` and `payload.update`.
-- In `src/app/(public)/blog/[slug]/page.tsx`, replace the `dangerouslySetInnerHTML` text-node path with React element wrappers and add a `sanitizeHref(url: string): string` helper.
+- In `src/app/(marketing)/blog/[slug]/page.tsx`, replace the `dangerouslySetInnerHTML` text-node path with React element wrappers and add a `sanitizeHref(url: string): string` helper.
 - In `src/lib/services/catalog.ts`, define `escapeHtml(text: string): string` and use it when building `longDescription` HTML from Lexical content.
 - In `src/payload/collections/Articles.ts`, update public `read` access to allow scheduled articles whose `publishedAt` is in the past.
 

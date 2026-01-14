@@ -16,7 +16,7 @@
  */
 
 import { getPayload } from 'payload'
-import config from '../../payload/payload.config'
+import config from '../../payload/payload.config.ts'
 
 /**
  * Source pricing tier content - matches FALLBACK_TIERS from Pricing.tsx exactly

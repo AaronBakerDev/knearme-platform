@@ -72,5 +72,5 @@ Tool that generates a maintenance calendar and annual checklist for masonry elem
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/masonry-maintenance-scheduler/page.tsx`.
+- Route: `src/app/(marketing)/tools/masonry-maintenance-scheduler/page.tsx`.
 - Rules in `src/lib/tools/maintenance-scheduler.ts`.

@@ -54,15 +54,15 @@ This document translates workspace-level strategy into **implementation specific
 
 | Page Type | Route File | Data Source | SSR/SSG |
 |-----------|-----------|-------------|---------|
-| **City Hub** | `app/(public)/[city]/masonry/page.tsx` | `getProjectsByCity()` → Supabase `projects` table filtered by city | SSR (dynamic) |
-| **Service Type by City** | `app/(public)/[city]/masonry/[type]/page.tsx` | `getProjectsByCityAndType()` → Supabase `projects` filtered by city + `service_type` | SSR (dynamic) |
-| **Project Detail** | `app/(public)/[city]/masonry/[type]/[slug]/page.tsx` | `getProjectBySlug()` → Supabase `projects` joined with `contractors` | SSR (dynamic) |
-| **Contractor Profile** | `app/(public)/contractors/[city]/[id]/page.tsx` | `getContractorProfile()` → Supabase `contractors` + `projects` | SSR (dynamic) |
-| **National Service Landing** | `app/(public)/services/[type]/page.tsx` | `getCitiesByServiceType()` → Distinct cities offering service type | SSR (dynamic) |
-| **Educational Content** | `app/(public)/learn/[slug]/page.tsx` | Markdown files or CMS integration (TBD) | SSG (static) |
+| **City Hub** | `app/(portfolio)/[city]/masonry/page.tsx` | `getProjectsByCity()` → Supabase `projects` table filtered by city | SSR (dynamic) |
+| **Service Type by City** | `app/(portfolio)/[city]/masonry/[type]/page.tsx` | `getProjectsByCityAndType()` → Supabase `projects` filtered by city + `service_type` | SSR (dynamic) |
+| **Project Detail** | `app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx` | `getProjectBySlug()` → Supabase `projects` joined with `contractors` | SSR (dynamic) |
+| **Contractor Profile** | `app/(portfolio)/contractors/[city]/[id]/page.tsx` | `getContractorProfile()` → Supabase `contractors` + `projects` | SSR (dynamic) |
+| **National Service Landing** | `app/(marketing)/services/[type]/page.tsx` | `getCitiesByServiceType()` → Distinct cities offering service type | SSR (dynamic) |
+| **Educational Content** | `app/(marketing)/learn/[slug]/page.tsx` | Markdown files or CMS integration (TBD) | SSG (static) |
 
 **Implementation Notes:**
-- **P1 Priority:** `app/(public)/[city]/masonry/[type]/page.tsx` is the next critical route to implement
+- **P1 Priority:** `app/(portfolio)/[city]/masonry/[type]/page.tsx` is the next critical route to implement
 - **Parallel Static Generation:** Future optimization to pre-render top 50-100 city/service combinations
 - **Structured Data:** All public pages must include JSON-LD structured data (see Section 5.3)
 
@@ -216,7 +216,7 @@ Based on `/docs/content-planning/masonry/content-plan.md`:
 | **Stone Retaining Wall Costs** | `/learn/stone-retaining-wall-cost` | "stone retaining wall cost" | 480/mo |
 
 **Implementation Plan (Phase 2):**
-1. Create `/learn` route group in Next.js: `app/(public)/learn/[slug]/page.tsx`
+1. Create `/learn` route group in Next.js: `app/(marketing)/learn/[slug]/page.tsx`
 2. Content storage: MDX files in `content/learn/` directory
 3. Internal linking: Each article links to 2-3 relevant City Hub or Service Type pages
 4. Structured Data: Article schema with author, datePublished, breadcrumbs
@@ -301,7 +301,7 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
 }
 ```
 
-**Component Location:** `app/(public)/[city]/masonry/[type]/[slug]/page.tsx`
+**Component Location:** `app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx`
 
 **UI Placement:** Below project description, above contractor CTA
 
@@ -499,9 +499,9 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
 
 | Content Category | Source Document | Target Page Type | Template Location |
 |-----------------|----------------|------------------|-------------------|
-| **Service Pages** | `/docs/content-planning/masonry/content-plan.md` Section 1 | Static service landing pages | `app/(public)/services/[service]/page.tsx` |
-| **Educational Articles** | `/docs/content-planning/masonry/content-plan.md` Section 2 | Blog/Resource center | `app/(public)/resources/[slug]/page.tsx` |
-| **Problem-Solution Guides** | `/docs/content-planning/masonry/content-plan.md` Section 3 | How-to guides | `app/(public)/guides/[slug]/page.tsx` |
+| **Service Pages** | `/docs/content-planning/masonry/content-plan.md` Section 1 | Static service landing pages | `app/(marketing)/services/[service]/page.tsx` |
+| **Educational Articles** | `/docs/content-planning/masonry/content-plan.md` Section 2 | Blog/Resource center | `app/(marketing)/resources/[slug]/page.tsx` |
+| **Problem-Solution Guides** | `/docs/content-planning/masonry/content-plan.md` Section 3 | How-to guides | `app/(marketing)/guides/[slug]/page.tsx` |
 | **Chimney-Specific** | `/docs/content-planning/chimney/content-plan.md` | Service + educational pages | Same as above |
 
 ---
@@ -672,20 +672,20 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
   - JSON-LD structured data (Article, ImageGallery, LocalBusiness)
   - Canonical URLs
   - Breadcrumb navigation
-  - File: `app/(public)/[city]/masonry/[project]/page.tsx`
+  - File: `app/(portfolio)/[city]/masonry/[project]/page.tsx`
 
 - [x] **City hub pages**
   - Programmatic city landing pages
   - Dynamic stats (contractor count, project count)
   - Project grid with filtering
   - JSON-LD ItemList schema
-  - File: `app/(public)/[city]/masonry/page.tsx`
+  - File: `app/(portfolio)/[city]/masonry/page.tsx`
 
 - [x] **Contractor profile pages**
   - Public profile with portfolio
   - Contact information
   - JSON-LD LocalBusiness schema
-  - File: `app/(public)/contractors/[city]/[id]/page.tsx`
+  - File: `app/(portfolio)/contractors/[city]/[id]/page.tsx`
 
 - [x] **Dynamic sitemap**
   - Auto-generates from database
@@ -730,7 +730,7 @@ async function getRelatedProjects(currentProject: Project, limit = 4) {
   - Auto-generate for all city + service combinations
   - Initial: 10 cities × 6 service types = 60 new pages
   - Priority: Denver, Lakewood, Aurora, Colorado Springs (high project volume)
-  - File: Create `app/(public)/[city]/masonry/[service]/page.tsx`
+  - File: Create `app/(portfolio)/[city]/masonry/[service]/page.tsx`
 
 #### Internal Linking Automation
 - [ ] **Related projects component**
@@ -1127,9 +1127,9 @@ High-priority underserved queries with low competition:
 | **`src/lib/seo/metadata.ts`** | Generate Next.js metadata |
 | **`src/lib/seo/json-ld.ts`** | Generate JSON-LD structured data |
 | **`app/sitemap.ts`** | Dynamic XML sitemap generation |
-| **`app/(public)/[city]/masonry/page.tsx`** | City hub page template |
-| **`app/(public)/[city]/masonry/[project]/page.tsx`** | Project detail page template |
-| **`app/(public)/contractors/[city]/[id]/page.tsx`** | Contractor profile page template |
+| **`app/(portfolio)/[city]/masonry/page.tsx`** | City hub page template |
+| **`app/(portfolio)/[city]/masonry/[project]/page.tsx`** | Project detail page template |
+| **`app/(portfolio)/contractors/[city]/[id]/page.tsx`** | Contractor profile page template |
 
 ### 11.4 External Documentation
 

@@ -16,9 +16,9 @@ Build public-facing pages with SEO optimization: project detail pages, contracto
 ## 1. URL Architecture
 
 ### Route Structure
-- [x] Create dynamic route: `/app/(public)/[city]/masonry/[type]/[slug]/page.tsx` ✅ Implemented
-- [x] Create contractor route ✅ `/app/(public)/contractors/[city]/[id]/page.tsx`
-- [x] Create city hub route ✅ `/app/(public)/[city]/masonry/page.tsx`
+- [x] Create dynamic route: `/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx` ✅ Implemented
+- [x] Create contractor route ✅ `/app/(portfolio)/contractors/[city]/[id]/page.tsx`
+- [x] Create city hub route ✅ `/app/(portfolio)/[city]/masonry/page.tsx`
 - [x] Set up route param validation (via generateStaticParams)
 
 ### Slug Generation
@@ -39,7 +39,7 @@ Build public-facing pages with SEO optimization: project detail pages, contracto
 ## 2. Project Detail Page (US-004-04)
 
 > **Status:** ✅ ~90% Complete
-> **Implementation:** `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx` (371 lines)
+> **Implementation:** `src/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx` (371 lines)
 
 ### Page Structure
 - [x] Create project page component ✅ Server Component with SSG
@@ -92,7 +92,7 @@ Build public-facing pages with SEO optimization: project detail pages, contracto
 ## 3. Contractor Profile Page (US-004-05)
 
 > **Status:** ✅ ~95% Complete
-> **Implementation:** `src/app/(public)/contractors/[city]/[id]/page.tsx` (320 lines)
+> **Implementation:** `src/app/(portfolio)/contractors/[city]/[id]/page.tsx` (320 lines)
 
 ### Page Structure
 - [x] Create contractor profile component ✅ Server Component with SSG
@@ -130,7 +130,7 @@ Build public-facing pages with SEO optimization: project detail pages, contracto
 ## 4. City Hub Page
 
 > **Status:** ✅ ~90% Complete
-> **Implementation:** `src/app/(public)/[city]/masonry/page.tsx` (330 lines)
+> **Implementation:** `src/app/(portfolio)/[city]/masonry/page.tsx` (330 lines)
 
 ### Page Structure
 - [x] Create city hub component ✅ Server Component with SSG

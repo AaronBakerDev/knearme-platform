@@ -19,7 +19,7 @@ export function generateArticleHowToSchema(
     name: article.frontmatter.howToTitle || article.frontmatter.title,
     description:
       article.frontmatter.howToDescription || article.frontmatter.description,
-    mainEntityOfPage: `${siteUrl}/learn/${article.slug}`,
+    mainEntityOfPage: `${siteUrl}/blog/${article.slug}`,
     step: steps.map((step, index) => ({
       '@type': 'HowToStep',
       position: index + 1,
@@ -67,7 +67,7 @@ export function generateArticleSchema(
     wordCount?: number;
   }
 ): Record<string, unknown> {
-  const articleUrl = `${SITE_URL}/learn/${article.slug}`;
+  const articleUrl = `${SITE_URL}/blog/${article.slug}`;
 
   return {
     '@context': 'https://schema.org',

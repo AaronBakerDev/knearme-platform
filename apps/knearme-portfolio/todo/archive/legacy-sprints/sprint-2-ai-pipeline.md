@@ -180,7 +180,7 @@ Build the AI infrastructure: image analysis, Whisper transcription, GPT-4o conte
 - [x] Show current question and progress
 
 ### 6-Step Wizard
-- [x] Create `/app/(contractor)/projects/new/page.tsx`
+- [x] Create `/app/(dashboard)/projects/new/page.tsx`
 - [x] Step 1: Image Upload (ImageUploader component)
 - [x] Step 2: Image Analysis (auto-triggered)
 - [x] Step 3: Voice Interview (VoiceRecorder + InterviewFlow)
@@ -240,7 +240,7 @@ Build the AI infrastructure: image analysis, Whisper transcription, GPT-4o conte
 - `upload/ImageUploader.tsx` - Multi-image upload with compression
 
 ### Pages
-- `src/app/(contractor)/projects/new/page.tsx` - 6-step creation wizard
+- `src/app/(dashboard)/projects/new/page.tsx` - 6-step creation wizard
 
 ---
 

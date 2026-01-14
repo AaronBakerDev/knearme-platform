@@ -15,7 +15,7 @@
  */
 import type { CollectionConfig, Field } from 'payload'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
-import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } from '../hooks/revalidate'
+import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } from '../hooks/revalidate.ts'
 
 /**
  * Upload field referencing the media collection.
@@ -152,7 +152,7 @@ export const ServiceTypes: CollectionConfig = {
       type: 'ui',
       admin: {
         components: {
-          Field: '/src/payload/components/OGPreview',
+          Field: './components/OGPreview',
         },
       },
     },

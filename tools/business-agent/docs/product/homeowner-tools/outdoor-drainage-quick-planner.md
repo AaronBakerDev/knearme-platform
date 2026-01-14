@@ -76,6 +76,6 @@ Optional (collapsed):
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/outdoor-drainage-quick-planner/page.tsx`.
+- Route: `src/app/(marketing)/tools/outdoor-drainage-quick-planner/page.tsx`.
 - Rules in `src/lib/tools/outdoor-drainage.ts`.
 

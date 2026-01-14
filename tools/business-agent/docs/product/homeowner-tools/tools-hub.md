@@ -164,7 +164,7 @@ Event names:
 
 ### Implementation Pattern
 
-- Tool pages live under `src/app/(public)/tools/{tool-slug}/page.tsx`.
+- Tool pages live under `src/app/(marketing)/tools/{tool-slug}/page.tsx`.
 - Server component wraps a lightweight client form for interactivity.
 - Calculations are deterministic and run client‑side (MVP).
 - No database writes in MVP except email capture.

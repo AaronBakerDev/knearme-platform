@@ -4,7 +4,7 @@
 When writing complex features or significant refactors, use an ExecPlan (see `PLANS.md` at the repository root). Start from `EXECPLAN_TEMPLATE.md` and keep the plan updated as a living document.
 
 ## Project Structure & Modules
-- App entry and routing live in `src/app`, with feature routes under folders like `(auth)`, `(contractor)`, and `(public)`.
+- App entry and routing live in `src/app`, with feature routes under folders like `(auth)`, `(dashboard)`, `(marketing)`, `(portfolio)`, and `(payload)`.
 - Reusable UI and feature components are in `src/components` (for example `src/components/portfolio`, `src/components/forms`, `src/components/ui`).
 - Shared logic resides in `src/hooks`, `src/lib` (Supabase, SEO, utilities), and `src/types`.
 - Product documentation is organized under `docs/01-vision` through `docs/10-launch`; keep architecture and decision records there.
@@ -28,7 +28,7 @@ When writing complex features or significant refactors, use an ExecPlan (see `PL
 
 ## Testing & Quality
 - Add lightweight tests or examples near complex logic (for example, utilities in `src/lib/utils.ts`).
-- Before opening a PR, ensure `npm run lint` and `npm run build` succeed and that key flows in `(auth)` and `(contractor)` run locally.
+- Before opening a PR, ensure `npm run lint` and `npm run build` succeed and that key flows in `(auth)` and `(dashboard)` run locally.
 
 ## Security & Configuration
 - Store secrets in `.env.local` (never commit them); required vars include `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and OpenAI API keys.

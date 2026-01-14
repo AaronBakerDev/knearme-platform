@@ -104,11 +104,11 @@ Acceptance:
 | `src/lib/constants/service-content.ts` | `SERVICE_CONTENT` | Extended SEO content for each service |
 | `src/lib/data/services.ts` | `NATIONAL_SERVICE_TYPES`, `mapUrlSlugToServiceId` | SEO page generation + slug mapping |
 | `src/app/(dashboard)/profile/edit/page.tsx` | `MASONRY_SERVICES` | Profile service picker UI |
-| `src/app/(public)/services/page.tsx` | `SERVICE_CONTENT`, `ServiceId` | Services index page |
-| `src/app/(public)/services/[type]/page.tsx` | `SERVICE_CONTENT`, `ServiceId`, `mapUrlSlugToServiceId` | National service detail page |
-| `src/app/(public)/[city]/masonry/[type]/page.tsx` | `MASONRY_SERVICES` | City service page |
-| `src/app/(public)/[city]/masonry/[type]/cost/page.tsx` | `MASONRY_SERVICES` | Cost estimator page |
-| `src/app/(public)/contractors/page.tsx` | `MASONRY_SERVICES` | Contractors listing page |
+| `src/app/(marketing)/services/page.tsx` | `SERVICE_CONTENT`, `ServiceId` | Services index page |
+| `src/app/(marketing)/services/[type]/page.tsx` | `SERVICE_CONTENT`, `ServiceId`, `mapUrlSlugToServiceId` | National service detail page |
+| `src/app/(portfolio)/[city]/masonry/[type]/page.tsx` | `MASONRY_SERVICES` | City service page |
+| `src/app/(portfolio)/[city]/masonry/[type]/cost/page.tsx` | `MASONRY_SERVICES` | Cost estimator page |
+| `src/app/(portfolio)/contractors/page.tsx` | `MASONRY_SERVICES` | Contractors listing page |
 | `src/components/tools/MasonryCostEstimatorWidget.tsx` | `MASONRY_SERVICES` | Cost estimator widget |
 | `src/lib/tools/cost-estimator.ts` | `ServiceId` | Cost estimator logic |
 | `src/lib/tools/catalog.ts` | `ServiceId` | Catalog utilities |
@@ -272,8 +272,8 @@ Focus: Remove masonry-only assumptions from city routes and widgets.
 
 Tasks:
 - [x] Replace `MASONRY_SERVICES` usage in:
-      - `src/app/(public)/[city]/masonry/[type]/page.tsx`
-      - `src/app/(public)/[city]/masonry/[type]/cost/page.tsx`
+      - `src/app/(portfolio)/[city]/masonry/[type]/page.tsx`
+      - `src/app/(portfolio)/[city]/masonry/[type]/cost/page.tsx`
       - `src/components/tools/MasonryCostEstimatorWidget.tsx`
 - [x] Replace hardcoded service descriptions with DB content or
       a templated fallback.

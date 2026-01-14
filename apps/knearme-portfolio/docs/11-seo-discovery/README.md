@@ -37,9 +37,9 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 
 | Feature | Route | Lines of Code | Status |
 |---------|-------|---------------|--------|
-| City Hub Pages | `app/(public)/[city]/masonry/page.tsx` | 441 | ✅ Complete |
-| Project Detail Pages | `app/(public)/[city]/masonry/[type]/[slug]/page.tsx` | 474 | ✅ Complete |
-| Business Profiles | `app/(public)/businesses/[city]/[slug]/page.tsx` | 510 | ✅ Complete |
+| City Hub Pages | `app/(portfolio)/[city]/masonry/page.tsx` | 441 | ✅ Complete |
+| Project Detail Pages | `app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx` | 474 | ✅ Complete |
+| Business Profiles | `app/(portfolio)/businesses/[city]/[slug]/page.tsx` | 510 | ✅ Complete |
 | Dynamic Sitemap | `app/sitemap.ts` | ~150 | ✅ Complete |
 | JSON-LD Utilities | `src/lib/seo/structured-data.ts` | ~300 | ✅ Complete |
 
@@ -47,7 +47,7 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 
 | Feature | Route | Estimated LOC | Priority |
 |---------|-------|---------------|----------|
-| **Service Type by City** | `app/(public)/[city]/masonry/[type]/page.tsx` | 400-500 | **P1** |
+| **Service Type by City** | `app/(portfolio)/[city]/masonry/[type]/page.tsx` | 400-500 | **P1** |
 | Related Projects Component | `src/components/seo/RelatedProjects.tsx` | 100-150 | **P1** |
 | Breadcrumb Schema Enhancement | Update `src/lib/seo/structured-data.ts` | +50 | **P1** |
 | Google Search Console Setup | Configuration | N/A | **P1** |
@@ -56,9 +56,9 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 
 | Feature | Route | Estimated LOC | Priority |
 |---------|-------|---------------|----------|
-| National Service Landing Pages | `app/(public)/services/[type]/page.tsx` | 400-600 | **P2** |
-| Educational Content Hub | `app/(public)/learn/page.tsx` | 200-300 | **P2** |
-| Educational Articles | `app/(public)/learn/[slug]/page.tsx` | 300-400 | **P2** |
+| National Service Landing Pages | `app/(marketing)/services/[type]/page.tsx` | 400-600 | **P2** |
+| Educational Content Hub | `app/(marketing)/learn/page.tsx` | 200-300 | **P2** |
+| Educational Articles | `app/(marketing)/learn/[slug]/page.tsx` | 300-400 | **P2** |
 | FAQ Schema for Services | Update `src/lib/seo/structured-data.ts` | +100 | **P2** |
 | HowTo Schema for Guides | Update `src/lib/seo/structured-data.ts` | +100 | **P2** |
 
@@ -70,7 +70,7 @@ This directory contains detailed implementation specifications for KNearMe's SEO
 
 **Steps:**
 1. Read [`./page-templates/service-type-city.md`](./page-templates/service-type-city.md)
-2. Create route file: `app/(public)/[city]/masonry/[type]/page.tsx`
+2. Create route file: `app/(portfolio)/[city]/masonry/[type]/page.tsx`
 3. Implement data fetching query (see spec for complete code)
 4. Add JSON-LD Service schema
 5. Update sitemap to include new routes

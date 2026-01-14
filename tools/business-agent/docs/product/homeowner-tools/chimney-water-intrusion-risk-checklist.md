@@ -81,6 +81,6 @@ Optional (collapsed):
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/chimney-water-intrusion-risk-checklist/page.tsx`.
+- Route: `src/app/(marketing)/tools/chimney-water-intrusion-risk-checklist/page.tsx`.
 - Rules in `src/lib/tools/chimney-water-intrusion.ts`.
 

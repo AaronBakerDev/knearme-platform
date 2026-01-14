@@ -548,7 +548,7 @@ These will be migrated in subsequent sub-sprints:
 - `(dashboard)` route group pages (renamed from `(contractor)` in 11.9)
 - `lib/api/auth.ts`, `lib/data/services.ts` (11.7)
 - `components/chat/*` (11.8)
-- `(public)` pages with contractor lookups (11.10)
+- `(portfolio)` pages with contractor lookups (11.10)
 
 ### Acceptance
 - [x] `npm run build` passes with no type errors.
@@ -602,8 +602,8 @@ Updated AI prompt terminology for universal portfolio vision:
 | `src/lib/data/projects.ts` | `contractor_id` → `business_id`, `contractor_business_name` → `business_name`, queries use `businesses` table |
 | `src/types/database.ts` | Added `business_id` to projects Row/Insert/Update types |
 | `src/components/seo/RelatedProjects.tsx` | `contractor_business_name` → `business_name` |
-| `src/app/(public)/services/[type]/page.tsx` | `project.contractor` → `project.business` |
-| `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx` | `fetchRelatedProjects` call uses `business_id` |
+| `src/app/(marketing)/services/[type]/page.tsx` | `project.contractor` → `project.business` |
+| `src/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx` | `fetchRelatedProjects` call uses `business_id` |
 | `src/app/api/projects/[id]/related/route.ts` | Query and auth check use `business_id` |
 
 ### Acceptance
@@ -652,7 +652,7 @@ Updated AI prompt terminology for universal portfolio vision:
 
 ### Completed Tasks
 - [x] Decided: `(dashboard)` for authenticated routes (clearer than `(business)`)
-- [x] Renamed `src/app/(contractor)/*` → `src/app/(dashboard)/*`
+- [x] Renamed `src/app/(dashboard)/*` → `src/app/(dashboard)/*`
 - [x] Updated JSDoc comments referencing old path
 - [x] Build passes with new route group
 

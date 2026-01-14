@@ -79,6 +79,6 @@ Optional (collapsed):
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/repoint-vs-replace-decision/page.tsx`.
+- Route: `src/app/(marketing)/tools/repoint-vs-replace-decision/page.tsx`.
 - Rules in `src/lib/tools/repoint-vs-replace.ts`.
 

@@ -28,7 +28,7 @@
 | Event | Trigger | Payload Highlights |
 | --- | --- | --- |
 | `page_view` | App Router navigation via `AnalyticsProvider` | `page_path`, `page_location`, `page_title` |
-| `project_view` | Project detail page mount (`src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx`) | `project_id`, `city_slug`, `service_type`, `contractor_id` |
+| `project_view` | Project detail page mount (`src/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx`) | `project_id`, `city_slug`, `service_type`, `contractor_id` |
 | `related_project_click` | Card click inside `RelatedProjects` component | Clicked project metadata + source project context |
 | `contractor_profile_click` | Back link + CTA on project page | `project_id`, `contractor_id`, `cta_location` |
 | `contractor_signup` | Successful signup submission (`src/app/(auth)/signup/page.tsx`) | `method`, `email_domain` |

@@ -68,8 +68,8 @@ Implement Next.js Metadata API in `layout.tsx` and dynamic pages.
     -   Canonical URL formatting.
 
 -   **Dynamic Metadata**:
-    -   **Project Page**: `src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx`
-    -   **Profile Page**: `src/app/(public)/businesses/[city]/[slug]/page.tsx`
+    -   **Project Page**: `src/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx`
+    -   **Profile Page**: `src/app/(portfolio)/businesses/[city]/[slug]/page.tsx`
     -   *Action*: Implement `generateMetadata()` fetching real data from Supabase.
 
 ### 2.2 Structured Data (JSON-LD)
@@ -93,7 +93,7 @@ Implement `Script` tags with JSON-LD in dynamic pages.
 ## Phase 3: Public Page Layouts
 Although part of "Product", these are marketing pages for the businesses.
 
--   **Layout**: `src/app/(public)/layout.tsx`
+-   **Layout**: `src/app/(marketing)/layout.tsx`
     -   **Header**: "KnearMe" Logo (Home link), "For Businesses" (CTA).
     -   **Footer**: Links to About, Terms, Privacy, "Build Your Portfolio".
 

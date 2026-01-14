@@ -602,19 +602,31 @@ knearme-portfolio/
 │   ├── (auth)/
 │   │   ├── login/
 │   │   └── signup/
-│   ├── (contractor)/
+│   ├── (dashboard)/
 │   │   ├── dashboard/
 │   │   ├── projects/
 │   │   │   ├── new/              # AI interview flow
 │   │   │   └── [id]/edit/
 │   │   └── profile/
-│   ├── (public)/
+│   ├── (marketing)/
+│   │   ├── (home)/               # Landing page
+│   │   ├── blog/
+│   │   ├── learn/
+│   │   ├── services/
+│   │   ├── tools/
+│   │   ├── about/
+│   │   ├── contact/
+│   │   └── examples/
+│   ├── (portfolio)/
 │   │   ├── [city]/
 │   │   │   └── masonry/
 │   │   │       └── [type]/
 │   │   │           └── [slug]/   # Project detail
-│   │   └── contractors/
-│   │       └── [slug]/           # Contractor profile
+│   │   ├── businesses/
+│   │   │   └── [city]/[slug]/    # Business profile
+│   │   └── contractors/          # Legacy routes (redirects)
+│   │       └── [city]/[slug]/
+│   ├── (payload)/                # CMS admin
 │   ├── api/
 │   │   ├── ai/
 │   │   │   ├── analyze-images/

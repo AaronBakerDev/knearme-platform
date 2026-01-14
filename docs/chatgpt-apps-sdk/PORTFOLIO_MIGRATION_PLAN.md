@@ -173,14 +173,14 @@ This lets the ChatGPT app label images (before/after) without new endpoints.
 
 Recommended but optional for this migration:
 
-- `knearme-portfolio/src/app/(contractor)/projects/[id]/edit/page.tsx`
+- `knearme-portfolio/src/app/(dashboard)/projects/[id]/edit/page.tsx`
   - Add fields for summary, challenge, solution, results, outcome highlights
   - Add hero image selector
 
 - `knearme-portfolio/src/components/publish/PublishChecklist.tsx`
   - Add checks for summary + narrative sections + hero image
 
-- `knearme-portfolio/src/app/(public)/[city]/masonry/[type]/[slug]/page.tsx`
+- `knearme-portfolio/src/app/(portfolio)/[city]/masonry/[type]/[slug]/page.tsx`
   - Render summary + narrative sections (fallback to `description`)
 
 ## 6) Data model doc sync

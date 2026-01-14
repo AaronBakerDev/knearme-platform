@@ -138,7 +138,7 @@ Modifiers:
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/paver-base-calculator/page.tsx`.
+- Route: `src/app/(marketing)/tools/paver-base-calculator/page.tsx`.
 - Logic in `src/lib/tools/paver-base.ts`.
 - No DB required.
 

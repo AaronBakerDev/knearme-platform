@@ -90,9 +90,9 @@ updateContractorProfileSchema = z.object({
 - `src/lib/chat/project-state.ts` (NEW)
 - `src/lib/chat/chat-prompts.ts`
 - `src/components/chat/ChatWizard.tsx`
-- `src/app/(contractor)/projects/[id]/page.tsx` (NEW)
-- `src/app/(contractor)/projects/[id]/edit/page.tsx`
-- `src/app/(contractor)/projects/new/page.tsx`
+- `src/app/(dashboard)/projects/[id]/page.tsx` (NEW)
+- `src/app/(dashboard)/projects/[id]/edit/page.tsx`
+- `src/app/(dashboard)/projects/new/page.tsx`
 
 **Problem**:
 Two entry points (`/projects/new` and `/projects/[id]/edit`) had different behaviors:

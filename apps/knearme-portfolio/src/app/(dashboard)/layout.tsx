@@ -7,7 +7,7 @@ import {
 } from '@/components/ui';
 import { PushNotificationPrompt } from '@/components/pwa/PushNotificationPrompt';
 import { AppProgressBar } from '@/components/navigation/app-progress-bar';
-import { DashboardMobileNav } from '@/components/navigation/ContractorMobileNav';
+import { DashboardMobileNav } from '@/components/navigation/DashboardMobileNav';
 
 /**
  * Layout for authenticated business dashboard pages.

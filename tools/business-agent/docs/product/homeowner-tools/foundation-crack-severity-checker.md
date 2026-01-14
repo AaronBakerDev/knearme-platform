@@ -188,7 +188,7 @@ Below results:
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/foundation-crack-severity-checker/page.tsx`.
+- Route: `src/app/(marketing)/tools/foundation-crack-severity-checker/page.tsx`.
 - Scoring rules in `src/lib/tools/foundation-cracks.ts`.
 - No DB required in v1.
 

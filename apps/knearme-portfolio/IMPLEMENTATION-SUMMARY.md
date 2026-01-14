@@ -47,7 +47,7 @@ import { Pagination } from '@/components/directory/Pagination'
 ## Task 2: Category Page Update ✅
 
 ### File Modified
-- `/src/app/(public)/find/[state]/[city]/[category]/page.tsx`
+- `/src/app/(portfolio)/find/[state]/[city]/[category]/page.tsx`
 
 ### Changes
 - **Removed:** 52 lines of inline pagination code (lines 267-323)
@@ -286,7 +286,7 @@ However, the new architecture is production-ready and recommended for long-term 
 - `src/app/sitemap.ts.README.md`
 
 ### Modified (3 files)
-- `src/app/(public)/find/[state]/[city]/[category]/page.tsx` (pagination)
+- `src/app/(portfolio)/find/[state]/[city]/[category]/page.tsx` (pagination)
 - `src/lib/data/directory.ts` (added `getBusinessesForState()`)
 - `public/robots.txt` (comment update)
 

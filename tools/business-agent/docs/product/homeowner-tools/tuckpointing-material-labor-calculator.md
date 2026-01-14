@@ -78,5 +78,5 @@ Objective calculator for estimating mortar volume, bag count, and labor time nee
 
 ## Technical Notes
 
-- Route: `src/app/(public)/tools/tuckpointing-calculator/page.tsx`.
+- Route: `src/app/(marketing)/tools/tuckpointing-calculator/page.tsx`.
 - Constants in `src/lib/tools/tuckpointing.ts`.
