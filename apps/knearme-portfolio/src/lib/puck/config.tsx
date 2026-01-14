@@ -823,27 +823,50 @@ export const config: Config<Props> = {
         text: 'Heading',
         level: 'h2',
         alignment: 'left',
-        color: '#111',
+        color: '',
       },
       render: ({ text, level, alignment, color }) => {
-        const sizeMap: Record<string, string> = {
-          h1: '2.5rem',
-          h2: '2rem',
-          h3: '1.75rem',
-          h4: '1.5rem',
-          h5: '1.25rem',
-          h6: '1rem',
+        /**
+         * Heading block with Tailwind typography classes
+         * Uses design system text sizes for consistency
+         * Color kept as inline style for arbitrary color support
+         * @see PUCK-019 for acceptance criteria
+         */
+        const sizeClasses: Record<string, string> = {
+          h1: 'text-4xl md:text-5xl lg:text-6xl',
+          h2: 'text-3xl md:text-4xl',
+          h3: 'text-2xl md:text-3xl',
+          h4: 'text-xl md:text-2xl',
+          h5: 'text-lg md:text-xl',
+          h6: 'text-base md:text-lg',
         }
-        const style = { textAlign: alignment as React.CSSProperties['textAlign'], color, fontSize: sizeMap[level], fontWeight: 700 }
-        // Use explicit elements to avoid JSX namespace issues
+        const alignClasses: Record<string, string> = {
+          left: 'text-left',
+          center: 'text-center',
+          right: 'text-right',
+        }
+
+        // Compose Tailwind classes for typography
+        const className = cn(
+          sizeClasses[level],
+          alignClasses[alignment],
+          'font-bold tracking-tight',
+          // Use foreground color if no custom color specified
+          !color && 'text-foreground'
+        )
+
+        // Inline style only for custom color (preserves arbitrary color values)
+        const style = color ? { color } : undefined
+
+        // Semantic HTML output using explicit elements
         switch (level) {
-          case 'h1': return <h1 style={style}>{text}</h1>
-          case 'h2': return <h2 style={style}>{text}</h2>
-          case 'h3': return <h3 style={style}>{text}</h3>
-          case 'h4': return <h4 style={style}>{text}</h4>
-          case 'h5': return <h5 style={style}>{text}</h5>
-          case 'h6': return <h6 style={style}>{text}</h6>
-          default: return <h2 style={style}>{text}</h2>
+          case 'h1': return <h1 className={className} style={style}>{text}</h1>
+          case 'h2': return <h2 className={className} style={style}>{text}</h2>
+          case 'h3': return <h3 className={className} style={style}>{text}</h3>
+          case 'h4': return <h4 className={className} style={style}>{text}</h4>
+          case 'h5': return <h5 className={className} style={style}>{text}</h5>
+          case 'h6': return <h6 className={className} style={style}>{text}</h6>
+          default: return <h2 className={className} style={style}>{text}</h2>
         }
       },
     },
