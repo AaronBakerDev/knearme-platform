@@ -339,19 +339,11 @@ export type Props = {
 }
 
 // ============================================================================
-// SPACING UTILITIES (for blocks using inline styles)
+// SPACING UTILITIES
 // ============================================================================
-
-/**
- * Gap values for CSS grid/flex layouts (used by Columns block)
- * @see Section block uses Tailwind classes directly for better consistency
- */
-const gapMap = {
-  none: '0',
-  sm: '1rem',
-  md: '2rem',
-  lg: '4rem',
-}
+// Note: Most blocks now use Tailwind classes directly for spacing.
+// Section block: paddingTopClass, paddingBottomClass, maxWidthClass
+// Columns block: gapClasses (gap-0, gap-4, gap-6, gap-8, gap-12)
 
 // ============================================================================
 // PUCK CONFIG
@@ -511,28 +503,76 @@ export const config: Config<Props> = {
         verticalAlign: 'top',
       },
       render: ({ layout, gap, verticalAlign, puck }) => {
-        const layoutMap: Record<string, string[]> = {
-          '50-50': ['1fr', '1fr'],
-          '33-33-33': ['1fr', '1fr', '1fr'],
-          '25-75': ['1fr', '3fr'],
-          '75-25': ['3fr', '1fr'],
-          '33-66': ['1fr', '2fr'],
-          '66-33': ['2fr', '1fr'],
+        /**
+         * Responsive column layouts using Tailwind CSS
+         * All layouts stack to single column on mobile (< md breakpoint)
+         * @see PUCK-018 for acceptance criteria
+         */
+        const layoutConfig: Record<string, { count: number; classes: string; widths: string[] }> = {
+          '50-50': {
+            count: 2,
+            classes: 'grid-cols-1 md:grid-cols-2',
+            widths: ['w-full', 'w-full'],
+          },
+          '33-33-33': {
+            count: 3,
+            classes: 'grid-cols-1 md:grid-cols-3',
+            widths: ['w-full', 'w-full', 'w-full'],
+          },
+          '25-75': {
+            count: 2,
+            classes: 'grid-cols-1 md:grid-cols-4',
+            widths: ['md:col-span-1', 'md:col-span-3'],
+          },
+          '75-25': {
+            count: 2,
+            classes: 'grid-cols-1 md:grid-cols-4',
+            widths: ['md:col-span-3', 'md:col-span-1'],
+          },
+          '33-66': {
+            count: 2,
+            classes: 'grid-cols-1 md:grid-cols-3',
+            widths: ['md:col-span-1', 'md:col-span-2'],
+          },
+          '66-33': {
+            count: 2,
+            classes: 'grid-cols-1 md:grid-cols-3',
+            widths: ['md:col-span-2', 'md:col-span-1'],
+          },
         }
-        const columns = layoutMap[layout] || ['1fr', '1fr']
-        const alignMap = { top: 'flex-start', center: 'center', bottom: 'flex-end' }
+
+        // Map gap values to Tailwind classes
+        const gapClasses: Record<string, string> = {
+          none: 'gap-0',
+          sm: 'gap-4',
+          md: 'gap-6 md:gap-8',
+          lg: 'gap-8 md:gap-12',
+        }
+
+        // Map vertical alignment to Tailwind classes
+        const alignClasses: Record<string, string> = {
+          top: 'items-start',
+          center: 'items-center',
+          bottom: 'items-end',
+        }
+
+        // Fallback to 50-50 layout if layout value is invalid
+        // Non-null assertion is safe here: layoutConfig['50-50'] always exists
+        const layoutData = layoutConfig[layout] ?? layoutConfig['50-50']!
 
         return (
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: columns.join(' '),
-              gap: gapMap[gap],
-              alignItems: alignMap[verticalAlign],
-            }}
+            className={cn(
+              'grid',
+              layoutData.classes,
+              gapClasses[gap],
+              alignClasses[verticalAlign]
+            )}
           >
-            {columns.map((_, i) => (
-              <div key={i}>{puck.renderDropZone({ zone: `column-${i}` })}</div>
+            {Array.from({ length: layoutData.count }, (_, i) => (
+              <div key={i} className={layoutData.widths[i]}>
+                {puck.renderDropZone({ zone: `column-${i}` })}
+              </div>
             ))}
           </div>
         )
