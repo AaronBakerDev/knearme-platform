@@ -334,25 +334,13 @@ export type Props = {
 }
 
 // ============================================================================
-// PADDING/SPACING UTILITIES
+// SPACING UTILITIES (for blocks using inline styles)
 // ============================================================================
 
-const paddingMap = {
-  none: '0',
-  sm: '1rem',
-  md: '2rem',
-  lg: '4rem',
-  xl: '6rem',
-}
-
-const maxWidthMap = {
-  sm: '640px',
-  md: '768px',
-  lg: '1024px',
-  xl: '1280px',
-  full: '100%',
-}
-
+/**
+ * Gap values for CSS grid/flex layouts (used by Columns block)
+ * @see Section block uses Tailwind classes directly for better consistency
+ */
 const gapMap = {
   none: '0',
   sm: '1rem',
@@ -440,19 +428,41 @@ export const config: Config<Props> = {
         paddingBottom: 'md',
         maxWidth: 'lg',
       },
-      render: ({ backgroundColor, paddingTop, paddingBottom, maxWidth, puck }) => (
-        <section
-          style={{
-            backgroundColor,
-            paddingTop: paddingMap[paddingTop],
-            paddingBottom: paddingMap[paddingBottom],
-          }}
-        >
-          <div style={{ maxWidth: maxWidthMap[maxWidth], margin: '0 auto', padding: '0 1rem' }}>
-            {puck.renderDropZone({ zone: 'content' })}
-          </div>
-        </section>
-      ),
+      render: ({ backgroundColor, paddingTop, paddingBottom, maxWidth, puck }) => {
+        // Map padding values to Tailwind classes
+        const paddingTopClass: Record<string, string> = {
+          none: 'pt-0',
+          sm: 'pt-4',
+          md: 'pt-8',
+          lg: 'pt-16',
+          xl: 'pt-24',
+        }
+        const paddingBottomClass: Record<string, string> = {
+          none: 'pb-0',
+          sm: 'pb-4',
+          md: 'pb-8',
+          lg: 'pb-16',
+          xl: 'pb-24',
+        }
+        const maxWidthClass: Record<string, string> = {
+          sm: 'max-w-screen-sm',
+          md: 'max-w-screen-md',
+          lg: 'max-w-screen-lg',
+          xl: 'max-w-screen-xl',
+          full: 'max-w-full',
+        }
+
+        return (
+          <section
+            className={`${paddingTopClass[paddingTop]} ${paddingBottomClass[paddingBottom]}`}
+            style={{ backgroundColor }}
+          >
+            <div className={`${maxWidthClass[maxWidth]} mx-auto px-4`}>
+              {puck.renderDropZone({ zone: 'content' })}
+            </div>
+          </section>
+        )
+      },
     },
 
     Columns: {
