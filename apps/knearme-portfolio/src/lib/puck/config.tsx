@@ -20,6 +20,7 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { PuckCodeBlock } from '@/components/puck/CodeBlock'
 import { PuckFeaturesGrid } from '@/components/puck/FeaturesGrid'
+import { PuckHero } from '@/components/puck/Hero'
 import { PuckImageGallery } from '@/components/puck/ImageGallery'
 import { PuckStats } from '@/components/puck/Stats'
 import { fieldOptions } from '@/lib/puck/design-system'
@@ -294,11 +295,28 @@ export interface SpacerProps {
 
 /**
  * Hero - Page header with heading, subheading, background, and CTAs
+ *
+ * Enhanced with gradient backgrounds, animation presets, and overlay controls.
+ * @see PUCK-044 for acceptance criteria
+ * @see src/components/puck/Hero.tsx for client component implementation
  */
 export interface HeroProps {
   heading: string
   subheading: string
+  // Background options
+  backgroundType: 'solid' | 'gradient' | 'image' | 'pattern'
+  backgroundColor: string
+  gradientPreset: 'sunset' | 'ocean' | 'aurora' | 'midnight' | 'forest' | 'royal'
   backgroundImage: MediaRef | null
+  patternType: 'dots' | 'grid' | 'diagonal'
+  // Overlay configuration
+  overlayEnabled: boolean
+  overlayColor: string
+  overlayOpacity: number
+  overlayBlur: number
+  // Animation
+  animationPreset: 'none' | 'fadeIn' | 'fadeUp' | 'slideUp' | 'scaleIn'
+  // Layout
   alignment: 'left' | 'center' | 'right'
   ctaButtons: CTAButtonProps[]
 }
@@ -808,6 +826,12 @@ export const config: Config<Props> = {
     // ========================================================================
     // CONTENT BLOCKS
     // ========================================================================
+
+    /**
+     * Hero block with gradient backgrounds, animation presets, and overlay controls.
+     * Uses PuckHero client component for Framer Motion animations.
+     * @see PUCK-044 for acceptance criteria
+     */
     Hero: {
       label: 'Hero',
       fields: {
@@ -819,7 +843,68 @@ export const config: Config<Props> = {
           type: 'textarea',
           label: 'Subheading',
         },
+        // Background type selection
+        backgroundType: {
+          type: 'select',
+          label: 'Background Type',
+          options: [
+            { label: 'Solid Color', value: 'solid' },
+            { label: 'Gradient', value: 'gradient' },
+            { label: 'Image', value: 'image' },
+            { label: 'Pattern', value: 'pattern' },
+          ],
+        },
+        backgroundColor: {
+          type: 'text',
+          label: 'Background Color (hex)',
+        },
+        gradientPreset: {
+          type: 'select',
+          label: 'Gradient Preset',
+          options: fieldOptions.gradients,
+        },
         backgroundImage: createMediaExternalField('Background Image'),
+        patternType: {
+          type: 'select',
+          label: 'Pattern Style',
+          options: [
+            { label: 'Dots', value: 'dots' },
+            { label: 'Grid', value: 'grid' },
+            { label: 'Diagonal', value: 'diagonal' },
+          ],
+        },
+        // Overlay controls
+        overlayEnabled: {
+          type: 'radio',
+          label: 'Enable Overlay',
+          options: [
+            { label: 'Yes', value: true },
+            { label: 'No', value: false },
+          ],
+        },
+        overlayColor: {
+          type: 'text',
+          label: 'Overlay Color (hex)',
+        },
+        overlayOpacity: {
+          type: 'number',
+          label: 'Overlay Opacity (0-100)',
+          min: 0,
+          max: 100,
+        },
+        overlayBlur: {
+          type: 'number',
+          label: 'Overlay Blur (px)',
+          min: 0,
+          max: 20,
+        },
+        // Animation
+        animationPreset: {
+          type: 'select',
+          label: 'Animation',
+          options: fieldOptions.animations,
+        },
+        // Layout
         alignment: {
           type: 'select',
           label: 'Alignment',
@@ -851,96 +936,22 @@ export const config: Config<Props> = {
       defaultProps: {
         heading: 'Welcome to Our Site',
         subheading: 'Discover what makes us different.',
+        backgroundType: 'solid',
+        backgroundColor: '',
+        gradientPreset: 'ocean',
         backgroundImage: null,
+        patternType: 'dots',
+        overlayEnabled: false,
+        overlayColor: '#000000',
+        overlayOpacity: 50,
+        overlayBlur: 0,
+        animationPreset: 'none',
         alignment: 'center',
         ctaButtons: [{ text: 'Get Started', href: '/signup', variant: 'primary' }],
       },
-      render: ({ heading, subheading, backgroundImage, alignment, ctaButtons }) => {
-        // Map alignment to Tailwind classes
-        const alignmentClasses = {
-          left: { text: 'text-left', items: 'justify-start' },
-          center: { text: 'text-center', items: 'justify-center' },
-          right: { text: 'text-right', items: 'justify-end' },
-        } as const
-        const align = alignmentClasses[alignment]
-
-        // Map CTA button variants to shadcn Button variants
-        const variantMap: Record<string, 'default' | 'secondary' | 'outline'> = {
-          primary: 'default',
-          secondary: 'secondary',
-          outline: 'outline',
-        }
-
-        // Determine if we have a background image
-        const hasBackgroundImage = backgroundImage?.url
-
-        return (
-          <div
-            className={cn(
-              'relative py-16 px-4 sm:py-20 sm:px-6 md:py-24 lg:py-32',
-              hasBackgroundImage ? 'bg-cover bg-center bg-no-repeat' : 'bg-muted'
-            )}
-            style={hasBackgroundImage ? { backgroundImage: `url(${backgroundImage.url})` } : undefined}
-          >
-            {/* Overlay for background image readability */}
-            {hasBackgroundImage && (
-              <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
-            )}
-
-            {/* Content container */}
-            <div
-              className={cn(
-                'relative z-10 mx-auto max-w-4xl',
-                align.text
-              )}
-            >
-              <h1
-                className={cn(
-                  'text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl lg:text-6xl',
-                  hasBackgroundImage ? 'text-white' : 'text-foreground'
-                )}
-              >
-                {heading}
-              </h1>
-
-              {subheading && (
-                <p
-                  className={cn(
-                    'mt-4 text-lg sm:text-xl md:text-2xl',
-                    hasBackgroundImage ? 'text-white/90' : 'text-muted-foreground'
-                  )}
-                >
-                  {subheading}
-                </p>
-              )}
-
-              {/* CTA Buttons */}
-              {ctaButtons.length > 0 && (
-                <div
-                  className={cn(
-                    'mt-8 flex flex-col gap-3 sm:flex-row sm:gap-4',
-                    align.items
-                  )}
-                >
-                  {ctaButtons.map((btn, i) => (
-                    <Button
-                      key={i}
-                      variant={variantMap[btn.variant] || 'default'}
-                      size="lg"
-                      asChild
-                      className={cn(
-                        // Override colors for outline/secondary on dark backgrounds
-                        hasBackgroundImage && btn.variant !== 'primary' && 'border-white text-white hover:bg-white/20'
-                      )}
-                    >
-                      <a href={btn.href}>{btn.text}</a>
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )
+      render: (props) => {
+        // Delegate to PuckHero client component for Framer Motion support
+        return <PuckHero {...props} />
       },
     },
 
