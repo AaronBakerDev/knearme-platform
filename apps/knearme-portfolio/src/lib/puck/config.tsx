@@ -71,6 +71,14 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import {
+  Table as ShadcnTable,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table'
 
 // ============================================================================
 // LUCIDE ICON MAP
@@ -2153,59 +2161,59 @@ export const config: Config<Props> = {
         striped: true,
         bordered: true,
       },
-      render: ({ headers, rows, striped, bordered }) => (
-        <div style={{ overflowX: 'auto' }}>
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              border: bordered ? '1px solid #e5e5e5' : 'none',
-            }}
+      render: ({ headers, rows, striped, bordered }) => {
+        /**
+         * Table block - displays data in responsive rows/columns
+         * Uses shadcn Table components with Tailwind styling
+         * Horizontal scroll container ensures mobile usability
+         * @see PUCK-029 for acceptance criteria
+         */
+        return (
+          <ShadcnTable
+            className={cn(
+              bordered && 'border',
+              // Override shadcn default hover states when not needed
+              '[&_tr]:transition-none'
+            )}
           >
-            <thead>
-              <tr style={{ backgroundColor: '#f8f9fa' }}>
+            <TableHeader>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
                 {headers.map((h: { value: string }, i: number) => (
-                  <th
+                  <TableHead
                     key={i}
-                    style={{
-                      padding: '0.75rem',
-                      textAlign: 'left',
-                      fontWeight: 600,
-                      borderBottom: '2px solid #e5e5e5',
-                      border: bordered ? '1px solid #e5e5e5' : undefined,
-                    }}
+                    className={cn(
+                      'font-semibold',
+                      bordered && 'border'
+                    )}
                   >
                     {h.value}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((row: { cells: string }, i: number) => (
-                <tr
+                <TableRow
                   key={i}
-                  style={{
-                    backgroundColor: striped && i % 2 === 1 ? '#f8f9fa' : 'transparent',
-                  }}
+                  className={cn(
+                    'hover:bg-transparent',
+                    striped && i % 2 === 1 && 'bg-muted/30'
+                  )}
                 >
                   {row.cells.split('\n').map((cell: string, j: number) => (
-                    <td
+                    <TableCell
                       key={j}
-                      style={{
-                        padding: '0.75rem',
-                        borderBottom: '1px solid #e5e5e5',
-                        border: bordered ? '1px solid #e5e5e5' : undefined,
-                      }}
+                      className={cn(bordered && 'border')}
                     >
                       {cell}
-                    </td>
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-      ),
+            </TableBody>
+          </ShadcnTable>
+        )
+      },
     },
 
     ImageGallery: {
