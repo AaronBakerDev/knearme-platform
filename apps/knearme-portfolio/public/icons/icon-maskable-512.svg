@@ -1,0 +1,22 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Maskable icon - must have safe zone (inner 80% circle).
+    Logo should be centered within the safe zone (inner 307px diameter circle).
+    Background fills entire canvas.
+  -->
+
+  <!-- Full background for maskable -->
+  <rect width="512" height="512" fill="#18181b"/>
+
+  <!-- K letter stylized as bricks (scaled to fit safe zone) -->
+  <g fill="#ffffff" transform="translate(154, 154) scale(0.4)">
+    <!-- Vertical bar of K -->
+    <rect x="128" y="107" width="64" height="298" rx="4"/>
+
+    <!-- Upper diagonal of K -->
+    <path d="M192 256 L320 128 L373 128 L373 181 L245 309 L192 309 Z"/>
+
+    <!-- Lower diagonal of K -->
+    <path d="M192 256 L192 203 L245 203 L384 341 L384 405 L320 405 Z"/>
+  </g>
+</svg>

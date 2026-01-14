@@ -1,0 +1,263 @@
+'use client';
+
+/**
+ * Business search results artifact for onboarding.
+ *
+ * Renders the "Is this you?" cards inside the unified chat UI.
+ * After confirmation, shows a static "confirmed" card that stays in the chat.
+ */
+
+import { useCallback, type KeyboardEvent } from 'react';
+import { Star, MapPin, Phone, Building2, Check, Loader2, CheckCircle2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import type { DiscoveredBusiness } from '@/lib/tools/business-discovery';
+import type { BusinessSearchResultsData } from '@/types/artifacts';
+
+interface BusinessSearchResultsArtifactProps {
+  data: BusinessSearchResultsData;
+  onAction?: (action: { type: string; payload?: unknown }) => void;
+  className?: string;
+}
+
+function BusinessCard({
+  business,
+  onSelect,
+  index,
+  isSelected,
+  isDimmed,
+  isDisabled,
+}: {
+  business: DiscoveredBusiness;
+  onSelect: () => void;
+  index: number;
+  /** This card was clicked and is being processed */
+  isSelected: boolean;
+  /** Dim this card when another selection is processing */
+  isDimmed: boolean;
+  /** Disable interactions while processing */
+  isDisabled: boolean;
+}) {
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      if (isDisabled) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onSelect();
+      }
+    },
+    [onSelect, isDisabled]
+  );
+
+  const handleClick = useCallback(() => {
+    if (isDisabled) return;
+    onSelect();
+  }, [onSelect, isDisabled]);
+
+  return (
+    <Card
+      className={cn(
+        'group',
+        'transition-all duration-200 ease-out',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+        'animate-fade-in',
+        // Selected state: highlighted border and ring
+        isSelected && 'border-primary/60 ring-2 ring-primary/25 bg-primary/5 shadow-sm',
+        // Disabled state: muted, no pointer
+        isDisabled && 'cursor-not-allowed pointer-events-none',
+        // Dim unselected cards while processing
+        isDimmed && 'opacity-60',
+        // Normal interactive state (only when not disabled)
+        !isDisabled && [
+          'cursor-pointer',
+          'hover:border-primary/50 hover:bg-muted/30 hover:scale-[1.01] hover:shadow-md',
+        ]
+      )}
+      style={{ animationDelay: `${index * 0.1}s` }}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={isDisabled ? -1 : 0}
+      role="button"
+      aria-label={`Select ${business.name}${business.address ? ` at ${business.address}` : ''}`}
+      aria-disabled={isDisabled || undefined}
+      aria-busy={isSelected || undefined}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <Building2 className="h-5 w-5 text-primary" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium text-sm truncate">{business.name}</h4>
+
+            {business.address && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                <MapPin className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{business.address}</span>
+              </p>
+            )}
+
+            {business.phone && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                <Phone className="h-3 w-3 flex-shrink-0" />
+                <span>{business.phone}</span>
+              </p>
+            )}
+
+            {business.rating && (
+              <div className="flex items-center gap-1 mt-1.5">
+                <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                <span className="text-xs font-medium">{business.rating.toFixed(1)}</span>
+                {business.reviewCount && (
+                  <span className="text-xs text-muted-foreground">
+                    ({business.reviewCount} reviews)
+                  </span>
+                )}
+              </div>
+            )}
+
+            {business.category && (
+              <span className="inline-block text-xs bg-muted px-2 py-0.5 rounded-full mt-1.5">
+                {business.category}
+              </span>
+            )}
+          </div>
+
+          {/* Status badge: shows loading spinner when selected, "That's us" otherwise */}
+          <div
+            className={cn(
+              'flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors',
+              isSelected
+                ? 'text-primary bg-primary/20'
+                : 'text-primary bg-primary/10 group-hover:bg-primary/20'
+            )}
+          >
+            {isSelected ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>Confirming...</span>
+              </>
+            ) : (
+              <>
+                <Check className="h-3 w-3" />
+                <span>That&apos;s us</span>
+              </>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Static confirmed business card - shown after user confirms their business.
+ * This stays in the chat as a historical record of the selection.
+ */
+function ConfirmedBusinessCard({ business }: { business: DiscoveredBusiness }) {
+  return (
+    <Card className="border-primary/30 bg-primary/5">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+            <Building2 className="h-5 w-5 text-primary" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium text-sm truncate">{business.name}</h4>
+
+            {business.address && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                <MapPin className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{business.address}</span>
+              </p>
+            )}
+
+            {business.phone && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                <Phone className="h-3 w-3 flex-shrink-0" />
+                <span>{business.phone}</span>
+              </p>
+            )}
+
+            {business.rating && (
+              <div className="flex items-center gap-1 mt-1.5">
+                <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                <span className="text-xs font-medium">{business.rating.toFixed(1)}</span>
+                {business.reviewCount && (
+                  <span className="text-xs text-muted-foreground">
+                    ({business.reviewCount} reviews)
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Confirmed badge */}
+          <div className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full text-primary bg-primary/20">
+            <CheckCircle2 className="h-3 w-3" />
+            <span>Confirmed</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function BusinessSearchResultsArtifact({
+  data,
+  onAction,
+  className,
+}: BusinessSearchResultsArtifactProps) {
+  // If a business has been confirmed, show the static confirmed card
+  if (data?.confirmedBusiness) {
+    return (
+      <div className={cn('animate-fade-in', className)}>
+        <ConfirmedBusinessCard business={data.confirmedBusiness} />
+      </div>
+    );
+  }
+
+  if (!data?.results?.length) return null;
+
+  // When a business is selected, keep results visible and lock interactions
+  const selectedId = data.selectedId;
+  const isProcessingSelection = Boolean(selectedId);
+
+  return (
+    <div className={cn('space-y-3 animate-fade-in', className)}>
+      <p className="text-sm text-muted-foreground text-center">
+        {data.prompt ?? 'Which one is yours?'}
+      </p>
+
+      {data.results.map((business, idx) => {
+        const isThisBusinessSelected = isProcessingSelection && business.googlePlaceId === selectedId;
+        const isDimmed = isProcessingSelection && !isThisBusinessSelected;
+        const isDisabled = isProcessingSelection;
+
+        return (
+          <BusinessCard
+            key={business.googlePlaceId || `${business.name}-${idx}`}
+            business={business}
+            index={idx}
+            onSelect={() => onAction?.({ type: 'selectBusiness', payload: business })}
+            isSelected={isThisBusinessSelected}
+            isDimmed={isDimmed}
+            isDisabled={isDisabled}
+          />
+        );
+      })}
+
+      <Button
+        variant="ghost"
+        className="w-full text-muted-foreground hover:text-foreground"
+        onClick={() => onAction?.({ type: 'noneOfThese' })}
+        disabled={isProcessingSelection}
+      >
+        None of these are my business
+      </Button>
+    </div>
+  );
+}

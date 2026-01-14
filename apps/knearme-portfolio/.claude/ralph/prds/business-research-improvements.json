@@ -1,0 +1,254 @@
+{
+  "meta": {
+    "name": "Business Research Improvements",
+    "description": "Enhance Discovery Agent to capture work hours, social profiles, and richer business context",
+    "created": "2026-01-11",
+    "version": "1.0.0",
+    "interview_summary": "The Discovery Agent's business research is too shallow - DataForSEO returns work_hours and is_claimed but they're discarded, and the web search prompt doesn't ask for social media URLs or portfolio pages. This PRD captures the missing data and displays it in the Profile Reveal UI."
+  },
+  "config": {
+    "priority_order": ["critical", "high", "medium", "low"],
+    "categories": ["architectural", "integration", "functional", "ui", "testing"]
+  },
+  "features": [
+    {
+      "id": "BRI-001",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Add isClaimed and workHours fields to DiscoveredBusiness type",
+      "acceptance_criteria": [
+        "DiscoveredBusiness interface in types.ts includes `isClaimed?: boolean`",
+        "DiscoveredBusiness interface includes `workHours?: Record<string, string> | null`",
+        "Both fields have JSDoc comments explaining their purpose"
+      ],
+      "verification_steps": [
+        "Run `npm run typecheck` - no errors",
+        "Verify fields exist at src/lib/tools/business-discovery/types.ts lines 101-125"
+      ],
+      "dependencies": [],
+      "notes": "This is the base type used by DataForSEO client. Must be done first as other files depend on it.",
+      "passes": false
+    },
+    {
+      "id": "BRI-002",
+      "category": "integration",
+      "priority": "critical",
+      "description": "Capture is_claimed and work_hours from DataForSEO API response in searchBusinesses",
+      "acceptance_criteria": [
+        "Response type interface at lines 221-242 includes work_hours field",
+        "work_hours is formatted from nested structure to Record<string, string> (e.g., { Monday: '9:00 AM - 5:00 PM' })",
+        "is_claimed is captured with default false when undefined",
+        "Both fields are included in results.push() at lines 262-277"
+      ],
+      "verification_steps": [
+        "Run `npm run typecheck` - no errors",
+        "Add console.log in searchBusinesses to verify API returns work_hours",
+        "Manual test: search for a business with known hours, verify workHours populated"
+      ],
+      "dependencies": ["BRI-001"],
+      "notes": "The API already returns these fields - we're just not capturing them. Pattern exists in getGoogleMapsResults() to copy from.",
+      "passes": false
+    },
+    {
+      "id": "BRI-003",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Add socialProfiles and portfolioUrl to WebSearchAgentResult interface",
+      "acceptance_criteria": [
+        "WebSearchAgentResult.businessInfo includes socialProfiles object with facebook, instagram, linkedin, yelp, houzz, nextdoor optional strings",
+        "WebSearchAgentResult.businessInfo includes portfolioUrl optional string",
+        "Types are properly optional to handle cases where not found"
+      ],
+      "verification_steps": [
+        "Run `npm run typecheck` - no errors",
+        "Verify fields at src/lib/agents/web-search.ts lines 24-36"
+      ],
+      "dependencies": [],
+      "notes": "Interface change only - prompt change is separate feature.",
+      "passes": false
+    },
+    {
+      "id": "BRI-004",
+      "category": "functional",
+      "priority": "high",
+      "description": "Enhance web search prompt to ask for social media profiles and portfolio URL",
+      "acceptance_criteria": [
+        "Prompt includes socialProfiles object with example URLs for facebook, instagram, linkedin, yelp",
+        "Prompt includes portfolioUrl field with description",
+        "Prompt includes instruction: 'For social profiles, only include URLs you actually found - do not guess.'",
+        "Prompt mentions searching for 'social media profiles' in the instruction text"
+      ],
+      "verification_steps": [
+        "Manual test: run web search for a known business with social presence",
+        "Verify response includes socialProfiles when available",
+        "Verify no hallucinated URLs (check that returned URLs are real)"
+      ],
+      "dependencies": ["BRI-003"],
+      "notes": "Update prompt at lines 73-97. Keep JSON structure consistent with existing format.",
+      "passes": false
+    },
+    {
+      "id": "BRI-005",
+      "category": "architectural",
+      "priority": "critical",
+      "description": "Add new fields to DiscoveryState type",
+      "acceptance_criteria": [
+        "DiscoveryState root includes `isClaimed?: boolean`",
+        "DiscoveryState root includes `workHours?: Record<string, string> | null`",
+        "DiscoveryState.webSearchInfo includes socialProfiles object matching web-search.ts structure",
+        "DiscoveryState.webSearchInfo includes `portfolioUrl?: string`"
+      ],
+      "verification_steps": [
+        "Run `npm run typecheck` - no errors",
+        "Verify fields at src/lib/agents/discovery/types.ts lines 18-58"
+      ],
+      "dependencies": ["BRI-001", "BRI-003"],
+      "notes": "Central state type - must match both DataForSEO and web search structures.",
+      "passes": false
+    },
+    {
+      "id": "BRI-006",
+      "category": "architectural",
+      "priority": "high",
+      "description": "Update tool-types.ts with new fields for WebEnrichmentData, SearchBusinessResult, and ConfirmBusinessResult",
+      "acceptance_criteria": [
+        "WebEnrichmentData (lines 7-19) includes socialProfiles and portfolioUrl",
+        "SearchBusinessResult.results[] (lines 21-39) includes isClaimed and workHours",
+        "ConfirmBusinessResult.data (lines 41-56) includes isClaimed and workHours"
+      ],
+      "verification_steps": [
+        "Run `npm run typecheck` - no errors",
+        "Verify all three interfaces updated in src/lib/agents/discovery/tool-types.ts"
+      ],
+      "dependencies": ["BRI-001", "BRI-003"],
+      "notes": "These are the tool output types that flow through the system.",
+      "passes": false
+    },
+    {
+      "id": "BRI-007",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Update tool-processing.ts to flow new fields through state",
+      "acceptance_criteria": [
+        "showBusinessSearchResults case includes isClaimed, workHours in searchResults mapping",
+        "showBusinessSearchResults captures isClaimed, workHours from top result to state root",
+        "showBusinessSearchResults includes socialProfiles, portfolioUrl in webSearchInfo",
+        "confirmBusiness case handles isClaimed and workHours from confirmation data"
+      ],
+      "verification_steps": [
+        "Run existing tests: npm test -- src/lib/agents/discovery/__tests__/tool-correctness.test.ts",
+        "Manual test: complete onboarding flow, verify state contains new fields"
+      ],
+      "dependencies": ["BRI-005", "BRI-006"],
+      "notes": "This is the central hub where tool results become state. Critical for data flow.",
+      "passes": false
+    },
+    {
+      "id": "BRI-008",
+      "category": "functional",
+      "priority": "high",
+      "description": "Update confirmBusinessSchema and showProfileRevealSchema with new fields",
+      "acceptance_criteria": [
+        "confirmBusinessSchema includes isClaimed: z.boolean().optional()",
+        "confirmBusinessSchema includes workHours: z.record(z.string()).optional()",
+        "showProfileRevealSchema includes workHours: z.record(z.string()).optional()",
+        "showProfileRevealSchema includes socialProfiles object schema with all platform fields",
+        "showProfileRevealSchema includes portfolioUrl: z.string().optional()",
+        "showProfileRevealSchema includes isClaimed: z.boolean().optional()"
+      ],
+      "verification_steps": [
+        "Run `npm run typecheck` - no errors",
+        "Verify schemas at src/lib/agents/discovery/schemas.ts"
+      ],
+      "dependencies": ["BRI-005"],
+      "notes": "Schemas define what the agent can pass to tools. Both schemas need updates.",
+      "passes": false
+    },
+    {
+      "id": "BRI-009",
+      "category": "architectural",
+      "priority": "high",
+      "description": "Add new fields to ProfileRevealData type in artifacts.ts",
+      "acceptance_criteria": [
+        "ProfileRevealData includes workHours?: Record<string, string>",
+        "ProfileRevealData includes socialProfiles object with facebook, instagram, linkedin, yelp, houzz, nextdoor",
+        "ProfileRevealData includes portfolioUrl?: string",
+        "ProfileRevealData includes isClaimed?: boolean"
+      ],
+      "verification_steps": [
+        "Run `npm run typecheck` - no errors",
+        "Verify fields at src/types/artifacts.ts lines 244-266"
+      ],
+      "dependencies": [],
+      "notes": "This is the UI data type. Must match what showProfileReveal tool outputs.",
+      "passes": false
+    },
+    {
+      "id": "BRI-010",
+      "category": "ui",
+      "priority": "high",
+      "description": "Add Work Hours and Social Links sections to ProfileRevealArtifact UI",
+      "acceptance_criteria": [
+        "Clock, Facebook, Instagram, Linkedin icons imported from lucide-react",
+        "Work Hours section displays after Rating section when data.workHours exists",
+        "Work Hours shows up to 4 days in 2-column grid with abbreviated day names",
+        "Social Links section displays after website when any socialProfiles exist",
+        "Social links show clickable icons for FB/IG/LinkedIn, text link for Yelp",
+        "Links open in new tab with proper rel attributes"
+      ],
+      "verification_steps": [
+        "Run `npm run build` - no errors",
+        "Manual test: complete onboarding for business with hours/social, verify UI displays them",
+        "Verify social links are clickable and open correct URLs"
+      ],
+      "dependencies": ["BRI-009"],
+      "notes": "UI component at src/components/chat/artifacts/ProfileRevealArtifact.tsx. Follow existing component patterns.",
+      "passes": false
+    },
+    {
+      "id": "BRI-011",
+      "category": "testing",
+      "priority": "medium",
+      "description": "Add unit tests for new field capture in tool-correctness.test.ts",
+      "acceptance_criteria": [
+        "Test: isClaimed capture from showBusinessSearchResults",
+        "Test: workHours capture from showBusinessSearchResults",
+        "Test: socialProfiles from web enrichment",
+        "Test: portfolioUrl from web enrichment",
+        "Test: isClaimed/workHours from confirmBusiness",
+        "All tests pass"
+      ],
+      "verification_steps": [
+        "Run `npm test -- src/lib/agents/discovery/__tests__/tool-correctness.test.ts`",
+        "All new tests pass",
+        "No regression in existing tests"
+      ],
+      "dependencies": ["BRI-007"],
+      "notes": "Add to existing test file. Follow patterns already in file for mocking tool results.",
+      "passes": false
+    },
+    {
+      "id": "BRI-012",
+      "category": "testing",
+      "priority": "low",
+      "description": "End-to-end verification of complete data flow",
+      "acceptance_criteria": [
+        "npm run typecheck passes with no errors",
+        "npm run build passes with no errors",
+        "npm test passes with no failures",
+        "Manual onboarding test shows work hours in Profile Reveal",
+        "Manual onboarding test shows social links in Profile Reveal"
+      ],
+      "verification_steps": [
+        "Run: npm run typecheck && npm run build && npm test",
+        "Start dev server: npm run dev",
+        "Complete onboarding with a real business (e.g., Starbucks Denver)",
+        "Verify Profile Reveal shows Hours section if available",
+        "Verify Profile Reveal shows social icons if available"
+      ],
+      "dependencies": ["BRI-001", "BRI-002", "BRI-003", "BRI-004", "BRI-005", "BRI-006", "BRI-007", "BRI-008", "BRI-009", "BRI-010", "BRI-011"],
+      "notes": "Final integration test. Should be last feature marked complete.",
+      "passes": false
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+# Dev Agent Team - Codex Configuration
+# Code-focused agents with web search
+# Removed: Supabase, ClickUp (use Claude Code MCP for those)
+
+model = "gpt-5.2-codex"
+model_reasoning_effort = "xhigh"
+
+[general]
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+# Enable native web search
+web_search = true
+
+# Playwright for browser automation/testing
+[mcp_servers.playwright-extension]
+command = "npx"
+args = ["@playwright/mcp@latest", "--extension"]
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+
+# Web fetch for URL content
+[mcp_servers.fetch]
+command = "npx"
+args = ["-y", "@anthropics/mcp-server-fetch"]
+
+# Project trust
+[projects."/Users/aaronbaker/knearme-workspace/knearme-portfolio"]
+trust_level = "trusted"
