@@ -19,6 +19,7 @@ import React from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { PuckCodeBlock } from '@/components/puck/CodeBlock'
+import { PuckImageGallery } from '@/components/puck/ImageGallery'
 import {
   Accordion,
   AccordionItem,
@@ -2251,46 +2252,9 @@ export const config: Config<Props> = {
         columns: 3,
         lightbox: true,
       },
-      render: ({ images, columns }) => {
-        // Filter out items with no image selected and type guard to ensure image is not null
-        const validImages = images.filter(
-          (item): item is { image: MediaRef } => item?.image != null && Boolean(item.image.url)
-        )
-        return (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${columns}, 1fr)`,
-              gap: '1rem',
-            }}
-          >
-            {validImages.length > 0 ? (
-              validImages.map((item, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={i}
-                  src={item.image.url}
-                  alt={item.image.alt || `Gallery image ${i + 1}`}
-                  style={{ width: '100%', height: 'auto', borderRadius: '0.5rem', cursor: 'pointer' }}
-                />
-              ))
-            ) : (
-              <div
-                style={{
-                  gridColumn: `span ${columns}`,
-                  padding: '2rem',
-                  backgroundColor: '#f0f0f0',
-                  textAlign: 'center',
-                  color: '#999',
-                  borderRadius: '0.5rem',
-                }}
-              >
-                No images selected. Add images via the fields panel.
-              </div>
-            )}
-          </div>
-        )
-      },
+      render: ({ images, columns, lightbox }) => (
+        <PuckImageGallery images={images} columns={columns} lightbox={lightbox} />
+      ),
     },
   },
 }
