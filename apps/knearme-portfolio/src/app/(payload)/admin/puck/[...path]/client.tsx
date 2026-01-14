@@ -9,17 +9,104 @@
  */
 'use client'
 
-import { Puck, type Data } from '@puckeditor/core'
+import { Puck, createUsePuck, type Data } from '@puckeditor/core'
 import '@puckeditor/core/puck.css'
 import '@/styles/puck-theme.css'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { ArrowLeft, FileText } from 'lucide-react'
 
 import { config } from '@/lib/puck/config'
 import { DrawerItem } from '@/components/puck/DrawerItem'
 
+/**
+ * Create typed usePuck hook for accessing editor state
+ * @see https://puckeditor.com/docs/api-reference/puck-api
+ */
+const usePuck = createUsePuck()
+
 interface PuckEditorClientProps {
   slug: string
+}
+
+/**
+ * Header actions component with Back to Payload navigation
+ *
+ * @see PUCK-034 for acceptance criteria
+ */
+interface HeaderActionsProps {
+  children: React.ReactNode
+  slug: string
+}
+
+function HeaderActions({ children, slug }: HeaderActionsProps) {
+  const history = usePuck((state) => state.history)
+
+  const handleBackClick = useCallback(() => {
+    // Check if there are unsaved changes (history has past entries)
+    if (history.hasPast) {
+      const confirmed = window.confirm(
+        'You have unsaved changes. Are you sure you want to leave?'
+      )
+      if (!confirmed) return
+    }
+
+    // Navigate back to Payload admin - puck-pages collection
+    window.location.href = `/admin/collections/puck-pages/${slug}`
+  }, [history.hasPast, slug])
+
+  return (
+    <>
+      {/* Back to Payload button */}
+      <button
+        onClick={handleBackClick}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '6px 12px',
+          fontSize: '14px',
+          fontWeight: 500,
+          color: 'var(--puck-color-grey-06)',
+          backgroundColor: 'transparent',
+          border: '1px solid var(--puck-color-grey-04)',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          transition: 'all 0.15s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = 'var(--puck-color-grey-03)'
+          e.currentTarget.style.color = 'var(--puck-color-grey-12)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent'
+          e.currentTarget.style.color = 'var(--puck-color-grey-06)'
+        }}
+        title="Back to Payload Admin"
+      >
+        <ArrowLeft size={16} />
+        <span>Back to Admin</span>
+      </button>
+
+      {/* Breadcrumb showing current page */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '6px 12px',
+          fontSize: '13px',
+          color: 'var(--puck-color-grey-05)',
+        }}
+      >
+        <FileText size={14} />
+        <span>Editing: {slug}</span>
+      </div>
+
+      {/* Default Puck header actions (Publish button, etc.) */}
+      {children}
+    </>
+  )
 }
 
 /**
@@ -136,17 +223,21 @@ export function PuckEditorClient({ slug }: PuckEditorClientProps) {
     )
   }
 
-  // Render Puck editor with custom drawer items
+  // Render Puck editor with custom drawer items and header actions
   return (
     <Puck
       config={config}
       data={data || emptyData}
       onPublish={handlePublish}
-      headerTitle={`Editing: ${slug}`}
       overrides={{
         // Custom drawer item with icon thumbnails
         // @see PUCK-031 for acceptance criteria
         drawerItem: ({ name }) => <DrawerItem name={name} />,
+        // Custom header actions with Back to Payload navigation
+        // @see PUCK-034 for acceptance criteria
+        headerActions: ({ children }) => (
+          <HeaderActions slug={slug}>{children}</HeaderActions>
+        ),
       }}
     />
   )
