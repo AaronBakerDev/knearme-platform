@@ -19,17 +19,12 @@ import React from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { PuckCodeBlock } from '@/components/puck/CodeBlock'
+import { PuckFAQAccordion } from '@/components/puck/FAQAccordion'
 import { PuckFeaturesGrid } from '@/components/puck/FeaturesGrid'
 import { PuckHero } from '@/components/puck/Hero'
 import { PuckImageGallery } from '@/components/puck/ImageGallery'
 import { PuckStats } from '@/components/puck/Stats'
 import { fieldOptions } from '@/lib/puck/design-system'
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion'
 import { cn } from '@/lib/utils'
 import {
   Zap,
@@ -1834,64 +1829,19 @@ export const config: Config<Props> = {
       },
       render: ({ items, allowMultiple, defaultOpen }) => {
         /**
-         * FAQ Accordion block - expandable Q&A section using shadcn Accordion
+         * FAQ Accordion block - animated expandable Q&A section
+         * Uses PuckFAQAccordion client component for Framer Motion animations
          * Built on Radix UI primitives for full accessibility (keyboard nav, ARIA)
-         * Supports single or multiple items open, with optional default open item
-         * @see PUCK-024 for acceptance criteria
-         * @see src/components/ui/accordion.tsx for shadcn component
+         * Features smooth height animations and chevron rotation
+         * @see PUCK-045 for animation acceptance criteria
+         * @see src/components/puck/FAQAccordion.tsx for implementation
          */
-
-        // Compute default open value based on defaultOpen index
-        const hasValidDefault = defaultOpen !== null && defaultOpen !== undefined && defaultOpen >= 0 && defaultOpen < items.length
-        const defaultValue = hasValidDefault ? `faq-${defaultOpen}` : undefined
-
-        // Render the accordion
-        // Note: For type safety, we render two different accordion types based on allowMultiple
-        // This is necessary because Radix Accordion's type prop affects the defaultValue type
-        if (allowMultiple) {
-          return (
-            <div className="w-full rounded-lg border">
-              <Accordion
-                type="multiple"
-                defaultValue={hasValidDefault ? [defaultValue!] : []}
-                className="w-full"
-              >
-                {items.map((item, i) => (
-                  <AccordionItem key={i} value={`faq-${i}`} className="px-4">
-                    <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">
-                      {item.question}
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground leading-relaxed">
-                      {item.answer}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </div>
-          )
-        }
-
-        // Single mode with collapsible enabled
         return (
-          <div className="w-full rounded-lg border">
-            <Accordion
-              type="single"
-              defaultValue={defaultValue}
-              collapsible
-              className="w-full"
-            >
-              {items.map((item, i) => (
-                <AccordionItem key={i} value={`faq-${i}`} className="px-4">
-                  <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">
-                    {item.question}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground leading-relaxed">
-                    {item.answer}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </div>
+          <PuckFAQAccordion
+            items={items}
+            allowMultiple={allowMultiple}
+            defaultOpen={defaultOpen}
+          />
         )
       },
     },
