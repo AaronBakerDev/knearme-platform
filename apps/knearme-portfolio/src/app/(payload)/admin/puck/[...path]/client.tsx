@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { config } from '@/lib/puck/config'
+import { DrawerItem } from '@/components/puck/DrawerItem'
 
 interface PuckEditorClientProps {
   slug: string
@@ -134,13 +135,18 @@ export function PuckEditorClient({ slug }: PuckEditorClientProps) {
     )
   }
 
-  // Render Puck editor
+  // Render Puck editor with custom drawer items
   return (
     <Puck
       config={config}
       data={data || emptyData}
       onPublish={handlePublish}
       headerTitle={`Editing: ${slug}`}
+      overrides={{
+        // Custom drawer item with icon thumbnails
+        // @see PUCK-031 for acceptance criteria
+        drawerItem: ({ name }) => <DrawerItem name={name} />,
+      }}
     />
   )
 }
