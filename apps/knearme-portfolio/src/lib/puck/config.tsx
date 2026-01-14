@@ -1905,32 +1905,61 @@ export const config: Config<Props> = {
         columns: 3,
         style: 'default',
       },
-      render: ({ items, columns, style }) => (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${columns}, 1fr)`,
-            gap: '2rem',
-          }}
-        >
-          {items.map((item, i) => (
-            <div
-              key={i}
-              style={{
-                textAlign: 'center',
-                padding: style === 'card' ? '2rem' : '1rem',
-                backgroundColor: style === 'card' ? '#f8f9fa' : 'transparent',
-                borderRadius: style === 'card' ? '0.5rem' : 0,
-              }}
-            >
-              <div style={{ fontSize: '3rem', fontWeight: 700, color: '#0070f3' }}>
-                {item.prefix}{item.number}{item.suffix}
+      render: ({ items, columns, style }) => {
+        /**
+         * Stats block - displays key metrics in a responsive grid layout
+         * Three style variants: default (clean), card (elevated), minimal (subtle)
+         * Responsive grid stacks on mobile, expands to configured columns on desktop
+         * @see PUCK-026 for acceptance criteria
+         */
+
+        // Responsive grid classes based on column count (stacks on mobile)
+        const gridClasses: Record<2 | 3 | 4, string> = {
+          2: 'grid-cols-1 sm:grid-cols-2',
+          3: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3',
+          4: 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-4',
+        }
+
+        // Style-specific classes for stat items
+        const styleClasses: Record<string, string> = {
+          default: 'py-6 px-4',
+          card: 'py-8 px-6 bg-muted/50 rounded-xl shadow-sm',
+          minimal: 'py-4 px-2',
+        }
+
+        return (
+          <div className={cn('grid gap-6 md:gap-8', gridClasses[columns as 2 | 3 | 4] || gridClasses[3])}>
+            {items.map((item, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'flex flex-col items-center text-center',
+                  styleClasses[style] || styleClasses.default
+                )}
+              >
+                {/* Stat number with prefix/suffix */}
+                <div className="text-4xl font-bold tracking-tight text-primary sm:text-5xl md:text-6xl">
+                  {item.prefix && (
+                    <span className="text-3xl sm:text-4xl md:text-5xl">{item.prefix}</span>
+                  )}
+                  {item.number}
+                  {item.suffix && (
+                    <span className="text-3xl sm:text-4xl md:text-5xl">{item.suffix}</span>
+                  )}
+                </div>
+
+                {/* Stat label */}
+                <div className={cn(
+                  'mt-2 font-medium',
+                  style === 'minimal' ? 'text-sm text-muted-foreground' : 'text-base text-muted-foreground'
+                )}>
+                  {item.label}
+                </div>
               </div>
-              <div style={{ color: '#666', fontWeight: 500 }}>{item.label}</div>
-            </div>
-          ))}
-        </div>
-      ),
+            ))}
+          </div>
+        )
+      },
     },
 
     // ========================================================================
