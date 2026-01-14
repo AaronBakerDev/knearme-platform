@@ -13,7 +13,15 @@
 'use client'
 
 import React from 'react'
-import { useDocumentInfo } from '@payloadcms/ui'
+import { useDocumentInfo, useFormFields } from '@payloadcms/ui'
+
+/**
+ * Field state interface from Payload's form system
+ * Represents a form field with an optional value
+ */
+interface FieldState {
+  value?: unknown
+}
 
 /**
  * Style constants for consistent button appearance
@@ -69,28 +77,34 @@ const EditIcon = () => (
  * OpenPuckEditorButton - UI Field Component
  *
  * Renders a button that links to the Puck visual editor for this page.
- * Uses the document's slug to construct the editor URL.
+ * Uses the document's slug from form data to construct the editor URL.
  */
 export const OpenPuckEditorButton: React.FC = () => {
   const { id } = useDocumentInfo()
 
-  // Get slug from URL params or document data
-  // This is a placeholder - actual implementation will read from document data
-  // For now, we construct based on ID which will be replaced with slug logic
+  // Get slug from form fields for real-time updates
+  const formData = useFormFields(([fields]) => {
+    const field = fields['slug'] as FieldState | undefined
+    return {
+      slug: field?.value as string | undefined,
+    }
+  })
 
-  if (!id) {
+  const { slug } = formData
+
+  // Only show button if document is saved and has a slug
+  if (!id || !slug) {
     return (
       <div style={styles.container}>
         <p style={styles.description}>
-          Save this page first to enable the Visual Editor.
+          Save this page with a slug first to enable the Visual Editor.
         </p>
       </div>
     )
   }
 
-  // TODO: In PUCK-009, enhance this to read the actual slug from document data
-  // For now, link to the editor with the document ID
-  const editorUrl = `/admin/puck/${id}`
+  // Construct editor URL using the page slug (not ID)
+  const editorUrl = `/admin/puck/${slug}`
 
   return (
     <div style={styles.container}>
