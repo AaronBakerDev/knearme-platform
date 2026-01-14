@@ -4,6 +4,11 @@
  * Handles newsletter signups by forwarding to the configured provider.
  * Supports multiple providers: mailchimp, convertkit, buttondown, webhook.
  *
+ * SECURITY: API keys are read from environment variables, not from CMS:
+ * - MAILCHIMP_API_KEY
+ * - CONVERTKIT_API_KEY
+ * - BUTTONDOWN_API_KEY
+ *
  * @see PAY-056 in PRD for acceptance criteria
  * @see /src/payload/globals/Newsletter.ts - Newsletter CMS config
  * @see /src/components/newsletter/NewsletterForm.tsx - Frontend form
@@ -11,6 +16,22 @@
 
 import { NextResponse } from 'next/server'
 import { getNewsletter, type Newsletter, type NewsletterProviderConfig } from '@/lib/payload/client'
+
+/**
+ * Get API key from environment variable
+ */
+function getEnvApiKey(provider: string): string | undefined {
+  switch (provider) {
+    case 'mailchimp':
+      return process.env.MAILCHIMP_API_KEY
+    case 'convertkit':
+      return process.env.CONVERTKIT_API_KEY
+    case 'buttondown':
+      return process.env.BUTTONDOWN_API_KEY
+    default:
+      return undefined
+  }
+}
 
 /**
  * Email validation regex
@@ -148,28 +169,33 @@ async function subscribeViaWebhook(
 
 /**
  * Subscribe via Mailchimp API
+ * API key from MAILCHIMP_API_KEY env var, audience ID from CMS config
  * @see https://mailchimp.com/developer/marketing/api/list-members/
  */
 async function subscribeViaMailchimp(
   email: string,
   config?: NewsletterProviderConfig
 ): Promise<{ success: boolean; error?: string }> {
-  const { mailchimpApiKey, mailchimpAudienceId } = config || {}
+  const apiKey = getEnvApiKey('mailchimp')
+  const audienceId = config?.mailchimpAudienceId
 
-  if (!mailchimpApiKey || !mailchimpAudienceId) {
-    return { success: false, error: 'Mailchimp not configured' }
+  if (!apiKey) {
+    return { success: false, error: 'Mailchimp API key not configured (set MAILCHIMP_API_KEY)' }
+  }
+  if (!audienceId) {
+    return { success: false, error: 'Mailchimp Audience ID not configured in CMS' }
   }
 
   // Extract datacenter from API key (e.g., "abc123-us14" -> "us14")
-  const dc = mailchimpApiKey.split('-').pop()
-  const url = `https://${dc}.api.mailchimp.com/3.0/lists/${mailchimpAudienceId}/members`
+  const dc = apiKey.split('-').pop()
+  const url = `https://${dc}.api.mailchimp.com/3.0/lists/${audienceId}/members`
 
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `apikey ${mailchimpApiKey}`,
+        Authorization: `apikey ${apiKey}`,
       },
       body: JSON.stringify({
         email_address: email,
@@ -196,26 +222,31 @@ async function subscribeViaMailchimp(
 
 /**
  * Subscribe via ConvertKit API
+ * API key from CONVERTKIT_API_KEY env var, form ID from CMS config
  * @see https://developers.convertkit.com/#add-subscriber-to-a-form
  */
 async function subscribeViaConvertKit(
   email: string,
   config?: NewsletterProviderConfig
 ): Promise<{ success: boolean; error?: string }> {
-  const { convertkitApiKey, convertkitFormId } = config || {}
+  const apiKey = getEnvApiKey('convertkit')
+  const formId = config?.convertkitFormId
 
-  if (!convertkitApiKey || !convertkitFormId) {
-    return { success: false, error: 'ConvertKit not configured' }
+  if (!apiKey) {
+    return { success: false, error: 'ConvertKit API key not configured (set CONVERTKIT_API_KEY)' }
+  }
+  if (!formId) {
+    return { success: false, error: 'ConvertKit Form ID not configured in CMS' }
   }
 
-  const url = `https://api.convertkit.com/v3/forms/${convertkitFormId}/subscribe`
+  const url = `https://api.convertkit.com/v3/forms/${formId}/subscribe`
 
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        api_key: convertkitApiKey,
+        api_key: apiKey,
         email,
       }),
     })
@@ -235,16 +266,17 @@ async function subscribeViaConvertKit(
 
 /**
  * Subscribe via Buttondown API
+ * API key from BUTTONDOWN_API_KEY env var
  * @see https://api.buttondown.email/v1/docs/introduction
  */
 async function subscribeViaButtondown(
   email: string,
-  config?: NewsletterProviderConfig
+  _config?: NewsletterProviderConfig
 ): Promise<{ success: boolean; error?: string }> {
-  const { buttondownApiKey } = config || {}
+  const apiKey = getEnvApiKey('buttondown')
 
-  if (!buttondownApiKey) {
-    return { success: false, error: 'Buttondown not configured' }
+  if (!apiKey) {
+    return { success: false, error: 'Buttondown API key not configured (set BUTTONDOWN_API_KEY)' }
   }
 
   const url = 'https://api.buttondown.email/v1/subscribers'
@@ -254,7 +286,7 @@ async function subscribeViaButtondown(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Token ${buttondownApiKey}`,
+        Authorization: `Token ${apiKey}`,
       },
       body: JSON.stringify({ email }),
     })

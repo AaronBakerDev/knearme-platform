@@ -1,7 +1,7 @@
 /**
  * Preview Token API - Regenerate and Revoke Preview Tokens
  *
- * Allows Payload admin users to regenerate or revoke preview tokens for articles.
+ * Allows Payload CMS users to regenerate or revoke preview tokens for articles.
  * Used by the PreviewButton component in the admin panel.
  *
  * POST /api/articles/preview-token
@@ -12,7 +12,7 @@
  * @see src/payload/components/PreviewButton.tsx for admin UI
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { getPayload } from 'payload'
+import { createLocalReq, getPayload } from 'payload'
 import config from '@payload-config'
 
 /**
@@ -43,12 +43,38 @@ interface PreviewTokenRequest {
 /**
  * POST handler for preview token operations
  *
- * Requires authenticated Payload admin user.
+ * Requires authenticated Payload CMS user.
  * Validates article exists and user has permission to modify it.
  */
 export async function POST(request: NextRequest) {
   try {
     const payload = await getPayload({ config })
+    let authUser: Record<string, unknown> | null = null
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const authResult = await (payload as any).auth({
+        headers: request.headers,
+      })
+      authUser = authResult.user as Record<string, unknown> | null
+    } catch {
+      authUser = null
+    }
+
+    if (!authUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const req = await (createLocalReq as any)(
+      {
+        user: authUser,
+      },
+      payload
+    )
 
     // Parse request body
     const body = (await request.json()) as PreviewTokenRequest
@@ -74,6 +100,8 @@ export async function POST(request: NextRequest) {
       collection: 'articles',
       id: articleId,
       depth: 0,
+      req,
+      overrideAccess: false,
     })
 
     if (!article) {
@@ -107,6 +135,8 @@ export async function POST(request: NextRequest) {
       id: articleId,
       data: updateData,
       depth: 0,
+      req,
+      overrideAccess: false,
     })
 
     return NextResponse.json({

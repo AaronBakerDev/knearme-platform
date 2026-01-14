@@ -4,20 +4,36 @@
  * CMS-configurable newsletter signup system supporting multiple providers.
  * Includes customizable copy, provider selection, and webhook integration.
  *
+ * SECURITY: API credentials are read from environment variables, not stored in the CMS.
+ * Configure these in .env.local:
+ *   - MAILCHIMP_API_KEY, MAILCHIMP_AUDIENCE_ID
+ *   - CONVERTKIT_API_KEY, CONVERTKIT_FORM_ID
+ *   - BUTTONDOWN_API_KEY
+ *
  * Usage:
  *   import { getNewsletter } from '@/lib/payload/client'
  *   const newsletter = await getNewsletter()
- *
- * Supported Providers:
- *   - mailchimp: Mailchimp API integration
- *   - convertkit: ConvertKit API integration
- *   - buttondown: Buttondown API integration
- *   - webhook: Custom webhook for testing or custom integrations
  *
  * @see PAY-056 in PRD for acceptance criteria
  * @see https://payloadcms.com/docs/configuration/globals
  */
 import type { GlobalConfig } from 'payload'
+
+/**
+ * Helper to check if an env var is configured (without exposing the value)
+ */
+function isEnvConfigured(envVar: string): boolean {
+  return Boolean(process.env[envVar])
+}
+
+/**
+ * Get configuration status message for admin UI
+ */
+function getEnvStatus(envVar: string): string {
+  return isEnvConfigured(envVar)
+    ? `${envVar} is configured`
+    : `${envVar} is NOT configured - add to .env.local`
+}
 
 /**
  * Newsletter provider options
@@ -143,7 +159,9 @@ export const Newsletter: GlobalConfig = {
           type: 'group',
           label: 'Provider Configuration',
           admin: {
-            description: 'Provider-specific settings (API keys, list IDs, etc.)',
+            description:
+              'SECURITY: API keys are configured via environment variables (.env.local), not stored in the CMS. ' +
+              'Only non-sensitive identifiers (audience IDs, form IDs) are configured here.',
             condition: (_, siblingData) => Boolean(siblingData?.provider),
           },
           fields: [
@@ -160,11 +178,12 @@ export const Newsletter: GlobalConfig = {
 
             // Mailchimp Configuration
             {
-              name: 'mailchimpApiKey',
+              name: 'mailchimpStatus',
               type: 'text',
-              label: 'Mailchimp API Key',
+              label: 'API Key Status',
               admin: {
-                description: 'Mailchimp API key (e.g., abc123-us14)',
+                readOnly: true,
+                description: getEnvStatus('MAILCHIMP_API_KEY'),
                 condition: (_, siblingData) => siblingData?.provider === 'mailchimp',
               },
             },
@@ -173,18 +192,19 @@ export const Newsletter: GlobalConfig = {
               type: 'text',
               label: 'Mailchimp Audience ID',
               admin: {
-                description: 'The audience/list ID to add subscribers to',
+                description: 'The audience/list ID to add subscribers to (not a secret)',
                 condition: (_, siblingData) => siblingData?.provider === 'mailchimp',
               },
             },
 
             // ConvertKit Configuration
             {
-              name: 'convertkitApiKey',
+              name: 'convertkitStatus',
               type: 'text',
-              label: 'ConvertKit API Key',
+              label: 'API Key Status',
               admin: {
-                description: 'ConvertKit API key',
+                readOnly: true,
+                description: getEnvStatus('CONVERTKIT_API_KEY'),
                 condition: (_, siblingData) => siblingData?.provider === 'convertkit',
               },
             },
@@ -193,18 +213,19 @@ export const Newsletter: GlobalConfig = {
               type: 'text',
               label: 'ConvertKit Form ID',
               admin: {
-                description: 'The form ID to subscribe users to',
+                description: 'The form ID to subscribe users to (not a secret)',
                 condition: (_, siblingData) => siblingData?.provider === 'convertkit',
               },
             },
 
             // Buttondown Configuration
             {
-              name: 'buttondownApiKey',
+              name: 'buttondownStatus',
               type: 'text',
-              label: 'Buttondown API Key',
+              label: 'API Key Status',
               admin: {
-                description: 'Buttondown API key',
+                readOnly: true,
+                description: getEnvStatus('BUTTONDOWN_API_KEY'),
                 condition: (_, siblingData) => siblingData?.provider === 'buttondown',
               },
             },

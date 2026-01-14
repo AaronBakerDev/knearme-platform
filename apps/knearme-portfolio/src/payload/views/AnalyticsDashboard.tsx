@@ -24,7 +24,7 @@ interface AnalyticsStats {
   uniqueSessions: number
   byDevice: Record<string, number>
   byCountry: Record<string, number>
-  topArticles: Array<{ articleId: string; views: number }>
+  topArticles: Array<{ articleId: string; views: number; title?: string }>
   viewsByDay?: Array<{ date: string; views: number }>
 }
 
@@ -113,7 +113,7 @@ function ViewsChart({ data }: { data: Array<{ date: string; views: number }> }) 
 function TopArticlesTable({
   articles,
 }: {
-  articles: Array<{ articleId: string; views: number }>
+  articles: Array<{ articleId: string; views: number; title?: string }>
 }) {
   if (articles.length === 0) {
     return <div style={styles.emptyState}>No articles viewed yet</div>
@@ -138,7 +138,7 @@ function TopArticlesTable({
                 rel="noopener noreferrer"
                 style={styles.articleLink}
               >
-                {article.articleId}
+                {article.title || article.articleId}
               </a>
             </td>
             <td style={{ ...styles.tableCell, textAlign: 'right' }}>

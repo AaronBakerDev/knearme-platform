@@ -39,6 +39,7 @@ import { SERVICE_CONTENT, type ServiceContent as FallbackContent } from '@/lib/c
 import { getUrlSlugForService, getIconForService } from './slug-mappings';
 import { logger } from '@/lib/logging';
 import { getServiceType as getPayloadServiceType, getServiceTypes as getPayloadServiceTypes, type ServiceType as PayloadServiceType } from '@/lib/payload/client';
+import { escapeHtml } from '@/lib/utils/html';
 
 /**
  * Unified service type combining database, Payload CMS, and fallback content.
@@ -307,7 +308,7 @@ function extractTextFromLexical(lexicalContent: unknown): string {
 
         // Text node
         if (n.type === 'text' && typeof n.text === 'string') {
-          return n.text;
+          return escapeHtml(n.text);
         }
 
         // Paragraph, heading, list item - extract children

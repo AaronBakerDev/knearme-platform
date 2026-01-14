@@ -1,22 +1,27 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
+import { FlatCompat } from "@eslint/eslintrc";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-    // Generated assets we don't lint
-    "public/**",
-    "mcp-server/dist/**",
-    "mcp-server/widgets/dist/**",
-  ]),
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
+const eslintConfig = [
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    ignores: [
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      "public/**",
+      "mcp-server/dist/**",
+      "mcp-server/widgets/dist/**",
+    ],
+  },
   {
     rules: {
       "@typescript-eslint/no-unused-vars": [
@@ -27,6 +32,7 @@ const eslintConfig = defineConfig([
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+      "@typescript-eslint/no-explicit-any": "warn",
     },
   },
   {
@@ -35,6 +41,6 @@ const eslintConfig = defineConfig([
       "@next/next/no-img-element": "off",
     },
   },
-]);
+];
 
 export default eslintConfig;

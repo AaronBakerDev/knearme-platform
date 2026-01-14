@@ -23,6 +23,7 @@ import { LazyImage } from '@/components/blog/LazyImage'
 import { formatDistanceToNow } from 'date-fns'
 import { Suspense } from 'react'
 import { BlogSearch } from '@/components/blog/BlogSearch'
+import { buildVisibleArticlesWhere } from '@/lib/payload/client'
 
 /**
  * Page metadata for SEO
@@ -105,25 +106,8 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
     activeTag = (tagResult.docs?.[0] || null) as TagWithSlug | null
   }
 
-  // Build where clause - show published articles
-  // Note: Content scheduling (scheduled status) requires database enum migration.
-  // Until the enum is updated, we only query for 'published' status.
-  // Once enum has 'scheduled' value, uncomment the OR condition below.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const visibilityCondition: Record<string, any> = {
-    // Simple query for published articles only
-    status: { equals: 'published' },
-    // TODO: Re-enable scheduled article support after enum migration:
-    // or: [
-    //   { status: { equals: 'published' } },
-    //   {
-    //     and: [
-    //       { status: { equals: 'scheduled' } },
-    //       { publishedAt: { less_than_equal: new Date().toISOString() } },
-    //     ],
-    //   },
-    // ],
-  }
+  // Build where clause - show published articles and scheduled articles whose publish time has passed
+  const visibilityCondition = buildVisibleArticlesWhere()
 
   // Build search condition - searches title, excerpt, and content (via text extraction)
   // Payload's 'like' operator performs case-insensitive substring matching

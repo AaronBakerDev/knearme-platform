@@ -25,6 +25,8 @@ import { SocialShare } from '@/components/blog/SocialShare'
 import { highlightCode, HighlightedCodeBlock } from '@/components/blog/CodeBlock'
 import { LazyImage } from '@/components/blog/LazyImage'
 import { PageViewTracker } from '@/components/blog/PageViewTracker'
+import { sanitizeHref } from '@/lib/utils/html'
+import type { ReactNode } from 'react'
 
 /**
  * Revalidate every 60 seconds for fresh content
@@ -533,6 +535,30 @@ interface RenderNodeProps {
 }
 
 /**
+ * Render inline text with Lexical formatting flags.
+ */
+function renderFormattedText(text: string, format?: number): ReactNode {
+  let content: ReactNode = text
+
+  if (format) {
+    // Format bitmask: 1=bold, 2=italic, 4=strikethrough, 8=underline, 16=code
+    if (format & 16) {
+      content = (
+        <code className="px-1.5 py-0.5 bg-gray-100 text-gray-800 rounded text-sm font-mono">
+          {content}
+        </code>
+      )
+    }
+    if (format & 1) content = <strong>{content}</strong>
+    if (format & 2) content = <em>{content}</em>
+    if (format & 4) content = <s>{content}</s>
+    if (format & 8) content = <u>{content}</u>
+  }
+
+  return content
+}
+
+/**
  * Recursive node renderer for Lexical content
  * Supports syntax highlighting for code blocks via pre-highlighted map (PAY-061)
  */
@@ -546,19 +572,9 @@ function RenderNode({ node, highlightedCode }: RenderNodeProps) {
 
   // Text node with formatting
   if (type === 'text') {
-    let text = nodeObj.text as string
+    const text = typeof nodeObj.text === 'string' ? nodeObj.text : ''
     const format = nodeObj.format as number | undefined
-
-    // Handle text formatting (bitmask: 1=bold, 2=italic, 4=strikethrough, 8=underline, 16=code)
-    if (format) {
-      if (format & 16) text = `<code class="px-1.5 py-0.5 bg-gray-100 text-gray-800 rounded text-sm font-mono">${text}</code>`
-      if (format & 1) text = `<strong>${text}</strong>`
-      if (format & 2) text = `<em>${text}</em>`
-      if (format & 4) text = `<s>${text}</s>`
-      if (format & 8) text = `<u>${text}</u>`
-    }
-
-    return <span dangerouslySetInnerHTML={{ __html: text }} />
+    return <>{renderFormattedText(text, format)}</>
   }
 
   // Paragraph
@@ -608,7 +624,8 @@ function RenderNode({ node, highlightedCode }: RenderNodeProps) {
 
   // Link
   if (type === 'link') {
-    const url = (nodeObj.fields as Record<string, unknown>)?.url as string || '#'
+    const rawUrl = (nodeObj.fields as Record<string, unknown>)?.url as string | undefined
+    const url = sanitizeHref(rawUrl)
     const newTab = (nodeObj.fields as Record<string, unknown>)?.newTab as boolean
     return (
       <a

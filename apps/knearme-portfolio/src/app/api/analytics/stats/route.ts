@@ -8,6 +8,7 @@
  * @see src/payload/views/AnalyticsDashboard.tsx for consumer
  */
 import { NextRequest, NextResponse } from 'next/server'
+import { createLocalReq } from 'payload'
 import { getPayloadClient, type PageView } from '@/lib/payload/client'
 
 /**
@@ -59,6 +60,32 @@ export async function GET(request: NextRequest) {
     const topN = parseInt(searchParams.get('topN') || '10', 10)
 
     const payload = await getPayloadClient()
+    let authUser: Record<string, unknown> | null = null
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const authResult = await (payload as any).auth({
+        headers: request.headers,
+      })
+      authUser = authResult.user as Record<string, unknown> | null
+    } catch {
+      authUser = null
+    }
+
+    if (!authUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const req = await (createLocalReq as any)(
+      {
+        user: authUser,
+      },
+      payload
+    )
 
     // Build where clause for filtering
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -86,6 +113,8 @@ export async function GET(request: NextRequest) {
       where,
       limit: 10000, // Max for aggregation
       pagination: false,
+      req,
+      overrideAccess: false,
     })
 
     const views = (result.docs || []) as PageView[]
@@ -115,13 +144,41 @@ export async function GET(request: NextRequest) {
     }
 
     // Sort articles by view count and take top N
-    const topArticles = Object.entries(articleCounts)
+    let topArticles = Object.entries(articleCounts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, topN)
       .map(([articleId, views]) => ({ articleId, views }))
 
     // Aggregate views by day for chart
     const viewsByDay = aggregateViewsByDay(views)
+
+    // Enrich top articles with titles for better admin UX
+    if (topArticles.length > 0) {
+      const slugConditions = topArticles.map((article) => ({
+        slug: { equals: article.articleId },
+      }))
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const articlesResult = await (payload as any).find({
+        collection: 'articles',
+        where: { or: slugConditions },
+        limit: slugConditions.length,
+        depth: 0,
+        select: { slug: true, title: true },
+        req,
+        overrideAccess: false,
+      })
+
+      const titleBySlug = new Map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (articlesResult.docs || []).map((doc: any) => [doc.slug, doc.title])
+      )
+
+      topArticles = topArticles.map((entry) => ({
+        ...entry,
+        title: titleBySlug.get(entry.articleId) || entry.articleId,
+      }))
+    }
 
     return NextResponse.json({
       totalViews: views.length,

@@ -439,8 +439,19 @@ export default buildConfig({
    *
    * Must be at least 32 characters. Generate with:
    * openssl rand -base64 32
+   *
+   * SECURITY: Required in production to prevent using weak default secret.
    */
-  secret: process.env.PAYLOAD_SECRET || 'DEVELOPMENT-SECRET-CHANGE-IN-PRODUCTION',
+  secret: (() => {
+    const secret = process.env.PAYLOAD_SECRET
+    if (!secret && process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'PAYLOAD_SECRET environment variable is required in production. ' +
+          'Generate one with: openssl rand -base64 32'
+      )
+    }
+    return secret || 'DEVELOPMENT-SECRET-CHANGE-IN-PRODUCTION'
+  })(),
 
   /**
    * TypeScript Type Generation

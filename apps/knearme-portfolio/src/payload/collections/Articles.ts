@@ -504,11 +504,20 @@ export const Articles: CollectionConfig = {
   ],
   access: {
     // Published articles are publicly readable
-    read: ({ req: { user } }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    read: ({ req: { user } }): any => {
       if (user) return true // Logged in users can see all
-      // Public can only see published
+      // Public can see published articles and scheduled articles whose publish time has passed
       return {
-        status: { equals: 'published' },
+        or: [
+          { status: { equals: 'published' } },
+          {
+            and: [
+              { status: { equals: 'scheduled' } },
+              { publishedAt: { less_than_equal: new Date().toISOString() } },
+            ],
+          },
+        ],
       }
     },
     create: ({ req: { user } }) => Boolean(user),

@@ -135,6 +135,7 @@ async function getArticleByPreviewToken(token: string): Promise<ArticleWithRelat
     },
     depth: 2, // Populate relationships
     limit: 1,
+    overrideAccess: true,
   })
 
   const article = (result.docs?.[0] || null) as ArticleWithRelations | null

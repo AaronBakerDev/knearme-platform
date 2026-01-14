@@ -433,14 +433,22 @@ export interface SiteSettings {
 
 /**
  * Provider configuration for newsletter integrations
+ *
+ * SECURITY: API keys are NOT stored in the CMS - they come from environment variables:
+ * - MAILCHIMP_API_KEY
+ * - CONVERTKIT_API_KEY
+ * - BUTTONDOWN_API_KEY
+ *
+ * Only non-sensitive identifiers are stored in the CMS.
  */
 export interface NewsletterProviderConfig {
   webhookUrl?: string
-  mailchimpApiKey?: string
   mailchimpAudienceId?: string
-  convertkitApiKey?: string
   convertkitFormId?: string
-  buttondownApiKey?: string
+  // Status fields (read-only, for admin display)
+  mailchimpStatus?: string
+  convertkitStatus?: string
+  buttondownStatus?: string
 }
 
 /**
@@ -1490,6 +1498,7 @@ export async function getPageViewStats(options?: {
       where,
       limit: 10000, // Max for aggregation
       pagination: false,
+      overrideAccess: true,
     })
 
     const views = (result.docs || []) as PageView[]

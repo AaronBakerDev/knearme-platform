@@ -73,9 +73,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (tag) {
-      // Next.js 16 revalidateTag requires 2 args: tag name and profile
-      // Using 'max' for stale-while-revalidate semantics (recommended)
-      revalidateTag(tag, 'max')
+      // Next.js 15 revalidateTag only takes the tag name
+      revalidateTag(tag)
       results.push({ tag })
       console.log(`[Revalidate] Tag revalidated: ${tag} (type: ${type || 'unknown'})`)
     }
