@@ -16,6 +16,7 @@
 
 import type { Config, Data } from '@puckeditor/core'
 import React from 'react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -847,35 +848,58 @@ export const config: Config<Props> = {
         alignment: 'center',
       },
       render: ({ image, alt, caption, size, alignment }) => {
-        const widthMap = { small: '300px', medium: '500px', large: '800px', full: '100%' }
-        const justifyMap = { left: 'flex-start', center: 'center', right: 'flex-end' }
+        // Map size to max-width for responsive sizing
+        const sizeClasses: Record<string, string> = {
+          small: 'max-w-[300px]',
+          medium: 'max-w-[500px]',
+          large: 'max-w-[800px]',
+          full: 'w-full',
+        }
+        const alignmentClasses: Record<string, string> = {
+          left: 'items-start',
+          center: 'items-center',
+          right: 'items-end',
+        }
+
         return (
-          <figure style={{ display: 'flex', flexDirection: 'column', alignItems: justifyMap[alignment] }}>
-            {image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={image.url}
-                alt={alt || image.alt}
-                style={{ maxWidth: widthMap[size], height: 'auto', borderRadius: '0.5rem' }}
-              />
+          <figure className={cn('flex flex-col', alignmentClasses[alignment])}>
+            {image?.url ? (
+              <div className={cn('relative w-full', sizeClasses[size])}>
+                {/* Use next/image with intrinsic dimensions from Payload Media */}
+                {image.width && image.height ? (
+                  <Image
+                    src={image.url}
+                    alt={alt || image.alt || ''}
+                    width={image.width}
+                    height={image.height}
+                    className="h-auto w-full rounded-lg"
+                    sizes={size === 'full' ? '100vw' : size === 'large' ? '800px' : size === 'medium' ? '500px' : '300px'}
+                  />
+                ) : (
+                  // Fallback for images without dimensions - use fill mode
+                  <div className="relative aspect-video w-full">
+                    <Image
+                      src={image.url}
+                      alt={alt || image.alt || ''}
+                      fill
+                      className="rounded-lg object-cover"
+                      sizes={size === 'full' ? '100vw' : size === 'large' ? '800px' : size === 'medium' ? '500px' : '300px'}
+                    />
+                  </div>
+                )}
+              </div>
             ) : (
               <div
-                style={{
-                  width: widthMap[size],
-                  height: '200px',
-                  backgroundColor: '#f0f0f0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#999',
-                  borderRadius: '0.5rem',
-                }}
+                className={cn(
+                  'flex h-[200px] items-center justify-center rounded-lg bg-muted text-muted-foreground',
+                  sizeClasses[size]
+                )}
               >
                 No image selected
               </div>
             )}
             {caption && (
-              <figcaption style={{ marginTop: '0.5rem', color: '#666', fontSize: '0.875rem' }}>
+              <figcaption className="mt-2 text-sm text-muted-foreground">
                 {caption}
               </figcaption>
             )}
@@ -1230,39 +1254,73 @@ export const config: Config<Props> = {
         backgroundColor: '#0070f3',
         style: 'centered',
       },
-      render: ({ heading, description, buttons, backgroundColor, style }) => (
-        <div
-          style={{
-            padding: '4rem 2rem',
-            backgroundColor,
-            color: '#fff',
-            textAlign: style === 'centered' ? 'center' : 'left',
-            borderRadius: '0.75rem',
-          }}
-        >
-          <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>{heading}</h2>
-          <p style={{ marginBottom: '1.5rem', opacity: 0.9 }}>{description}</p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: style === 'centered' ? 'center' : 'flex-start' }}>
-            {buttons.map((btn, i) => (
-              <a
-                key={i}
-                href={btn.href}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: btn.variant === 'primary' ? '#fff' : 'transparent',
-                  color: btn.variant === 'primary' ? backgroundColor : '#fff',
-                  border: btn.variant === 'outline' ? '1px solid #fff' : 'none',
-                  borderRadius: '0.375rem',
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                }}
+      render: ({ heading, description, buttons, backgroundColor, style }) => {
+        // Determine if background is dark for contrast calculations
+        // Simple heuristic: if not white/transparent-ish, assume dark
+        const isDarkBg = backgroundColor && backgroundColor !== 'transparent' && !backgroundColor.match(/^#f|^white|^rgb\(2[45]\d/i)
+
+        // Map CTA variants to shadcn Button - on dark backgrounds, invert colors
+        const getButtonVariant = (variant: string): 'default' | 'secondary' | 'outline' => {
+          if (variant === 'primary') return 'default'
+          if (variant === 'secondary') return 'secondary'
+          return 'outline'
+        }
+
+        return (
+          <div
+            className={cn(
+              'rounded-xl px-6 py-12 sm:px-8 md:py-16',
+              style === 'centered' ? 'text-center' : 'text-left'
+            )}
+            style={{ backgroundColor }}
+          >
+            <div className="mx-auto max-w-3xl">
+              <h2
+                className={cn(
+                  'text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl',
+                  isDarkBg ? 'text-white' : 'text-foreground'
+                )}
               >
-                {btn.text}
-              </a>
-            ))}
+                {heading}
+              </h2>
+              {description && (
+                <p
+                  className={cn(
+                    'mt-3 text-base sm:text-lg md:text-xl',
+                    isDarkBg ? 'text-white/90' : 'text-muted-foreground'
+                  )}
+                >
+                  {description}
+                </p>
+              )}
+              {buttons.length > 0 && (
+                <div
+                  className={cn(
+                    'mt-8 flex flex-col gap-3 sm:flex-row sm:gap-4',
+                    style === 'centered' ? 'justify-center' : 'justify-start'
+                  )}
+                >
+                  {buttons.map((btn, i) => (
+                    <Button
+                      key={i}
+                      variant={getButtonVariant(btn.variant)}
+                      size="lg"
+                      asChild
+                      className={cn(
+                        // On dark backgrounds: primary buttons stay default, others get white text/border
+                        isDarkBg && btn.variant === 'primary' && 'bg-white text-foreground hover:bg-white/90',
+                        isDarkBg && btn.variant !== 'primary' && 'border-white text-white hover:bg-white/20'
+                      )}
+                    >
+                      <a href={btn.href}>{btn.text}</a>
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ),
+        )
+      },
     },
 
     FAQAccordion: {
