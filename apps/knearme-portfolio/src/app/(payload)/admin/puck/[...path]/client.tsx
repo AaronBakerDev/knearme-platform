@@ -11,6 +11,7 @@
 
 import { Puck, type Data } from '@puckeditor/core'
 import '@puckeditor/core/puck.css'
+import '@/styles/puck-theme.css'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
