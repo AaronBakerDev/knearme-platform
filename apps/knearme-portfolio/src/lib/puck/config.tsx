@@ -19,6 +19,7 @@ import React from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { PuckCodeBlock } from '@/components/puck/CodeBlock'
+import { PuckFeaturesGrid } from '@/components/puck/FeaturesGrid'
 import { PuckImageGallery } from '@/components/puck/ImageGallery'
 import { PuckStats } from '@/components/puck/Stats'
 import { fieldOptions } from '@/lib/puck/design-system'
@@ -348,6 +349,7 @@ export interface VideoProps {
 
 /**
  * FeaturesGrid - Feature cards with icons
+ * @see PUCK-043 for animation and style variant enhancements
  */
 export interface FeaturesGridProps {
   items: Array<{
@@ -357,6 +359,8 @@ export interface FeaturesGridProps {
   }>
   columns: 2 | 3 | 4
   iconStyle: 'filled' | 'outlined'
+  variant: 'default' | 'glass' | 'minimal' | 'bento'
+  animate: boolean
 }
 
 /**
@@ -1328,6 +1332,24 @@ export const config: Config<Props> = {
             { label: 'Outlined', value: 'outlined' },
           ],
         },
+        variant: {
+          type: 'select',
+          label: 'Style Variant',
+          options: [
+            { label: 'Default (Clean)', value: 'default' },
+            { label: 'Glass (Modern Cards)', value: 'glass' },
+            { label: 'Minimal (Subtle)', value: 'minimal' },
+            { label: 'Bento (Featured Layout)', value: 'bento' },
+          ],
+        },
+        animate: {
+          type: 'radio',
+          label: 'Animate',
+          options: [
+            { label: 'Yes', value: true },
+            { label: 'No', value: false },
+          ],
+        },
       },
       defaultProps: {
         items: [
@@ -1337,45 +1359,24 @@ export const config: Config<Props> = {
         ],
         columns: 3,
         iconStyle: 'outlined',
+        variant: 'default',
+        animate: true,
       },
-      render: ({ items, columns, iconStyle }) => {
-        // Responsive grid: stack on mobile, expand to configured columns on md+
-        const gridClasses: Record<2 | 3 | 4, string> = {
-          2: 'grid-cols-1 md:grid-cols-2',
-          3: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3',
-          4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
-        }
-
+      render: ({ items, columns, iconStyle, variant, animate }) => {
+        /**
+         * FeaturesGrid block - displays feature cards with icons and animations
+         * Uses PuckFeaturesGrid client component for Framer Motion animations
+         * @see PUCK-043 for acceptance criteria
+         * @see src/components/puck/FeaturesGrid.tsx for implementation
+         */
         return (
-          <div className={cn('grid gap-8', gridClasses[columns as 2 | 3 | 4] || gridClasses[3])}>
-            {items.map((item, i) => {
-              const IconComponent = getLucideIcon(item.icon)
-              const isFilled = iconStyle === 'filled'
-
-              return (
-                <div
-                  key={i}
-                  className="flex flex-col items-center text-center p-6 rounded-lg"
-                >
-                  {/* Icon container with filled or outlined style */}
-                  <div
-                    className={cn(
-                      'mb-4 flex h-12 w-12 items-center justify-center rounded-xl',
-                      isFilled
-                        ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-                        : 'bg-muted text-foreground'
-                    )}
-                  >
-                    <IconComponent className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {item.description}
-                  </p>
-                </div>
-              )
-            })}
-          </div>
+          <PuckFeaturesGrid
+            items={items}
+            columns={columns as 2 | 3 | 4}
+            iconStyle={iconStyle as 'filled' | 'outlined'}
+            variant={variant as 'default' | 'glass' | 'minimal' | 'bento'}
+            animate={animate}
+          />
         )
       },
     },
