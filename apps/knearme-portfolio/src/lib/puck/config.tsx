@@ -32,12 +32,63 @@ export interface CTAButtonProps {
 
 /**
  * Media reference from Payload CMS
+ * Includes optional dimensions for image optimization
  */
 export interface MediaRef {
   id: string
   url: string
   alt: string
+  width?: number
+  height?: number
+  thumbnailUrl?: string
 }
+
+/**
+ * Media item returned from /api/puck/media endpoint
+ * Used by Puck external field fetchList
+ */
+interface MediaListItem {
+  id: string
+  title: string
+  description: string
+  url: string
+  alt: string
+  width?: number
+  height?: number
+  thumbnailUrl?: string
+}
+
+/**
+ * Shared external field configuration for Payload Media integration
+ * @see PUCK-010 for implementation details
+ * @see /api/puck/media for the API endpoint
+ */
+const createMediaExternalField = (label: string) => ({
+  type: 'external' as const,
+  label,
+  placeholder: 'Select image...',
+  showSearch: true,
+  fetchList: async ({ query }: { query?: string }) => {
+    const params = new URLSearchParams()
+    if (query) params.set('query', query)
+    const response = await fetch(`/api/puck/media?${params.toString()}`)
+    if (!response.ok) throw new Error('Failed to fetch media')
+    return response.json() as Promise<MediaListItem[]>
+  },
+  mapRow: (item: MediaListItem) => ({
+    title: item.title,
+    description: item.description,
+  }),
+  mapProp: (item: MediaListItem): MediaRef => ({
+    id: item.id,
+    url: item.url,
+    alt: item.alt,
+    width: item.width,
+    height: item.height,
+    thumbnailUrl: item.thumbnailUrl,
+  }),
+  getItemSummary: (item: MediaRef | null) => item?.alt || 'No image selected',
+})
 
 // ============================================================================
 // LAYOUT BLOCKS
@@ -245,9 +296,11 @@ export interface TableProps {
 
 /**
  * ImageGallery - Multi-image grid with lightbox
+ * Note: images is an array of objects containing the image MediaRef
+ * This structure is required by Puck's array field with external type
  */
 export interface ImageGalleryProps {
-  images: MediaRef[]
+  images: Array<{ image: MediaRef | null }>
   columns: 2 | 3 | 4
   lightbox: boolean
 }
@@ -528,12 +581,7 @@ export const config: Config<Props> = {
           type: 'textarea',
           label: 'Subheading',
         },
-        backgroundImage: {
-          type: 'custom',
-          label: 'Background Image',
-          // Will be implemented in PUCK-010 with Payload Media integration
-          render: () => <div>Media selector (coming in PUCK-010)</div>,
-        },
+        backgroundImage: createMediaExternalField('Background Image'),
         alignment: {
           type: 'select',
           label: 'Alignment',
@@ -686,12 +734,7 @@ export const config: Config<Props> = {
     Image: {
       label: 'Image',
       fields: {
-        image: {
-          type: 'custom',
-          label: 'Image',
-          // Will be implemented in PUCK-010 with Payload Media integration
-          render: () => <div>Media selector (coming in PUCK-010)</div>,
-        },
+        image: createMediaExternalField('Image'),
         alt: {
           type: 'text',
           label: 'Alt Text',
@@ -918,11 +961,7 @@ export const config: Config<Props> = {
             quote: { type: 'textarea', label: 'Quote' },
             author: { type: 'text', label: 'Author' },
             title: { type: 'text', label: 'Title/Company' },
-            avatar: {
-              type: 'custom',
-              label: 'Avatar',
-              render: () => <div>Media selector (coming in PUCK-010)</div>,
-            },
+            avatar: createMediaExternalField('Avatar'),
           },
           defaultItemProps: { quote: 'Great product!', author: 'John Doe', title: 'CEO', avatar: null },
         },
@@ -1502,11 +1541,10 @@ export const config: Config<Props> = {
           type: 'array',
           label: 'Images',
           arrayFields: {
-            id: { type: 'text', label: 'Media ID' },
-            url: { type: 'text', label: 'URL' },
-            alt: { type: 'text', label: 'Alt Text' },
+            image: createMediaExternalField('Image'),
           },
-          defaultItemProps: { id: '', url: '', alt: '' },
+          defaultItemProps: { image: null },
+          getItemSummary: (item: { image: MediaRef | null }) => item?.image?.alt || 'No image selected',
         },
         columns: {
           type: 'select',
@@ -1531,40 +1569,46 @@ export const config: Config<Props> = {
         columns: 3,
         lightbox: true,
       },
-      render: ({ images, columns }) => (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${columns}, 1fr)`,
-            gap: '1rem',
-          }}
-        >
-          {images.length > 0 ? (
-            images.map((img, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={i}
-                src={img.url}
-                alt={img.alt || `Gallery image ${i + 1}`}
-                style={{ width: '100%', height: 'auto', borderRadius: '0.5rem', cursor: 'pointer' }}
-              />
-            ))
-          ) : (
-            <div
-              style={{
-                gridColumn: `span ${columns}`,
-                padding: '2rem',
-                backgroundColor: '#f0f0f0',
-                textAlign: 'center',
-                color: '#999',
-                borderRadius: '0.5rem',
-              }}
-            >
-              No images selected. Add images via the fields panel.
-            </div>
-          )}
-        </div>
-      ),
+      render: ({ images, columns }) => {
+        // Filter out items with no image selected and type guard to ensure image is not null
+        const validImages = images.filter(
+          (item): item is { image: MediaRef } => item?.image != null && Boolean(item.image.url)
+        )
+        return (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${columns}, 1fr)`,
+              gap: '1rem',
+            }}
+          >
+            {validImages.length > 0 ? (
+              validImages.map((item, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={item.image.url}
+                  alt={item.image.alt || `Gallery image ${i + 1}`}
+                  style={{ width: '100%', height: 'auto', borderRadius: '0.5rem', cursor: 'pointer' }}
+                />
+              ))
+            ) : (
+              <div
+                style={{
+                  gridColumn: `span ${columns}`,
+                  padding: '2rem',
+                  backgroundColor: '#f0f0f0',
+                  textAlign: 'center',
+                  color: '#999',
+                  borderRadius: '0.5rem',
+                }}
+              >
+                No images selected. Add images via the fields panel.
+              </div>
+            )}
+          </div>
+        )
+      },
     },
   },
 }
