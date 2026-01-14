@@ -1,7 +1,27 @@
-# Temporarily exclude for subtree merge
-knearme-portfolio/
+# OS files
 .DS_Store
+
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+dist/
+out/
+
+# Environment files
+.env*.local
+.env
+
+# Cache and temp
 .npm-cache/
 .tmp/
 .dev-browser-runtime/
-node_modules/
+.turbo/
+
+# IDE
+.idea/
+.vscode/
+
+# Old standalone knearme-portfolio (migrated to apps/)
+/knearme-portfolio/
