@@ -1164,50 +1164,104 @@ export const config: Config<Props> = {
         autoplay: false,
         caption: '',
       },
-      render: ({ url, aspectRatio, caption }) => {
-        const ratioMap = { '16:9': '56.25%', '4:3': '75%', '1:1': '100%' }
-        // Extract video ID from YouTube/Vimeo URLs
-        let embedUrl = ''
-        if (url.includes('youtube.com') || url.includes('youtu.be')) {
-          const videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)?.[1]
-          if (videoId) embedUrl = `https://www.youtube.com/embed/${videoId}`
-        } else if (url.includes('vimeo.com')) {
-          const videoId = url.match(/vimeo\.com\/(\d+)/)?.[1]
-          if (videoId) embedUrl = `https://player.vimeo.com/video/${videoId}`
+      render: ({ url, aspectRatio, autoplay, caption }) => {
+        /**
+         * Video block - embeds YouTube/Vimeo videos with responsive aspect ratio
+         * Uses Tailwind aspect-ratio utilities for clean responsive embeds
+         * Lazy loading defers iframe load until near viewport for performance
+         * @see PUCK-025 for acceptance criteria
+         */
+
+        // Map aspect ratio values to Tailwind classes
+        const aspectClasses: Record<string, string> = {
+          '16:9': 'aspect-video', // 16/9 = 1.777...
+          '4:3': 'aspect-[4/3]',
+          '1:1': 'aspect-square',
         }
 
+        /**
+         * Parse video URL to extract embed URL with optional autoplay param
+         * Supports: youtube.com/watch?v=, youtu.be/, vimeo.com/
+         */
+        const getEmbedUrl = (): string | null => {
+          if (!url) return null
+
+          // YouTube patterns: youtube.com/watch?v=ID, youtube.com/embed/ID, youtu.be/ID
+          if (url.includes('youtube.com') || url.includes('youtu.be')) {
+            // Match watch?v=ID, embed/ID, or youtu.be/ID patterns
+            const videoId = url.match(
+              /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+            )?.[1]
+            if (videoId) {
+              const params = new URLSearchParams()
+              if (autoplay) {
+                params.set('autoplay', '1')
+                params.set('mute', '1') // Required for autoplay in most browsers
+              }
+              const queryString = params.toString()
+              return `https://www.youtube.com/embed/${videoId}${queryString ? `?${queryString}` : ''}`
+            }
+          }
+
+          // Vimeo patterns: vimeo.com/ID, player.vimeo.com/video/ID
+          if (url.includes('vimeo.com')) {
+            const videoId = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1]
+            if (videoId) {
+              const params = new URLSearchParams()
+              if (autoplay) {
+                params.set('autoplay', '1')
+                params.set('muted', '1') // Required for autoplay
+              }
+              const queryString = params.toString()
+              return `https://player.vimeo.com/video/${videoId}${queryString ? `?${queryString}` : ''}`
+            }
+          }
+
+          return null
+        }
+
+        const embedUrl = getEmbedUrl()
+
         return (
-          <figure>
-            <div style={{ position: 'relative', paddingBottom: ratioMap[aspectRatio], height: 0 }}>
+          <figure className="w-full">
+            <div
+              className={cn(
+                'relative w-full overflow-hidden rounded-lg',
+                aspectClasses[aspectRatio] || 'aspect-video'
+              )}
+            >
               {embedUrl ? (
                 <iframe
                   src={embedUrl}
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  className="absolute inset-0 h-full w-full"
+                  loading="lazy"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
+                  title={caption || 'Embedded video'}
                 />
               ) : (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    backgroundColor: '#f0f0f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#999',
-                  }}
-                >
-                  Enter a YouTube or Vimeo URL
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted text-muted-foreground">
+                  {/* Video placeholder icon */}
+                  <svg
+                    className="h-12 w-12 opacity-50"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"
+                    />
+                  </svg>
+                  <span className="text-sm">Enter a YouTube or Vimeo URL</span>
                 </div>
               )}
             </div>
             {caption && (
-              <figcaption style={{ marginTop: '0.5rem', color: '#666', fontSize: '0.875rem', textAlign: 'center' }}>
+              <figcaption className="mt-2 text-center text-sm text-muted-foreground">
                 {caption}
               </figcaption>
             )}
