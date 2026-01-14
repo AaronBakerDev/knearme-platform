@@ -16,6 +16,8 @@
 
 import type { Config, Data } from '@puckeditor/core'
 import React from 'react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 // ============================================================================
 // PROP TYPE DEFINITIONS
@@ -627,37 +629,93 @@ export const config: Config<Props> = {
         alignment: 'center',
         ctaButtons: [{ text: 'Get Started', href: '/signup', variant: 'primary' }],
       },
-      render: ({ heading, subheading, alignment, ctaButtons }) => (
-        <div
-          style={{
-            padding: '4rem 2rem',
-            textAlign: alignment,
-            backgroundColor: '#f8f9fa',
-          }}
-        >
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem' }}>{heading}</h1>
-          <p style={{ fontSize: '1.25rem', color: '#666', marginBottom: '2rem' }}>{subheading}</p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: alignment }}>
-            {ctaButtons.map((btn, i) => (
-              <a
-                key={i}
-                href={btn.href}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  borderRadius: '0.375rem',
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                  backgroundColor: btn.variant === 'primary' ? '#0070f3' : 'transparent',
-                  color: btn.variant === 'primary' ? '#fff' : '#0070f3',
-                  border: btn.variant === 'outline' ? '1px solid #0070f3' : 'none',
-                }}
+      render: ({ heading, subheading, backgroundImage, alignment, ctaButtons }) => {
+        // Map alignment to Tailwind classes
+        const alignmentClasses = {
+          left: { text: 'text-left', items: 'justify-start' },
+          center: { text: 'text-center', items: 'justify-center' },
+          right: { text: 'text-right', items: 'justify-end' },
+        } as const
+        const align = alignmentClasses[alignment]
+
+        // Map CTA button variants to shadcn Button variants
+        const variantMap: Record<string, 'default' | 'secondary' | 'outline'> = {
+          primary: 'default',
+          secondary: 'secondary',
+          outline: 'outline',
+        }
+
+        // Determine if we have a background image
+        const hasBackgroundImage = backgroundImage?.url
+
+        return (
+          <div
+            className={cn(
+              'relative py-16 px-4 sm:py-20 sm:px-6 md:py-24 lg:py-32',
+              hasBackgroundImage ? 'bg-cover bg-center bg-no-repeat' : 'bg-muted'
+            )}
+            style={hasBackgroundImage ? { backgroundImage: `url(${backgroundImage.url})` } : undefined}
+          >
+            {/* Overlay for background image readability */}
+            {hasBackgroundImage && (
+              <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
+            )}
+
+            {/* Content container */}
+            <div
+              className={cn(
+                'relative z-10 mx-auto max-w-4xl',
+                align.text
+              )}
+            >
+              <h1
+                className={cn(
+                  'text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl lg:text-6xl',
+                  hasBackgroundImage ? 'text-white' : 'text-foreground'
+                )}
               >
-                {btn.text}
-              </a>
-            ))}
+                {heading}
+              </h1>
+
+              {subheading && (
+                <p
+                  className={cn(
+                    'mt-4 text-lg sm:text-xl md:text-2xl',
+                    hasBackgroundImage ? 'text-white/90' : 'text-muted-foreground'
+                  )}
+                >
+                  {subheading}
+                </p>
+              )}
+
+              {/* CTA Buttons */}
+              {ctaButtons.length > 0 && (
+                <div
+                  className={cn(
+                    'mt-8 flex flex-col gap-3 sm:flex-row sm:gap-4',
+                    align.items
+                  )}
+                >
+                  {ctaButtons.map((btn, i) => (
+                    <Button
+                      key={i}
+                      variant={variantMap[btn.variant] || 'default'}
+                      size="lg"
+                      asChild
+                      className={cn(
+                        // Override colors for outline/secondary on dark backgrounds
+                        hasBackgroundImage && btn.variant !== 'primary' && 'border-white text-white hover:bg-white/20'
+                      )}
+                    >
+                      <a href={btn.href}>{btn.text}</a>
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ),
+        )
+      },
     },
 
     RichText: {
