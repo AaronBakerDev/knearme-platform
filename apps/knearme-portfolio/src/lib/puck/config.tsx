@@ -602,23 +602,36 @@ export const config: Config<Props> = {
         size: 'md',
         customSize: 32,
       },
-      render: ({ size, customSize }) => {
-        const sizeMap = { sm: 16, md: 32, lg: 64, xl: 96, custom: customSize }
-        return (
-          <div
-            style={{
-              height: `${sizeMap[size]}px`,
-              border: '1px dashed #e5e5e5',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#a0a0a0',
-              fontSize: '12px',
-            }}
-          >
-            Spacer ({sizeMap[size]}px)
-          </div>
-        )
+      render: ({ size, customSize, puck }) => {
+        /**
+         * Spacer block - adds configurable vertical space between content
+         * Shows a visible indicator in editor mode, renders as empty space on frontend
+         * @see PUCK-020 for acceptance criteria
+         */
+        const sizeMap: Record<string, number> = {
+          sm: 16,
+          md: 32,
+          lg: 64,
+          xl: 96,
+          custom: customSize,
+        }
+        const heightPx = sizeMap[size] ?? 32
+
+        // In editor mode, show dashed border indicator for visibility
+        // On frontend (Render component), show clean empty space
+        if (puck.isEditing) {
+          return (
+            <div
+              className="flex items-center justify-center border border-dashed border-muted-foreground/30 bg-muted/30 text-xs text-muted-foreground"
+              style={{ height: `${heightPx}px` }}
+            >
+              Spacer ({heightPx}px)
+            </div>
+          )
+        }
+
+        // Clean render for published pages - just empty vertical space
+        return <div aria-hidden="true" style={{ height: `${heightPx}px` }} />
       },
     },
 
