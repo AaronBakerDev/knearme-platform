@@ -99,7 +99,7 @@ function checkRateLimit(ip: string): boolean {
  */
 export async function GET(request: Request): Promise<NextResponse> {
   try {
-    const headersList = headers()
+    const headersList = await headers()
     const forwardedFor = headersList.get('x-forwarded-for')
     const ip = forwardedFor?.split(',')[0]?.trim() || headersList.get('x-real-ip') || 'unknown'
 

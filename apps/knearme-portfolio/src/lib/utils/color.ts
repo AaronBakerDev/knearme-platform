@@ -29,9 +29,12 @@ export function isColorDark(color: string): boolean {
   if (normalized.startsWith('#')) {
     const hex = normalized.slice(1)
     if (hex.length === 3) {
-      r = parseInt(hex[0] + hex[0], 16)
-      g = parseInt(hex[1] + hex[1], 16)
-      b = parseInt(hex[2] + hex[2], 16)
+      const h0 = hex[0] ?? '0'
+      const h1 = hex[1] ?? '0'
+      const h2 = hex[2] ?? '0'
+      r = parseInt(h0 + h0, 16)
+      g = parseInt(h1 + h1, 16)
+      b = parseInt(h2 + h2, 16)
       parsed = true
     } else if (hex.length === 6) {
       r = parseInt(hex.slice(0, 2), 16)
@@ -43,7 +46,7 @@ export function isColorDark(color: string): boolean {
 
   // Parse rgb/rgba
   const rgbMatch = normalized.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
-  if (rgbMatch) {
+  if (rgbMatch && rgbMatch[1] && rgbMatch[2] && rgbMatch[3]) {
     r = parseInt(rgbMatch[1], 10)
     g = parseInt(rgbMatch[2], 10)
     b = parseInt(rgbMatch[3], 10)
@@ -52,7 +55,7 @@ export function isColorDark(color: string): boolean {
 
   // Parse hsl/hsla
   const hslMatch = normalized.match(/hsla?\((\d+),\s*(\d+)%?,\s*(\d+)%?/)
-  if (hslMatch) {
+  if (hslMatch && hslMatch[3]) {
     const lightness = Number(hslMatch[3])
     return lightness < 50
   }
