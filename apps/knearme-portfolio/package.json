@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "pnpm run build:widget || echo 'Widget build failed, continuing...' && pnpm exec next build",
-    "build:widget": "cd mcp-server/widgets && pnpm install && pnpm run build",
+    "build:widget": "cd mcp-server/widgets && npm ci && npm run build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",

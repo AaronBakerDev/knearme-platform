@@ -207,7 +207,7 @@ test.describe('Puck Visual Editor - E2E Flow', () => {
    * Test 7: Puck editor components are loaded
    * Verifies editor CSS and config are available
    */
-  test('puck editor assets load', async ({ page, request }) => {
+  test('puck editor assets load', async ({ page, request: _request }) => {
     // Check that the app can import Puck components
     // This is verified by the build succeeding, but we can check the route
 

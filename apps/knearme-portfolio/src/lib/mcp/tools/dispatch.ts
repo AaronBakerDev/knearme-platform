@@ -28,8 +28,8 @@ import {
 } from './handlers';
 import type { ToolResult } from './shared';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ToolHandler = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   input: any,
   auth: AuthContext,
   baseUrl: string

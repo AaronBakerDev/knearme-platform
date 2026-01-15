@@ -128,7 +128,7 @@ const emptyData: Data = {
 export function PuckEditorClient({ slug }: PuckEditorClientProps) {
   const [data, setData] = useState<Data | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
+  const [_isSaving, setIsSaving] = useState(false)
   const isSavingRef = useRef(false)
 
   // Load existing page data on mount

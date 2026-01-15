@@ -559,7 +559,6 @@ async function getOrCreateCategories(payload: any): Promise<Map<string, string |
   return categoryMap
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function migrateArticle(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: any,

@@ -19,7 +19,6 @@ import {
   withToolSpan,
   setCurrentContext,
   getCurrentContext,
-  type CorrelationContext,
   type AgentLogEntry,
 } from '@/lib/observability/agent-logger';
 

@@ -14,13 +14,13 @@ import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } fro
 /**
  * Upload field referencing the media collection.
  * Uses type assertion because 'media' isn't in generated CollectionSlug yet.
- * TODO: Remove eslint-disable after running `npx payload generate:types`
+ * TODO: Remove type assertion after running `npx payload generate:types`
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mediaUploadField = (name: string, label: string, description: string): Field => ({
   name,
   type: 'upload',
   label,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   relationTo: 'media' as any,
   admin: { description },
 })

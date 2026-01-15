@@ -14,13 +14,13 @@ import { createRevalidateHook, createRevalidateDeleteHook, revalidatePaths } fro
 /**
  * Upload field referencing the media collection.
  * Uses type assertion because 'media' isn't in generated CollectionSlug yet.
- * TODO: Remove eslint-disable after running `npx payload generate:types`
+ * TODO: Remove type assertion after running `npx payload generate:types`
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mediaUploadField = (name: string, label: string, description: string): Field => ({
   name,
   type: 'upload',
   label,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   relationTo: 'media' as any,
   admin: { description },
 })
@@ -89,11 +89,11 @@ export const Categories: CollectionConfig = {
 
     // Hierarchy - self-referential relationship
     // Uses type assertion because 'categories' isn't in generated CollectionSlug yet
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     {
       name: 'parent',
       type: 'relationship',
       label: 'Parent Category',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       relationTo: 'categories' as any,
       admin: {
         description: 'Optional parent category for hierarchical organization',

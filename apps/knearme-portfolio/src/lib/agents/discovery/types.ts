@@ -1,5 +1,5 @@
 import type { CorrelationContext } from '@/lib/observability/agent-logger';
-import type { DiscoveredBusiness, GoogleReview } from '@/lib/tools/business-discovery';
+import type { DiscoveredBusiness } from '@/lib/tools/business-discovery';
 import type { WebSearchSource, SocialProfiles } from '../web-search';
 
 /**

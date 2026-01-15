@@ -38,36 +38,48 @@ type CityCard = {
 };
 
 async function getTopCities(limit: number = 18): Promise<CityCard[]> {
-  const supabase = createAdminClient();
-
-  const { data, error } = await supabase
-    .from('projects')
-    .select('city_slug')
-    .eq('status', 'published')
-    .not('city_slug', 'is', null);
-
-  if (error) {
-    logger.error('[ContractorsLanding] Error fetching cities', { error });
+  // Skip database queries if service role key is not configured (during builds)
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    logger.info('[ContractorsLanding] Skipping: SUPABASE_SERVICE_ROLE_KEY not configured');
     return [];
   }
 
-  type CityRow = { city_slug: string | null };
-  const rows = (data || []) as CityRow[];
+  try {
+    const supabase = createAdminClient();
 
-  const cityCounts = new Map<string, number>();
-  rows.forEach((row) => {
-    if (!row.city_slug) return;
-    cityCounts.set(row.city_slug, (cityCounts.get(row.city_slug) || 0) + 1);
-  });
+    const { data, error } = await supabase
+      .from('projects')
+      .select('city_slug')
+      .eq('status', 'published')
+      .not('city_slug', 'is', null);
 
-  return Array.from(cityCounts.entries())
-    .map(([slug, count]) => ({
-      slug,
-      name: formatCityName(slug),
-      projectCount: count,
-    }))
-    .sort((a, b) => b.projectCount - a.projectCount)
-    .slice(0, limit);
+    if (error) {
+      logger.error('[ContractorsLanding] Error fetching cities', { error });
+      return [];
+    }
+
+    type CityRow = { city_slug: string | null };
+    const rows = (data || []) as CityRow[];
+
+    const cityCounts = new Map<string, number>();
+    rows.forEach((row) => {
+      if (!row.city_slug) return;
+      cityCounts.set(row.city_slug, (cityCounts.get(row.city_slug) || 0) + 1);
+    });
+
+    return Array.from(cityCounts.entries())
+      .map(([slug, count]) => ({
+        slug,
+        name: formatCityName(slug),
+        projectCount: count,
+      }))
+      .sort((a, b) => b.projectCount - a.projectCount)
+      .slice(0, limit);
+  } catch (error) {
+    // Database unavailable during build - return empty array for dynamic rendering
+    logger.warn('[ContractorsLanding] Database unavailable, using dynamic generation', { error });
+    return [];
+  }
 }
 
 export default async function ContractorsLandingPage() {

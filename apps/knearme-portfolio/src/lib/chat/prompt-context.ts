@@ -65,8 +65,8 @@ export async function loadPromptContext({
 
   if (projectId) {
     // Load project with images in parallel
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [projectResult, imagesResult] = await Promise.all([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
         .from('projects')
         .select(
@@ -88,6 +88,7 @@ export async function loadPromptContext({
         .eq('id', projectId)
         .single(),
       // Fetch images separately to get metadata for agent context
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
         .from('project_images')
         .select('id, image_type, alt_text, display_order')

@@ -26,7 +26,6 @@ import { logger } from '@/lib/logging';
 import {
   createAgentLogger,
   createCorrelationContext,
-  type CorrelationContext,
 } from '@/lib/observability/agent-logger';
 import { getTelemetryConfig } from '@/lib/observability/langfuse';
 import type {

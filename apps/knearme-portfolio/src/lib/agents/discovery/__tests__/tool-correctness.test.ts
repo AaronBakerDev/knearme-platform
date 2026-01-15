@@ -20,7 +20,7 @@ import {
   isDiscoveryComplete,
 } from '../state';
 import { processDiscoveryToolCalls } from '../tool-processing';
-import type { DiscoveryState, DiscoveryReview } from '../types';
+import type { DiscoveryState } from '../types';
 
 describe('Discovery Agent Tool Correctness', () => {
   beforeEach(() => {

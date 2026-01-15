@@ -79,7 +79,7 @@ type ToolLeadsDatabase = Database & {
   };
 };
 
-type ToolLeadsClient = SupabaseClient<ToolLeadsDatabase>;
+type _ToolLeadsClient = SupabaseClient<ToolLeadsDatabase>;
 
 /**
  * POST /api/tools/export-pdf
