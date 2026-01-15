@@ -5,8 +5,110 @@
  * Uses Payload's CSS variables to maintain consistency with the
  * default theme while adding polish.
  *
+ * Brand colors aligned with KnearMe design system:
+ * - Primary teal: oklch(0.72 0.14 185) for buttons, links, active states
+ * - Dark theme with deep backgrounds matching frontend
+ * - Success/warning/error colors consistent with globals.css
+ *
  * @see https://payloadcms.com/docs/admin/customizing-css
+ * @see src/app/globals.css for design system reference
  */
+
+/* ==========================================================================
+   Brand Color Overrides
+   ========================================================================== */
+
+/**
+ * Primary color override: Teal brand color
+ *
+ * Payload uses --color-base-* for primary accent colors (default blue).
+ * We override with our teal brand color for visual consistency.
+ *
+ * OKLCH values converted to HSL for broader compatibility:
+ * oklch(0.72 0.14 185) ≈ hsl(180, 70%, 40%)
+ */
+:root {
+  /* Primary brand teal (replacing Payload's default blue) */
+  --color-base-100: hsl(180, 60%, 92%);
+  --color-base-150: hsl(180, 58%, 85%);
+  --color-base-200: hsl(180, 55%, 78%);
+  --color-base-250: hsl(180, 52%, 70%);
+  --color-base-300: hsl(180, 50%, 62%);
+  --color-base-350: hsl(180, 48%, 55%);
+  --color-base-400: hsl(180, 55%, 48%);
+  --color-base-450: hsl(180, 60%, 44%);
+  --color-base-500: hsl(180, 70%, 40%);
+  --color-base-550: hsl(180, 72%, 36%);
+  --color-base-600: hsl(180, 75%, 32%);
+  --color-base-650: hsl(180, 78%, 28%);
+  --color-base-700: hsl(180, 80%, 24%);
+  --color-base-750: hsl(180, 82%, 20%);
+  --color-base-800: hsl(180, 85%, 16%);
+  --color-base-850: hsl(180, 88%, 12%);
+  --color-base-900: hsl(180, 90%, 8%);
+  --color-base-950: hsl(180, 92%, 4%);
+  --color-base-1000: hsl(180, 95%, 2%);
+
+  /* RGB values for box-shadow/alpha usage */
+  --color-base-500-rgb: 31, 173, 173;
+
+  /* Success colors (sage green from design system) */
+  --theme-success-100: hsl(145, 30%, 92%);
+  --theme-success-200: hsl(145, 35%, 80%);
+  --theme-success-300: hsl(145, 40%, 65%);
+  --theme-success-400: hsl(145, 45%, 50%);
+  --theme-success-500: hsl(145, 50%, 40%);
+
+  /* Warning colors (amber from design system) */
+  --theme-warning-100: hsl(45, 90%, 92%);
+  --theme-warning-200: hsl(45, 85%, 80%);
+  --theme-warning-300: hsl(45, 80%, 65%);
+  --theme-warning-400: hsl(45, 75%, 50%);
+  --theme-warning-500: hsl(40, 80%, 45%);
+
+  /* Error colors (matching --destructive from globals.css) */
+  --theme-error-100: hsl(25, 90%, 92%);
+  --theme-error-200: hsl(25, 85%, 80%);
+  --theme-error-300: hsl(25, 80%, 65%);
+  --theme-error-400: hsl(25, 75%, 55%);
+  --theme-error-500: hsl(25, 80%, 50%);
+}
+
+/**
+ * Dark theme elevation overrides
+ *
+ * Aligns Payload's dark theme with frontend dark background.
+ * Uses similar color values to globals.css for consistency.
+ */
+[data-theme='dark'] {
+  /* Deep background colors matching frontend (oklch(0.12-0.28 0.01 260)) */
+  --theme-elevation-0: hsl(260, 8%, 8%);
+  --theme-elevation-50: hsl(260, 7%, 10%);
+  --theme-elevation-100: hsl(260, 6%, 12%);
+  --theme-elevation-150: hsl(260, 5%, 15%);
+  --theme-elevation-200: hsl(260, 4%, 18%);
+  --theme-elevation-250: hsl(260, 3%, 21%);
+  --theme-elevation-300: hsl(260, 3%, 24%);
+  --theme-elevation-350: hsl(260, 2%, 28%);
+  --theme-elevation-400: hsl(260, 2%, 32%);
+  --theme-elevation-450: hsl(260, 2%, 38%);
+  --theme-elevation-500: hsl(260, 2%, 45%);
+  --theme-elevation-550: hsl(260, 2%, 52%);
+  --theme-elevation-600: hsl(260, 2%, 60%);
+  --theme-elevation-650: hsl(260, 1%, 68%);
+  --theme-elevation-700: hsl(260, 1%, 75%);
+  --theme-elevation-750: hsl(260, 1%, 82%);
+  --theme-elevation-800: hsl(260, 1%, 88%);
+  --theme-elevation-850: hsl(260, 1%, 92%);
+  --theme-elevation-900: hsl(260, 1%, 95%);
+  --theme-elevation-950: hsl(260, 1%, 97%);
+  --theme-elevation-1000: hsl(260, 1%, 99%);
+
+  /* Teal accent adjustments for dark mode (brighter for visibility) */
+  --color-base-500: hsl(180, 65%, 45%);
+  --color-base-400: hsl(180, 60%, 50%);
+  --color-base-500-rgb: 41, 186, 186;
+}
 
 /* ==========================================================================
    Dashboard Enhancements
