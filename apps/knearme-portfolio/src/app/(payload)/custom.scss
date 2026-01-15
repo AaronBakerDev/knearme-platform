@@ -342,6 +342,187 @@ h1, h2, h3, h4 {
 }
 
 /* ==========================================================================
+   Skeleton Loaders (PAYLOAD-006)
+   ========================================================================== */
+
+/**
+ * Skeleton loader animation
+ *
+ * Creates a shimmer effect for loading placeholders.
+ * Uses gradient animation for a polished loading experience.
+ *
+ * @see PAYLOAD-006 in PRD for acceptance criteria
+ */
+@keyframes skeleton-pulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/**
+ * Base skeleton class
+ * Apply to any element that should show loading state
+ */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--theme-elevation-150) 0%,
+    var(--theme-elevation-200) 25%,
+    var(--theme-elevation-150) 50%,
+    var(--theme-elevation-200) 75%,
+    var(--theme-elevation-150) 100%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-pulse 1.8s ease-in-out infinite;
+  border-radius: var(--style-radius-s);
+}
+
+/**
+ * Skeleton text variants
+ * Pre-sized skeletons for common text elements
+ */
+.skeleton-text {
+  height: 1em;
+  width: 100%;
+}
+
+.skeleton-text--sm {
+  height: 0.75em;
+  width: 60%;
+}
+
+.skeleton-text--lg {
+  height: 1.5em;
+  width: 80%;
+}
+
+.skeleton-text--xl {
+  height: 2em;
+  width: 40%;
+}
+
+/**
+ * Skeleton stat card
+ * Matches StatCard dimensions for dashboard loading
+ */
+.skeleton-stat {
+  height: 6.5rem;
+  width: 100%;
+}
+
+/**
+ * Skeleton avatar/icon
+ * Circular skeleton for profile images or icons
+ */
+.skeleton-avatar {
+  border-radius: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.skeleton-avatar--sm {
+  width: 2rem;
+  height: 2rem;
+}
+
+.skeleton-avatar--lg {
+  width: 3rem;
+  height: 3rem;
+}
+
+/**
+ * Skeleton thumbnail
+ * Square aspect ratio for media thumbnails
+ */
+.skeleton-thumbnail {
+  aspect-ratio: 1;
+  width: 100%;
+}
+
+/* ==========================================================================
+   Empty States (PAYLOAD-006)
+   ========================================================================== */
+
+/**
+ * Empty state container
+ *
+ * Centered layout for displaying when no content exists.
+ * Includes icon placeholder, title, description, and optional CTA.
+ *
+ * @see PAYLOAD-006 in PRD for acceptance criteria
+ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 2rem;
+  min-height: 12rem;
+}
+
+/**
+ * Empty state icon container
+ * Large, muted icon to visually indicate empty content
+ */
+.empty-state__icon {
+  width: 4rem;
+  height: 4rem;
+  margin-bottom: 1rem;
+  color: var(--theme-elevation-400);
+  opacity: 0.6;
+}
+
+/**
+ * Empty state title
+ */
+.empty-state__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--theme-elevation-800);
+  margin: 0 0 0.5rem;
+}
+
+/**
+ * Empty state description
+ */
+.empty-state__description {
+  font-size: 0.875rem;
+  color: var(--theme-elevation-500);
+  margin: 0 0 1.5rem;
+  max-width: 24rem;
+  line-height: 1.5;
+}
+
+/**
+ * Empty state CTA button
+ * Styled consistently with Payload's secondary button
+ */
+.empty-state__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--theme-elevation-800);
+  background-color: var(--theme-elevation-100);
+  border: 1px solid var(--theme-elevation-200);
+  border-radius: var(--style-radius-s);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--theme-elevation-150);
+    border-color: var(--theme-elevation-250);
+  }
+}
+
+/* ==========================================================================
    Dark Mode Adjustments
    ========================================================================== */
 
@@ -393,6 +574,47 @@ h1, h2, h3, h4 {
 
     &:hover {
       background-color: rgba(var(--color-base-500-rgb), 0.16);
+    }
+  }
+
+  /**
+   * Dark mode skeleton adjustments
+   * Uses darker base colors for better visibility
+   */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--theme-elevation-200) 0%,
+      var(--theme-elevation-250) 25%,
+      var(--theme-elevation-200) 50%,
+      var(--theme-elevation-250) 75%,
+      var(--theme-elevation-200) 100%
+    );
+  }
+
+  /**
+   * Dark mode empty state adjustments
+   */
+  .empty-state__title {
+    color: var(--theme-elevation-850);
+  }
+
+  .empty-state__description {
+    color: var(--theme-elevation-550);
+  }
+
+  .empty-state__icon {
+    color: var(--theme-elevation-450);
+  }
+
+  .empty-state__cta {
+    color: var(--theme-elevation-850);
+    background-color: var(--theme-elevation-150);
+    border-color: var(--theme-elevation-250);
+
+    &:hover {
+      background-color: var(--theme-elevation-200);
+      border-color: var(--theme-elevation-300);
     }
   }
 }
