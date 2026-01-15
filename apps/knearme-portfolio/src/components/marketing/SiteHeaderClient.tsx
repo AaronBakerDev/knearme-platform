@@ -400,12 +400,10 @@ export function SiteHeaderClient({ isAuthenticated, hasCompleteProfile }: SiteHe
                   </>
                 ) : (
                   <>
-                    <Link
-                      href="/login"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="text-base text-muted-foreground hover:text-foreground transition-colors py-2"
-                    >
-                      Sign In
+                    <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="outline" className="w-full rounded-full">
+                        Sign In
+                      </Button>
                     </Link>
                     <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
                       <Button className="w-full rounded-full">Get Started</Button>
