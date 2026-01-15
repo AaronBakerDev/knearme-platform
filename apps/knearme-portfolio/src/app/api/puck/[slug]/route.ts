@@ -1,14 +1,16 @@
 /**
- * Puck Pages API - Save and Load Visual Page Data
+ * Puck Pages API - CRUD Operations for Visual Page Data
  *
- * Provides CRUD operations for Puck editor page data.
- * All write operations require Payload authentication.
+ * Provides full CRUD operations for Puck editor page data.
+ * All operations require Payload authentication.
  *
  * Endpoints:
  * - GET /api/puck/[slug] - Get page data by slug (authenticated only)
  * - POST /api/puck/[slug] - Create or update page data (authenticated only)
+ * - DELETE /api/puck/[slug] - Delete page by slug (authenticated only)
  *
- * @see PUCK-006 in PRD for acceptance criteria
+ * @see PUCK-006 in PRD for GET/POST acceptance criteria
+ * @see PUCK-037 in PRD for DELETE acceptance criteria
  * @see src/types/puck.ts for Zod validation schemas
  */
 
@@ -230,4 +232,133 @@ export async function POST(
       { status: 500 }
     )
   }
+}
+
+/**
+ * DELETE /api/puck/[slug]
+ *
+ * Delete a page by slug.
+ * Requires Payload authentication.
+ * Triggers ISR revalidation to remove the page from public routes.
+ *
+ * Returns:
+ * - 200: Page deleted successfully
+ * - 401: Not authenticated
+ * - 404: Page not found
+ * - 500: Server error
+ *
+ * @see PUCK-037 in PRD for acceptance criteria
+ * @see src/payload/hooks/revalidate.ts for revalidation patterns
+ */
+export async function DELETE(
+  request: Request,
+  context: RouteContext
+): Promise<NextResponse> {
+  try {
+    const { slug } = await context.params
+
+    if (!slug) {
+      return NextResponse.json(
+        { error: 'Slug is required' },
+        { status: 400 }
+      )
+    }
+
+    // Initialize Payload and check authentication
+    const payload = await getPayload({ config })
+    const { user } = await payload.auth({ headers: await headers() })
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Find the page by slug
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { docs } = await (payload as any).find({
+      collection: 'puck-pages',
+      where: {
+        slug: { equals: slug },
+      },
+      limit: 1,
+    })
+
+    if (!docs || docs.length === 0) {
+      return NextResponse.json(
+        { error: 'Page not found' },
+        { status: 404 }
+      )
+    }
+
+    const page = docs[0]
+
+    // Delete the page
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (payload as any).delete({
+      collection: 'puck-pages',
+      id: page.id,
+    })
+
+    // Trigger ISR revalidation for the deleted page's public URL
+    // This ensures the page returns 404 immediately on the public route
+    // Fire and forget - don't block the response
+    triggerPageRevalidation(slug).catch((error) => {
+      console.error('[DELETE /api/puck/[slug]] Revalidation error:', error)
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Page deleted successfully',
+      slug,
+    })
+  } catch (error) {
+    console.error('[DELETE /api/puck/[slug]] Error:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete page' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * Trigger ISR revalidation for a Puck page.
+ * Revalidates both the page URL and sitemap.
+ *
+ * @param slug - The page slug to revalidate
+ */
+async function triggerPageRevalidation(slug: string): Promise<void> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const secret = process.env.REVALIDATION_SECRET || process.env.PAYLOAD_SECRET || ''
+
+  if (!secret) {
+    console.warn('[DELETE /api/puck/[slug]] No revalidation secret configured, skipping')
+    return
+  }
+
+  // Paths to revalidate: the page URL and sitemap
+  // @see src/payload/hooks/revalidate.ts revalidatePaths.puckPage for the same paths
+  const paths = [`/p/${slug}`, '/sitemap-main.xml']
+
+  const revalidationPromises = paths.map(async (path) => {
+    try {
+      const response = await fetch(`${siteUrl}/api/revalidate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path, secret, type: 'puck-page-delete' }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error(`[DELETE /api/puck/[slug]] Failed to revalidate ${path}:`, error)
+      } else {
+        console.log(`[DELETE /api/puck/[slug]] Successfully revalidated: ${path}`)
+      }
+    } catch (error) {
+      console.warn(`[DELETE /api/puck/[slug]] Could not reach revalidation endpoint for ${path}:`, error)
+    }
+  })
+
+  await Promise.all(revalidationPromises)
 }

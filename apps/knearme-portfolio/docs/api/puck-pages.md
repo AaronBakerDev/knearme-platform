@@ -21,9 +21,7 @@ All write operations require Payload CMS authentication. Include session cookies
 
 ### GET /api/puck
 
-> **Note**: This endpoint is planned but not yet implemented. See PUCK-036 in the PRD.
-
-List all Puck pages with optional filtering.
+List all Puck pages with optional filtering and pagination.
 
 **Authentication**: Required
 
@@ -41,6 +39,7 @@ List all Puck pages with optional filtering.
       "slug": "about",
       "title": "About Us",
       "status": "published",
+      "createdAt": "2026-01-14T12:00:00.000Z",
       "updatedAt": "2026-01-14T18:30:00.000Z"
     },
     {
@@ -48,29 +47,33 @@ List all Puck pages with optional filtering.
       "slug": "pricing",
       "title": "Pricing",
       "status": "draft",
+      "createdAt": "2026-01-14T10:00:00.000Z",
       "updatedAt": "2026-01-14T17:00:00.000Z"
     }
   ],
   "totalDocs": 25,
   "page": 1,
   "totalPages": 3,
+  "limit": 10,
   "hasNextPage": true,
   "hasPrevPage": false
 }
 ```
 
+**Note**: The `puckData` field is excluded from list responses for efficiency. Use `GET /api/puck/[slug]` to retrieve full page data.
+
 **Error Responses**:
 - `401`: Authentication required
 - `500`: Server error
 
-**curl Example** (when implemented):
+**curl Example**:
 ```bash
 # List all pages
 curl "https://knearme.co/api/puck" \
   -H "Cookie: payload-token=YOUR_SESSION_TOKEN"
 
-# Filter by published status
-curl "https://knearme.co/api/puck?status=published&limit=20" \
+# Filter by published status with pagination
+curl "https://knearme.co/api/puck?status=published&page=2&limit=20" \
   -H "Cookie: payload-token=YOUR_SESSION_TOKEN"
 ```
 
@@ -209,9 +212,7 @@ curl -X POST "https://knearme.co/api/puck/about" \
 
 ### DELETE /api/puck/[slug]
 
-> **Note**: This endpoint is planned but not yet implemented. See PUCK-037 in the PRD.
-
-Delete a page by slug.
+Delete a page by slug. Triggers ISR revalidation to ensure the public URL returns 404 immediately.
 
 **Authentication**: Required
 
@@ -228,15 +229,29 @@ Delete a page by slug.
 ```
 
 **Error Responses**:
+- `400`: Slug is required
 - `401`: Authentication required
 - `404`: Page not found
 - `500`: Server error
 
-**curl Example** (when implemented):
+**curl Example**:
 ```bash
+# Delete a page
 curl -X DELETE "https://knearme.co/api/puck/about" \
   -H "Cookie: payload-token=YOUR_SESSION_TOKEN"
+
+# Response
+{
+  "success": true,
+  "message": "Page deleted successfully",
+  "slug": "about"
+}
 ```
+
+**Side Effects**:
+- Triggers ISR revalidation for `/p/[slug]` (the public URL)
+- Triggers sitemap revalidation (`/sitemap-main.xml`)
+- The public page URL will return 404 after deletion
 
 ---
 
