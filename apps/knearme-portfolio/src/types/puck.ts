@@ -32,12 +32,15 @@ export interface CTAButtonConfig {
  * Media reference from Payload CMS
  * Used for images from the Media collection
  */
-export interface PayloadMediaRef {
+export interface MediaRef {
   id: string
   url: string
   alt: string
   width?: number
   height?: number
+  thumbnailUrl?: string
+  mimeType?: string
+  filename?: string
 }
 
 // ============================================================================
@@ -85,7 +88,7 @@ export interface SpacerBlockProps {
 export interface HeroBlockProps {
   heading: string
   subheading: string
-  backgroundImage: PayloadMediaRef | null
+  backgroundImage: MediaRef | null
   alignment: 'left' | 'center' | 'right'
   ctaButtons: CTAButtonConfig[]
 }
@@ -114,7 +117,7 @@ export interface HeadingBlockProps {
  * @category Content
  */
 export interface ImageBlockProps {
-  image: PayloadMediaRef | null
+  image: MediaRef | null
   alt: string
   caption: string
   size: 'small' | 'medium' | 'large' | 'full'
@@ -145,6 +148,7 @@ export interface FeaturesGridBlockProps {
     icon: string
     title: string
     description: string
+    featured?: boolean
   }>
   columns: 2 | 3 | 4
   iconStyle: 'filled' | 'outlined'
@@ -159,7 +163,7 @@ export interface TestimonialsBlockProps {
     quote: string
     author: string
     title: string
-    avatar: PayloadMediaRef | null
+    avatar: MediaRef | null
   }>
   layout: 'carousel' | 'grid'
   showAvatar: boolean
@@ -264,7 +268,7 @@ export interface TableBlockProps {
  * @category Blog
  */
 export interface ImageGalleryBlockProps {
-  images: PayloadMediaRef[]
+  images: MediaRef[]
   columns: 2 | 3 | 4
   lightbox: boolean
 }

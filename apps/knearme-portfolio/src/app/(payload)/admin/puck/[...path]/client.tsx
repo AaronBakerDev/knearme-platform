@@ -12,7 +12,7 @@
 import { Puck, createUsePuck, type Data } from '@puckeditor/core'
 import '@puckeditor/core/puck.css'
 import '@/styles/puck-theme.css'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ArrowLeft, FileText } from 'lucide-react'
 
@@ -129,6 +129,7 @@ export function PuckEditorClient({ slug }: PuckEditorClientProps) {
   const [data, setData] = useState<Data | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const isSavingRef = useRef(false)
 
   // Load existing page data on mount
   useEffect(() => {
@@ -160,8 +161,9 @@ export function PuckEditorClient({ slug }: PuckEditorClientProps) {
   // Handle publish - save to API
   const handlePublish = useCallback(
     async (publishData: Data) => {
-      if (isSaving) return
+      if (isSavingRef.current) return
 
+      isSavingRef.current = true
       setIsSaving(true)
       try {
         const response = await fetch(`/api/puck/${slug}`, {
@@ -186,10 +188,11 @@ export function PuckEditorClient({ slug }: PuckEditorClientProps) {
         console.error('Error saving page:', error)
         toast.error(error instanceof Error ? error.message : 'Failed to save page')
       } finally {
+        isSavingRef.current = false
         setIsSaving(false)
       }
     },
-    [slug, isSaving]
+    [slug]
   )
 
   // Show loading state

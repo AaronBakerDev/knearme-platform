@@ -10,7 +10,7 @@
  * - Hover overlay with filename and file size
  * - Click navigates to media detail page
  * - Empty state with helpful message
- * - Dark mode support via Payload theme detection
+ * - Dark mode support via CSS variables
  *
  * @example
  * ```tsx
@@ -26,7 +26,7 @@
  */
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 
 /**
  * Media item shape matching Payload's Media collection
@@ -99,8 +99,7 @@ const isImage = (mimeType?: string): boolean => {
 const MediaThumbnail: React.FC<{
   item: MediaItem
   baseUrl: string
-  isDark: boolean
-}> = ({ item, baseUrl, isDark }) => {
+}> = ({ item, baseUrl }) => {
   const [isHovered, setIsHovered] = useState(false)
 
   // Use thumbnail size if available, fall back to card, then full URL
@@ -113,21 +112,13 @@ const MediaThumbnail: React.FC<{
     borderRadius: 'var(--style-radius-m, 8px)',
     overflow: 'hidden',
     cursor: 'pointer',
-    backgroundColor: isDark
-      ? 'hsl(260, 5%, 18%)'
-      : 'hsl(0, 0%, 96%)',
-    border: `1px solid ${
-      isDark
-        ? 'hsl(260, 3%, 25%)'
-        : 'hsl(0, 0%, 90%)'
-    }`,
+    backgroundColor: 'var(--media-grid-thumb-bg)',
+    border: '1px solid var(--media-grid-thumb-border)',
     transition: 'all 0.2s ease',
     transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
     boxShadow: isHovered
-      ? isDark
-        ? '0 8px 24px rgba(0, 0, 0, 0.4)'
-        : '0 8px 24px rgba(0, 0, 0, 0.12)'
-      : '0 1px 3px rgba(0, 0, 0, 0.05)',
+      ? 'var(--media-grid-thumb-hover-shadow)'
+      : 'var(--media-grid-thumb-shadow)',
   }
 
   const imageStyle: React.CSSProperties = {
@@ -143,16 +134,14 @@ const MediaThumbnail: React.FC<{
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: isDark ? 'hsl(260, 5%, 50%)' : 'hsl(0, 0%, 60%)',
+    color: 'var(--media-grid-thumb-placeholder)',
     fontSize: '2rem',
   }
 
   const overlayStyle: React.CSSProperties = {
     position: 'absolute',
     inset: 0,
-    background: isDark
-      ? 'linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0) 50%)'
-      : 'linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0) 50%)',
+    background: 'var(--media-grid-thumb-overlay)',
     opacity: isHovered ? 1 : 0,
     transition: 'opacity 0.2s ease',
     display: 'flex',
@@ -224,7 +213,7 @@ const MediaThumbnail: React.FC<{
 /**
  * Empty state component when no media items exist
  */
-const EmptyState: React.FC<{ isDark: boolean }> = ({ isDark }) => {
+const EmptyState: React.FC = () => {
   const containerStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
@@ -232,13 +221,9 @@ const EmptyState: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     justifyContent: 'center',
     padding: '4rem 2rem',
     textAlign: 'center',
-    backgroundColor: isDark
-      ? 'hsl(260, 5%, 14%)'
-      : 'hsl(0, 0%, 98%)',
+    backgroundColor: 'var(--media-grid-empty-bg)',
     borderRadius: 'var(--style-radius-l, 12px)',
-    border: `1px dashed ${
-      isDark ? 'hsl(260, 5%, 25%)' : 'hsl(0, 0%, 85%)'
-    }`,
+    border: '1px dashed var(--media-grid-empty-border)',
   }
 
   const iconStyle: React.CSSProperties = {
@@ -250,13 +235,13 @@ const EmptyState: React.FC<{ isDark: boolean }> = ({ isDark }) => {
   const titleStyle: React.CSSProperties = {
     fontSize: '1.125rem',
     fontWeight: 600,
-    color: isDark ? 'hsl(260, 5%, 85%)' : 'hsl(0, 0%, 20%)',
+    color: 'var(--media-grid-empty-title)',
     margin: '0 0 0.5rem 0',
   }
 
   const descStyle: React.CSSProperties = {
     fontSize: '0.875rem',
-    color: isDark ? 'hsl(260, 5%, 55%)' : 'hsl(0, 0%, 50%)',
+    color: 'var(--media-grid-empty-desc)',
     margin: 0,
     maxWidth: '300px',
   }
@@ -276,35 +261,13 @@ const EmptyState: React.FC<{ isDark: boolean }> = ({ isDark }) => {
  * MediaGridView Component
  *
  * Displays media items in a responsive thumbnail grid.
- * Automatically adapts to light/dark theme via CSS media query detection.
+ * Automatically adapts to light/dark theme via CSS variables.
  */
 export const MediaGridView: React.FC<MediaGridViewProps> = ({
   items,
   baseUrl = '/admin/collections/media',
   className,
 }) => {
-  const [isDark, setIsDark] = useState(false)
-
-  useEffect(() => {
-    // Check for Payload's dark theme attribute
-    const checkTheme = () => {
-      const isDarkTheme =
-        document.documentElement.getAttribute('data-theme') === 'dark'
-      setIsDark(isDarkTheme)
-    }
-
-    checkTheme()
-
-    // Observer for theme changes
-    const observer = new MutationObserver(checkTheme)
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme'],
-    })
-
-    return () => observer.disconnect()
-  }, [])
-
   const gridStyle: React.CSSProperties = {
     display: 'grid',
     // Responsive: 1 col mobile, 2 cols tablet (600px+), 3 cols desktop (900px+)
@@ -315,7 +278,7 @@ export const MediaGridView: React.FC<MediaGridViewProps> = ({
 
   // Handle empty state
   if (!items || items.length === 0) {
-    return <EmptyState isDark={isDark} />
+    return <EmptyState />
   }
 
   return (
@@ -325,7 +288,6 @@ export const MediaGridView: React.FC<MediaGridViewProps> = ({
           key={item.id}
           item={item}
           baseUrl={baseUrl}
-          isDark={isDark}
         />
       ))}
     </div>

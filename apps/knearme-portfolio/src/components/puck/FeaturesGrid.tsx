@@ -289,11 +289,6 @@ export function PuckFeaturesGrid({
     },
   }
 
-  // For bento layout, mark first item as featured
-  const processedItems = variant === 'bento'
-    ? items.map((item, i) => ({ ...item, featured: i === 0 }))
-    : items
-
   return (
     <motion.div
       ref={containerRef}
@@ -302,7 +297,7 @@ export function PuckFeaturesGrid({
       initial={shouldAnimate ? 'hidden' : 'visible'}
       animate={isInView ? 'visible' : 'hidden'}
     >
-      {processedItems.map((item, i) => (
+      {items.map((item, i) => (
         <FeatureCard
           key={i}
           item={item}
@@ -310,7 +305,7 @@ export function PuckFeaturesGrid({
           variant={variant}
           shouldAnimate={shouldAnimate}
           index={i}
-          isFeatured={item.featured}
+          isFeatured={variant === 'bento' && Boolean(item.featured)}
         />
       ))}
     </motion.div>

@@ -17,6 +17,8 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { isColorDark } from '@/lib/utils/color'
+import type { MediaRef } from '@/types/puck'
 import {
   animations,
   gradients,
@@ -32,13 +34,6 @@ export interface CTAButtonConfig {
   text: string
   href: string
   variant: 'primary' | 'secondary' | 'outline'
-}
-
-export interface MediaRef {
-  url: string
-  alt?: string
-  width?: number
-  height?: number
 }
 
 export type BackgroundType = 'solid' | 'gradient' | 'image' | 'pattern'
@@ -158,15 +153,7 @@ export function PuckHero({
     if (backgroundType === 'pattern') return true
     // For solid backgrounds, check if it's a dark color
     if (backgroundColor) {
-      const color = backgroundColor.toLowerCase()
-      return (
-        color.startsWith('#0') ||
-        color.startsWith('#1') ||
-        color.startsWith('#2') ||
-        color.startsWith('#3') ||
-        color.includes('dark') ||
-        color.includes('black')
-      )
+      return isColorDark(backgroundColor)
     }
     return false
   }

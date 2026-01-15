@@ -18,6 +18,7 @@ import { motion, useInView, useReducedMotion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { animations } from '@/lib/puck/design-system'
+import { isColorDark } from '@/lib/utils/color'
 
 /**
  * CTA button configuration from Puck config
@@ -106,11 +107,7 @@ export function PuckCTABanner({
   const shouldReduceMotion = useReducedMotion() ?? false
 
   // Determine if background is dark for contrast calculations
-  // Simple heuristic: if not white/transparent-ish, assume dark
-  const isDarkBg =
-    backgroundColor &&
-    backgroundColor !== 'transparent' &&
-    !backgroundColor.match(/^#f|^white|^rgb\(2[45]\d/i)
+  const isDarkBg = isColorDark(backgroundColor)
 
   return (
     <motion.div

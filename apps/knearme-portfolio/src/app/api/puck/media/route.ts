@@ -11,12 +11,14 @@
  * - query: Search term (searches alt text, filename, caption)
  * - folder: Filter by folder
  * - limit: Number of results (default: 50, max: 100)
+ * - page: Page number (default: 1)
  *
  * @see PUCK-010 in PRD for acceptance criteria
  * @see src/payload/collections/Media.ts for Media collection structure
  */
 
 import { NextResponse } from 'next/server'
+import { headers } from 'next/headers'
 import { getPayload } from 'payload'
 import config from '@/payload/payload.config'
 import type { Where } from 'payload'
@@ -58,6 +60,27 @@ interface MediaListItem {
   thumbnailUrl?: string
 }
 
+const rateLimitMap = new Map<string, { count: number; timestamp: number }>()
+const RATE_LIMIT = 60 // requests per minute
+const WINDOW_MS = 60_000 // 1 minute
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const record = rateLimitMap.get(ip)
+
+  if (!record || now - record.timestamp > WINDOW_MS) {
+    rateLimitMap.set(ip, { count: 1, timestamp: now })
+    return true
+  }
+
+  if (record.count >= RATE_LIMIT) {
+    return false
+  }
+
+  record.count += 1
+  return true
+}
+
 /**
  * GET /api/puck/media
  *
@@ -68,6 +91,7 @@ interface MediaListItem {
  * - query: Search term (optional)
  * - folder: Filter by folder (optional)
  * - limit: Max results (optional, default 50)
+ * - page: Page number (optional, default 1)
  *
  * Returns:
  * - 200: Array of media items formatted for Puck external field
@@ -75,10 +99,30 @@ interface MediaListItem {
  */
 export async function GET(request: Request): Promise<NextResponse> {
   try {
+    const headersList = headers()
+    const forwardedFor = headersList.get('x-forwarded-for')
+    const ip = forwardedFor?.split(',')[0]?.trim() || headersList.get('x-real-ip') || 'unknown'
+
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Try again later.' },
+        { status: 429 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('query') || ''
     const folder = searchParams.get('folder') || ''
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100)
+    const limitParam = searchParams.get('limit')
+    const parsedLimit = limitParam ? parseInt(limitParam, 10) : 50
+    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0
+      ? Math.min(parsedLimit, 100)
+      : 50
+    const pageParam = searchParams.get('page')
+    const parsedPage = pageParam ? parseInt(pageParam, 10) : 1
+    const page = Number.isFinite(parsedPage) && parsedPage > 0
+      ? parsedPage
+      : 1
 
     const payload = await getPayload({ config })
 
@@ -109,6 +153,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       collection: 'media',
       where: Object.keys(whereConditions).length > 0 ? whereConditions : undefined,
       limit,
+      page,
       sort: '-createdAt', // Most recent first
     })
 

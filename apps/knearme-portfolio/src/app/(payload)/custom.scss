@@ -72,6 +72,34 @@
   --theme-error-300: hsl(25, 80%, 65%);
   --theme-error-400: hsl(25, 75%, 55%);
   --theme-error-500: hsl(25, 80%, 50%);
+
+  /* Status badge colors */
+  --status-draft-bg: hsl(45, 90%, 95%);
+  --status-draft-text: hsl(40, 80%, 35%);
+  --status-draft-dot: hsl(45, 90%, 50%);
+  --status-draft-border: hsl(45, 70%, 85%);
+
+  --status-published-bg: hsl(145, 40%, 94%);
+  --status-published-text: hsl(145, 55%, 28%);
+  --status-published-dot: hsl(145, 50%, 40%);
+  --status-published-border: hsl(145, 35%, 85%);
+
+  --status-archived-bg: hsl(260, 2%, 94%);
+  --status-archived-text: hsl(260, 2%, 40%);
+  --status-archived-dot: hsl(260, 2%, 45%);
+  --status-archived-border: hsl(260, 2%, 85%);
+
+  /* Media grid colors */
+  --media-grid-thumb-bg: hsl(0, 0%, 96%);
+  --media-grid-thumb-border: hsl(0, 0%, 90%);
+  --media-grid-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --media-grid-thumb-hover-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --media-grid-thumb-placeholder: hsl(0, 0%, 60%);
+  --media-grid-thumb-overlay: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0) 50%);
+  --media-grid-empty-bg: hsl(0, 0%, 98%);
+  --media-grid-empty-border: hsl(0, 0%, 85%);
+  --media-grid-empty-title: hsl(0, 0%, 20%);
+  --media-grid-empty-desc: hsl(0, 0%, 50%);
 }
 
 /**
@@ -108,6 +136,34 @@
   --color-base-500: hsl(180, 65%, 45%);
   --color-base-400: hsl(180, 60%, 50%);
   --color-base-500-rgb: 41, 186, 186;
+
+  /* Status badge colors - dark mode */
+  --status-draft-bg: hsla(45, 60%, 25%, 0.3);
+  --status-draft-text: hsl(45, 80%, 70%);
+  --status-draft-dot: hsl(45, 85%, 55%);
+  --status-draft-border: hsla(45, 50%, 40%, 0.4);
+
+  --status-published-bg: hsla(145, 40%, 25%, 0.3);
+  --status-published-text: hsl(145, 50%, 65%);
+  --status-published-dot: hsl(145, 55%, 50%);
+  --status-published-border: hsla(145, 40%, 40%, 0.4);
+
+  --status-archived-bg: hsla(260, 2%, 30%, 0.4);
+  --status-archived-text: hsl(260, 2%, 70%);
+  --status-archived-dot: hsl(260, 2%, 55%);
+  --status-archived-border: hsla(260, 2%, 45%, 0.4);
+
+  /* Media grid colors - dark mode */
+  --media-grid-thumb-bg: hsl(260, 5%, 18%);
+  --media-grid-thumb-border: hsl(260, 3%, 25%);
+  --media-grid-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --media-grid-thumb-hover-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --media-grid-thumb-placeholder: hsl(260, 5%, 50%);
+  --media-grid-thumb-overlay: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0) 50%);
+  --media-grid-empty-bg: hsl(260, 5%, 14%);
+  --media-grid-empty-border: hsl(260, 5%, 25%);
+  --media-grid-empty-title: hsl(260, 5%, 85%);
+  --media-grid-empty-desc: hsl(260, 5%, 55%);
 }
 
 /* ==========================================================================
@@ -125,13 +181,15 @@
  * Card styling improvements
  * Applies to collection cards and custom cards
  */
-.card {
-  transition: all 0.2s ease;
-  border: 1px solid var(--theme-elevation-150);
+[data-payload-admin] {
+  .card {
+    transition: all 0.2s ease;
+    border: 1px solid var(--theme-elevation-150);
 
-  &:hover {
-    border-color: var(--theme-elevation-200);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    &:hover {
+      border-color: var(--theme-elevation-200);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
   }
 }
 
@@ -168,11 +226,13 @@
 /**
  * Input focus states
  */
-input:focus,
-textarea:focus,
-select:focus {
-  border-color: var(--color-base-500);
-  box-shadow: 0 0 0 3px rgba(var(--color-base-500-rgb), 0.1);
+[data-payload-admin] {
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color: var(--color-base-500);
+    box-shadow: 0 0 0 3px rgba(var(--color-base-500-rgb), 0.1);
+  }
 }
 
 /* ==========================================================================
@@ -237,6 +297,18 @@ select:focus {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--theme-elevation-650);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-base-500);
+    outline-offset: -2px;
+    background-color: rgba(var(--color-base-500-rgb), 0.12);
+  }
+
+  [data-theme='dark'] & {
+    &:focus-visible {
+      outline-color: var(--color-base-400);
+    }
+  }
 
   &:hover {
     background-color: var(--theme-elevation-100);
@@ -309,8 +381,10 @@ select:focus {
 /**
  * Headings
  */
-h1, h2, h3, h4 {
-  letter-spacing: -0.01em;
+[data-payload-admin] {
+  h1, h2, h3, h4 {
+    letter-spacing: -0.01em;
+  }
 }
 
 /**
@@ -530,17 +604,19 @@ h1, h2, h3, h4 {
   /**
    * Improved card shadows for dark mode
    */
-  .card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  }
+  [data-payload-admin] {
+    .card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
 
-  /**
-   * Subtle glow on focus in dark mode
-   */
-  input:focus,
-  textarea:focus,
-  select:focus {
-    box-shadow: 0 0 0 3px rgba(var(--color-base-500-rgb), 0.2);
+    /**
+     * Subtle glow on focus in dark mode
+     */
+    input:focus,
+    textarea:focus,
+    select:focus {
+      box-shadow: 0 0 0 3px rgba(var(--color-base-500-rgb), 0.2);
+    }
   }
 
   /**
@@ -548,26 +624,26 @@ h1, h2, h3, h4 {
    * Increased contrast and visibility for dark backgrounds
    */
   .nav-group__toggle {
-    color: var(--theme-elevation-550);
+    color: var(--theme-elevation-700);
 
     &:hover {
-      color: var(--theme-elevation-700);
+      color: var(--theme-elevation-800);
     }
   }
 
   .nav-group__content a {
-    color: var(--theme-elevation-600);
+    color: var(--theme-elevation-750);
 
     &:hover {
       background-color: var(--theme-elevation-150);
-      color: var(--theme-elevation-750);
+      color: var(--theme-elevation-900);
     }
   }
 
   .nav-group__content a.active {
     /* Brighter teal tint for dark mode visibility */
     background-color: rgba(var(--color-base-500-rgb), 0.12);
-    color: var(--theme-elevation-850);
+    color: var(--theme-elevation-900);
 
     /* Stronger glow effect in dark mode */
     box-shadow: inset 0 0 0 1px rgba(var(--color-base-500-rgb), 0.15);

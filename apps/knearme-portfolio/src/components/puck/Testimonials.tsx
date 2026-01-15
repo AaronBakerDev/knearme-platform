@@ -15,21 +15,10 @@
 
 import Image from 'next/image'
 import { motion, useInView, useReducedMotion } from 'framer-motion'
-import { useRef } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type Ref } from 'react'
 import { cn } from '@/lib/utils'
 import { animations } from '@/lib/puck/design-system'
-
-/**
- * MediaRef type from Payload CMS
- */
-interface MediaRef {
-  id: string
-  url: string
-  alt: string
-  width?: number
-  height?: number
-  thumbnailUrl?: string
-}
+import type { MediaRef } from '@/types/puck'
 
 /**
  * Testimonial item shape from Puck config
@@ -85,14 +74,24 @@ function TestimonialCard({
   showAvatar,
   isCarousel,
   shouldReduceMotion,
+  cardRef,
+  panelId,
+  labelledBy,
 }: {
   item: TestimonialItem
   showAvatar: boolean
   isCarousel: boolean
   shouldReduceMotion: boolean
+  cardRef?: Ref<HTMLQuoteElement>
+  panelId?: string
+  labelledBy?: string
 }) {
   return (
     <motion.blockquote
+      ref={cardRef}
+      id={panelId}
+      role={isCarousel ? 'tabpanel' : undefined}
+      aria-labelledby={isCarousel ? labelledBy : undefined}
       variants={cardVariants}
       whileHover={
         shouldReduceMotion
@@ -161,8 +160,74 @@ function TestimonialCard({
  */
 export function PuckTestimonials({ items, layout, showAvatar }: PuckTestimonialsProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<Array<HTMLQuoteElement | null>>([])
+  const indicatorRefs = useRef<Array<HTMLButtonElement | null>>([])
   const isInView = useInView(containerRef, { once: true, amount: 0.2 })
   const shouldReduceMotion = useReducedMotion() ?? false
+  const [currentIndex, setCurrentIndex] = useState(0)
+
+  const scrollToIndex = useCallback(
+    (index: number) => {
+      const target = itemRefs.current[index]
+      if (!target) return
+
+      setCurrentIndex(index)
+      target.scrollIntoView({
+        behavior: shouldReduceMotion ? 'auto' : 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      })
+    },
+    [shouldReduceMotion]
+  )
+
+  const handleIndicatorKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+      if (items.length <= 1) return
+
+      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        event.preventDefault()
+
+        const nextIndex =
+          event.key === 'ArrowRight'
+            ? (index + 1) % items.length
+            : (index - 1 + items.length) % items.length
+
+        scrollToIndex(nextIndex)
+        indicatorRefs.current[nextIndex]?.focus()
+      }
+    },
+    [items.length, scrollToIndex]
+  )
+
+  useEffect(() => {
+    if (layout !== 'carousel') return
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries.filter((entry) => entry.isIntersecting)
+        if (visibleEntries.length === 0) return
+
+        const mostVisible = visibleEntries.reduce((prev, current) =>
+          current.intersectionRatio > prev.intersectionRatio ? current : prev
+        )
+        const index = itemRefs.current.findIndex((item) => item === mostVisible.target)
+        if (index !== -1) {
+          setCurrentIndex(index)
+        }
+      },
+      { root: container, threshold: [0.5, 0.75] }
+    )
+
+    itemRefs.current.forEach((item) => {
+      if (item) observer.observe(item)
+    })
+
+    return () => observer.disconnect()
+  }, [items.length, layout])
 
   // Carousel layout with horizontal scroll and snap behavior
   if (layout === 'carousel') {
@@ -170,6 +235,7 @@ export function PuckTestimonials({ items, layout, showAvatar }: PuckTestimonials
       <div className="relative" ref={containerRef}>
         {/* Scrollable container with snap points */}
         <motion.div
+          ref={scrollContainerRef}
           variants={containerVariants}
           initial="hidden"
           animate={isInView ? 'visible' : 'hidden'}
@@ -179,25 +245,48 @@ export function PuckTestimonials({ items, layout, showAvatar }: PuckTestimonials
             scrollPaddingInline: '1rem',
           }}
         >
-          {items.map((item, i) => (
-            <TestimonialCard
-              key={i}
-              item={item}
-              showAvatar={showAvatar}
-              isCarousel={true}
-              shouldReduceMotion={shouldReduceMotion}
-            />
-          ))}
+          {items.map((item, i) => {
+            const panelId = `testimonial-panel-${i}`
+            const tabId = `testimonial-tab-${i}`
+            return (
+              <TestimonialCard
+                key={i}
+                item={item}
+                showAvatar={showAvatar}
+                isCarousel={true}
+                shouldReduceMotion={shouldReduceMotion}
+                cardRef={(el) => {
+                  itemRefs.current[i] = el
+                }}
+                panelId={panelId}
+                labelledBy={tabId}
+              />
+            )
+          })}
         </motion.div>
 
         {/* Navigation hint for carousel - shows scroll indicators */}
         {items.length > 1 && (
-          <div className="mt-4 flex justify-center gap-2">
+          <div className="mt-4 flex justify-center gap-2" role="tablist" aria-label="Testimonials">
             {items.map((_, i) => (
-              <div
+              <button
                 key={i}
-                className="h-2 w-2 rounded-full bg-muted-foreground/30"
-                aria-hidden="true"
+                ref={(el) => {
+                  indicatorRefs.current[i] = el
+                }}
+                type="button"
+                onClick={() => scrollToIndex(i)}
+                onKeyDown={(event) => handleIndicatorKeyDown(event, i)}
+                className={cn(
+                  'h-2 w-2 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  currentIndex === i ? 'bg-primary' : 'bg-muted-foreground/30'
+                )}
+                aria-label={`View testimonial ${i + 1} of ${items.length}`}
+                role="tab"
+                aria-selected={currentIndex === i}
+                aria-controls={`testimonial-panel-${i}`}
+                id={`testimonial-tab-${i}`}
+                tabIndex={currentIndex === i ? 0 : -1}
               />
             ))}
           </div>

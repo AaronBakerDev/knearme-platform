@@ -109,7 +109,9 @@ export function PuckPricingTable({ tiers }: PuckPricingTableProps) {
                 ? undefined
                 : {
                     y: -8,
-                    transition: { duration: 0.2 },
+                    boxShadow: isHighlighted
+                      ? '0 0 50px hsl(var(--primary) / 0.5), 0 25px 30px -5px rgb(0 0 0 / 0.15)'
+                      : '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
                   }
             }
             className={cn(
@@ -130,20 +132,7 @@ export function PuckPricingTable({ tiers }: PuckPricingTableProps) {
                   }
                 : undefined
             }
-            onMouseEnter={(e) => {
-              // Enhanced glow on hover for highlighted tier
-              if (isHighlighted && !shouldReduceMotion) {
-                e.currentTarget.style.boxShadow =
-                  '0 0 50px hsl(var(--primary) / 0.5), 0 25px 30px -5px rgb(0 0 0 / 0.15)'
-              }
-            }}
-            onMouseLeave={(e) => {
-              // Reset to base glow for highlighted tier
-              if (isHighlighted && !shouldReduceMotion) {
-                e.currentTarget.style.boxShadow =
-                  '0 0 30px hsl(var(--primary) / 0.3), 0 20px 25px -5px rgb(0 0 0 / 0.1)'
-              }
-            }}
+            transition={{ duration: 0.2 }}
           >
             {/* Popular badge for highlighted tier */}
             {isHighlighted && (

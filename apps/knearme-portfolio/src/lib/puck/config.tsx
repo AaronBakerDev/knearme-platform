@@ -28,6 +28,7 @@ import { PuckStats } from '@/components/puck/Stats'
 import { PuckTestimonials } from '@/components/puck/Testimonials'
 import { fieldOptions } from '@/lib/puck/design-system'
 import { cn } from '@/lib/utils'
+import type { MediaRef } from '@/types/puck'
 import {
   // Icons for Callout block (PUCK-028)
   Info,
@@ -106,19 +107,6 @@ export interface CTAButtonProps {
   text: string
   href: string
   variant: 'primary' | 'secondary' | 'outline'
-}
-
-/**
- * Media reference from Payload CMS
- * Includes optional dimensions for image optimization
- */
-export interface MediaRef {
-  id: string
-  url: string
-  alt: string
-  width?: number
-  height?: number
-  thumbnailUrl?: string
 }
 
 /**
@@ -284,6 +272,7 @@ export interface FeaturesGridProps {
     icon: string // lucide icon name
     title: string
     description: string
+    featured?: boolean
   }>
   columns: 2 | 3 | 4
   iconStyle: 'filled' | 'outlined'
@@ -1167,6 +1156,12 @@ export const config: Config<Props> = {
         }
 
         const embedUrl = getEmbedUrl()
+        const videoSourceLabel = url.includes('youtube')
+          ? 'YouTube'
+          : url.includes('vimeo')
+            ? 'Vimeo'
+            : null
+        const iframeTitle = caption || (videoSourceLabel ? `Embedded ${videoSourceLabel} video` : 'Embedded video')
 
         return (
           <figure className="w-full">
@@ -1183,7 +1178,7 @@ export const config: Config<Props> = {
                   loading="lazy"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
-                  title={caption || 'Embedded video'}
+                  title={iframeTitle}
                 />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted text-muted-foreground">
@@ -1233,8 +1228,16 @@ export const config: Config<Props> = {
             },
             title: { type: 'text', label: 'Title' },
             description: { type: 'textarea', label: 'Description' },
+            featured: {
+              type: 'radio',
+              label: 'Featured (Bento)',
+              options: [
+                { label: 'No', value: false },
+                { label: 'Yes', value: true },
+              ],
+            },
           },
-          defaultItemProps: { icon: 'star', title: 'Feature', description: 'Feature description' },
+          defaultItemProps: { icon: 'star', title: 'Feature', description: 'Feature description', featured: false },
         },
         columns: {
           type: 'select',
@@ -1828,49 +1831,53 @@ export const config: Config<Props> = {
          * @see PUCK-029 for acceptance criteria
          */
         return (
-          <ShadcnTable
-            className={cn(
-              bordered && 'border',
-              // Override shadcn default hover states when not needed
-              '[&_tr]:transition-none'
-            )}
-          >
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                {headers.map((h: { value: string }, i: number) => (
-                  <TableHead
-                    key={i}
-                    className={cn(
-                      'font-semibold',
-                      bordered && 'border'
-                    )}
-                  >
-                    {h.value}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row: { cells: string }, i: number) => (
-                <TableRow
-                  key={i}
-                  className={cn(
-                    'hover:bg-transparent',
-                    striped && i % 2 === 1 && 'bg-muted/30'
-                  )}
-                >
-                  {row.cells.split('\n').map((cell: string, j: number) => (
-                    <TableCell
-                      key={j}
-                      className={cn(bordered && 'border')}
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="inline-block min-w-full align-middle">
+              <ShadcnTable
+                className={cn(
+                  bordered && 'border',
+                  // Override shadcn default hover states when not needed
+                  '[&_tr]:transition-none'
+                )}
+              >
+                <TableHeader>
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    {headers.map((h: { value: string }, i: number) => (
+                      <TableHead
+                        key={i}
+                        className={cn(
+                          'font-semibold',
+                          bordered && 'border'
+                        )}
+                      >
+                        {h.value}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((row: { cells: string }, i: number) => (
+                    <TableRow
+                      key={i}
+                      className={cn(
+                        'hover:bg-transparent',
+                        striped && i % 2 === 1 && 'bg-muted/30'
+                      )}
                     >
-                      {cell}
-                    </TableCell>
+                      {row.cells.split('\n').map((cell: string, j: number) => (
+                        <TableCell
+                          key={j}
+                          className={cn(bordered && 'border')}
+                        >
+                          {cell}
+                        </TableCell>
+                      ))}
+                    </TableRow>
                   ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </ShadcnTable>
+                </TableBody>
+              </ShadcnTable>
+            </div>
+          </div>
         )
       },
     },

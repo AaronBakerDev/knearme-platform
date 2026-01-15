@@ -45430,3 +45430,1426 @@
 2026-01-14T20:41:56.139691Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"PATH=\"$HOME/.nvm/versions/node/v22.21.1/bin:$PATH\" node apps/knearme-portfolio/node_modules/payload/bin.js generate:importmap","workdir":"/Users/aaronbaker/knearme-workspace","timeout_ms":30000}
 2026-01-14T20:42:34.113578Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"PATH=\"$HOME/.nvm/versions/node/v22.21.1/bin:$PATH\" node --import tsx -e \"process.argv=['node','payload','generate:importmap']; import('./node_modules/payload/dist/bin/index.js').then(m=>m.bin()).catch(err=>{console.error(err);process.exit(1);})\"","workdir":"/Users/aaronbaker/knearme-workspace/apps/knearme-portfolio","timeout_ms":30000}
 2026-01-14T20:42:48.421025Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"git status -sb","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:46:10.641836Z  INFO codex_core::codex::handlers: Shutting down Codex instance
+2026-01-15T00:46:13.227970Z  INFO codex_rmcp_client::rmcp_client: MCP server stderr (npx): WARNING: Using default CLIENT_IP_ENCRYPTION_KEY.
+2026-01-15T00:46:13.271113Z  INFO codex_rmcp_client::rmcp_client: MCP server stderr (npx): Context7 Documentation MCP Server v2.1.0 running on stdio
+2026-01-15T00:46:23.863493Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"ls","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:46:27.372990Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,200p' docs/execution/puck-review-remediation-plan.md","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:46:29.589138Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"ls docs","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:46:32.938048Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg --files -g 'puck-review-remediation-plan.md'","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:46:36.608600Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"ls apps","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:46:41.024662Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg --files -g 'AGENTS.md' apps/knearme-portfolio","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:46:43.050670Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,200p' apps/knearme-portfolio/AGENTS.md","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:46:45.604978Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,200p' apps/knearme-portfolio/docs/execution/puck-review-remediation-plan.md","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:46:48.173943Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '200,400p' apps/knearme-portfolio/docs/execution/puck-review-remediation-plan.md","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:46:51.655609Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '400,800p' apps/knearme-portfolio/docs/execution/puck-review-remediation-plan.md","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:47:01.319799Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,240p' apps/knearme-portfolio/src/components/puck/Testimonials.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:47:35.623486Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,240p' apps/knearme-portfolio/src/app/(payload)/custom.scss","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:47:37.950361Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,240p' \"apps/knearme-portfolio/src/app/(payload)/custom.scss\"","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:47:40.052617Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '240,520p' \"apps/knearme-portfolio/src/app/(payload)/custom.scss\"","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:47:43.716946Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '520,720p' \"apps/knearme-portfolio/src/app/(payload)/custom.scss\"","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:48:00.535086Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"Table\" apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:48:02.890623Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1760,1905p' apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:48:05.867920Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"iframe\" apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:48:09.274147Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1090,1210p' apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:48:14.912172Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"interface MediaRef\" apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:48:16.763552Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '80,140p' apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:48:21.988333Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,200p' apps/knearme-portfolio/src/types/puck.ts","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:48:31.950123Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"PayloadMediaRef\" apps/knearme-portfolio/src","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:48:37.195106Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,240p' apps/knearme-portfolio/src/components/puck/Hero.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:48:40.159899Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,200p' apps/knearme-portfolio/src/components/puck/ImageGallery.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:48:44.535041Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,200p' apps/knearme-portfolio/src/components/puck/CTABanner.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:48:53.328813Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,240p' \"apps/knearme-portfolio/src/app/(payload)/admin/puck/[...path]/client.tsx\"","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:49:00.787246Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,240p' apps/knearme-portfolio/src/components/puck/PricingTable.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:49:11.159961Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"ls apps/knearme-portfolio/src/lib","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:49:13.920723Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"ls apps/knearme-portfolio/src/lib/utils","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:49:20.508407Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,200p' \"apps/knearme-portfolio/src/app/api/puck/media/route.ts\"","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:49:37.027738Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,200p' apps/knearme-portfolio/src/payload/components/common/StatusBadge.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:49:46.399886Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,200p' apps/knearme-portfolio/src/payload/components/media/MediaGridView.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:49:48.725899Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '200,400p' apps/knearme-portfolio/src/payload/components/media/MediaGridView.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:50:11.719720Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,240p' apps/knearme-portfolio/src/components/puck/FeaturesGrid.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:50:14.188264Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '240,420p' apps/knearme-portfolio/src/components/puck/FeaturesGrid.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:50:19.108211Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"FeaturesGrid\" apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:50:23.109485Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '240,360p' apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:50:27.631940Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1200,1365p' apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:50:31.244930Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,80p' apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:52:09.367827Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/types/puck.ts
+@@
+- * Media reference from Payload CMS
+- * Used for images from the Media collection
+- */
+-export interface PayloadMediaRef {
++ * Media reference from Payload CMS
++ * Used for images from the Media collection
++ */
++export interface MediaRef {
+   id: string
+   url: string
+   alt: string
+   width?: number
+   height?: number
+ }
+@@
+ export interface HeroBlockProps {
+   heading: string
+   subheading: string
+-  backgroundImage: PayloadMediaRef | null
++  backgroundImage: MediaRef | null
+   alignment: 'left' | 'center' | 'right'
+   ctaButtons: CTAButtonConfig[]
+ }
+@@
+ export interface ImageBlockProps {
+-  image: PayloadMediaRef | null
++  image: MediaRef | null
+   alt: string
+   caption: string
+   size: 'small' | 'medium' | 'large' | 'full'
+   alignment: 'left' | 'center' | 'right'
+ }
+@@
+ export interface TestimonialsBlockProps {
+   items: Array<{
+     quote: string
+     author: string
+     title: string
+-    avatar: PayloadMediaRef | null
++    avatar: MediaRef | null
+   }>
+   layout: 'carousel' | 'grid'
+   showAvatar: boolean
+ }
+@@
+ export interface ImageGalleryBlockProps {
+-  images: PayloadMediaRef[]
++  images: MediaRef[]
+   columns: 2 | 3 | 4
+   lightbox: boolean
+ }
+*** End Patch
+2026-01-15T00:52:13.887506Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"PayloadMediaRef\" apps/knearme-portfolio/src/types/puck.ts","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:52:33.944543Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Add File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/lib/utils/color.ts
++/**
++ * Determines if a color is "dark" (low luminance).
++ * Used for auto-contrast text color selection.
++ *
++ * @param color - CSS color value (hex, hsl, rgb, or CSS variable)
++ * @returns true if color luminance < 0.5
++ */
++export function isColorDark(color: string): boolean {
++  if (!color) return false
++
++  const normalized = color.trim().toLowerCase()
++
++  // Handle CSS variables - can't compute, assume light for safety
++  if (normalized.startsWith('var(') || normalized.startsWith('hsl(var(')) {
++    return false
++  }
++
++  // Handle transparent/none
++  if (normalized === 'transparent' || normalized === 'none') {
++    return false
++  }
++
++  let r = 0
++  let g = 0
++  let b = 0
++  let parsed = false
++
++  // Parse hex
++  if (normalized.startsWith('#')) {
++    const hex = normalized.slice(1)
++    if (hex.length === 3) {
++      r = parseInt(hex[0] + hex[0], 16)
++      g = parseInt(hex[1] + hex[1], 16)
++      b = parseInt(hex[2] + hex[2], 16)
++      parsed = true
++    } else if (hex.length === 6) {
++      r = parseInt(hex.slice(0, 2), 16)
++      g = parseInt(hex.slice(2, 4), 16)
++      b = parseInt(hex.slice(4, 6), 16)
++      parsed = true
++    }
++  }
++
++  // Parse rgb/rgba
++  const rgbMatch = normalized.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
++  if (rgbMatch) {
++    r = parseInt(rgbMatch[1], 10)
++    g = parseInt(rgbMatch[2], 10)
++    b = parseInt(rgbMatch[3], 10)
++    parsed = true
++  }
++
++  // Parse hsl/hsla
++  const hslMatch = normalized.match(/hsla?\((\d+),\s*(\d+)%?,\s*(\d+)%?/)
++  if (hslMatch) {
++    const lightness = Number(hslMatch[3])
++    return lightness < 50
++  }
++
++  if (!parsed) return false
++
++  // Calculate relative luminance (WCAG formula)
++  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
++  return luminance < 0.5
++}
+*** End Patch
+2026-01-15T00:52:45.222737Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/components/puck/Hero.tsx
+@@
+ import { motion, useReducedMotion } from 'framer-motion'
+ import { cn } from '@/lib/utils'
+ import { Button } from '@/components/ui/button'
++import { isColorDark } from '@/lib/utils/color'
++import type { MediaRef } from '@/types/puck'
+ import {
+   animations,
+   gradients,
+   type GradientPreset,
+   type AnimationVariant,
+ } from '@/lib/puck/design-system'
+@@
+ export interface CTAButtonConfig {
+   text: string
+   href: string
+   variant: 'primary' | 'secondary' | 'outline'
+ }
+-
+-export interface MediaRef {
+-  url: string
+-  alt?: string
+-  width?: number
+-  height?: number
+-}
+@@
+     if (backgroundType === 'pattern') return true
+     // For solid backgrounds, check if it's a dark color
+     if (backgroundColor) {
+-      const color = backgroundColor.toLowerCase()
+-      return (
+-        color.startsWith('#0') ||
+-        color.startsWith('#1') ||
+-        color.startsWith('#2') ||
+-        color.startsWith('#3') ||
+-        color.includes('dark') ||
+-        color.includes('black')
+-      )
++      return isColorDark(backgroundColor)
+     }
+     return false
+   }
+*** End Patch
+2026-01-15T00:52:52.022087Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/components/puck/CTABanner.tsx
+@@
+ import { motion, useInView, useReducedMotion } from 'framer-motion'
+ import { Button } from '@/components/ui/button'
+ import { cn } from '@/lib/utils'
+ import { animations } from '@/lib/puck/design-system'
++import { isColorDark } from '@/lib/utils/color'
+@@
+-  // Determine if background is dark for contrast calculations
+-  // Simple heuristic: if not white/transparent-ish, assume dark
+-  const isDarkBg =
+-    backgroundColor &&
+-    backgroundColor !== 'transparent' &&
+-    !backgroundColor.match(/^#f|^white|^rgb\(2[45]\d/i)
++  // Determine if background is dark for contrast calculations
++  const isDarkBg = isColorDark(backgroundColor)
+*** End Patch
+2026-01-15T00:52:57.258196Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/components/puck/ImageGallery.tsx
+@@
+ import React, { useState, useEffect, useCallback } from 'react'
+ import Image from 'next/image'
+ import { cn } from '@/lib/utils'
+ import { X, ChevronLeft, ChevronRight } from 'lucide-react'
++import type { MediaRef } from '@/types/puck'
+@@
+-/**
+- * MediaRef interface matching the Puck config
+- * @see src/lib/puck/config.tsx for the canonical definition
+- */
+-export interface MediaRef {
+-  id: string
+-  url: string
+-  alt?: string
+-  width?: number
+-  height?: number
+-}
+-
+ export interface PuckImageGalleryProps {
+*** End Patch
+2026-01-15T00:53:23.711597Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/components/puck/Testimonials.tsx
+@@
+-import { motion, useInView, useReducedMotion } from 'framer-motion'
+-import { useRef } from 'react'
++import { motion, useInView, useReducedMotion } from 'framer-motion'
++import { useCallback, useEffect, useRef, useState } from 'react'
+ import { cn } from '@/lib/utils'
+ import { animations } from '@/lib/puck/design-system'
++import type { MediaRef } from '@/types/puck'
+@@
+-/**
+- * MediaRef type from Payload CMS
+- */
+-interface MediaRef {
+-  id: string
+-  url: string
+-  alt: string
+-  width?: number
+-  height?: number
+-  thumbnailUrl?: string
+-}
+-
+ /**
+  * Testimonial item shape from Puck config
+  */
+*** End Patch
+2026-01-15T00:53:32.515939Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/components/puck/Testimonials.tsx
+@@
+ function TestimonialCard({
+   item,
+   showAvatar,
+   isCarousel,
+   shouldReduceMotion,
++  cardRef,
++  panelId,
++  labelledBy,
+ }: {
+   item: TestimonialItem
+   showAvatar: boolean
+   isCarousel: boolean
+   shouldReduceMotion: boolean
++  cardRef?: React.Ref<HTMLQuoteElement>
++  panelId?: string
++  labelledBy?: string
+ }) {
+   return (
+     <motion.blockquote
++      ref={cardRef}
++      id={panelId}
++      role={isCarousel ? 'tabpanel' : undefined}
++      aria-labelledby={isCarousel ? labelledBy : undefined}
+       variants={cardVariants}
+       whileHover={
+         shouldReduceMotion
+*** End Patch
+2026-01-15T00:54:08.268094Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/components/puck/Testimonials.tsx
+@@
+ export function PuckTestimonials({ items, layout, showAvatar }: PuckTestimonialsProps) {
+   const containerRef = useRef<HTMLDivElement>(null)
++  const scrollContainerRef = useRef<HTMLDivElement>(null)
++  const itemRefs = useRef<Array<HTMLQuoteElement | null>>([])
++  const indicatorRefs = useRef<Array<HTMLButtonElement | null>>([])
+   const isInView = useInView(containerRef, { once: true, amount: 0.2 })
+   const shouldReduceMotion = useReducedMotion() ?? false
++  const [currentIndex, setCurrentIndex] = useState(0)
++
++  const scrollToIndex = useCallback(
++    (index: number) => {
++      const target = itemRefs.current[index]
++      if (!target) return
++
++      setCurrentIndex(index)
++      target.scrollIntoView({
++        behavior: shouldReduceMotion ? 'auto' : 'smooth',
++        inline: 'center',
++        block: 'nearest',
++      })
++    },
++    [shouldReduceMotion]
++  )
++
++  const handleIndicatorKeyDown = useCallback(
++    (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
++      if (items.length <= 1) return
++
++      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
++        event.preventDefault()
++
++        const nextIndex =
++          event.key === 'ArrowRight'
++            ? (index + 1) % items.length
++            : (index - 1 + items.length) % items.length
++
++        scrollToIndex(nextIndex)
++        indicatorRefs.current[nextIndex]?.focus()
++      }
++    },
++    [items.length, scrollToIndex]
++  )
++
++  useEffect(() => {
++    if (layout !== 'carousel') return
++    const container = scrollContainerRef.current
++    if (!container) return
++
++    const observer = new IntersectionObserver(
++      (entries) => {
++        const visibleEntries = entries.filter((entry) => entry.isIntersecting)
++        if (visibleEntries.length === 0) return
++
++        const mostVisible = visibleEntries.reduce((prev, current) =>
++          current.intersectionRatio > prev.intersectionRatio ? current : prev
++        )
++        const index = itemRefs.current.findIndex((item) => item === mostVisible.target)
++        if (index !== -1) {
++          setCurrentIndex(index)
++        }
++      },
++      { root: container, threshold: [0.5, 0.75] }
++    )
++
++    itemRefs.current.forEach((item) => {
++      if (item) observer.observe(item)
++    })
++
++    return () => observer.disconnect()
++  }, [items.length, layout])
+*** End Patch
+2026-01-15T00:54:24.555028Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/components/puck/Testimonials.tsx
+@@
+         <motion.div
++          ref={scrollContainerRef}
+           variants={containerVariants}
+           initial="hidden"
+           animate={isInView ? 'visible' : 'hidden'}
+           className="flex gap-6 overflow-x-auto scroll-smooth pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40"
+@@
+           }}
+         >
+-          {items.map((item, i) => (
+-            <TestimonialCard
+-              key={i}
+-              item={item}
+-              showAvatar={showAvatar}
+-              isCarousel={true}
+-              shouldReduceMotion={shouldReduceMotion}
+-            />
+-          ))}
++          {items.map((item, i) => {
++            const panelId = `testimonial-panel-${i}`
++            const tabId = `testimonial-tab-${i}`
++            return (
++              <TestimonialCard
++                key={i}
++                item={item}
++                showAvatar={showAvatar}
++                isCarousel={true}
++                shouldReduceMotion={shouldReduceMotion}
++                cardRef={(el) => {
++                  itemRefs.current[i] = el
++                }}
++                panelId={panelId}
++                labelledBy={tabId}
++              />
++            )
++          })}
+         </motion.div>
+ 
+         {/* Navigation hint for carousel - shows scroll indicators */}
+         {items.length > 1 && (
+-          <div className="mt-4 flex justify-center gap-2">
+-            {items.map((_, i) => (
+-              <div
+-                key={i}
+-                className="h-2 w-2 rounded-full bg-muted-foreground/30"
+-                aria-hidden="true"
+-              />
+-            ))}
++          <div className="mt-4 flex justify-center gap-2" role="tablist" aria-label="Testimonials">
++            {items.map((_, i) => (
++              <button
++                key={i}
++                ref={(el) => {
++                  indicatorRefs.current[i] = el
++                }}
++                type="button"
++                onClick={() => scrollToIndex(i)}
++                onKeyDown={(event) => handleIndicatorKeyDown(event, i)}
++                className={cn(
++                  'h-2 w-2 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
++                  currentIndex === i ? 'bg-primary' : 'bg-muted-foreground/30'
++                )}
++                aria-label={`View testimonial ${i + 1} of ${items.length}`}
++                role="tab"
++                aria-selected={currentIndex === i}
++                aria-controls={`testimonial-panel-${i}`}
++                id={`testimonial-tab-${i}`}
++                tabIndex={currentIndex === i ? 0 : -1}
++              />
++            ))}
+           </div>
+         )}
+*** End Patch
+2026-01-15T00:54:33.295632Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/lib/puck/config.tsx
+@@
+ import { PuckTestimonials } from '@/components/puck/Testimonials'
+ import { fieldOptions } from '@/lib/puck/design-system'
+ import { cn } from '@/lib/utils'
++import type { MediaRef } from '@/types/puck'
+*** End Patch
+2026-01-15T00:54:38.081576Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/lib/puck/config.tsx
+@@
+-/**
+- * Media reference from Payload CMS
+- * Includes optional dimensions for image optimization
+- */
+-export interface MediaRef {
+-  id: string
+-  url: string
+-  alt: string
+-  width?: number
+-  height?: number
+-  thumbnailUrl?: string
+-}
+-
+ /**
+  * Media item returned from /api/puck/media endpoint
+  * Used by Puck external field fetchList
+  */
+*** End Patch
+2026-01-15T00:54:43.248148Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/lib/puck/config.tsx
+@@
+ export interface FeaturesGridProps {
+   items: Array<{
+     icon: string // lucide icon name
+     title: string
+     description: string
++    featured?: boolean
+   }>
+*** End Patch
+2026-01-15T00:54:49.499225Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/lib/puck/config.tsx
+@@
+             icon: {
+               type: 'select',
+               label: 'Icon',
+               options: ICON_OPTIONS,
+             },
+             title: { type: 'text', label: 'Title' },
+             description: { type: 'textarea', label: 'Description' },
++            featured: {
++              type: 'radio',
++              label: 'Featured (Bento)',
++              options: [
++                { label: 'No', value: false },
++                { label: 'Yes', value: true },
++              ],
++            },
+           },
+*** End Patch
+2026-01-15T00:54:58.354271Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/components/puck/FeaturesGrid.tsx
+@@
+-  // For bento layout, mark first item as featured
+-  const processedItems = variant === 'bento'
+-    ? items.map((item, i) => ({ ...item, featured: i === 0 }))
+-    : items
+-
+   return (
+     <motion.div
+       ref={containerRef}
+       className={cn('grid gap-8', getGridClasses())}
+       variants={containerVariants}
+       initial={shouldAnimate ? 'hidden' : 'visible'}
+       animate={isInView ? 'visible' : 'hidden'}
+     >
+-      {processedItems.map((item, i) => (
+-        <FeatureCard
+-          key={i}
+-          item={item}
+-          iconStyle={iconStyle}
+-          variant={variant}
+-          shouldAnimate={shouldAnimate}
+-          index={i}
+-          isFeatured={item.featured}
+-        />
+-      ))}
++      {items.map((item, i) => (
++        <FeatureCard
++          key={i}
++          item={item}
++          iconStyle={iconStyle}
++          variant={variant}
++          shouldAnimate={shouldAnimate}
++          index={i}
++          isFeatured={variant === 'bento' && Boolean(item.featured)}
++        />
++      ))}
+     </motion.div>
+   )
+ }
+*** End Patch
+2026-01-15T00:55:14.328899Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/lib/puck/config.tsx
+@@
+-        return (
+-          <ShadcnTable
+-            className={cn(
+-              bordered && 'border',
+-              // Override shadcn default hover states when not needed
+-              '[&_tr]:transition-none'
+-            )}
+-          >
+-            <TableHeader>
+-              <TableRow className="bg-muted/50 hover:bg-muted/50">
+-                {headers.map((h: { value: string }, i: number) => (
+-                  <TableHead
+-                    key={i}
+-                    className={cn(
+-                      'font-semibold',
+-                      bordered && 'border'
+-                    )}
+-                  >
+-                    {h.value}
+-                  </TableHead>
+-                ))}
+-              </TableRow>
+-            </TableHeader>
+-            <TableBody>
+-              {rows.map((row: { cells: string }, i: number) => (
+-                <TableRow
+-                  key={i}
+-                  className={cn(
+-                    'hover:bg-transparent',
+-                    striped && i % 2 === 1 && 'bg-muted/30'
+-                  )}
+-                >
+-                  {row.cells.split('\n').map((cell: string, j: number) => (
+-                    <TableCell
+-                      key={j}
+-                      className={cn(bordered && 'border')}
+-                    >
+-                      {cell}
+-                    </TableCell>
+-                  ))}
+-                </TableRow>
+-              ))}
+-            </TableBody>
+-          </ShadcnTable>
+-        )
++        return (
++          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
++            <div className="inline-block min-w-full align-middle">
++              <ShadcnTable
++                className={cn(
++                  bordered && 'border',
++                  // Override shadcn default hover states when not needed
++                  '[&_tr]:transition-none'
++                )}
++              >
++                <TableHeader>
++                  <TableRow className="bg-muted/50 hover:bg-muted/50">
++                    {headers.map((h: { value: string }, i: number) => (
++                      <TableHead
++                        key={i}
++                        className={cn(
++                          'font-semibold',
++                          bordered && 'border'
++                        )}
++                      >
++                        {h.value}
++                      </TableHead>
++                    ))}
++                  </TableRow>
++                </TableHeader>
++                <TableBody>
++                  {rows.map((row: { cells: string }, i: number) => (
++                    <TableRow
++                      key={i}
++                      className={cn(
++                        'hover:bg-transparent',
++                        striped && i % 2 === 1 && 'bg-muted/30'
++                      )}
++                    >
++                      {row.cells.split('\n').map((cell: string, j: number) => (
++                        <TableCell
++                          key={j}
++                          className={cn(bordered && 'border')}
++                        >
++                          {cell}
++                        </TableCell>
++                      ))}
++                    </TableRow>
++                  ))}
++                </TableBody>
++              </ShadcnTable>
++            </div>
++          </div>
++        )
+       },
+*** End Patch
+2026-01-15T00:55:24.199010Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/lib/puck/config.tsx
+@@
+         const embedUrl = getEmbedUrl()
++        const videoSourceLabel = url.includes('youtube')
++          ? 'YouTube'
++          : url.includes('vimeo')
++            ? 'Vimeo'
++            : null
++        const iframeTitle = caption || (videoSourceLabel ? `Embedded ${videoSourceLabel} video` : 'Embedded video')
+@@
+               {embedUrl ? (
+                 <iframe
+                   src={embedUrl}
+                   className="absolute inset-0 h-full w-full"
+                   loading="lazy"
+                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                   allowFullScreen
+-                  title={caption || 'Embedded video'}
++                  title={iframeTitle}
+                 />
+               ) : (
+*** End Patch
+2026-01-15T00:55:50.254262Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/components/puck/PricingTable.tsx
+@@
+             variants={cardVariants}
+             whileHover={
+               shouldReduceMotion
+                 ? undefined
+                 : {
+                     y: -8,
+-                    transition: { duration: 0.2 },
++                    boxShadow: isHighlighted
++                      ? '0 0 50px hsl(var(--primary) / 0.5), 0 25px 30px -5px rgb(0 0 0 / 0.15)'
++                      : '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+                   }
+             }
+             className={cn(
+               'relative flex flex-col rounded-2xl p-6 md:p-8',
+               'transition-shadow duration-300',
+@@
+             style={
+               isHighlighted
+                 ? {
+                     // Glow effect using box-shadow with primary color
+                     boxShadow:
+                       '0 0 30px hsl(var(--primary) / 0.3), 0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                   }
+                 : undefined
+             }
+-            onMouseEnter={(e) => {
+-              // Enhanced glow on hover for highlighted tier
+-              if (isHighlighted && !shouldReduceMotion) {
+-                e.currentTarget.style.boxShadow =
+-                  '0 0 50px hsl(var(--primary) / 0.5), 0 25px 30px -5px rgb(0 0 0 / 0.15)'
+-              }
+-            }}
+-            onMouseLeave={(e) => {
+-              // Reset to base glow for highlighted tier
+-              if (isHighlighted && !shouldReduceMotion) {
+-                e.currentTarget.style.boxShadow =
+-                  '0 0 30px hsl(var(--primary) / 0.3), 0 20px 25px -5px rgb(0 0 0 / 0.1)'
+-              }
+-            }}
++            transition={{ duration: 0.2 }}
+           >
+*** End Patch
+2026-01-15T00:56:01.267018Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/app/(payload)/admin/puck/[...path]/client.tsx
+@@
+-import { useCallback, useEffect, useState } from 'react'
++import { useCallback, useEffect, useRef, useState } from 'react'
+@@
+   const [data, setData] = useState<Data | null>(null)
+   const [isLoading, setIsLoading] = useState(true)
+   const [isSaving, setIsSaving] = useState(false)
++  const isSavingRef = useRef(false)
+@@
+   const handlePublish = useCallback(
+     async (publishData: Data) => {
+-      if (isSaving) return
++      if (isSavingRef.current) return
+ 
++      isSavingRef.current = true
+       setIsSaving(true)
+       try {
+         const response = await fetch(`/api/puck/${slug}`, {
+@@
+       } catch (error) {
+         console.error('Error saving page:', error)
+         toast.error(error instanceof Error ? error.message : 'Failed to save page')
+       } finally {
++        isSavingRef.current = false
+         setIsSaving(false)
+       }
+     },
+-    [slug, isSaving]
++    [slug]
+   )
+*** End Patch
+2026-01-15T00:56:09.233306Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/types/puck.ts
+@@
+ export interface FeaturesGridBlockProps {
+   items: Array<{
+     icon: string
+     title: string
+     description: string
++    featured?: boolean
+   }>
+*** End Patch
+2026-01-15T00:56:38.029034Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/app/(payload)/custom.scss
+@@
+   /* Error colors (matching --destructive from globals.css) */
+   --theme-error-100: hsl(25, 90%, 92%);
+   --theme-error-200: hsl(25, 85%, 80%);
+   --theme-error-300: hsl(25, 80%, 65%);
+   --theme-error-400: hsl(25, 75%, 55%);
+   --theme-error-500: hsl(25, 80%, 50%);
++
++  /* Status badge colors */
++  --status-draft-bg: hsl(45, 90%, 95%);
++  --status-draft-text: hsl(40, 80%, 35%);
++  --status-draft-dot: hsl(45, 90%, 50%);
++  --status-draft-border: hsl(45, 70%, 85%);
++
++  --status-published-bg: hsl(145, 40%, 94%);
++  --status-published-text: hsl(145, 55%, 28%);
++  --status-published-dot: hsl(145, 50%, 40%);
++  --status-published-border: hsl(145, 35%, 85%);
++
++  --status-archived-bg: hsl(260, 2%, 94%);
++  --status-archived-text: hsl(260, 2%, 40%);
++  --status-archived-dot: hsl(260, 2%, 45%);
++  --status-archived-border: hsl(260, 2%, 85%);
++
++  /* Media grid colors */
++  --media-grid-thumb-bg: hsl(0, 0%, 96%);
++  --media-grid-thumb-border: hsl(0, 0%, 90%);
++  --media-grid-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
++  --media-grid-thumb-hover-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
++  --media-grid-thumb-placeholder: hsl(0, 0%, 60%);
++  --media-grid-thumb-overlay: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0) 50%);
++  --media-grid-empty-bg: hsl(0, 0%, 98%);
++  --media-grid-empty-border: hsl(0, 0%, 85%);
++  --media-grid-empty-title: hsl(0, 0%, 20%);
++  --media-grid-empty-desc: hsl(0, 0%, 50%);
+ }
+@@
+   /* Teal accent adjustments for dark mode (brighter for visibility) */
+   --color-base-500: hsl(180, 65%, 45%);
+   --color-base-400: hsl(180, 60%, 50%);
+   --color-base-500-rgb: 41, 186, 186;
++
++  /* Status badge colors - dark mode */
++  --status-draft-bg: hsla(45, 60%, 25%, 0.3);
++  --status-draft-text: hsl(45, 80%, 70%);
++  --status-draft-dot: hsl(45, 85%, 55%);
++  --status-draft-border: hsla(45, 50%, 40%, 0.4);
++
++  --status-published-bg: hsla(145, 40%, 25%, 0.3);
++  --status-published-text: hsl(145, 50%, 65%);
++  --status-published-dot: hsl(145, 55%, 50%);
++  --status-published-border: hsla(145, 40%, 40%, 0.4);
++
++  --status-archived-bg: hsla(260, 2%, 30%, 0.4);
++  --status-archived-text: hsl(260, 2%, 70%);
++  --status-archived-dot: hsl(260, 2%, 55%);
++  --status-archived-border: hsla(260, 2%, 45%, 0.4);
++
++  /* Media grid colors - dark mode */
++  --media-grid-thumb-bg: hsl(260, 5%, 18%);
++  --media-grid-thumb-border: hsl(260, 3%, 25%);
++  --media-grid-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
++  --media-grid-thumb-hover-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
++  --media-grid-thumb-placeholder: hsl(260, 5%, 50%);
++  --media-grid-thumb-overlay: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0) 50%);
++  --media-grid-empty-bg: hsl(260, 5%, 14%);
++  --media-grid-empty-border: hsl(260, 5%, 25%);
++  --media-grid-empty-title: hsl(260, 5%, 85%);
++  --media-grid-empty-desc: hsl(260, 5%, 55%);
+ }
+*** End Patch
+2026-01-15T00:56:47.683083Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/app/(payload)/custom.scss
+@@
+ /**
+  * Card styling improvements
+  * Applies to collection cards and custom cards
+  */
+-.card {
+-  transition: all 0.2s ease;
+-  border: 1px solid var(--theme-elevation-150);
+-
+-  &:hover {
+-    border-color: var(--theme-elevation-200);
+-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+-  }
+-}
++[data-payload-admin] {
++  .card {
++    transition: all 0.2s ease;
++    border: 1px solid var(--theme-elevation-150);
++
++    &:hover {
++      border-color: var(--theme-elevation-200);
++      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
++    }
++  }
++}
+*** End Patch
+2026-01-15T00:56:54.502998Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/app/(payload)/custom.scss
+@@
+ /**
+  * Input focus states
+  */
+-input:focus,
+-textarea:focus,
+-select:focus {
+-  border-color: var(--color-base-500);
+-  box-shadow: 0 0 0 3px rgba(var(--color-base-500-rgb), 0.1);
+-}
++[data-payload-admin] {
++  input:focus,
++  textarea:focus,
++  select:focus {
++    border-color: var(--color-base-500);
++    box-shadow: 0 0 0 3px rgba(var(--color-base-500-rgb), 0.1);
++  }
++}
+*** End Patch
+2026-01-15T00:56:59.099868Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/app/(payload)/custom.scss
+@@
+ /**
+  * Headings
+  */
+-h1, h2, h3, h4 {
+-  letter-spacing: -0.01em;
+-}
++[data-payload-admin] {
++  h1, h2, h3, h4 {
++    letter-spacing: -0.01em;
++  }
++}
+*** End Patch
+2026-01-15T00:57:04.707496Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/app/(payload)/custom.scss
+@@
+   /* Text styling */
+   font-size: 0.875rem;
+   font-weight: 500;
+   color: var(--theme-elevation-650);
++
++  &:focus-visible {
++    outline: 2px solid var(--color-base-500);
++    outline-offset: -2px;
++    background-color: rgba(var(--color-base-500-rgb), 0.12);
++  }
++
++  [data-theme='dark'] & {
++    &:focus-visible {
++      outline-color: var(--color-base-400);
++    }
++  }
+ 
+   &:hover {
+     background-color: var(--theme-elevation-100);
+     color: var(--theme-elevation-800);
+*** End Patch
+2026-01-15T00:57:18.943639Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/app/(payload)/custom.scss
+@@
+ [data-theme='dark'] {
+   /**
+    * Improved card shadows for dark mode
+    */
+-  .card:hover {
+-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+-  }
+-
+-  /**
+-   * Subtle glow on focus in dark mode
+-   */
+-  input:focus,
+-  textarea:focus,
+-  select:focus {
+-    box-shadow: 0 0 0 3px rgba(var(--color-base-500-rgb), 0.2);
++  [data-payload-admin] {
++    .card:hover {
++      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
++    }
++
++    /**
++     * Subtle glow on focus in dark mode
++     */
++    input:focus,
++    textarea:focus,
++    select:focus {
++      box-shadow: 0 0 0 3px rgba(var(--color-base-500-rgb), 0.2);
++    }
+   }
+@@
+   .nav-group__toggle {
+-    color: var(--theme-elevation-550);
++    color: var(--theme-elevation-700);
+ 
+     &:hover {
+-      color: var(--theme-elevation-700);
++      color: var(--theme-elevation-800);
+     }
+   }
+ 
+   .nav-group__content a {
+-    color: var(--theme-elevation-600);
++    color: var(--theme-elevation-750);
+ 
+     &:hover {
+       background-color: var(--theme-elevation-150);
+-      color: var(--theme-elevation-750);
++      color: var(--theme-elevation-900);
+     }
+   }
+ 
+   .nav-group__content a.active {
+     /* Brighter teal tint for dark mode visibility */
+     background-color: rgba(var(--color-base-500-rgb), 0.12);
+-    color: var(--theme-elevation-850);
++    color: var(--theme-elevation-900);
+*** End Patch
+2026-01-15T00:57:43.218297Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/payload/components/common/StatusBadge.tsx
+@@
+ const statusConfig = {
+   draft: {
+-    dotColor: 'hsl(45, 80%, 50%)',     // Amber dot
+-    bgColor: 'hsl(45, 90%, 95%)',       // Light amber bg
+-    textColor: 'hsl(40, 80%, 35%)',     // Dark amber text
+-    borderColor: 'hsl(45, 70%, 85%)',   // Amber border
+-    // Dark mode variants
+-    darkDotColor: 'hsl(45, 85%, 55%)',
+-    darkBgColor: 'hsla(45, 60%, 25%, 0.3)',
+-    darkTextColor: 'hsl(45, 80%, 70%)',
+-    darkBorderColor: 'hsla(45, 50%, 40%, 0.4)',
+     label: 'Draft',
+   },
+   published: {
+-    dotColor: 'hsl(145, 50%, 40%)',     // Green dot
+-    bgColor: 'hsl(145, 40%, 94%)',      // Light green bg
+-    textColor: 'hsl(145, 55%, 28%)',    // Dark green text
+-    borderColor: 'hsl(145, 35%, 85%)',  // Green border
+-    // Dark mode variants
+-    darkDotColor: 'hsl(145, 55%, 50%)',
+-    darkBgColor: 'hsla(145, 40%, 25%, 0.3)',
+-    darkTextColor: 'hsl(145, 50%, 65%)',
+-    darkBorderColor: 'hsla(145, 40%, 40%, 0.4)',
+     label: 'Published',
+   },
+   archived: {
+-    dotColor: 'hsl(260, 2%, 45%)',      // Gray dot
+-    bgColor: 'hsl(260, 2%, 94%)',       // Light gray bg
+-    textColor: 'hsl(260, 2%, 40%)',     // Dark gray text
+-    borderColor: 'hsl(260, 2%, 85%)',   // Gray border
+-    // Dark mode variants
+-    darkDotColor: 'hsl(260, 2%, 55%)',
+-    darkBgColor: 'hsla(260, 2%, 30%, 0.4)',
+-    darkTextColor: 'hsl(260, 2%, 70%)',
+-    darkBorderColor: 'hsla(260, 2%, 45%, 0.4)',
+     label: 'Archived',
+   },
+ } as const
+@@
+   const config = statusConfig[status]
+   const sizeStyles = sizeConfig[size]
+-
+-  // Detect dark mode preference
+-  const [isDark, setIsDark] = React.useState(false)
+-
+-  React.useEffect(() => {
+-    // Check for Payload's dark theme attribute
+-    const checkTheme = () => {
+-      const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark'
+-      setIsDark(isDarkTheme)
+-    }
+-
+-    checkTheme()
+-
+-    // Observer for theme changes
+-    const observer = new MutationObserver(checkTheme)
+-    observer.observe(document.documentElement, {
+-      attributes: true,
+-      attributeFilter: ['data-theme'],
+-    })
+-
+-    return () => observer.disconnect()
+-  }, [])
+ 
+   const displayLabel = label || config.label
+ 
+   const badgeStyles: React.CSSProperties = {
+@@
+     fontSize: sizeStyles.fontSize,
+     fontWeight: 500,
+     lineHeight: 1,
+     whiteSpace: 'nowrap',
+-    backgroundColor: isDark ? config.darkBgColor : config.bgColor,
+-    color: isDark ? config.darkTextColor : config.textColor,
+-    border: `1px solid ${isDark ? config.darkBorderColor : config.borderColor}`,
++    backgroundColor: `var(--status-${status}-bg)`,
++    color: `var(--status-${status}-text)`,
++    border: `1px solid var(--status-${status}-border)`,
+     transition: 'all 0.15s ease',
+   }
+ 
+   const dotStyles: React.CSSProperties = {
+     width: sizeStyles.dotSize,
+     height: sizeStyles.dotSize,
+     borderRadius: '50%',
+-    backgroundColor: isDark ? config.darkDotColor : config.dotColor,
++    backgroundColor: `var(--status-${status}-dot)`,
+     flexShrink: 0,
+   }
+*** End Patch
+2026-01-15T00:58:16.171246Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/payload/components/media/MediaGridView.tsx
+@@
+-'use client'
+-
+-import React, { useState, useEffect } from 'react'
++'use client'
++
++import React, { useState } from 'react'
+@@
+ const MediaThumbnail: React.FC<{
+   item: MediaItem
+   baseUrl: string
+-  isDark: boolean
+-}> = ({ item, baseUrl, isDark }) => {
++}> = ({ item, baseUrl }) => {
+   const [isHovered, setIsHovered] = useState(false)
+@@
+   const containerStyle: React.CSSProperties = {
+     position: 'relative',
+     aspectRatio: '1 / 1',
+     borderRadius: 'var(--style-radius-m, 8px)',
+     overflow: 'hidden',
+     cursor: 'pointer',
+-    backgroundColor: isDark
+-      ? 'hsl(260, 5%, 18%)'
+-      : 'hsl(0, 0%, 96%)',
+-    border: `1px solid ${
+-      isDark
+-        ? 'hsl(260, 3%, 25%)'
+-        : 'hsl(0, 0%, 90%)'
+-    }`,
++    backgroundColor: 'var(--media-grid-thumb-bg)',
++    border: '1px solid var(--media-grid-thumb-border)',
+     transition: 'all 0.2s ease',
+     transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
+-    boxShadow: isHovered
+-      ? isDark
+-        ? '0 8px 24px rgba(0, 0, 0, 0.4)'
+-        : '0 8px 24px rgba(0, 0, 0, 0.12)'
+-      : '0 1px 3px rgba(0, 0, 0, 0.05)',
++    boxShadow: isHovered
++      ? 'var(--media-grid-thumb-hover-shadow)'
++      : 'var(--media-grid-thumb-shadow)',
+   }
+@@
+   const placeholderStyle: React.CSSProperties = {
+     width: '100%',
+     height: '100%',
+     display: 'flex',
+     alignItems: 'center',
+     justifyContent: 'center',
+-    color: isDark ? 'hsl(260, 5%, 50%)' : 'hsl(0, 0%, 60%)',
++    color: 'var(--media-grid-thumb-placeholder)',
+     fontSize: '2rem',
+   }
+ 
+   const overlayStyle: React.CSSProperties = {
+     position: 'absolute',
+     inset: 0,
+-    background: isDark
+-      ? 'linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0) 50%)'
+-      : 'linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0) 50%)',
++    background: 'var(--media-grid-thumb-overlay)',
+     opacity: isHovered ? 1 : 0,
+     transition: 'opacity 0.2s ease',
+     display: 'flex',
+     flexDirection: 'column',
+@@
+-const EmptyState: React.FC<{ isDark: boolean }> = ({ isDark }) => {
++const EmptyState: React.FC = () => {
+   const containerStyle: React.CSSProperties = {
+     display: 'flex',
+     flexDirection: 'column',
+     alignItems: 'center',
+     justifyContent: 'center',
+     padding: '4rem 2rem',
+     textAlign: 'center',
+-    backgroundColor: isDark
+-      ? 'hsl(260, 5%, 14%)'
+-      : 'hsl(0, 0%, 98%)',
++    backgroundColor: 'var(--media-grid-empty-bg)',
+     borderRadius: 'var(--style-radius-l, 12px)',
+-    border: `1px dashed ${
+-      isDark ? 'hsl(260, 5%, 25%)' : 'hsl(0, 0%, 85%)'
+-    }`,
++    border: '1px dashed var(--media-grid-empty-border)',
+   }
+@@
+   const titleStyle: React.CSSProperties = {
+     fontSize: '1.125rem',
+     fontWeight: 600,
+-    color: isDark ? 'hsl(260, 5%, 85%)' : 'hsl(0, 0%, 20%)',
++    color: 'var(--media-grid-empty-title)',
+     margin: '0 0 0.5rem 0',
+   }
+ 
+   const descStyle: React.CSSProperties = {
+     fontSize: '0.875rem',
+-    color: isDark ? 'hsl(260, 5%, 55%)' : 'hsl(0, 0%, 50%)',
++    color: 'var(--media-grid-empty-desc)',
+     margin: 0,
+     maxWidth: '300px',
+   }
+@@
+ export const MediaGridView: React.FC<MediaGridViewProps> = ({
+   items,
+   baseUrl = '/admin/collections/media',
+   className,
+ }) => {
+-  const [isDark, setIsDark] = useState(false)
+-
+-  useEffect(() => {
+-    // Check for Payload's dark theme attribute
+-    const checkTheme = () => {
+-      const isDarkTheme =
+-        document.documentElement.getAttribute('data-theme') === 'dark'
+-      setIsDark(isDarkTheme)
+-    }
+-
+-    checkTheme()
+-
+-    // Observer for theme changes
+-    const observer = new MutationObserver(checkTheme)
+-    observer.observe(document.documentElement, {
+-      attributes: true,
+-      attributeFilter: ['data-theme'],
+-    })
+-
+-    return () => observer.disconnect()
+-  }, [])
+-
+   const gridStyle: React.CSSProperties = {
+     display: 'grid',
+     // Responsive: 1 col mobile, 2 cols tablet (600px+), 3 cols desktop (900px+)
+     gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+     gap: '1rem',
+     padding: '1rem 0',
+   }
+ 
+   // Handle empty state
+   if (!items || items.length === 0) {
+-    return <EmptyState isDark={isDark} />
++    return <EmptyState />
+   }
+@@
+       {items.map((item) => (
+         <MediaThumbnail
+           key={item.id}
+           item={item}
+           baseUrl={baseUrl}
+-          isDark={isDark}
+         />
+       ))}
+*** End Patch
+2026-01-15T00:58:35.831359Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/app/api/puck/media/route.ts
+@@
+-import { NextResponse } from 'next/server'
++import { NextResponse } from 'next/server'
++import { headers } from 'next/headers'
+@@
+ interface MediaListItem {
+   id: string
+   title: string
+   description: string
+@@
+   thumbnailUrl?: string
+ }
+ 
++const rateLimitMap = new Map<string, { count: number; timestamp: number }>()
++const RATE_LIMIT = 60 // requests per minute
++const WINDOW_MS = 60_000 // 1 minute
++
++function checkRateLimit(ip: string): boolean {
++  const now = Date.now()
++  const record = rateLimitMap.get(ip)
++
++  if (!record || now - record.timestamp > WINDOW_MS) {
++    rateLimitMap.set(ip, { count: 1, timestamp: now })
++    return true
++  }
++
++  if (record.count >= RATE_LIMIT) {
++    return false
++  }
++
++  record.count += 1
++  return true
++}
++
+ /**
+  * GET /api/puck/media
+@@
+ export async function GET(request: Request): Promise<NextResponse> {
+   try {
++    const headersList = headers()
++    const forwardedFor = headersList.get('x-forwarded-for')
++    const ip = forwardedFor?.split(',')[0]?.trim() || headersList.get('x-real-ip') || 'unknown'
++
++    if (!checkRateLimit(ip)) {
++      return NextResponse.json(
++        { error: 'Rate limit exceeded. Try again later.' },
++        { status: 429 }
++      )
++    }
++
+     const { searchParams } = new URL(request.url)
+     const query = searchParams.get('query') || ''
+     const folder = searchParams.get('folder') || ''
+-    const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100)
++    const limitParam = searchParams.get('limit')
++    const parsedLimit = limitParam ? parseInt(limitParam, 10) : 50
++    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0
++      ? Math.min(parsedLimit, 100)
++      : 50
++    const pageParam = searchParams.get('page')
++    const parsedPage = pageParam ? parseInt(pageParam, 10) : 1
++    const page = Number.isFinite(parsedPage) && parsedPage > 0
++      ? parsedPage
++      : 1
+ 
+     const payload = await getPayload({ config })
+@@
+     const { docs } = await (payload as any).find({
+       collection: 'media',
+       where: Object.keys(whereConditions).length > 0 ? whereConditions : undefined,
+       limit,
++      page,
+       sort: '-createdAt', // Most recent first
+     })
+*** End Patch
+2026-01-15T00:58:53.548448Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"thumbnailUrl\" apps/knearme-portfolio/src","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:59:00.572343Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/types/puck.ts
+@@
+ export interface MediaRef {
+   id: string
+   url: string
+   alt: string
+   width?: number
+   height?: number
++  thumbnailUrl?: string
++  mimeType?: string
++  filename?: string
+ }
+*** End Patch
+2026-01-15T00:59:29.314738Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"interface MediaRef\" apps/knearme-portfolio/src","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:59:43.930203Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"KeyboardEvent\" apps/knearme-portfolio/src/components/puck/Testimonials.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T00:59:51.554520Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/components/puck/Testimonials.tsx
+@@
+-import { useCallback, useEffect, useRef, useState } from 'react'
++import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+@@
+-    (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
++    (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+*** End Patch
+2026-01-15T01:00:02.763261Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"MediaRef\" apps/knearme-portfolio/src/components/puck","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:00:26.404240Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/components/puck/Testimonials.tsx
+@@
+-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
++import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type Ref } from 'react'
+@@
+-  cardRef?: React.Ref<HTMLQuoteElement>
++  cardRef?: Ref<HTMLQuoteElement>
+*** End Patch
+2026-01-15T01:00:30.490410Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"React\" apps/knearme-portfolio/src/components/puck/Hero.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:01:15.839736Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/lib/puck/config.tsx
+@@
+-          defaultItemProps: { icon: 'star', title: 'Feature', description: 'Feature description' },
++          defaultItemProps: { icon: 'star', title: 'Feature', description: 'Feature description', featured: false },
+*** End Patch
+2026-01-15T01:01:44.507245Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/payload/components/common/StatusBadge.tsx
+@@
+- * Displays a colored badge with dot indicator for content status.
+- * Automatically adapts to light/dark theme via CSS media query detection.
++ * Displays a colored badge with dot indicator for content status.
++ * Automatically adapts to light/dark theme via CSS variables.
+  */
+ export const StatusBadge: React.FC<StatusBadgeProps> = ({
+*** End Patch
+2026-01-15T01:01:55.445484Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/payload/components/media/MediaGridView.tsx
+@@
+  * - Hover overlay with filename and file size
+  * - Click navigates to media detail page
+  * - Empty state with helpful message
+- * - Dark mode support via Payload theme detection
++ * - Dark mode support via CSS variables
+@@
+  * Displays media items in a responsive thumbnail grid.
+- * Automatically adapts to light/dark theme via CSS media query detection.
++ * Automatically adapts to light/dark theme via CSS variables.
+  */
+ export const MediaGridView: React.FC<MediaGridViewProps> = ({
+*** End Patch
+2026-01-15T01:02:09.005310Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"data-payload-admin\" apps/knearme-portfolio","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:03:10.658805Z  INFO codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+*** Update File: /Users/aaronbaker/knearme-workspace/apps/knearme-portfolio/src/app/api/puck/media/route.ts
+@@
+  * Query Parameters:
+  * - query: Search term (searches alt text, filename, caption)
+  * - folder: Filter by folder
+  * - limit: Number of results (default: 50, max: 100)
++ * - page: Page number (default: 1)
+@@
+  * - query: Search term (optional)
+  * - folder: Filter by folder (optional)
+  * - limit: Max results (optional, default 50)
++ * - page: Page number (optional, default 1)
+*** End Patch
+2026-01-15T01:03:46.932107Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"ImageGalleryBlockProps\" -n apps/knearme-portfolio/src/types/puck.ts","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:03:49.557103Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '250,290p' apps/knearme-portfolio/src/types/puck.ts","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:05:41.661706Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,260p' apps/knearme-portfolio/src/components/puck/Testimonials.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:05:46.013545Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '260,520p' apps/knearme-portfolio/src/components/puck/Testimonials.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:05:50.935034Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,240p' apps/knearme-portfolio/src/payload/components/media/MediaGridView.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:05:55.653299Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,200p' apps/knearme-portfolio/src/payload/components/common/StatusBadge.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:06:01.765177Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '150,260p' \"apps/knearme-portfolio/src/app/(payload)/custom.scss\"","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:06:07.579000Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '260,380p' \"apps/knearme-portfolio/src/app/(payload)/custom.scss\"","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:06:13.509529Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '560,680p' \"apps/knearme-portfolio/src/app/(payload)/custom.scss\"","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:06:17.904389Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1140,1215p' apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:06:22.782958Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1810,1895p' apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:06:26.112422Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1220,1315p' apps/knearme-portfolio/src/lib/puck/config.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:06:29.131306Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"featured\" apps/knearme-portfolio/src/components/puck/FeaturesGrid.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:06:34.148156Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"isColorDark\" apps/knearme-portfolio/src/components/puck/Hero.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:06:37.228564Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"isColorDark\" apps/knearme-portfolio/src/components/puck/CTABanner.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:06:43.149651Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '1,200p' \"apps/knearme-portfolio/src/app/api/puck/media/route.ts\"","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:06:49.508720Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"onMouseEnter|onMouseLeave\" apps/knearme-portfolio/src/components/puck/PricingTable.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:06:52.786186Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"sed -n '80,200p' apps/knearme-portfolio/src/components/puck/PricingTable.tsx","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:07:04.080863Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"rg -n \"PayloadMediaRef\" apps/knearme-portfolio/src","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:08:58.867974Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"git status -sb","workdir":"/Users/aaronbaker/knearme-workspace"}
+2026-01-15T01:36:06.792215Z  INFO codex_core::stream_events_utils: ToolCall: shell_command {"command":"npm run lint","workdir":"/Users/aaronbaker/knearme-workspace/apps/knearme-portfolio"}

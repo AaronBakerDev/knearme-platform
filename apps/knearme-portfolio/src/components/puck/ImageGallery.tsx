@@ -20,18 +20,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { X, ChevronLeft, ChevronRight } from 'lucide-react'
-
-/**
- * MediaRef interface matching the Puck config
- * @see src/lib/puck/config.tsx for the canonical definition
- */
-export interface MediaRef {
-  id: string
-  url: string
-  alt?: string
-  width?: number
-  height?: number
-}
+import type { MediaRef } from '@/types/puck'
 
 export interface PuckImageGalleryProps {
   /** Array of images from Payload Media */
